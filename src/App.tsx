@@ -11,6 +11,7 @@ import Gallery from "./pages/Gallery";
 import Travel from "./pages/Travel";
 import Contact from "./pages/Contact";
 import NotFound from "./pages/NotFound";
+import ManageVideos from "./pages/ManageVideos";
 
 const queryClient = new QueryClient();
 
@@ -28,6 +29,7 @@ const App = () => (
             <Route path="/gallery" element={<Gallery />} />
             <Route path="/travel" element={<Travel />} />
             <Route path="/contact" element={<Contact />} />
+            <Route path="/manage-videos" element={<ManageVideos />} />
           </Route>
           <Route path="*" element={<NotFound />} />
         </Routes>

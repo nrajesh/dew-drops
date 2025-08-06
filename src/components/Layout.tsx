@@ -1,5 +1,5 @@
 import { NavLink, Outlet } from "react-router-dom";
-import { Home, Newspaper, Youtube, Image, Map, Mail, Menu } from "lucide-react";
+import { Home, Newspaper, Youtube, Image, Map, Mail, Menu, Settings } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { ThemeToggle } from "./ThemeToggle";
@@ -12,6 +12,7 @@ const navItems = [
   { to: "/gallery", icon: Image, label: "Gallery" },
   { to: "/travel", icon: Map, label: "Travel" },
   { to: "/contact", icon: Mail, label: "Contact" },
+  { to: "/manage-videos", icon: Settings, label: "Manage Videos" },
 ];
 
 const NavContent = ({ onLinkClick }: { onLinkClick?: () => void }) => (
