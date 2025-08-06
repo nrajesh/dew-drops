@@ -1,17 +1,25 @@
-// Update this page (the content is just a fallback if you fail to update the page)
-
-import { MadeWithDyad } from "@/components/made-with-dyad";
+import { Button } from "@/components/ui/button";
+import { Link } from "react-router-dom";
 
 const Index = () => {
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-100">
-      <div className="text-center">
-        <h1 className="text-4xl font-bold mb-4">Welcome to Your Blank App</h1>
-        <p className="text-xl text-gray-600">
-          Start building your amazing project here!
+    <div className="flex h-full flex-col items-center justify-center text-center gap-6">
+      <div className="space-y-4">
+        <h1 className="text-4xl font-bold tracking-tighter sm:text-5xl md:text-6xl">
+          Welcome to My Creative Space
+        </h1>
+        <p className="max-w-[700px] text-muted-foreground md:text-xl">
+          A curated collection of my professional work, personal projects, and travels. Explore my blog, watch my videos, and get in touch.
         </p>
       </div>
-      <MadeWithDyad />
+      <div className="flex gap-4">
+        <Button asChild>
+          <Link to="/blog">Explore My Work</Link>
+        </Button>
+        <Button variant="secondary" asChild>
+          <Link to="/contact">Contact Me</Link>
+        </Button>
+      </div>
     </div>
   );
 };
