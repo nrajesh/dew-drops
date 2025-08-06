@@ -1,5 +1,5 @@
 import { NavLink, Outlet } from "react-router-dom";
-import { Home, Newspaper, Youtube, Image, Map, Mail, Menu, Settings } from "lucide-react";
+import { Home, Newspaper, Youtube, Image, Map, Mail, Menu, Settings, MapPin } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { ThemeToggle } from "./ThemeToggle";
@@ -12,28 +12,54 @@ const navItems = [
   { to: "/gallery", icon: Image, label: "Gallery" },
   { to: "/travel", icon: Map, label: "Travel" },
   { to: "/contact", icon: Mail, label: "Contact" },
+];
+
+const managementItems = [
   { to: "/manage-videos", icon: Settings, label: "Manage Videos" },
+  { to: "/manage-travel", icon: MapPin, label: "Manage Travel" },
 ];
 
 const NavContent = ({ onLinkClick }: { onLinkClick?: () => void }) => (
-  <nav className="grid items-start px-2 text-sm font-medium lg:px-4">
-    {navItems.map((item) => (
-      <NavLink
-        key={item.to}
-        to={item.to}
-        onClick={onLinkClick}
-        end={item.to === "/"}
-        className={({ isActive }) =>
-          `flex items-center gap-3 rounded-lg px-3 py-2 transition-all hover:text-primary ${
-            isActive ? "bg-muted text-primary" : "text-muted-foreground"
-          }`
-        }
-      >
-        <item.icon className="h-4 w-4" />
-        {item.label}
-      </NavLink>
-    ))}
-  </nav>
+  <>
+    <nav className="grid items-start px-2 text-sm font-medium lg:px-4">
+      {navItems.map((item) => (
+        <NavLink
+          key={item.to}
+          to={item.to}
+          onClick={onLinkClick}
+          end={item.to === "/"}
+          className={({ isActive }) =>
+            `flex items-center gap-3 rounded-lg px-3 py-2 transition-all hover:text-primary ${
+              isActive ? "bg-muted text-primary" : "text-muted-foreground"
+            }`
+          }
+        >
+          <item.icon className="h-4 w-4" />
+          {item.label}
+        </NavLink>
+      ))}
+    </nav>
+    <div className="mt-4 px-4 lg:px-6">
+        <h3 className="mb-2 text-xs font-semibold uppercase text-muted-foreground tracking-wider">Management</h3>
+    </div>
+    <nav className="grid items-start px-2 text-sm font-medium lg:px-4">
+      {managementItems.map((item) => (
+        <NavLink
+          key={item.to}
+          to={item.to}
+          onClick={onLinkClick}
+          className={({ isActive }) =>
+            `flex items-center gap-3 rounded-lg px-3 py-2 transition-all hover:text-primary ${
+              isActive ? "bg-muted text-primary" : "text-muted-foreground"
+            }`
+          }
+        >
+          <item.icon className="h-4 w-4" />
+          {item.label}
+        </NavLink>
+      ))}
+    </nav>
+  </>
 );
 
 const Layout = () => {

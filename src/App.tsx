@@ -12,6 +12,8 @@ import Travel from "./pages/Travel";
 import Contact from "./pages/Contact";
 import NotFound from "./pages/NotFound";
 import ManageVideos from "./pages/ManageVideos";
+import ManageTravel from "./pages/ManageTravel";
+import { TravelProvider } from "./contexts/TravelContext";
 
 const queryClient = new QueryClient();
 
@@ -21,18 +23,21 @@ const App = () => (
       <Toaster />
       <Sonner />
       <BrowserRouter>
-        <Routes>
-          <Route element={<Layout />}>
-            <Route path="/" element={<Index />} />
-            <Route path="/blog" element={<Blog />} />
-            <Route path="/videos" element={<Videos />} />
-            <Route path="/gallery" element={<Gallery />} />
-            <Route path="/travel" element={<Travel />} />
-            <Route path="/contact" element={<Contact />} />
-            <Route path="/manage-videos" element={<ManageVideos />} />
-          </Route>
-          <Route path="*" element={<NotFound />} />
-        </Routes>
+        <TravelProvider>
+          <Routes>
+            <Route element={<Layout />}>
+              <Route path="/" element={<Index />} />
+              <Route path="/blog" element={<Blog />} />
+              <Route path="/videos" element={<Videos />} />
+              <Route path="/gallery" element={<Gallery />} />
+              <Route path="/travel" element={<Travel />} />
+              <Route path="/contact" element={<Contact />} />
+              <Route path="/manage-videos" element={<ManageVideos />} />
+              <Route path="/manage-travel" element={<ManageTravel />} />
+            </Route>
+            <Route path="*" element={<NotFound />} />
+          </Routes>
+        </TravelProvider>
       </BrowserRouter>
     </TooltipProvider>
   </QueryClientProvider>
