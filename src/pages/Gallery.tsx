@@ -2,20 +2,19 @@ import { Card, CardContent } from "@/components/ui/card";
 import { AspectRatio } from "@/components/ui/aspect-ratio";
 
 // To add your own images:
-// 1. Create a 'gallery' folder inside the 'public' directory.
-// 2. Place your image files (e.g., my-photo.jpg) inside 'public/gallery'.
-// 3. Add a new entry to the 'images' array below, like:
+// 1. Place your image files (e.g., my-photo.jpg) inside the 'public/gallery' folder.
+// 2. Add a new entry to the 'images' array below, like:
 //    { src: "/gallery/my-photo.jpg", alt: "A description of my photo" }
 
 const images = [
-  // Note: These are placeholder paths. You need to add your own images.
-  // I've used a real placeholder image from your public folder to show how it works.
-  { src: "/placeholder.svg", alt: "A placeholder image" },
-  { src: "/placeholder.svg", alt: "Another placeholder image" },
-  { src: "/placeholder.svg", alt: "Yet another placeholder image" },
-  { src: "/placeholder.svg", alt: "You get the idea" },
-  { src: "/placeholder.svg", alt: "Add your own images" },
-  { src: "/placeholder.svg", alt: "In the public/gallery folder" },
+  // I've updated the paths to look inside the '/gallery' folder.
+  // Add your own images to 'public/gallery' and update this list.
+  { src: "/gallery/placeholder.svg", alt: "A placeholder image" },
+  { src: "/gallery/placeholder.svg", alt: "Another placeholder image" },
+  { src: "/gallery/placeholder.svg", alt: "Yet another placeholder image" },
+  { src: "/gallery/placeholder.svg", alt: "You get the idea" },
+  { src: "/gallery/placeholder.svg", alt: "Add your own images" },
+  { src: "/gallery/placeholder.svg", alt: "In the public/gallery folder" },
 ];
 
 const Gallery = () => {
@@ -27,7 +26,7 @@ const Gallery = () => {
       </div>
       <div className="p-4 border-dashed border-2 rounded-lg bg-muted/50">
         <p className="text-sm text-muted-foreground text-center mb-4">
-          <strong>How to add your photos:</strong> Create a <code>public/gallery</code> folder, add your images there, and then update the list in the <code>src/pages/Gallery.tsx</code> file.
+          <strong>How to add your photos:</strong> Add your images to the <code>public/gallery</code> folder, and then update the list in this file.
         </p>
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
           {images.map((image, index) => (
