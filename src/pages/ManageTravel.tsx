@@ -31,6 +31,7 @@ const ManageTravel = () => {
       country: "",
       dateVisited: "",
       description: "",
+      blogUrl: "",
     },
   });
 
@@ -52,6 +53,7 @@ const ManageTravel = () => {
     form.setValue("country", location.country);
     form.setValue("dateVisited", location.dateVisited || "");
     form.setValue("description", location.description);
+    form.setValue("blogUrl", location.blogUrl || "");
   };
 
   const handleDelete = (id: string) => {
@@ -122,6 +124,19 @@ const ManageTravel = () => {
                   </FormItem>
                 )}
               />
+              <FormField
+                control={form.control}
+                name="blogUrl"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Blog Post URL (Optional)</FormLabel>
+                    <FormControl>
+                      <Input placeholder="/blog/my-awesome-trip" {...field} value={field.value ?? ''} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
               <div className="flex gap-2">
                 <Button type="submit">{editingId ? "Update Location" : "Add Location"}</Button>
                 {editingId && <Button variant="outline" onClick={cancelEdit}>Cancel</Button>}
@@ -134,7 +149,7 @@ const ManageTravel = () => {
         <CardHeader>
           <CardTitle>Travel Log</CardTitle>
           <CardDescription>Your current list of visited places.</CardDescription>
-        </CardHeader>
+        </Header>
         <CardContent>
           <div className="space-y-4">
             {locations.length > 0 ? (

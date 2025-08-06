@@ -1,6 +1,7 @@
 import { useTravel } from "@/contexts/TravelContext";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { MapPin } from "lucide-react";
+import { Link } from "react-router-dom";
 
 const Travel = () => {
   const { locations } = useTravel();
@@ -15,20 +16,17 @@ const Travel = () => {
       <div className="text-center">
         <h1 className="text-3xl font-bold">Travel Map</h1>
         <p className="text-muted-foreground">
-          Click on a card to see the location on Google Maps! For now, here's a list of places I've been.
+          Click a card to read the blog post or view the location on Google Maps.
         </p>
       </div>
 
       {locations.length > 0 ? (
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-          {locations.map((location) => (
-            <a
-              key={location.id}
-              href={createGoogleMapsUrl(location.city, location.country)}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="block"
-            >
+          {locations.map((location) => {
+            const hasBlogUrl = location.blogUrl && location.blogUrl.trim() !== '';
+            const isInternalLink = hasBlogUrl && location.blogUrl!.startsWith('/');
+            
+            const card = (
               <Card className="h-full transition-all hover:shadow-md hover:border-primary/50">
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
@@ -41,8 +39,30 @@ const Travel = () => {
                   <p className="text-muted-foreground">{location.description}</p>
                 </CardContent>
               </Card>
-            </a>
-          ))}
+            );
+
+            if (isInternalLink) {
+              return (
+                <Link key={location.id} to={location.blogUrl!} className="block">
+                  {card}
+                </Link>
+              );
+            }
+
+            const href = hasBlogUrl ? location.blogUrl! : createGoogleMapsUrl(location.city, location.country);
+
+            return (
+              <a
+                key={location.id}
+                href={href}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="block"
+              >
+                {card}
+              </a>
+            );
+          })}
         </div>
       ) : (
         <div className="text-center py-10 border rounded-lg bg-muted">

@@ -8,6 +8,7 @@ export const travelLocationSchema = z.object({
   country: z.string().min(2, "Country must be at least 2 characters."),
   dateVisited: z.string().optional(), // Using string for simplicity, can be a date
   description: z.string().min(10, "Description must be at least 10 characters.").max(500),
+  blogUrl: z.string().url({ message: "Please enter a valid URL." }).optional().or(z.literal('')),
 });
 
 export type TravelLocation = z.infer<typeof travelLocationSchema>;
@@ -20,6 +21,7 @@ const initialTravelLocations: TravelLocation[] = [
     country: 'Japan',
     dateVisited: 'April 2023',
     description: 'Visited during the cherry blossom season. Absolutely breathtaking scenery and historic temples.',
+    blogUrl: '/blog',
   },
   {
     id: '2',
@@ -27,6 +29,7 @@ const initialTravelLocations: TravelLocation[] = [
     country: 'Italy',
     dateVisited: 'June 2022',
     description: 'Explored the Colosseum, Roman Forum, and ate way too much pasta. A city steeped in history.',
+    blogUrl: '',
   },
 ];
 
