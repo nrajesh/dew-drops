@@ -4,6 +4,8 @@ import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { ThemeToggle } from "./ThemeToggle";
 import { useState } from "react";
+import { Toaster } from "@/components/ui/toaster";
+import { Toaster as Sonner } from "@/components/ui/sonner";
 
 const navItems = [
   { to: "/", icon: Home, label: "Home" },
@@ -68,53 +70,57 @@ const Layout = () => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   return (
-    <div className="grid min-h-screen w-full md:grid-cols-[220px_1fr] lg:grid-cols-[280px_1fr]">
-      <div className="hidden border-r bg-sidebar md:block">
-        <div className="flex h-full max-h-screen flex-col">
-          <div className="flex h-14 items-center border-b border-sidebar-border px-4 lg:h-[60px] lg:px-6">
-            <NavLink to="/" className="flex items-center gap-2 font-semibold text-sidebar-foreground">
-              <span className="">My Portfolio</span>
-            </NavLink>
-          </div>
-          <div className="flex-1 overflow-auto py-2">
-            <NavContent />
+    <>
+      <div className="grid min-h-screen w-full md:grid-cols-[220px_1fr] lg:grid-cols-[280px_1fr]">
+        <div className="hidden border-r bg-sidebar md:block">
+          <div className="flex h-full max-h-screen flex-col">
+            <div className="flex h-14 items-center border-b border-sidebar-border px-4 lg:h-[60px] lg:px-6">
+              <NavLink to="/" className="flex items-center gap-2 font-semibold text-sidebar-foreground">
+                <span className="">My Portfolio</span>
+              </NavLink>
+            </div>
+            <div className="flex-1 overflow-auto py-2">
+              <NavContent />
+            </div>
           </div>
         </div>
+        <div className="flex flex-col">
+          <header className="flex h-14 items-center gap-4 border-b bg-background px-4 md:px-6 lg:h-[60px]">
+            <Sheet open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>
+              <SheetTrigger asChild>
+                <Button variant="outline" size="icon" className="shrink-0 md:hidden">
+                  <Menu className="h-5 w-5" />
+                  <span className="sr-only">Toggle navigation menu</span>
+                </Button>
+              </SheetTrigger>
+              <SheetContent side="left" className="flex flex-col bg-sidebar p-0">
+                <div className="flex h-14 items-center border-b border-sidebar-border px-4">
+                  <NavLink
+                    to="/"
+                    className="flex items-center gap-2 font-semibold text-sidebar-foreground"
+                    onClick={() => setMobileMenuOpen(false)}
+                  >
+                    <span>My Portfolio</span>
+                  </NavLink>
+                </div>
+                <div className="flex-1 overflow-auto py-2">
+                  <NavContent onLinkClick={() => setMobileMenuOpen(false)} />
+                </div>
+              </SheetContent>
+            </Sheet>
+            <div className="w-full flex-1">
+              {/* Future content like breadcrumbs can go here */}
+            </div>
+            <ThemeToggle />
+          </header>
+          <main className="flex-1 overflow-auto p-4 md:p-8">
+            <Outlet />
+          </main>
+        </div>
       </div>
-      <div className="flex flex-col">
-        <header className="flex h-14 items-center gap-4 border-b bg-background px-4 md:px-6 lg:h-[60px]">
-          <Sheet open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>
-            <SheetTrigger asChild>
-              <Button variant="outline" size="icon" className="shrink-0 md:hidden">
-                <Menu className="h-5 w-5" />
-                <span className="sr-only">Toggle navigation menu</span>
-              </Button>
-            </SheetTrigger>
-            <SheetContent side="left" className="flex flex-col bg-sidebar p-0">
-              <div className="flex h-14 items-center border-b border-sidebar-border px-4">
-                <NavLink
-                  to="/"
-                  className="flex items-center gap-2 font-semibold text-sidebar-foreground"
-                  onClick={() => setMobileMenuOpen(false)}
-                >
-                  <span>My Portfolio</span>
-                </NavLink>
-              </div>
-              <div className="flex-1 overflow-auto py-2">
-                <NavContent onLinkClick={() => setMobileMenuOpen(false)} />
-              </div>
-            </SheetContent>
-          </Sheet>
-          <div className="w-full flex-1">
-            {/* Future content like breadcrumbs can go here */}
-          </div>
-          <ThemeToggle />
-        </header>
-        <main className="flex-1 overflow-auto p-4 md:p-8">
-          <Outlet />
-        </main>
-      </div>
-    </div>
+      <Toaster />
+      <Sonner />
+    </>
   );
 };
 
