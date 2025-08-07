@@ -6,7 +6,7 @@ import { ThemeProvider } from "./components/ThemeProvider.tsx";
 
 createRoot(document.getElementById("root")!).render(
   <React.StrictMode>
-    <ThemeProvider defaultTheme="dark" storageKey="portfolio-theme">
+    <ThemeProvider defaultTheme="light" storageKey="portfolio-theme">
       <App />
     </ThemeProvider>
   </React.StrictMode>,
