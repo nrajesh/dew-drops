@@ -14,18 +14,18 @@ const queryClient = new QueryClient();
 
 createRoot(document.getElementById("root")!).render(
   <React.StrictMode>
-    <ThemeProvider defaultTheme="light" storageKey="portfolio-theme">
-      <QueryClientProvider client={queryClient}>
-        <TooltipProvider>
-          <Toaster />
-          <Sonner />
-          <BrowserRouter>
+    <BrowserRouter>
+      <ThemeProvider defaultTheme="light" storageKey="portfolio-theme">
+        <QueryClientProvider client={queryClient}>
+          <TooltipProvider>
             <TravelProvider>
               <App />
             </TravelProvider>
-          </BrowserRouter>
-        </TooltipProvider>
-      </QueryClientProvider>
-    </ThemeProvider>
-  </React.StrictMode>,
+          </TooltipProvider>
+        </QueryClientProvider>
+      </ThemeProvider>
+      <Toaster />
+      <Sonner />
+    </BrowserRouter>
+  </React.StrictMode>
 );
