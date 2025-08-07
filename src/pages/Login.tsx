@@ -47,7 +47,7 @@ const Login = () => {
                     inputLabelText: 'hsl(var(--foreground))',
                     inputPlaceholder: 'hsl(var(--muted-foreground))',
                     messageText: 'hsl(var(--muted-foreground))',
-                    messageTextDanger: 'hsl(var(--destructive-foreground))',
+                    messageTextDanger: '#000',
                     anchorTextColor: 'hsl(var(--foreground))',
                     anchorTextHoverColor: 'hsl(var(--primary))',
                   },
