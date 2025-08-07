@@ -18,7 +18,7 @@ import { useState, useEffect } from "react";
 import { Trash2, Edit } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import type { Post } from "@/types";
-import type { Session } from "@supabase/supabase-js";
+import { useAuth } from "@/contexts/AuthProvider";
 
 const postSchema = z.object({
   title: z.string().min(3, { message: "Title must be at least 3 characters." }),
@@ -30,14 +30,9 @@ const postSchema = z.object({
 const ManageBlog = () => {
   const [posts, setPosts] = useState<Post[]>([]);
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [session, setSession] = useState<Session | null>(null);
+  const { session } = useAuth();
 
   useEffect(() => {
-    const getSession = async () => {
-      const { data } = await supabase.auth.getSession();
-      setSession(data.session);
-    };
-    getSession();
     fetchPosts();
   }, []);
 
@@ -126,19 +121,6 @@ const ManageBlog = () => {
   const cancelEdit = () => {
     setEditingId(null);
     form.reset();
-  }
-
-  if (!session) {
-    return (
-      <Card>
-        <CardHeader>
-          <CardTitle>Admin Access Required</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <p>Please log in to manage blog posts. I can help you set up authentication if you'd like!</p>
-        </CardContent>
-      </Card>
-    )
   }
 
   return (

@@ -1,0 +1,40 @@
+import { Auth } from '@supabase/auth-ui-react';
+import { ThemeSupa } from '@supabase/auth-ui-shared';
+import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/contexts/AuthProvider';
+import { useNavigate } from 'react-router-dom';
+import { useEffect } from 'react';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+
+const Login = () => {
+  const { session } = useAuth();
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    if (session) {
+      navigate('/manage-blog');
+    }
+  }, [session, navigate]);
+
+  return (
+    <div className="flex justify-center items-center min-h-screen bg-background p-4">
+      <Card className="w-full max-w-md">
+        <CardHeader className="text-center">
+          <CardTitle>Admin Access</CardTitle>
+          <CardDescription>Sign in to manage your portfolio content.</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <Auth
+            supabaseClient={supabase}
+            appearance={{ theme: ThemeSupa }}
+            providers={[]}
+            theme="light"
+            redirectTo={`${window.location.origin}/manage-blog`}
+          />
+        </CardContent>
+      </Card>
+    </div>
+  );
+};
+
+export default Login;
