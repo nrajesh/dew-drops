@@ -26,7 +26,38 @@ const Login = () => {
         <CardContent>
           <Auth
             supabaseClient={supabase}
-            appearance={{ theme: ThemeSupa }}
+            appearance={{
+              theme: ThemeSupa,
+              variables: {
+                default: {
+                  colors: {
+                    brand: 'hsl(var(--primary))',
+                    brandAccent: 'hsl(var(--primary))',
+                    brandButtonText: 'hsl(var(--primary-foreground))',
+                    defaultButtonBackground: 'hsl(var(--secondary))',
+                    defaultButtonBackgroundHover: 'hsl(var(--secondary) / 0.8)',
+                    defaultButtonBorder: 'hsl(var(--border))',
+                    defaultButtonText: 'hsl(var(--secondary-foreground))',
+                    dividerBackground: 'hsl(var(--border))',
+                    inputBackground: 'hsl(var(--input))',
+                    inputBorder: 'hsl(var(--border))',
+                    inputBorderHover: 'hsl(var(--ring))',
+                    inputBorderFocus: 'hsl(var(--ring))',
+                    inputText: 'hsl(var(--foreground))',
+                    inputLabelText: 'hsl(var(--foreground))',
+                    inputPlaceholder: 'hsl(var(--muted-foreground))',
+                    messageText: 'hsl(var(--muted-foreground))',
+                    messageTextDanger: 'hsl(var(--destructive-foreground))',
+                    anchorTextColor: 'hsl(var(--foreground))',
+                    anchorTextHoverColor: 'hsl(var(--primary))',
+                  },
+                  radii: {
+                    borderRadiusButton: 'var(--radius)',
+                    inputBorderRadius: 'var(--radius)',
+                  }
+                },
+              },
+            }}
             providers={[]}
             theme="light"
             redirectTo={`${window.location.origin}/manage-blog`}
