@@ -30,6 +30,8 @@ const Login = () => {
             providers={[]}
             theme="light"
             redirectTo={`${window.location.origin}/manage-blog`}
+            view="sign_in"
+            showLinks={false}
           />
         </CardContent>
       </Card>
