@@ -4,41 +4,7 @@
 
 @layer base {
   :root {
-    /* Black Honeycomb Theme (default) */
-    --background: 240 10% 4%;
-    --foreground: 210 40% 98%;
-    --card: 240 10% 9%;
-    --card-foreground: 210 40% 98%;
-    --popover: 240 10% 4%;
-    --popover-foreground: 210 40% 98%;
-    --primary: 45 95% 58%;
-    --primary-foreground: 45 95% 15%;
-    --secondary: 240 5% 15%;
-    --secondary-foreground: 210 40% 98%;
-    --muted: 240 5% 15%;
-    --muted-foreground: 215 20.2% 65.1%;
-    --accent: 240 5% 20%;
-    --accent-foreground: 210 40% 98%;
-    --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 210 40% 98%;
-    --border: 240 5% 15%;
-    --input: 240 5% 15%;
-    --ring: 45 95% 58%;
-    --radius: 0.5rem;
-
-    /* Sidebar variables for default theme */
-    --sidebar-background: 210 40% 100%; /* white */
-    --sidebar-foreground: 220 10% 20%; /* dark text */
-    --sidebar-primary: 45 95% 58%; /* yellow */
-    --sidebar-primary-foreground: 45 95% 15%; /* dark text on yellow */
-    --sidebar-accent: 45 95% 85%; /* light yellow for hover */
-    --sidebar-accent-foreground: 45 95% 15%; /* dark text for hover */
-    --sidebar-border: 214.3 31.8% 91.4%;
-    --sidebar-ring: 45 95% 58%;
-  }
-
-  .dark {
-    /* Original Light Theme (now the alternative) */
+    /* Light Theme (default) */
     --background: 210 40% 98%;
     --foreground: 220 10% 20%;
     --card: 210 40% 100%;
@@ -58,8 +24,9 @@
     --border: 214.3 31.8% 91.4%;
     --input: 214.3 31.8% 91.4%;
     --ring: 217 91% 60%;
+    --radius: 0.5rem;
 
-    /* Sidebar variables for alternative theme */
+    /* Sidebar variables for light theme */
     --sidebar-background: 210 40% 100%;
     --sidebar-foreground: 220 10% 20%;
     --sidebar-primary: 217 91% 60%;
@@ -68,6 +35,39 @@
     --sidebar-accent-foreground: 222.2 47.4% 11.2%;
     --sidebar-border: 214.3 31.8% 91.4%;
     --sidebar-ring: 217 91% 60%;
+  }
+
+  .dark {
+    /* Dark Theme */
+    --background: 240 10% 4%;
+    --foreground: 210 40% 98%;
+    --card: 240 10% 9%;
+    --card-foreground: 210 40% 98%;
+    --popover: 240 10% 4%;
+    --popover-foreground: 210 40% 98%;
+    --primary: 45 95% 58%;
+    --primary-foreground: 45 95% 15%;
+    --secondary: 240 5% 15%;
+    --secondary-foreground: 210 40% 98%;
+    --muted: 240 5% 15%;
+    --muted-foreground: 215 20.2% 65.1%;
+    --accent: 240 5% 20%;
+    --accent-foreground: 210 40% 98%;
+    --destructive: 0 62.8% 30.6%;
+    --destructive-foreground: 210 40% 98%;
+    --border: 240 5% 15%;
+    --input: 240 5% 15%;
+    --ring: 45 95% 58%;
+
+    /* Sidebar variables for dark theme */
+    --sidebar-background: 240 10% 9%;
+    --sidebar-foreground: 210 40% 98%;
+    --sidebar-primary: 45 95% 58%;
+    --sidebar-primary-foreground: 45 95% 15%;
+    --sidebar-accent: 240 5% 20%;
+    --sidebar-accent-foreground: 210 40% 98%;
+    --sidebar-border: 240 5% 15%;
+    --sidebar-ring: 45 95% 58%;
   }
 }
 
