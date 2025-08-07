@@ -2,6 +2,7 @@ import { useTravel } from "@/contexts/TravelContext";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { MapPin } from "lucide-react";
 import { Link } from "react-router-dom";
+import Map from "@/components/Map";
 
 const Travel = () => {
   const { locations } = useTravel();
@@ -16,9 +17,11 @@ const Travel = () => {
       <div className="text-center">
         <h1 className="text-3xl font-bold">Travel Map</h1>
         <p className="text-muted-foreground">
-          Click a card to read the blog post or view the location on Google Maps.
+          Explore my travels on the map below, or click a card to learn more.
         </p>
       </div>
+
+      <Map locations={locations} />
 
       {locations.length > 0 ? (
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">

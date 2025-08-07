@@ -6,19 +6,23 @@ export const travelLocationSchema = z.object({
   id: z.string(),
   city: z.string().min(2, "City must be at least 2 characters."),
   country: z.string().min(2, "Country must be at least 2 characters."),
-  dateVisited: z.string().optional(), // Using string for simplicity, can be a date
+  latitude: z.coerce.number().min(-90, "Latitude must be between -90 and 90.").max(90, "Latitude must be between -90 and 90."),
+  longitude: z.coerce.number().min(-180, "Longitude must be between -180 and 180.").max(180, "Longitude must be between -180 and 180."),
+  dateVisited: z.string().optional(),
   description: z.string().min(10, "Description must be at least 10 characters.").max(500),
   blogUrl: z.string().url({ message: "Please enter a valid URL." }).optional().or(z.literal('')),
 });
 
 export type TravelLocation = z.infer<typeof travelLocationSchema>;
 
-// Initial mock data
+// Initial mock data with coordinates
 const initialTravelLocations: TravelLocation[] = [
   {
     id: '1',
     city: 'Kyoto',
     country: 'Japan',
+    latitude: 35.0116,
+    longitude: 135.7681,
     dateVisited: 'April 2023',
     description: 'Visited during the cherry blossom season. Absolutely breathtaking scenery and historic temples.',
     blogUrl: '/blog',
@@ -27,6 +31,8 @@ const initialTravelLocations: TravelLocation[] = [
     id: '2',
     city: 'Rome',
     country: 'Italy',
+    latitude: 41.9028,
+    longitude: 12.4964,
     dateVisited: 'June 2022',
     description: 'Explored the Colosseum, Roman Forum, and ate way too much pasta. A city steeped in history.',
     blogUrl: '',

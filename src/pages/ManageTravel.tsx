@@ -29,6 +29,8 @@ const ManageTravel = () => {
     defaultValues: {
       city: "",
       country: "",
+      latitude: 0,
+      longitude: 0,
       dateVisited: "",
       description: "",
       blogUrl: "",
@@ -51,6 +53,8 @@ const ManageTravel = () => {
     setEditingId(location.id);
     form.setValue("city", location.city);
     form.setValue("country", location.country);
+    form.setValue("latitude", location.latitude);
+    form.setValue("longitude", location.longitude);
     form.setValue("dateVisited", location.dateVisited || "");
     form.setValue("description", location.description);
     form.setValue("blogUrl", location.blogUrl || "");
@@ -79,64 +83,16 @@ const ManageTravel = () => {
           <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
               <div className="grid grid-cols-2 gap-4">
-                <FormField
-                  control={form.control}
-                  name="city"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>City</FormLabel>
-                      <FormControl><Input placeholder="e.g., Kyoto" {...field} /></FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={form.control}
-                  name="country"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Country</FormLabel>
-                      <FormControl><Input placeholder="e.g., Japan" {...field} /></FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+                <FormField control={form.control} name="city" render={({ field }) => ( <FormItem> <FormLabel>City</FormLabel> <FormControl><Input placeholder="e.g., Kyoto" {...field} /></FormControl> <FormMessage /> </FormItem> )} />
+                <FormField control={form.control} name="country" render={({ field }) => ( <FormItem> <FormLabel>Country</FormLabel> <FormControl><Input placeholder="e.g., Japan" {...field} /></FormControl> <FormMessage /> </FormItem> )} />
               </div>
-              <FormField
-                control={form.control}
-                name="dateVisited"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Date Visited (Optional)</FormLabel>
-                    <FormControl><Input placeholder="e.g., April 2023" {...field} /></FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="description"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Description</FormLabel>
-                    <FormControl><Textarea placeholder="What was it like?" className="resize-none" {...field} /></FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="blogUrl"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Blog Post URL (Optional)</FormLabel>
-                    <FormControl>
-                      <Input placeholder="/blog/my-awesome-trip" {...field} value={field.value ?? ''} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+              <div className="grid grid-cols-2 gap-4">
+                <FormField control={form.control} name="latitude" render={({ field }) => ( <FormItem> <FormLabel>Latitude</FormLabel> <FormControl><Input type="number" placeholder="e.g., 35.0116" {...field} /></FormControl> <FormMessage /> </FormItem> )} />
+                <FormField control={form.control} name="longitude" render={({ field }) => ( <FormItem> <FormLabel>Longitude</FormLabel> <FormControl><Input type="number" placeholder="e.g., 135.7681" {...field} /></FormControl> <FormMessage /> </FormItem> )} />
+              </div>
+              <FormField control={form.control} name="dateVisited" render={({ field }) => ( <FormItem> <FormLabel>Date Visited (Optional)</FormLabel> <FormControl><Input placeholder="e.g., April 2023" {...field} /></FormControl> <FormMessage /> </FormItem> )} />
+              <FormField control={form.control} name="description" render={({ field }) => ( <FormItem> <FormLabel>Description</FormLabel> <FormControl><Textarea placeholder="What was it like?" className="resize-none" {...field} /></FormControl> <FormMessage /> </FormItem> )} />
+              <FormField control={form.control} name="blogUrl" render={({ field }) => ( <FormItem> <FormLabel>Blog Post URL (Optional)</FormLabel> <FormControl> <Input placeholder="/blog/my-awesome-trip" {...field} value={field.value ?? ''} /> </FormControl> <FormMessage /> </FormItem> )} />
               <div className="flex gap-2">
                 <Button type="submit">{editingId ? "Update Location" : "Add Location"}</Button>
                 {editingId && <Button variant="outline" onClick={cancelEdit}>Cancel</Button>}
