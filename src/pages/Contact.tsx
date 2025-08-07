@@ -48,12 +48,13 @@ const Contact = () => {
       dismissToast(toastId);
 
       if (error) {
-        // The Edge Function itself threw an error (e.g., network issue, function crashed)
-        throw error;
+        // The function returned a non-2xx response. The error object from Supabase contains the response.
+        const errorBody = await error.context.json();
+        throw new Error(errorBody.error || error.message);
       }
       
-      if (data.error) {
-        // The Edge Function returned a JSON with an error property (e.g., validation, API key missing)
+      if (data?.error) {
+        // The function returned 2xx but with an error payload.
         throw new Error(data.error);
       }
 
@@ -66,6 +67,8 @@ const Contact = () => {
       const errorMessage = error.message || "An unknown error occurred.";
       if (errorMessage.includes("Missing API Key")) {
         showError("Configuration needed: Please add the Resend API key to your Supabase project.");
+      } else if (errorMessage.includes("verified domains")) {
+        showError("Email configuration error: The sending domain is not verified. Please check your Resend account.");
       } else {
         showError(`Error: ${errorMessage}`);
       }
