@@ -18,7 +18,6 @@ import { useState, useEffect } from "react";
 import { Trash2, Edit } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import type { Post } from "@/types";
-import { useAuth } from "@/contexts/AuthProvider";
 
 const postSchema = z.object({
   title: z.string().min(3, { message: "Title must be at least 3 characters." }),
@@ -30,7 +29,6 @@ const postSchema = z.object({
 const ManageBlog = () => {
   const [posts, setPosts] = useState<Post[]>([]);
   const [editingId, setEditingId] = useState<string | null>(null);
-  const { session } = useAuth();
 
   useEffect(() => {
     fetchPosts();
@@ -57,15 +55,10 @@ const ManageBlog = () => {
   });
 
   async function onSubmit(values: z.infer<typeof postSchema>) {
-    if (!session) {
-      showError("You must be logged in to manage posts.");
-      return;
-    }
     const toastId = showLoading(editingId ? "Updating post..." : "Adding new post...");
     
     const postData = {
       ...values,
-      user_id: session.user.id,
     };
 
     let error;
@@ -103,10 +96,6 @@ const ManageBlog = () => {
   };
 
   const handleDelete = async (id: string) => {
-    if (!session) {
-      showError("You must be logged in to delete posts.");
-      return;
-    }
     const toastId = showLoading("Deleting post...");
     const { error } = await supabase.from("posts").delete().eq("id", id);
     dismissToast(toastId);

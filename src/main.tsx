@@ -9,7 +9,6 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter } from "react-router-dom";
 import { TravelProvider } from "./contexts/TravelContext.tsx";
-import { AuthProvider } from "./contexts/AuthProvider.tsx";
 
 const queryClient = new QueryClient();
 
@@ -21,11 +20,9 @@ createRoot(document.getElementById("root")!).render(
           <Toaster />
           <Sonner />
           <BrowserRouter>
-            <AuthProvider>
-              <TravelProvider>
-                <App />
-              </TravelProvider>
-            </AuthProvider>
+            <TravelProvider>
+              <App />
+            </TravelProvider>
           </BrowserRouter>
         </TooltipProvider>
       </QueryClientProvider>
