@@ -149,7 +149,7 @@ const ManageTravel = () => {
         <CardHeader>
           <CardTitle>Travel Log</CardTitle>
           <CardDescription>Your current list of visited places.</CardDescription>
-        </Header>
+        </CardHeader>
         <CardContent>
           <div className="space-y-4">
             {locations.length > 0 ? (
