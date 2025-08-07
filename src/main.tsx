@@ -23,9 +23,9 @@ createRoot(document.getElementById("root")!).render(
             </TravelProvider>
           </TooltipProvider>
         </QueryClientProvider>
-        <Toaster />
-        <Sonner />
       </ThemeProvider>
+      <Toaster />
+      <Sonner />
     </BrowserRouter>
   </React.StrictMode>
 );
