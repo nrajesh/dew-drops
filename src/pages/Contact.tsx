@@ -34,8 +34,15 @@ const Contact = () => {
   });
 
   function onSubmit(values: z.infer<typeof formSchema>) {
-    console.log(values);
-    showSuccess("Your message has been sent! I'll get back to you soon.");
+    const recipient = "dev@nrajesh.com";
+    const subject = encodeURIComponent(values.subject);
+    const body = encodeURIComponent(
+      `Name: ${values.name}\nFrom: ${values.email}\n\nMessage:\n${values.message}`
+    );
+
+    window.location.href = `mailto:${recipient}?subject=${subject}&body=${body}`;
+    
+    showSuccess("Opening your email client to send the message!");
     form.reset();
   }
 
