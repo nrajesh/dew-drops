@@ -1,8 +1,11 @@
+import React, { Suspense } from "react";
 import { useTravel } from "@/contexts/TravelContext";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { MapPin } from "lucide-react";
 import { Link } from "react-router-dom";
-import Map from "@/components/Map";
+import { Skeleton } from "@/components/ui/skeleton";
+
+const Map = React.lazy(() => import('@/components/Map'));
 
 const Travel = () => {
   const { locations } = useTravel();
@@ -21,7 +24,9 @@ const Travel = () => {
         </p>
       </div>
 
-      <Map locations={locations} />
+      <Suspense fallback={<Skeleton className="h-[450px] w-full rounded-lg" />}>
+        <Map locations={locations} />
+      </Suspense>
 
       {locations.length > 0 ? (
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
