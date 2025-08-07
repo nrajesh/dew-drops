@@ -17,6 +17,14 @@ serve(async (req) => {
     return new Response(null, { headers: corsHeaders })
   }
 
+  if (!RESEND_API_KEY) {
+    console.error('Missing RESEND_API_KEY secret in Supabase project');
+    return new Response(JSON.stringify({ error: 'Email service is not configured: Missing API Key.' }), {
+      status: 500,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    });
+  }
+
   try {
     const { name, email, subject, message } = await req.json()
 

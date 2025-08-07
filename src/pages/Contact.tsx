@@ -41,22 +41,34 @@ const Contact = () => {
     const toastId = showLoading("Sending your message...");
 
     try {
-      const { error } = await supabase.functions.invoke('send-contact-email', {
+      const { data, error } = await supabase.functions.invoke('send-contact-email', {
         body: values,
       });
 
       dismissToast(toastId);
 
       if (error) {
+        // The Edge Function itself threw an error (e.g., network issue, function crashed)
         throw error;
+      }
+      
+      if (data.error) {
+        // The Edge Function returned a JSON with an error property (e.g., validation, API key missing)
+        throw new Error(data.error);
       }
 
       showSuccess("Message sent successfully! I'll get back to you soon.");
       form.reset();
-    } catch (error) {
+    } catch (error: any) {
       dismissToast(toastId);
       console.error("Failed to send message:", error);
-      showError("Sorry, something went wrong. Please try again later.");
+      
+      const errorMessage = error.message || "An unknown error occurred.";
+      if (errorMessage.includes("Missing API Key")) {
+        showError("Configuration needed: Please add the Resend API key to your Supabase project.");
+      } else {
+        showError(`Error: ${errorMessage}`);
+      }
     } finally {
       setIsSubmitting(false);
     }
