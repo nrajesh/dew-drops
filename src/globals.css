@@ -31,8 +31,8 @@
     --sidebar-foreground: 220 10% 20%; /* dark text */
     --sidebar-primary: 45 95% 58%; /* yellow */
     --sidebar-primary-foreground: 45 95% 15%; /* dark text on yellow */
-    --sidebar-accent: 210 40% 96.1%; /* light gray for hover */
-    --sidebar-accent-foreground: 222.2 47.4% 11.2%; /* dark text for hover */
+    --sidebar-accent: 45 95% 85%; /* light yellow for hover */
+    --sidebar-accent-foreground: 45 95% 15%; /* dark text for hover */
     --sidebar-border: 214.3 31.8% 91.4%;
     --sidebar-ring: 45 95% 58%;
   }
