@@ -21,7 +21,7 @@ const Login = () => {
       <Card className="w-full max-w-md">
         <CardHeader className="text-center">
           <CardTitle>Admin Access</CardTitle>
-          <CardDescription>Sign in to manage your portfolio content.</CardDescription>
+          <CardDescription>Enter your email to receive a magic link to sign in.</CardDescription>
         </CardHeader>
         <CardContent>
           <Auth
@@ -30,7 +30,7 @@ const Login = () => {
             providers={[]}
             theme="light"
             redirectTo={`${window.location.origin}/manage-blog`}
-            view="sign_in"
+            view="magic_link"
             showLinks={false}
           />
         </CardContent>
