@@ -1,5 +1,5 @@
 import { NavLink, Outlet } from "react-router-dom";
-import { Home, Newspaper, Youtube, Image, Map, Mail, Menu, Settings, MapPin, Edit, LogOut } from "lucide-react";
+import { Home, Newspaper, Youtube, Image, Map, Mail, Menu, Settings, MapPin, Edit, LogOut, LogIn } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { ThemeToggle } from "./ThemeToggle";
@@ -85,14 +85,21 @@ const Layout = () => {
           <div className="flex-1 overflow-auto py-2">
             <NavContent isLoggedIn={!!session} />
           </div>
-          {session && (
-            <div className="mt-auto border-t border-sidebar-border p-4">
+          <div className="mt-auto border-t border-sidebar-border p-4">
+            {session ? (
               <Button variant="ghost" className="w-full justify-start gap-2" onClick={signOut}>
                 <LogOut className="h-4 w-4" />
                 Logout
               </Button>
-            </div>
-          )}
+            ) : (
+              <Button asChild variant="ghost" className="w-full justify-start gap-2">
+                <NavLink to="/login">
+                  <LogIn className="h-4 w-4" />
+                  Login
+                </NavLink>
+              </Button>
+            )}
+          </div>
         </div>
       </div>
       <div className="flex flex-col">
@@ -117,14 +124,21 @@ const Layout = () => {
               <div className="flex-1 overflow-auto py-2">
                 <NavContent onLinkClick={() => setMobileMenuOpen(false)} isLoggedIn={!!session} />
               </div>
-              {session && (
-                <div className="mt-auto border-t border-sidebar-border p-4">
+              <div className="mt-auto border-t border-sidebar-border p-4">
+                {session ? (
                   <Button variant="ghost" className="w-full justify-start gap-2" onClick={() => { signOut(); setMobileMenuOpen(false); }}>
                     <LogOut className="h-4 w-4" />
                     Logout
                   </Button>
-                </div>
-              )}
+                ) : (
+                  <Button asChild variant="ghost" className="w-full justify-start gap-2">
+                    <NavLink to="/login" onClick={() => setMobileMenuOpen(false)}>
+                      <LogIn className="h-4 w-4" />
+                      Login
+                    </NavLink>
+                  </Button>
+                )}
+              </div>
             </SheetContent>
           </Sheet>
           <div className="w-full flex-1">
