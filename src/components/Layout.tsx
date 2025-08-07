@@ -1,5 +1,5 @@
 import { NavLink, Outlet } from "react-router-dom";
-import { Home, Newspaper, Youtube, Image, Map, Mail, Menu, Settings, MapPin } from "lucide-react";
+import { Home, Newspaper, Youtube, Image, Map, Mail, Menu, Settings, MapPin, Edit } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { ThemeToggle } from "./ThemeToggle";
@@ -15,6 +15,7 @@ const navItems = [
 ];
 
 const managementItems = [
+  { to: "/manage-blog", icon: Edit, label: "Manage Blog" },
   { to: "/manage-videos", icon: Settings, label: "Manage Videos" },
   { to: "/manage-travel", icon: MapPin, label: "Manage Travel" },
 ];

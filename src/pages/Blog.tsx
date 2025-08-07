@@ -1,30 +1,43 @@
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-
-const blogPosts = [
-  {
-    title: "The Art of Web Development",
-    description: "A deep dive into modern web development techniques and best practices.",
-    date: "July 20, 2024",
-  },
-  {
-    title: "My Journey with React",
-    description: "Exploring the highs and lows of learning and mastering React.",
-    date: "July 15, 2024",
-  },
-  {
-    title: "Tailwind CSS: A Love Story",
-    description: "Why I fell in love with utility-first CSS and how it changed my workflow.",
-    date: "July 10, 2024",
-  },
-  {
-    title: "Designing for Accessibility",
-    description: "Tips and tricks for creating inclusive web experiences for everyone.",
-    date: "July 5, 2024",
-  },
-];
+import { useEffect, useState } from "react";
+import { supabase } from "@/integrations/supabase/client";
+import type { Post } from "@/types";
+import { Link } from "react-router-dom";
+import { Skeleton } from "@/components/ui/skeleton";
 
 const Blog = () => {
+  const [posts, setPosts] = useState<Post[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchPosts = async () => {
+      setLoading(true);
+      const { data, error } = await supabase
+        .from("posts")
+        .select("*")
+        .order("published_at", { ascending: false });
+
+      if (error) {
+        console.error("Error fetching posts:", error);
+      } else {
+        setPosts(data as Post[]);
+      }
+      setLoading(false);
+    };
+
+    fetchPosts();
+  }, []);
+
+  const formatDate = (dateString: string | null) => {
+    if (!dateString) return "";
+    return new Date(dateString).toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+    });
+  };
+
   return (
     <div className="space-y-6">
       <div className="text-center">
@@ -32,20 +45,39 @@ const Blog = () => {
         <p className="text-muted-foreground">My thoughts on design, development, and more.</p>
       </div>
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-        {blogPosts.map((post, index) => (
-          <Card key={index}>
-            <CardHeader>
-              <CardTitle>{post.title}</CardTitle>
-              <CardDescription>{post.date}</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <p>{post.description}</p>
-            </CardContent>
-            <CardFooter>
-              <Button variant="link" className="p-0">Read More</Button>
-            </CardFooter>
-          </Card>
-        ))}
+        {loading ? (
+          Array.from({ length: 3 }).map((_, index) => (
+            <Card key={index}>
+              <CardHeader>
+                <Skeleton className="h-6 w-3/4" />
+                <Skeleton className="h-4 w-1/2" />
+              </CardHeader>
+              <CardContent>
+                <Skeleton className="h-12 w-full" />
+              </CardContent>
+              <CardFooter>
+                <Skeleton className="h-6 w-24" />
+              </CardFooter>
+            </Card>
+          ))
+        ) : (
+          posts.map((post) => (
+            <Card key={post.id}>
+              <CardHeader>
+                <CardTitle>{post.title}</CardTitle>
+                <CardDescription>{formatDate(post.published_at)}</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <p>{post.description}</p>
+              </CardContent>
+              <CardFooter>
+                <Button asChild variant="link" className="p-0">
+                  <Link to={`/blog/${post.id}`}>Read More</Link>
+                </Button>
+              </CardFooter>
+            </Card>
+          ))
+        )}
       </div>
     </div>
   );
