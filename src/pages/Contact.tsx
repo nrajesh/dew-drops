@@ -13,7 +13,9 @@ import {
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { showSuccess } from "@/utils/toast";
+import { showSuccess, showError, showLoading, dismissToast } from "@/utils/toast";
+import { useState } from "react";
+import { supabase } from "@/integrations/supabase/client";
 
 const formSchema = z.object({
   name: z.string().min(2, { message: "Name must be at least 2 characters." }),
@@ -23,6 +25,7 @@ const formSchema = z.object({
 });
 
 const Contact = () => {
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
@@ -33,17 +36,30 @@ const Contact = () => {
     },
   });
 
-  function onSubmit(values: z.infer<typeof formSchema>) {
-    const recipient = "dev@nrajesh.com";
-    const subject = encodeURIComponent(values.subject);
-    const body = encodeURIComponent(
-      `Name: ${values.name}\nFrom: ${values.email}\n\nMessage:\n${values.message}`
-    );
+  async function onSubmit(values: z.infer<typeof formSchema>) {
+    setIsSubmitting(true);
+    const toastId = showLoading("Sending your message...");
 
-    window.location.href = `mailto:${recipient}?subject=${subject}&body=${body}`;
-    
-    showSuccess("Opening your email client to send the message!");
-    form.reset();
+    try {
+      const { error } = await supabase.functions.invoke('send-email', {
+        body: values,
+      });
+
+      dismissToast(toastId);
+
+      if (error) {
+        throw error;
+      }
+
+      showSuccess("Message sent successfully! I'll get back to you soon.");
+      form.reset();
+    } catch (error) {
+      dismissToast(toastId);
+      console.error("Failed to send message:", error);
+      showError("Sorry, something went wrong. Please try again later.");
+    } finally {
+      setIsSubmitting(false);
+    }
   }
 
   return (
@@ -112,7 +128,9 @@ const Contact = () => {
                   </FormItem>
                 )}
               />
-              <Button type="submit">Send Message</Button>
+              <Button type="submit" disabled={isSubmitting}>
+                {isSubmitting ? "Sending..." : "Send Message"}
+              </Button>
             </form>
           </Form>
         </CardContent>
