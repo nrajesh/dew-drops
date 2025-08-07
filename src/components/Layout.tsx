@@ -5,6 +5,7 @@ import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { ThemeToggle } from "./ThemeToggle";
 import { useState } from "react";
 import { useAuth } from "@/contexts/AuthProvider";
+import { Badge } from "@/components/ui/badge";
 
 const navItems = [
   { to: "/", icon: Home, label: "Home" },
@@ -71,7 +72,7 @@ const NavContent = ({ onLinkClick, isLoggedIn }: { onLinkClick?: () => void, isL
 
 const Layout = () => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const { session, signOut } = useAuth();
+  const { session, signOut, isSuperAdmin } = useAuth();
 
   return (
     <div className="grid min-h-screen w-full md:grid-cols-[220px_1fr] lg:grid-cols-[280px_1fr]">
@@ -80,6 +81,7 @@ const Layout = () => {
           <div className="flex h-14 items-center border-b border-sidebar-border px-4 lg:h-[60px] lg:px-6">
             <NavLink to="/" className="flex items-center gap-2 font-semibold text-sidebar-foreground">
               <span className="">My Portfolio</span>
+              {isSuperAdmin && <Badge variant="destructive">Admin</Badge>}
             </NavLink>
           </div>
           <div className="flex-1 overflow-auto py-2">
@@ -119,6 +121,7 @@ const Layout = () => {
                   onClick={() => setMobileMenuOpen(false)}
                 >
                   <span>My Portfolio</span>
+                   {isSuperAdmin && <Badge variant="destructive">Admin</Badge>}
                 </NavLink>
               </div>
               <div className="flex-1 overflow-auto py-2">
