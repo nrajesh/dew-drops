@@ -11,6 +11,7 @@ import NotFound from "./pages/NotFound";
 import ManageBlog from "./pages/ManageBlog";
 import ManageVideos from "./pages/ManageVideos";
 import ManageTravel from "./pages/ManageTravel";
+import PrivacyPolicy from "./pages/PrivacyPolicy";
 
 const App = () => (
   <Routes>
@@ -25,6 +26,7 @@ const App = () => (
       <Route path="/manage-blog" element={<ManageBlog />} />
       <Route path="/manage-videos" element={<ManageVideos />} />
       <Route path="/manage-travel" element={<ManageTravel />} />
+      <Route path="/privacy" element={<PrivacyPolicy />} />
     </Route>
     <Route path="*" element={<NotFound />} />
   </Routes>

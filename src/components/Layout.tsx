@@ -1,4 +1,4 @@
-import { NavLink, Outlet } from "react-router-dom";
+import { NavLink, Outlet, Link } from "react-router-dom";
 import { Home, Newspaper, Youtube, Image, Map, Mail, Menu, Settings, MapPin, Edit } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
@@ -116,6 +116,14 @@ const Layout = () => {
           <main className="flex-1 overflow-auto p-4 md:p-8">
             <Outlet />
           </main>
+          <footer className="border-t bg-background px-6 py-4">
+            <div className="flex items-center justify-between text-sm text-muted-foreground">
+              <p>&copy; {new Date().getFullYear()} My Portfolio. All rights reserved.</p>
+              <Link to="/privacy" className="hover:text-primary transition-colors">
+                Privacy Policy
+              </Link>
+            </div>
+          </footer>
         </div>
       </div>
       <Toaster />
