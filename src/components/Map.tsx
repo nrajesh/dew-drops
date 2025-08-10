@@ -49,13 +49,34 @@ const Map: React.FC<MapProps> = ({ locations }) => {
     locations.forEach(location => {
       if (location.latitude && location.longitude) {
         const popup = new mapboxgl.Popup({ offset: 25 }).setHTML(
-          `<div class="p-1"><h3 class="font-bold text-base">${location.name}</h3></div>`
+          `<div class="p-1"><h3 class="font-bold text-base">${location.title}</h3><p class="text-sm">${location.name}</p></div>`
         );
 
-        const marker = new mapboxgl.Marker()
-          .setLngLat([location.longitude, location.latitude])
-          .setPopup(popup)
-          .addTo(map.current!);
+        let marker;
+
+        if (location.marker_image_url) {
+          // Create a custom HTML element for the marker
+          const el = document.createElement('div');
+          el.style.backgroundImage = `url(${location.marker_image_url})`;
+          el.style.width = '40px';
+          el.style.height = '40px';
+          el.style.backgroundSize = 'cover';
+          el.style.borderRadius = '50%';
+          el.style.border = '2px solid white';
+          el.style.boxShadow = '0 2px 4px rgba(0,0,0,0.3)';
+          el.style.cursor = 'pointer';
+
+          marker = new mapboxgl.Marker(el)
+            .setLngLat([location.longitude, location.latitude])
+            .setPopup(popup)
+            .addTo(map.current!);
+        } else {
+          // Use the default marker
+          marker = new mapboxgl.Marker()
+            .setLngLat([location.longitude, location.latitude])
+            .setPopup(popup)
+            .addTo(map.current!);
+        }
         
         markers.current.push(marker);
       }

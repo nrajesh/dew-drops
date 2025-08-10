@@ -11,9 +11,11 @@ export interface Post {
 export interface TravelLocation {
   id: string;
   created_at: string;
+  title: string;
   name: string;
   latitude: number;
   longitude: number;
   blog_url: string | null;
+  marker_image_url: string | null;
   user_id: string | null;
 }

@@ -13,21 +13,24 @@ import {
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { showSuccess, showError, showLoading, dismissToast } from "@/utils/toast";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Trash2, Edit } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import type { TravelLocation } from "@/types";
 
 const locationSchema = z.object({
+  title: z.string().min(3, { message: "Title must be at least 3 characters." }),
   name: z.string().min(3, { message: "Place name must be at least 3 characters." }),
   latitude: z.coerce.number().min(-90, "Latitude must be between -90 and 90.").max(90, "Latitude must be between -90 and 90."),
   longitude: z.coerce.number().min(-180, "Longitude must be between -180 and 180.").max(180, "Longitude must be between -180 and 180."),
   blog_url: z.string().url({ message: "Please enter a valid URL." }).optional().or(z.literal('')),
+  image: z.any().optional(),
 });
 
 const ManageTravel = () => {
   const [locations, setLocations] = useState<TravelLocation[]>([]);
   const [editingId, setEditingId] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     fetchLocations();
@@ -46,6 +49,7 @@ const ManageTravel = () => {
   const form = useForm<z.infer<typeof locationSchema>>({
     resolver: zodResolver(locationSchema),
     defaultValues: {
+      title: "",
       name: "",
       latitude: 0,
       longitude: 0,
@@ -56,28 +60,65 @@ const ManageTravel = () => {
   async function onSubmit(values: z.infer<typeof locationSchema>) {
     const toastId = showLoading(editingId ? "Updating location..." : "Adding new location...");
     
-    let error;
-    if (editingId) {
-      const { error: updateError } = await supabase.from("travel_locations").update(values).eq("id", editingId);
-      error = updateError;
-    } else {
-      const { error: insertError } = await supabase.from("travel_locations").insert(values);
-      error = insertError;
-    }
+    try {
+      const existingLocation = locations.find(l => l.id === editingId);
+      let imageUrl = existingLocation?.marker_image_url || null;
 
-    dismissToast(toastId);
-    if (error) {
-      showError(error.message);
-    } else {
+      // Handle image upload
+      if (values.image && values.image.length > 0) {
+        const file = values.image[0];
+        const fileName = `${Date.now()}_${file.name}`;
+
+        // If editing and there was an old image, remove it
+        if (editingId && imageUrl) {
+          const oldFileName = imageUrl.substring(imageUrl.lastIndexOf('/') + 1);
+          await supabase.storage.from('map_markers').remove([oldFileName]);
+        }
+
+        const { error: uploadError } = await supabase.storage.from('map_markers').upload(fileName, file);
+
+        if (uploadError) throw uploadError;
+
+        const { data: { publicUrl } } = supabase.storage.from('map_markers').getPublicUrl(fileName);
+        imageUrl = publicUrl;
+      }
+
+      const locationData = {
+        title: values.title,
+        name: values.name,
+        latitude: values.latitude,
+        longitude: values.longitude,
+        blog_url: values.blog_url,
+        marker_image_url: imageUrl,
+      };
+
+      let error;
+      if (editingId) {
+        const { error: updateError } = await supabase.from("travel_locations").update(locationData).eq("id", editingId);
+        error = updateError;
+      } else {
+        const { error: insertError } = await supabase.from("travel_locations").insert(locationData);
+        error = insertError;
+      }
+
+      if (error) throw error;
+
+      dismissToast(toastId);
       showSuccess(`Location ${editingId ? "updated" : "added"} successfully!`);
       setEditingId(null);
       form.reset();
+      if (fileInputRef.current) fileInputRef.current.value = "";
       fetchLocations();
+    } catch (error: any) {
+      dismissToast(toastId);
+      showError(error.message);
+      console.error(error);
     }
   }
 
   const handleEdit = (location: TravelLocation) => {
     setEditingId(location.id);
+    form.setValue("title", location.title);
     form.setValue("name", location.name);
     form.setValue("latitude", location.latitude);
     form.setValue("longitude", location.longitude);
@@ -86,19 +127,29 @@ const ManageTravel = () => {
 
   const handleDelete = async (id: string) => {
     const toastId = showLoading("Deleting location...");
-    const { error } = await supabase.from("travel_locations").delete().eq("id", id);
-    dismissToast(toastId);
-    if (error) {
-      showError(error.message);
-    } else {
+    try {
+      const locationToDelete = locations.find(l => l.id === id);
+      if (locationToDelete?.marker_image_url) {
+        const fileName = locationToDelete.marker_image_url.substring(locationToDelete.marker_image_url.lastIndexOf('/') + 1);
+        await supabase.storage.from('map_markers').remove([fileName]);
+      }
+
+      const { error } = await supabase.from("travel_locations").delete().eq("id", id);
+      if (error) throw error;
+
+      dismissToast(toastId);
       showError("Location removed.");
       fetchLocations();
+    } catch (error: any) {
+      dismissToast(toastId);
+      showError(error.message);
     }
   };
   
   const cancelEdit = () => {
     setEditingId(null);
     form.reset();
+    if (fileInputRef.current) fileInputRef.current.value = "";
   }
 
   return (
@@ -113,55 +164,21 @@ const ManageTravel = () => {
         <CardContent>
           <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-              <FormField
-                control={form.control}
-                name="name"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Place Name</FormLabel>
-                    <FormControl>
-                      <Input placeholder="e.g., Paris, France" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+              <FormField control={form.control} name="title" render={({ field }) => ( <FormItem> <FormLabel>Title</FormLabel> <FormControl><Input placeholder="e.g., Eiffel Tower Trip" {...field} /></FormControl> <FormMessage /> </FormItem> )} />
+              <FormField control={form.control} name="name" render={({ field }) => ( <FormItem> <FormLabel>Place Name</FormLabel> <FormControl><Input placeholder="e.g., Paris, France" {...field} /></FormControl> <FormMessage /> </FormItem> )} />
               <div className="grid grid-cols-2 gap-4">
-                <FormField
-                  control={form.control}
-                  name="latitude"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Latitude</FormLabel>
-                      <FormControl>
-                        <Input type="number" step="any" placeholder="e.g., 48.8584" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={form.control}
-                  name="longitude"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Longitude</FormLabel>
-                      <FormControl>
-                        <Input type="number" step="any" placeholder="e.g., 2.2945" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+                <FormField control={form.control} name="latitude" render={({ field }) => ( <FormItem> <FormLabel>Latitude</FormLabel> <FormControl><Input type="number" step="any" placeholder="e.g., 48.8584" {...field} /></FormControl> <FormMessage /> </FormItem> )} />
+                <FormField control={form.control} name="longitude" render={({ field }) => ( <FormItem> <FormLabel>Longitude</FormLabel> <FormControl><Input type="number" step="any" placeholder="e.g., 2.2945" {...field} /></FormControl> <FormMessage /> </FormItem> )} />
               </div>
+              <FormField control={form.control} name="blog_url" render={({ field }) => ( <FormItem> <FormLabel>Blog Post URL (Optional)</FormLabel> <FormControl> <Input placeholder="/blog/my-awesome-trip" {...field} value={field.value ?? ''} /> </FormControl> <FormMessage /> </FormItem> )} />
               <FormField
                 control={form.control}
-                name="blog_url"
+                name="image"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Blog Post URL (Optional)</FormLabel>
+                    <FormLabel>Custom Marker Image (Optional)</FormLabel>
                     <FormControl>
-                      <Input placeholder="/blog/my-awesome-trip" {...field} value={field.value ?? ''} />
+                      <Input type="file" accept="image/*" {...form.register("image")} ref={fileInputRef} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -185,7 +202,7 @@ const ManageTravel = () => {
             {locations.length > 0 ? (
               locations.map((location) => (
                 <div key={location.id} className="flex items-center justify-between p-2 rounded-lg border">
-                  <p className="font-medium truncate pr-2">{location.name}</p>
+                  <p className="font-medium truncate pr-2">{location.title}</p>
                   <div className="flex items-center gap-2 shrink-0">
                     <Button variant="ghost" size="icon" onClick={() => handleEdit(location)}>
                       <Edit className="h-4 w-4" />
