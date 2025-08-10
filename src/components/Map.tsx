@@ -1,5 +1,5 @@
 import React, { useRef, useEffect } from 'react';
-import { Map as MapboxMap, Popup, Marker } from 'mapbox-gl';
+import mapboxgl from 'mapbox-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
 import type { TravelLocation } from '@/types';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -14,8 +14,8 @@ interface MapProps {
 
 const Map: React.FC<MapProps> = ({ locations, focusedLocation }) => {
   const mapContainer = useRef<HTMLDivElement>(null);
-  const map = useRef<MapboxMap | null>(null);
-  const markers = useRef<Map<string, Marker>>(new Map());
+  const map = useRef<mapboxgl.Map | null>(null);
+  const markers = useRef<Map<string, mapboxgl.Marker>>(new Map());
 
   useEffect(() => {
     if (!MAPBOX_ACCESS_TOKEN) {
@@ -25,12 +25,12 @@ const Map: React.FC<MapProps> = ({ locations, focusedLocation }) => {
 
     if (map.current || !mapContainer.current) return;
 
-    map.current = new MapboxMap({
+    mapboxgl.accessToken = MAPBOX_ACCESS_TOKEN;
+    map.current = new mapboxgl.Map({
       container: mapContainer.current,
       style: 'mapbox://styles/mapbox/streets-v12',
       center: [10, 45],
       zoom: 1.5,
-      accessToken: MAPBOX_ACCESS_TOKEN,
     });
 
     return () => {
@@ -42,14 +42,12 @@ const Map: React.FC<MapProps> = ({ locations, focusedLocation }) => {
   useEffect(() => {
     if (!map.current) return;
 
-    // Clear existing markers
     markers.current.forEach(marker => marker.remove());
     markers.current.clear();
 
-    // Add new markers
     locations.forEach(location => {
       if (location.latitude && location.longitude) {
-        const popup = new Popup({ offset: 25 }).setHTML(
+        const popup = new mapboxgl.Popup({ offset: 25 }).setHTML(
           `<div class="p-1"><h3 class="font-bold text-base">${location.title}</h3><p class="text-sm">${location.name}</p></div>`
         );
 
@@ -66,12 +64,12 @@ const Map: React.FC<MapProps> = ({ locations, focusedLocation }) => {
           el.style.boxShadow = '0 2px 4px rgba(0,0,0,0.3)';
           el.style.cursor = 'pointer';
 
-          marker = new Marker(el)
+          marker = new mapboxgl.Marker(el)
             .setLngLat([location.longitude, location.latitude])
             .setPopup(popup)
             .addTo(map.current!);
         } else {
-          marker = new Marker()
+          marker = new mapboxgl.Marker()
             .setLngLat([location.longitude, location.latitude])
             .setPopup(popup)
             .addTo(map.current!);
@@ -93,7 +91,6 @@ const Map: React.FC<MapProps> = ({ locations, focusedLocation }) => {
 
       const marker = markers.current.get(focusedLocation.id);
       if (marker && !marker.getPopup().isOpen()) {
-        // Close all other popups before opening the new one
         markers.current.forEach(m => m.getPopup().isOpen() && m.togglePopup());
         marker.togglePopup();
       }
