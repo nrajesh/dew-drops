@@ -13,6 +13,7 @@ export interface TravelLocation {
   created_at: string;
   title: string;
   name: string;
+  description: string | null;
   latitude: number;
   longitude: number;
   blog_url: string | null;

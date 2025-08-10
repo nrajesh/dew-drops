@@ -1,17 +1,18 @@
-import React, { Suspense, useEffect, useState } from "react";
+import React, { Suspense, useEffect, useState, useRef } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { MapPin } from "lucide-react";
-import { Link } from "react-router-dom";
 import { Skeleton } from "@/components/ui/skeleton";
 import { supabase } from "@/integrations/supabase/client";
 import type { TravelLocation } from "@/types";
 import { showError } from "@/utils/toast";
+import type { MapRef } from "@/components/Map";
 
 const Map = React.lazy(() => import('@/components/Map'));
 
 const Travel = () => {
   const [locations, setLocations] = useState<TravelLocation[]>([]);
   const [loading, setLoading] = useState(true);
+  const mapRef = useRef<MapRef>(null);
 
   useEffect(() => {
     const fetchLocations = async () => {
@@ -33,11 +34,6 @@ const Travel = () => {
     fetchLocations();
   }, []);
 
-  const createGoogleMapsUrl = (name: string) => {
-    const query = encodeURIComponent(name);
-    return `https://www.google.com/maps/search/?api=1&query=${query}`;
-  };
-
   return (
     <div className="space-y-8">
       <div className="text-center">
@@ -48,7 +44,7 @@ const Travel = () => {
       </div>
 
       <Suspense fallback={<Skeleton className="h-[450px] w-full rounded-lg" />}>
-        <Map locations={locations} />
+        <Map ref={mapRef} locations={locations} />
       </Suspense>
 
       {loading ? (
@@ -67,46 +63,26 @@ const Travel = () => {
         </div>
       ) : locations.length > 0 ? (
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-          {locations.map((location) => {
-            const hasBlogUrl = location.blog_url && location.blog_url.trim() !== '';
-            const isInternalLink = hasBlogUrl && location.blog_url!.startsWith('/');
-            
-            const card = (
-              <Card className="h-full transition-all hover:shadow-md hover:border-primary/50">
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <MapPin className="h-5 w-5 text-primary" />
-                    {location.name}
-                  </CardTitle>
-                </CardHeader>
+          {locations.map((location) => (
+            <Card 
+              key={location.id} 
+              className="h-full transition-all hover:shadow-md hover:border-primary/50 cursor-pointer flex flex-col"
+              onClick={() => mapRef.current?.triggerPopup(location.id)}
+            >
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <MapPin className="h-5 w-5 text-primary" />
+                  {location.title}
+                </CardTitle>
+                <CardDescription>{location.name}</CardDescription>
+              </CardHeader>
+              {location.description && (
                 <CardContent>
-                  <p className="text-muted-foreground">A pin on the map marking a visit.</p>
+                  <p className="text-sm text-muted-foreground">{location.description}</p>
                 </CardContent>
-              </Card>
-            );
-
-            if (isInternalLink) {
-              return (
-                <Link key={location.id} to={location.blog_url!} className="block">
-                  {card}
-                </Link>
-              );
-            }
-
-            const href = hasBlogUrl ? location.blog_url! : createGoogleMapsUrl(location.name);
-
-            return (
-              <a
-                key={location.id}
-                href={href}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="block"
-              >
-                {card}
-              </a>
-            );
-          })}
+              )}
+            </Card>
+          ))}
         </div>
       ) : (
         <div className="text-center py-10 border rounded-lg bg-muted">
