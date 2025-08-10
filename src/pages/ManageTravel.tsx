@@ -64,13 +64,23 @@ const ManageTravel = () => {
         body: { locationName: values.name },
       });
 
-      if (geoError || geoData.error) {
-        const errorMessage = geoData?.error || geoError.message || "Could not find location.";
+      if (geoError) {
+        const errorBody = await geoError.context.json();
+        const errorMessage = errorBody.error || geoError.message;
         if (errorMessage.includes("Missing API Key")) {
           setIsGeocodingConfigured(false);
         }
         throw new Error(errorMessage);
       }
+
+      if (geoData?.error) {
+        throw new Error(geoData.error);
+      }
+      
+      if (!geoData) {
+        throw new Error("Geocoding failed: No data returned from function.");
+      }
+
       setIsGeocodingConfigured(true);
       const { latitude, longitude } = geoData;
 
@@ -247,7 +257,7 @@ const ManageTravel = () => {
         <CardHeader>
           <CardTitle>Travel Log</CardTitle>
           <CardDescription>Your current list of visited places.</CardDescription>
-        </CardHeader>
+        </Header>
         <CardContent>
           <div className="space-y-4">
             {locations.length > 0 ? (
