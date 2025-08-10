@@ -85,7 +85,6 @@ const ManageTravel = () => {
       let { latitude, longitude } = values;
 
       if ((!latitude || !longitude) && values.name) {
-        dismissToast(toastId);
         const geocodeToastId = showLoading(`Finding coordinates for ${values.name}...`);
         try {
           const coords = await geocodeLocation(values.name);
