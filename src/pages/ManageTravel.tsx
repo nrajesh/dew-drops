@@ -238,60 +238,32 @@ const ManageTravel = () => {
   const parseCsv = (csvText: string): any[] => {
     const lines = csvText.trim().split(/\r\n|\n/);
     if (lines.length < 2) return [];
-  
+
     const headers = lines[0].split(',').map(h => h.trim());
     const data = [];
-  
+
+    // This regex splits a CSV row by commas, but ignores commas inside double quotes.
+    const csvRowRegex = /,(?=(?:(?:[^"]*"){2})*[^"]*$)/;
+
     for (let i = 1; i < lines.length; i++) {
-      const line = lines[i];
-      if (!line) continue;
-  
-      const values = [];
-      let currentPos = 0;
-      while (currentPos < line.length) {
-        let endPos = currentPos;
-        let value = '';
-        if (line[currentPos] === '"') {
-          // Quoted field
-          endPos = currentPos + 1;
-          while (endPos < line.length) {
-            if (line[endPos] === '"' && line[endPos + 1] === '"') {
-              // Escaped quote
-              value += '"';
-              endPos += 2;
-            } else if (line[endPos] === '"') {
-              // End of quoted field
-              endPos++;
-              break;
-            } else {
-              value += line[endPos];
-              endPos++;
+        const line = lines[i];
+        if (!line) continue;
+
+        const values = line.split(csvRowRegex).map(val => {
+            let value = val.trim();
+            // Remove surrounding quotes if they exist
+            if (value.startsWith('"') && value.endsWith('"')) {
+                value = value.substring(1, value.length - 1);
             }
-          }
-          // Find the next comma
-          if (line[endPos] === ',') {
-            endPos++;
-          }
-        } else {
-          // Unquoted field
-          endPos = line.indexOf(',', currentPos);
-          if (endPos === -1) {
-            endPos = line.length;
-          }
-          value = line.substring(currentPos, endPos);
-          if (line[endPos] === ',') {
-            endPos++;
-          }
+            // Replace escaped double quotes ("") with a single double quote (")
+            return value.replace(/""/g, '"');
+        });
+
+        const entry: { [key: string]: string } = {};
+        for (let j = 0; j < headers.length; j++) {
+            entry[headers[j]] = values[j] || '';
         }
-        values.push(value);
-        currentPos = endPos;
-      }
-  
-      const entry: { [key: string]: string } = {};
-      for (let j = 0; j < headers.length; j++) {
-        entry[headers[j]] = values[j]?.trim() || '';
-      }
-      data.push(entry);
+        data.push(entry);
     }
     return data;
   };
