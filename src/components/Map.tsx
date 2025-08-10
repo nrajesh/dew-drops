@@ -1,5 +1,9 @@
 import React, { useRef, useEffect } from 'react';
-import mapboxgl from 'mapbox-gl';
+// The 'mapbox-gl' library has some quirks with modern bundlers like Vite.
+// Using `import * as mapboxgl from 'mapbox-gl'` is a more robust way to ensure
+// all of its exports are correctly loaded into a single namespace,
+// which resolves the "Map is not a constructor" error.
+import * as mapboxgl from 'mapbox-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
 import type { TravelLocation } from '@/types';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
