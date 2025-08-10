@@ -13,7 +13,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { showSuccess, showError, showLoading, dismissToast } from "@/utils/toast";
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import { Trash2, Edit } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import type { TravelLocation } from "@/types";
@@ -26,14 +26,13 @@ const locationSchema = z.object({
   latitude: z.coerce.number().min(-90).max(90).optional().or(z.literal('')),
   longitude: z.coerce.number().min(-180).max(180).optional().or(z.literal('')),
   blog_url: z.string().url({ message: "Please enter a valid URL." }).optional().or(z.literal('')),
-  image: z.any().optional(),
+  image: z.instanceof(FileList).optional(),
 });
 
 const ManageTravel = () => {
   const [locations, setLocations] = useState<TravelLocation[]>([]);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editingImageUrl, setEditingImageUrl] = useState<string | null>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     fetchLocations();
@@ -235,8 +234,7 @@ const ManageTravel = () => {
   const cancelEdit = () => {
     setEditingId(null);
     setEditingImageUrl(null);
-    form.reset({ title: "", name: "", latitude: "", longitude: "", blog_url: "" });
-    if (fileInputRef.current) fileInputRef.current.value = "";
+    form.reset();
   }
 
   return (
@@ -332,11 +330,15 @@ const ManageTravel = () => {
               <FormField
                 control={form.control}
                 name="image"
-                render={() => (
+                render={({ field }) => (
                   <FormItem>
                     <FormLabel>{editingImageUrl ? 'Replace Marker Image (Optional)' : 'Custom Marker Image (Optional)'}</FormLabel>
                     <FormControl>
-                      <Input type="file" accept="image/*" {...form.register("image")} ref={fileInputRef} />
+                      <Input 
+                        type="file" 
+                        accept="image/*"
+                        onChange={(e) => field.onChange(e.target.files)}
+                      />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
