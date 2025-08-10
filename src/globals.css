@@ -79,3 +79,30 @@
     @apply bg-background text-foreground;
   }
 }
+
+/* Custom Mapbox Popup Styles */
+.mapboxgl-popup.custom-popup .mapboxgl-popup-content {
+  background-color: hsl(var(--primary));
+  color: hsl(var(--primary-foreground));
+  font-family: inherit;
+  border-radius: var(--radius);
+  padding: 0.75rem 1rem;
+  box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+}
+
+.mapboxgl-popup.custom-popup .mapboxgl-popup-tip {
+  border-top-color: hsl(var(--primary));
+}
+
+.mapboxgl-popup.custom-popup .mapboxgl-popup-close-button {
+  color: hsl(var(--primary-foreground));
+  font-size: 1.25rem;
+  line-height: 1;
+  padding: 0.25rem;
+  transition: background-color 0.2s;
+  border-radius: 99px;
+}
+
+.mapboxgl-popup.custom-popup .mapboxgl-popup-close-button:hover {
+  background-color: hsla(var(--primary-foreground), 0.1);
+}
