@@ -32,6 +32,7 @@ const locationSchema = z.object({
 const ManageTravel = () => {
   const [locations, setLocations] = useState<TravelLocation[]>([]);
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [editingImageUrl, setEditingImageUrl] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -83,7 +84,6 @@ const ManageTravel = () => {
     try {
       let { latitude, longitude } = values;
 
-      // Geocode if coordinates are missing but a name is present
       if ((!latitude || !longitude) && values.name) {
         dismissToast(toastId);
         const geocodeToastId = showLoading(`Finding coordinates for ${values.name}...`);
@@ -143,9 +143,7 @@ const ManageTravel = () => {
 
       dismissToast(toastId);
       showSuccess(`Location ${editingId ? "updated" : "added"} successfully!`);
-      setEditingId(null);
-      form.reset({ title: "", name: "", latitude: "", longitude: "", blog_url: "" });
-      if (fileInputRef.current) fileInputRef.current.value = "";
+      cancelEdit();
       fetchLocations();
     } catch (error: any) {
       dismissToast(toastId);
@@ -156,11 +154,34 @@ const ManageTravel = () => {
 
   const handleEdit = (location: TravelLocation) => {
     setEditingId(location.id);
+    setEditingImageUrl(location.marker_image_url || null);
     form.setValue("title", location.title);
     form.setValue("name", location.name);
     form.setValue("latitude", location.latitude);
     form.setValue("longitude", location.longitude);
     form.setValue("blog_url", location.blog_url || "");
+  };
+
+  const handleRemoveImage = async () => {
+    if (!editingId || !editingImageUrl) return;
+
+    const toastId = showLoading("Removing image...");
+    try {
+      const fileName = editingImageUrl.substring(editingImageUrl.lastIndexOf('/') + 1);
+      const { error: removeError } = await supabase.storage.from('map_markers').remove([fileName]);
+      if (removeError) throw removeError;
+
+      const { error: updateError } = await supabase.from("travel_locations").update({ marker_image_url: null }).eq("id", editingId);
+      if (updateError) throw updateError;
+      
+      dismissToast(toastId);
+      showSuccess("Image removed successfully.");
+      setEditingImageUrl(null);
+      fetchLocations();
+    } catch (error: any) {
+      dismissToast(toastId);
+      showError(error.message);
+    }
   };
 
   const handleDelete = async (id: string) => {
@@ -186,6 +207,7 @@ const ManageTravel = () => {
   
   const cancelEdit = () => {
     setEditingId(null);
+    setEditingImageUrl(null);
     form.reset({ title: "", name: "", latitude: "", longitude: "", blog_url: "" });
     if (fileInputRef.current) fileInputRef.current.value = "";
   }
@@ -269,12 +291,23 @@ const ManageTravel = () => {
                   </FormItem>
                 )}
               />
+              
+              {editingId && editingImageUrl && (
+                <div className="space-y-2">
+                  <FormLabel>Current Marker Image</FormLabel>
+                  <div className="flex items-center gap-4">
+                    <img src={editingImageUrl} alt="Current marker" className="h-16 w-16 rounded-full object-cover border" />
+                    <Button type="button" variant="outline" size="sm" onClick={handleRemoveImage}>Remove Image</Button>
+                  </div>
+                </div>
+              )}
+
               <FormField
                 control={form.control}
                 name="image"
-                render={({ field }) => (
+                render={() => (
                   <FormItem>
-                    <FormLabel>Custom Marker Image (Optional)</FormLabel>
+                    <FormLabel>{editingImageUrl ? 'Replace Marker Image (Optional)' : 'Custom Marker Image (Optional)'}</FormLabel>
                     <FormControl>
                       <Input type="file" accept="image/*" {...form.register("image")} ref={fileInputRef} />
                     </FormControl>
@@ -284,7 +317,7 @@ const ManageTravel = () => {
               />
               <div className="flex gap-2">
                 <Button type="submit">{editingId ? "Update Location" : "Add Location"}</Button>
-                {editingId && <Button variant="outline" onClick={cancelEdit}>Cancel</Button>}
+                {editingId && <Button type="button" variant="outline" onClick={cancelEdit}>Cancel</Button>}
               </div>
             </form>
           </Form>
