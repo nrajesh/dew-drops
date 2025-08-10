@@ -106,6 +106,17 @@ const ManageTravel = () => {
         throw new Error("Coordinates are required. Could not automatically find them for the given place name.");
       }
 
+      // Duplicate check for single add
+      if (!editingId) {
+        const isDuplicate = locations.some(loc => 
+          loc.name.toLowerCase() === values.name.toLowerCase() ||
+          (loc.latitude === latitude && loc.longitude === longitude)
+        );
+        if (isDuplicate) {
+          throw new Error("A location with the same name or coordinates already exists.");
+        }
+      }
+
       const existingLocation = locations.find(l => l.id === editingId);
       let imageUrl = existingLocation?.marker_image_url || null;
 
@@ -282,8 +293,12 @@ const ManageTravel = () => {
       dismissToast(toastId);
       const progressToastId = showLoading(`Processing ${parsedData.length} rows...`);
 
+      const existingNames = new Set(locations.map(loc => loc.name.toLowerCase()));
+      const existingCoords = new Set(locations.map(loc => `${loc.latitude},${loc.longitude}`));
+      
       const locationsToInsert = [];
       const failedRows = [];
+      let skippedCount = 0;
 
       for (const [index, row] of parsedData.entries()) {
         try {
@@ -303,15 +318,28 @@ const ManageTravel = () => {
             throw new Error(`Could not determine coordinates for "${row.name}".`);
           }
 
+          const finalName = row.name;
+          const finalLat = parseFloat(latitude);
+          const finalLng = parseFloat(longitude);
+
+          if (existingNames.has(finalName.toLowerCase()) || existingCoords.has(`${finalLat},${finalLng}`)) {
+            skippedCount++;
+            continue;
+          }
+
           locationsToInsert.push({
             title: row.title,
-            name: row.name,
+            name: finalName,
             description: row.description || null,
-            latitude: parseFloat(latitude),
-            longitude: parseFloat(longitude),
+            latitude: finalLat,
+            longitude: finalLng,
             blog_url: row.blog_url || null,
             marker_image_url: row.marker_image_url || null,
           });
+
+          existingNames.add(finalName.toLowerCase());
+          existingCoords.add(`${finalLat},${finalLng}`);
+
         } catch (error: any) {
           failedRows.push({ row: index + 2, error: error.message });
         }
@@ -327,8 +355,18 @@ const ManageTravel = () => {
         if (error) {
           throw new Error(`Database insert failed: ${error.message}`);
         }
-        showSuccess(`${locationsToInsert.length} locations uploaded successfully!`);
         fetchLocations();
+      }
+
+      let summaryMessage = "";
+      if (locationsToInsert.length > 0) {
+        summaryMessage += `${locationsToInsert.length} locations uploaded successfully. `;
+      }
+      if (skippedCount > 0) {
+        summaryMessage += `${skippedCount} duplicate locations were skipped.`;
+      }
+      if (summaryMessage) {
+        showSuccess(summaryMessage.trim());
       }
 
       if (failedRows.length > 0) {
@@ -337,7 +375,9 @@ const ManageTravel = () => {
         console.error("Bulk upload failures:", failedRows);
       }
 
-      if (locationsToInsert.length === 0 && failedRows.length > 0) {
+      if (locationsToInsert.length === 0 && failedRows.length === 0 && skippedCount > 0) {
+        showSuccess(`All ${skippedCount} locations in the file were already present and have been skipped.`);
+      } else if (locationsToInsert.length === 0 && failedRows.length > 0) {
         throw new Error("Upload failed. No valid locations found in the file.");
       }
 
