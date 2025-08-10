@@ -1,4 +1,4 @@
-title,name,description,latitude,longitude,blog_url
-Eiffel Tower Visit,"Paris, France","Visited the iconic tower on a sunny afternoon.",48.8584,2.2945,
-Grand Canyon Adventure,"Grand Canyon National Park, AZ, USA","Hiked the South Kaibab trail. The views were breathtaking.",,,/blog/grand-canyon-hike
-Tokyo Exploration,"Tokyo, Japan","Ate some amazing ramen in Shinjuku.",35.6895,139.6917,/blog/tokyo-trip
+title,name,description,latitude,longitude,blog_url,marker_image_url
+Eiffel Tower Visit,"Paris, France","Visited the iconic tower on a sunny afternoon.",48.8584,2.2945,,
+Grand Canyon Adventure,"Grand Canyon National Park, AZ, USA","Hiked the South Kaibab trail. The views were breathtaking.",,,/blog/grand-canyon-hike,
+Tokyo Exploration,"Tokyo, Japan","Ate some amazing ramen in Shinjuku.",35.6895,139.6917,/blog/tokyo-trip,https://images.unsplash.com/photo-1542051841857-5f90071e7989?w=100

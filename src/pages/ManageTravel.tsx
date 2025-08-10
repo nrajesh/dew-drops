@@ -299,6 +299,7 @@ const ManageTravel = () => {
             latitude: parseFloat(latitude),
             longitude: parseFloat(longitude),
             blog_url: row.blog_url || null,
+            marker_image_url: row.marker_image_url || null,
           });
         } catch (error: any) {
           failedRows.push({ row: index + 2, error: error.message });
@@ -352,7 +353,7 @@ const ManageTravel = () => {
           <div className="space-y-4">
             <div className="flex items-center justify-between p-3 bg-muted rounded-md">
                 <p className="text-sm text-muted-foreground">
-                  Use a CSV with headers: <code>title,name,description,latitude,longitude,blog_url</code>
+                  Use a CSV with headers: <code>title,name,description,latitude,longitude,blog_url,marker_image_url</code>
                 </p>
                 <Button asChild variant="secondary" size="sm">
                     <a href="/sample-travel-locations.csv" download>
