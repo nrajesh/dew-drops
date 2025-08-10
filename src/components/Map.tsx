@@ -1,4 +1,4 @@
-import React, { useRef, useEffect } from 'react';
+import React, { useRef, useEffect, useImperativeHandle, forwardRef } from 'react';
 import mapboxgl from 'mapbox-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
 import type { TravelLocation } from '@/types';
@@ -11,10 +11,30 @@ interface MapProps {
   locations: TravelLocation[];
 }
 
-const Map: React.FC<MapProps> = ({ locations }) => {
+export interface MapRef {
+  triggerPopup: (locationId: string) => void;
+}
+
+const MapComponent = forwardRef<MapRef, MapProps>(({ locations }, ref) => {
   const mapContainer = useRef<HTMLDivElement>(null);
   const map = useRef<mapboxgl.Map | null>(null);
-  const markers = useRef<mapboxgl.Marker[]>([]);
+  const markersRef = useRef<Map<string, mapboxgl.Marker>>(new Map());
+
+  useImperativeHandle(ref, () => ({
+    triggerPopup: (locationId: string) => {
+      const marker = markersRef.current.get(locationId);
+      if (marker && map.current) {
+        map.current.flyTo({
+          center: marker.getLngLat(),
+          zoom: 12,
+          speed: 1.5,
+        });
+        if (!marker.getPopup().isOpen()) {
+          marker.togglePopup();
+        }
+      }
+    },
+  }));
 
   useEffect(() => {
     if (!MAPBOX_ACCESS_TOKEN) {
@@ -42,8 +62,8 @@ const Map: React.FC<MapProps> = ({ locations }) => {
     if (!map.current) return;
 
     // Clear existing markers
-    markers.current.forEach(marker => marker.remove());
-    markers.current = [];
+    markersRef.current.forEach(marker => marker.remove());
+    markersRef.current.clear();
 
     // Add new markers
     locations.forEach(location => {
@@ -55,7 +75,6 @@ const Map: React.FC<MapProps> = ({ locations }) => {
         let marker;
 
         if (location.marker_image_url) {
-          // Create a custom HTML element for the marker
           const el = document.createElement('div');
           el.style.backgroundImage = `url(${location.marker_image_url})`;
           el.style.width = '40px';
@@ -71,14 +90,13 @@ const Map: React.FC<MapProps> = ({ locations }) => {
             .setPopup(popup)
             .addTo(map.current!);
         } else {
-          // Use the default marker
           marker = new mapboxgl.Marker()
             .setLngLat([location.longitude, location.latitude])
             .setPopup(popup)
             .addTo(map.current!);
         }
         
-        markers.current.push(marker);
+        markersRef.current.set(location.id, marker);
       }
     });
 
@@ -97,6 +115,8 @@ const Map: React.FC<MapProps> = ({ locations }) => {
   }
 
   return <div ref={mapContainer} className="h-[450px] w-full rounded-lg border" />;
-};
+});
 
-export default Map;
+MapComponent.displayName = "Map";
+
+export default MapComponent;
