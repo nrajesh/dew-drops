@@ -239,11 +239,10 @@ const ManageTravel = () => {
     const lines = csvText.trim().split(/\r\n|\n/);
     if (lines.length < 2) return [];
 
-    const headers = lines[0].split(',').map(h => h.trim());
+    const headers = lines[0].split(';').map(h => h.trim().replace(/"/g, ''));
     const data = [];
 
-    // This regex splits a CSV row by commas, but ignores commas inside double quotes.
-    const csvRowRegex = /,(?=(?:(?:[^"]*"){2})*[^"]*$)/;
+    const csvRowRegex = /;(?=(?:(?:[^"]*"){2})*[^"]*$)/;
 
     for (let i = 1; i < lines.length; i++) {
         const line = lines[i];
@@ -251,11 +250,9 @@ const ManageTravel = () => {
 
         const values = line.split(csvRowRegex).map(val => {
             let value = val.trim();
-            // Remove surrounding quotes if they exist
             if (value.startsWith('"') && value.endsWith('"')) {
                 value = value.substring(1, value.length - 1);
             }
-            // Replace escaped double quotes ("") with a single double quote (")
             return value.replace(/""/g, '"');
         });
 
@@ -361,13 +358,13 @@ const ManageTravel = () => {
       <Card>
         <CardHeader>
           <CardTitle>Bulk Upload Locations</CardTitle>
-          <CardDescription>Upload a CSV file to add multiple locations at once.</CardDescription>
+          <CardDescription>Upload a semicolon-separated CSV file to add multiple locations at once.</CardDescription>
         </CardHeader>
         <CardContent>
           <div className="space-y-4">
             <div className="flex items-center justify-between p-3 bg-muted rounded-md">
                 <p className="text-sm text-muted-foreground">
-                  Use a CSV with headers: <code>title,name,description,latitude,longitude,blog_url,marker_image_url</code>
+                  Headers: <code>"title";"name";"description";...</code>
                 </p>
                 <Button asChild variant="secondary" size="sm">
                     <a href="/sample-travel-locations.csv" download>
@@ -379,7 +376,7 @@ const ManageTravel = () => {
             <div className="flex items-center gap-2">
               <Input 
                 type="file" 
-                accept=".csv" 
+                accept=".csv,text/csv" 
                 onChange={handleFileSelect} 
                 ref={fileInputRef}
                 className="flex-grow"
