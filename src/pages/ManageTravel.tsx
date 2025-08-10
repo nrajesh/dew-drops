@@ -18,6 +18,18 @@ import { useState, useEffect, useRef } from "react";
 import { Trash2, Edit, Upload, Download } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import type { TravelLocation } from "@/types";
+import { Checkbox } from "@/components/ui/checkbox";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 
 const MAPBOX_ACCESS_TOKEN = import.meta.env.VITE_MAPBOX_ACCESS_TOKEN;
 
@@ -37,6 +49,7 @@ const ManageTravel = () => {
   const [editingImageUrl, setEditingImageUrl] = useState<string | null>(null);
   const [uploadFile, setUploadFile] = useState<File | null>(null);
   const [isUploading, setIsUploading] = useState(false);
+  const [selectedLocations, setSelectedLocations] = useState<Set<string>>(new Set());
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -106,7 +119,6 @@ const ManageTravel = () => {
         throw new Error("Coordinates are required. Could not automatically find them for the given place name.");
       }
 
-      // Duplicate check for single add
       if (!editingId) {
         const isDuplicate = locations.some(loc => 
           loc.name.toLowerCase() === values.name.toLowerCase() ||
@@ -393,6 +405,38 @@ const ManageTravel = () => {
     }
   };
 
+  const handleBulkDelete = async () => {
+    const toastId = showLoading(`Deleting ${selectedLocations.size} locations...`);
+    try {
+        const selectedIds = Array.from(selectedLocations);
+
+        const locationsToDelete = locations.filter(loc => selectedIds.includes(loc.id));
+        const imageFilesToDelete = locationsToDelete
+            .map(loc => loc.marker_image_url)
+            .filter((url): url is string => !!url)
+            .map(url => url.substring(url.lastIndexOf('/') + 1));
+
+        if (imageFilesToDelete.length > 0) {
+            const { error: storageError } = await supabase.storage.from('mapmarkers').remove(imageFilesToDelete);
+            if (storageError) {
+                console.error("Could not delete some images from storage:", storageError);
+                showError("Could not delete some marker images, but proceeding with location deletion.");
+            }
+        }
+
+        const { error } = await supabase.from("travel_locations").delete().in("id", selectedIds);
+        if (error) throw error;
+
+        dismissToast(toastId);
+        showError(`${selectedLocations.size} locations removed.`);
+        fetchLocations();
+        setSelectedLocations(new Set());
+    } catch (error: any) {
+        dismissToast(toastId);
+        showError(error.message);
+    }
+  };
+
   return (
     <div className="space-y-8">
       <Card>
@@ -558,27 +602,82 @@ const ManageTravel = () => {
         </Card>
         <Card>
           <CardHeader>
-            <CardTitle>Travel Log</CardTitle>
-            <CardDescription>Your current list of visited places.</CardDescription>
+            <div className="flex items-center justify-between">
+              <div>
+                <CardTitle>Travel Log</CardTitle>
+                <CardDescription>Your current list of visited places.</CardDescription>
+              </div>
+              {selectedLocations.size > 0 && (
+                <AlertDialog>
+                  <AlertDialogTrigger asChild>
+                    <Button variant="destructive" size="sm">
+                      <Trash2 className="h-4 w-4 mr-2" />
+                      Delete ({selectedLocations.size})
+                    </Button>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+                      <AlertDialogDescription>
+                        This action cannot be undone. This will permanently delete {selectedLocations.size} selected locations and any associated images.
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel onClick={() => setSelectedLocations(new Set())}>Cancel</AlertDialogCancel>
+                      <AlertDialogAction onClick={handleBulkDelete}>Continue</AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
+              )}
+            </div>
           </CardHeader>
           <CardContent>
-            <div className="space-y-4">
+            <div className="flex items-center border-b pb-2 mb-2 space-x-3">
+              <Checkbox
+                  id="select-all"
+                  onCheckedChange={(checked) => {
+                      const newSelected = new Set<string>();
+                      if (checked) {
+                          locations.forEach(loc => newSelected.add(loc.id));
+                      }
+                      setSelectedLocations(newSelected);
+                  }}
+                  checked={locations.length > 0 && selectedLocations.size === locations.length}
+                  disabled={locations.length === 0}
+              />
+              <label htmlFor="select-all" className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
+                Select All
+              </label>
+            </div>
+            <div className="space-y-2 mt-4">
               {locations.length > 0 ? (
                 locations.map((location) => (
                   <div key={location.id} className="flex items-center justify-between p-2 rounded-lg border">
-                    <p className="font-medium truncate pr-2">{location.title}</p>
+                    <div className="flex items-center gap-3">
+                      <Checkbox
+                        id={`select-${location.id}`}
+                        checked={selectedLocations.has(location.id)}
+                        onCheckedChange={() => {
+                            const newSelected = new Set(selectedLocations);
+                            if (newSelected.has(location.id)) {
+                                newSelected.delete(location.id);
+                            } else {
+                                newSelected.add(location.id);
+                            }
+                            setSelectedLocations(newSelected);
+                        }}
+                      />
+                      <label htmlFor={`select-${location.id}`} className="font-medium truncate pr-2 cursor-pointer">{location.title}</label>
+                    </div>
                     <div className="flex items-center gap-2 shrink-0">
                       <Button variant="ghost" size="icon" onClick={() => handleEdit(location)}>
                         <Edit className="h-4 w-4" />
-                      </Button>
-                      <Button variant="ghost" size="icon" onClick={() => handleDelete(location.id)}>
-                        <Trash2 className="h-4 w-4 text-destructive" />
                       </Button>
                     </div>
                   </div>
                 ))
               ) : (
-                <p className="text-muted-foreground text-center">No locations yet. Add one using the form!</p>
+                <p className="text-muted-foreground text-center pt-4">No locations yet. Add one using the form!</p>
               )}
             </div>
           </CardContent>
