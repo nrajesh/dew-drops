@@ -14,8 +14,8 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { showSuccess, showError, showLoading, dismissToast } from "@/utils/toast";
-import { useState, useEffect } from "react";
-import { Trash2, Edit } from "lucide-react";
+import { useState, useEffect, useRef } from "react";
+import { Trash2, Edit, Upload } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import type { TravelLocation } from "@/types";
 
@@ -35,6 +35,9 @@ const ManageTravel = () => {
   const [locations, setLocations] = useState<TravelLocation[]>([]);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editingImageUrl, setEditingImageUrl] = useState<string | null>(null);
+  const [uploadFile, setUploadFile] = useState<File | null>(null);
+  const [isUploading, setIsUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     fetchLocations();
@@ -141,7 +144,7 @@ const ManageTravel = () => {
         const { error: updateError } = await supabase.from("travel_locations").update(locationData).eq("id", editingId);
         error = updateError;
       } else {
-        const { error: insertError } = await supabase.from("travel_locations").insert(locationData);
+        const { error: insertError } = await supabase.from("travel_locations").insert([locationData]);
         error = insertError;
       }
 
@@ -223,6 +226,120 @@ const ManageTravel = () => {
       blog_url: "",
     });
   }
+
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files.length > 0) {
+      setUploadFile(e.target.files[0]);
+    } else {
+      setUploadFile(null);
+    }
+  };
+
+  const parseCsv = (csvText: string): any[] => {
+    const lines = csvText.trim().split(/\r\n|\n/);
+    if (lines.length < 2) return [];
+
+    const headers = lines[0].split(',').map(h => h.trim());
+    const data = [];
+
+    for (let i = 1; i < lines.length; i++) {
+      if (!lines[i]) continue;
+      const values = lines[i].split(',');
+      const entry: { [key: string]: string } = {};
+      for (let j = 0; j < headers.length; j++) {
+        entry[headers[j]] = values[j]?.trim() || '';
+      }
+      data.push(entry);
+    }
+    return data;
+  }
+
+  const handleBulkUpload = async () => {
+    if (!uploadFile) return;
+
+    setIsUploading(true);
+    const toastId = showLoading("Reading CSV file...");
+
+    try {
+      const fileContent = await uploadFile.text();
+      const parsedData = parseCsv(fileContent);
+
+      if (parsedData.length === 0) {
+        throw new Error("No data rows found in the CSV file.");
+      }
+
+      dismissToast(toastId);
+      const progressToastId = showLoading(`Processing ${parsedData.length} rows...`);
+
+      const locationsToInsert = [];
+      const failedRows = [];
+
+      for (const [index, row] of parsedData.entries()) {
+        try {
+          if (!row.title || !row.name) {
+            throw new Error("Missing required 'title' or 'name'.");
+          }
+
+          let { latitude, longitude } = row;
+
+          if ((!latitude || !longitude) && row.name) {
+            const coords = await geocodeLocation(row.name);
+            latitude = coords.latitude;
+            longitude = coords.longitude;
+          }
+
+          if (!latitude || !longitude) {
+            throw new Error(`Could not determine coordinates for "${row.name}".`);
+          }
+
+          locationsToInsert.push({
+            title: row.title,
+            name: row.name,
+            description: row.description || null,
+            latitude: parseFloat(latitude),
+            longitude: parseFloat(longitude),
+            blog_url: row.blog_url || null,
+          });
+        } catch (error: any) {
+          failedRows.push({ row: index + 2, error: error.message });
+        }
+      }
+
+      dismissToast(progressToastId);
+
+      if (locationsToInsert.length > 0) {
+        const insertToastId = showLoading(`Uploading ${locationsToInsert.length} valid locations...`);
+        const { error } = await supabase.from("travel_locations").insert(locationsToInsert);
+        dismissToast(insertToastId);
+
+        if (error) {
+          throw new Error(`Database insert failed: ${error.message}`);
+        }
+        showSuccess(`${locationsToInsert.length} locations uploaded successfully!`);
+        fetchLocations();
+      }
+
+      if (failedRows.length > 0) {
+        const errorMessage = `${failedRows.length} rows failed to upload. See console for details.`;
+        showError(errorMessage);
+        console.error("Bulk upload failures:", failedRows);
+      }
+
+      if (locationsToInsert.length === 0 && failedRows.length > 0) {
+        throw new Error("Upload failed. No valid locations found in the file.");
+      }
+
+    } catch (error: any) {
+      dismissToast(toastId);
+      showError(error.message);
+    } finally {
+      setIsUploading(false);
+      setUploadFile(null);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = "";
+      }
+    }
+  };
 
   return (
     <div className="grid gap-8 md:grid-cols-2">
@@ -352,33 +469,62 @@ const ManageTravel = () => {
           </Form>
         </CardContent>
       </Card>
-      <Card>
-        <CardHeader>
-          <CardTitle>Travel Log</CardTitle>
-          <CardDescription>Your current list of visited places.</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-4">
-            {locations.length > 0 ? (
-              locations.map((location) => (
-                <div key={location.id} className="flex items-center justify-between p-2 rounded-lg border">
-                  <p className="font-medium truncate pr-2">{location.title}</p>
-                  <div className="flex items-center gap-2 shrink-0">
-                    <Button variant="ghost" size="icon" onClick={() => handleEdit(location)}>
-                      <Edit className="h-4 w-4" />
-                    </Button>
-                    <Button variant="ghost" size="icon" onClick={() => handleDelete(location.id)}>
-                      <Trash2 className="h-4 w-4 text-destructive" />
-                    </Button>
+      <div className="space-y-8">
+        <Card>
+          <CardHeader>
+            <CardTitle>Travel Log</CardTitle>
+            <CardDescription>Your current list of visited places.</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              {locations.length > 0 ? (
+                locations.map((location) => (
+                  <div key={location.id} className="flex items-center justify-between p-2 rounded-lg border">
+                    <p className="font-medium truncate pr-2">{location.title}</p>
+                    <div className="flex items-center gap-2 shrink-0">
+                      <Button variant="ghost" size="icon" onClick={() => handleEdit(location)}>
+                        <Edit className="h-4 w-4" />
+                      </Button>
+                      <Button variant="ghost" size="icon" onClick={() => handleDelete(location.id)}>
+                        <Trash2 className="h-4 w-4 text-destructive" />
+                      </Button>
+                    </div>
                   </div>
-                </div>
-              ))
-            ) : (
-              <p className="text-muted-foreground text-center">No locations yet. Add one using the form!</p>
-            )}
-          </div>
-        </CardContent>
-      </Card>
+                ))
+              ) : (
+                <p className="text-muted-foreground text-center">No locations yet. Add one using the form!</p>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader>
+            <CardTitle>Bulk Upload Locations</CardTitle>
+            <CardDescription>Upload a CSV file to add multiple locations at once.</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              <p className="text-xs text-muted-foreground p-3 bg-muted rounded-md">
+                <strong>Required CSV Headers:</strong> <code>title,name,description,latitude,longitude,blog_url</code><br/>
+                Only <code>title</code> and <code>name</code> are mandatory. Coordinates are auto-detected if blank. The CSV parser is simple and does not support commas within quoted fields.
+              </p>
+              <div className="flex items-center gap-2">
+                <Input 
+                  type="file" 
+                  accept=".csv" 
+                  onChange={handleFileSelect} 
+                  ref={fileInputRef}
+                  className="flex-grow"
+                />
+                <Button onClick={handleBulkUpload} disabled={!uploadFile || isUploading}>
+                  <Upload className="h-4 w-4 mr-2" />
+                  {isUploading ? "Uploading..." : "Upload"}
+                </Button>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
     </div>
   );
 };
