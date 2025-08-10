@@ -9,12 +9,13 @@ const MAPBOX_ACCESS_TOKEN = import.meta.env.VITE_MAPBOX_ACCESS_TOKEN;
 
 interface MapProps {
   locations: TravelLocation[];
+  focusedLocation: TravelLocation | null;
 }
 
-const Map: React.FC<MapProps> = ({ locations }) => {
+const Map: React.FC<MapProps> = ({ locations, focusedLocation }) => {
   const mapContainer = useRef<HTMLDivElement>(null);
   const map = useRef<mapboxgl.Map | null>(null);
-  const markers = useRef<mapboxgl.Marker[]>([]);
+  const markers = useRef<Map<string, mapboxgl.Marker>>(new Map());
 
   useEffect(() => {
     if (!MAPBOX_ACCESS_TOKEN) {
@@ -43,7 +44,7 @@ const Map: React.FC<MapProps> = ({ locations }) => {
 
     // Clear existing markers
     markers.current.forEach(marker => marker.remove());
-    markers.current = [];
+    markers.current.clear();
 
     // Add new markers
     locations.forEach(location => {
@@ -55,7 +56,6 @@ const Map: React.FC<MapProps> = ({ locations }) => {
         let marker;
 
         if (location.marker_image_url) {
-          // Create a custom HTML element for the marker
           const el = document.createElement('div');
           el.style.backgroundImage = `url(${location.marker_image_url})`;
           el.style.width = '40px';
@@ -71,18 +71,34 @@ const Map: React.FC<MapProps> = ({ locations }) => {
             .setPopup(popup)
             .addTo(map.current!);
         } else {
-          // Use the default marker
           marker = new mapboxgl.Marker()
             .setLngLat([location.longitude, location.latitude])
             .setPopup(popup)
             .addTo(map.current!);
         }
         
-        markers.current.push(marker);
+        markers.current.set(location.id, marker);
       }
     });
 
   }, [locations]);
+
+  useEffect(() => {
+    if (map.current && focusedLocation) {
+      map.current.flyTo({
+        center: [focusedLocation.longitude, focusedLocation.latitude],
+        zoom: 12,
+        essential: true,
+      });
+
+      const marker = markers.current.get(focusedLocation.id);
+      if (marker && !marker.getPopup().isOpen()) {
+        // Close all other popups before opening the new one
+        markers.current.forEach(m => m.getPopup().isOpen() && m.togglePopup());
+        marker.togglePopup();
+      }
+    }
+  }, [focusedLocation]);
 
   if (!MAPBOX_ACCESS_TOKEN) {
     return (
