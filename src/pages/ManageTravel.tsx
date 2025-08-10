@@ -5,7 +5,6 @@ import { Button } from "@/components/ui/button";
 import {
   Form,
   FormControl,
-  FormDescription,
   FormField,
   FormItem,
   FormLabel,
@@ -15,15 +14,14 @@ import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { showSuccess, showError, showLoading, dismissToast } from "@/utils/toast";
 import { useState, useEffect, useRef } from "react";
-import { Trash2, Edit } from "lucide-react";
+import { Trash2, Edit, AlertTriangle } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import type { TravelLocation } from "@/types";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 
 const locationSchema = z.object({
   title: z.string().min(3, { message: "Title must be at least 3 characters." }),
   name: z.string().min(3, { message: "Place name must be at least 3 characters." }),
-  latitude: z.coerce.number().min(-90, "Latitude must be between -90 and 90.").max(90, "Latitude must be between -90 and 90."),
-  longitude: z.coerce.number().min(-180, "Longitude must be between -180 and 180.").max(180, "Longitude must be between -180 and 180."),
   blog_url: z.string().url({ message: "Please enter a valid URL." }).optional().or(z.literal('')),
   image: z.any().optional(),
 });
@@ -31,6 +29,7 @@ const locationSchema = z.object({
 const ManageTravel = () => {
   const [locations, setLocations] = useState<TravelLocation[]>([]);
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [isGeocodingConfigured, setIsGeocodingConfigured] = useState(true);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -52,8 +51,6 @@ const ManageTravel = () => {
     defaultValues: {
       title: "",
       name: "",
-      latitude: 0,
-      longitude: 0,
       blog_url: "",
     },
   });
@@ -62,47 +59,62 @@ const ManageTravel = () => {
     const toastId = showLoading(editingId ? "Updating location..." : "Adding new location...");
     
     try {
+      // Step 1: Geocode the location name
+      const { data: geoData, error: geoError } = await supabase.functions.invoke('geocode-location', {
+        body: { locationName: values.name },
+      });
+
+      if (geoError || geoData.error) {
+        const errorMessage = geoData?.error || geoError.message || "Could not find location.";
+        if (errorMessage.includes("Missing API Key")) {
+          setIsGeocodingConfigured(false);
+        }
+        throw new Error(errorMessage);
+      }
+      setIsGeocodingConfigured(true);
+      const { latitude, longitude } = geoData;
+
+      // Step 2: Handle image upload
       const existingLocation = locations.find(l => l.id === editingId);
       let imageUrl = existingLocation?.marker_image_url || null;
 
-      // Handle image upload
       if (values.image && values.image.length > 0) {
         const file = values.image[0];
         const fileName = `${Date.now()}_${file.name}`;
 
-        // If editing and there was an old image, remove it
         if (editingId && imageUrl) {
           const oldFileName = imageUrl.substring(imageUrl.lastIndexOf('/') + 1);
           await supabase.storage.from('map_markers').remove([oldFileName]);
         }
 
         const { error: uploadError } = await supabase.storage.from('map_markers').upload(fileName, file);
-
         if (uploadError) throw uploadError;
 
         const { data: { publicUrl } } = supabase.storage.from('map_markers').getPublicUrl(fileName);
         imageUrl = publicUrl;
       }
 
+      // Step 3: Prepare data for Supabase
       const locationData = {
         title: values.title,
         name: values.name,
-        latitude: values.latitude,
-        longitude: values.longitude,
+        latitude,
+        longitude,
         blog_url: values.blog_url,
         marker_image_url: imageUrl,
       };
 
-      let error;
+      // Step 4: Insert or update the record
+      let dbError;
       if (editingId) {
         const { error: updateError } = await supabase.from("travel_locations").update(locationData).eq("id", editingId);
-        error = updateError;
+        dbError = updateError;
       } else {
         const { error: insertError } = await supabase.from("travel_locations").insert(locationData);
-        error = insertError;
+        dbError = insertError;
       }
 
-      if (error) throw error;
+      if (dbError) throw dbError;
 
       dismissToast(toastId);
       showSuccess(`Location ${editingId ? "updated" : "added"} successfully!`);
@@ -121,8 +133,6 @@ const ManageTravel = () => {
     setEditingId(location.id);
     form.setValue("title", location.title);
     form.setValue("name", location.name);
-    form.setValue("latitude", location.latitude);
-    form.setValue("longitude", location.longitude);
     form.setValue("blog_url", location.blog_url || "");
   };
 
@@ -159,10 +169,18 @@ const ManageTravel = () => {
         <CardHeader>
           <CardTitle>{editingId ? "Edit Location" : "Add New Location"}</CardTitle>
           <CardDescription>
-            {editingId ? "Update the details for this travel location." : "Add a new pin to your travel map."}
+            {editingId ? "Update the details for this travel location." : "Add a new pin to your travel map by entering a place name."}
           </CardDescription>
         </CardHeader>
         <CardContent>
+          {!isGeocodingConfigured && (
+            <Alert variant="destructive" className="mb-6">
+              <AlertTriangle className="h-4 w-4" />
+              <AlertDescription>
+                <strong>Action Required:</strong> The geocoding service is not configured. Please add your Mapbox token as a secret named <code>MAPBOX_ACCESS_TOKEN</code> in your Supabase project settings.
+              </AlertDescription>
+            </Alert>
+          )}
           <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
               <FormField
@@ -191,40 +209,6 @@ const ManageTravel = () => {
                   </FormItem>
                 )}
               />
-              <div className="grid grid-cols-2 gap-4">
-                <FormField
-                  control={form.control}
-                  name="latitude"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Latitude</FormLabel>
-                      <FormControl>
-                        <Input type="number" step="any" placeholder="e.g., 48.8584" {...field} />
-                      </FormControl>
-                      <FormDescription>
-                        North/South coordinate.
-                      </FormDescription>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={form.control}
-                  name="longitude"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Longitude</FormLabel>
-                      <FormControl>
-                        <Input type="number" step="any" placeholder="e.g., 2.2945" {...field} />
-                      </FormControl>
-                      <FormDescription>
-                        East/West coordinate.
-                      </FormDescription>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              </div>
               <FormField
                 control={form.control}
                 name="blog_url"
