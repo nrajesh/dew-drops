@@ -110,13 +110,13 @@ const ManageTravel = () => {
 
         if (editingId && imageUrl) {
           const oldFileName = imageUrl.substring(imageUrl.lastIndexOf('/') + 1);
-          await supabase.storage.from('map_markers').remove([oldFileName]);
+          await supabase.storage.from('mapmarkers').remove([oldFileName]);
         }
 
-        const { error: uploadError } = await supabase.storage.from('map_markers').upload(fileName, file);
+        const { error: uploadError } = await supabase.storage.from('mapmarkers').upload(fileName, file);
         if (uploadError) throw uploadError;
 
-        const { data: { publicUrl } } = supabase.storage.from('map_markers').getPublicUrl(fileName);
+        const { data: { publicUrl } } = supabase.storage.from('mapmarkers').getPublicUrl(fileName);
         imageUrl = publicUrl;
       }
 
@@ -167,7 +167,7 @@ const ManageTravel = () => {
     const toastId = showLoading("Removing image...");
     try {
       const fileName = editingImageUrl.substring(editingImageUrl.lastIndexOf('/') + 1);
-      const { error: removeError } = await supabase.storage.from('map_markers').remove([fileName]);
+      const { error: removeError } = await supabase.storage.from('mapmarkers').remove([fileName]);
       if (removeError) throw removeError;
 
       const { error: updateError } = await supabase.from("travel_locations").update({ marker_image_url: null }).eq("id", editingId);
@@ -189,7 +189,7 @@ const ManageTravel = () => {
       const locationToDelete = locations.find(l => l.id === id);
       if (locationToDelete?.marker_image_url) {
         const fileName = locationToDelete.marker_image_url.substring(locationToDelete.marker_image_url.lastIndexOf('/') + 1);
-        await supabase.storage.from('map_markers').remove([fileName]);
+        await supabase.storage.from('mapmarkers').remove([fileName]);
       }
 
       const { error } = await supabase.from("travel_locations").delete().eq("id", id);
