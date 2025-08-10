@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import {
   Form,
   FormControl,
+  FormDescription,
   FormField,
   FormItem,
   FormLabel,
@@ -200,6 +201,9 @@ const ManageTravel = () => {
                       <FormControl>
                         <Input type="number" step="any" placeholder="e.g., 48.8584" {...field} />
                       </FormControl>
+                      <FormDescription>
+                        North/South coordinate.
+                      </FormDescription>
                       <FormMessage />
                     </FormItem>
                   )}
@@ -213,6 +217,9 @@ const ManageTravel = () => {
                       <FormControl>
                         <Input type="number" step="any" placeholder="e.g., 2.2945" {...field} />
                       </FormControl>
+                      <FormDescription>
+                        East/West coordinate.
+                      </FormDescription>
                       <FormMessage />
                     </FormItem>
                   )}
