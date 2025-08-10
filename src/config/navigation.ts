@@ -9,11 +9,11 @@ export const mainNavItems = [
   { to: "/videos", icon: Youtube, label: "Videos", visible: true },
   { to: "/gallery", icon: Image, label: "Gallery", visible: true },
   { to: "/travel", icon: Map, label: "Travel", visible: true },
-  { to: "/chat", icon: Bot, label: "Chatbot", visible: true },
+  { to: "/chat", icon: Bot, label: "Chatbot", visible: false },
 ];
 
 export const managementNavItems = [
-  { to: "/manage-blog", icon: Edit, label: "Manage Blog", visible: true },
+  { to: "/manage-blog", icon: Edit, label: "Manage Blog", visible: false },
   { to: "/manage-videos", icon: Settings, label: "Manage Videos", visible: true },
   { to: "/manage-travel", icon: MapPin, label: "Manage Travel", visible: true },
 ];
