@@ -54,18 +54,11 @@ Your blog posts are stored in the Supabase database, allowing for persistent sto
 
 ### 🗺️ Managing the Travel Map
 
-Your travel locations are stored in the Supabase database, making them persistent and easy to manage through the application. The management is split into two pages for a clear workflow.
+Your travel locations are stored in the Supabase database, making them persistent and easy to manage.
 
-1.  **Adding a New Location:**
-    *   **Navigate:** Go to the **Upload Marker** page from the sidebar.
-    *   **Fill out the form:** Provide a title, place name, and optionally, coordinates, a blog post URL, and a custom image for the map pin.
-    *   **Save:** Click "Upload Marker" to add the new pin to your map.
-
-2.  **Editing or Deleting Locations:**
-    *   **Navigate:** Go to the **Manage Travel** page.
-    *   **Use the list:** You will see a list of all your travel locations.
-    *   **Edit:** Click the pencil icon to load a location's details into the form for editing.
-    *   **Delete:** Click the trash can icon to permanently remove a location.
+1.  **Navigate:** Go to the **Manage Travel** page from the sidebar.
+2.  **Create/Edit:** Use the form to add a new location. You can provide a title, place name, and optionally, a blog post URL and a custom image for the map pin. If you leave coordinates blank, they will be auto-detected from the place name. To edit, click the pencil icon on an existing location in the list.
+3.  **Delete:** Click the trash can icon to permanently remove a location.
 
 **Configuration Requirements:**
 *   **Mapbox API Key:** The map on the "Travel" page is powered by Mapbox. You must have a valid `VITE_MAPBOX_ACCESS_TOKEN` set in your environment variables for it to display correctly.
@@ -127,7 +120,7 @@ A brief overview of the most important files and directories.
 ├── src/
 │   ├── components/   # Reusable React components (e.g., Layout, Map)
 │   ├── integrations/ # Supabase & Gemini client setup
-│   ├── pages/        # Page components for each route (e.g., Blog, Travel, UploadMarker)
+│   ├── pages/        # Page components for each route (e.g., Blog, Travel, ManageTravel)
 │   ├── types/        # TypeScript type definitions
 │   ├── App.tsx       # Main application component with routing
 │   └── main.tsx      # Application entry point

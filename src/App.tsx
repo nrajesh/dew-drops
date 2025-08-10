@@ -13,7 +13,6 @@ import ManageVideos from "./pages/ManageVideos";
 import ManageTravel from "./pages/ManageTravel";
 import PrivacyPolicy from "./pages/PrivacyPolicy";
 import Chat from "./pages/Chat";
-import UploadMarker from "./pages/UploadMarker";
 
 const App = () => (
   <Routes>
@@ -29,7 +28,6 @@ const App = () => (
       <Route path="/manage-blog" element={<ManageBlog />} />
       <Route path="/manage-videos" element={<ManageVideos />} />
       <Route path="/manage-travel" element={<ManageTravel />} />
-      <Route path="/upload-marker" element={<UploadMarker />} />
       <Route path="/privacy" element={<PrivacyPolicy />} />
     </Route>
     <Route path="*" element={<NotFound />} />
