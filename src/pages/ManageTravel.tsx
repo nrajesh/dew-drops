@@ -18,11 +18,13 @@ import { Trash2, Edit } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import type { TravelLocation } from "@/types";
 
+const MAPBOX_ACCESS_TOKEN = import.meta.env.VITE_MAPBOX_ACCESS_TOKEN;
+
 const locationSchema = z.object({
   title: z.string().min(3, { message: "Title must be at least 3 characters." }),
   name: z.string().min(3, { message: "Place name must be at least 3 characters." }),
-  latitude: z.coerce.number().min(-90, "Latitude must be between -90 and 90.").max(90, "Latitude must be between -90 and 90."),
-  longitude: z.coerce.number().min(-180, "Longitude must be between -180 and 180.").max(180, "Longitude must be between -180 and 180."),
+  latitude: z.coerce.number().min(-90).max(90).optional().or(z.literal('')),
+  longitude: z.coerce.number().min(-180).max(180).optional().or(z.literal('')),
   blog_url: z.string().url({ message: "Please enter a valid URL." }).optional().or(z.literal('')),
   image: z.any().optional(),
 });
@@ -51,32 +53,68 @@ const ManageTravel = () => {
     defaultValues: {
       title: "",
       name: "",
-      latitude: 0,
-      longitude: 0,
+      latitude: "",
+      longitude: "",
       blog_url: "",
     },
   });
+
+  async function geocodeLocation(locationName: string) {
+    if (!MAPBOX_ACCESS_TOKEN) {
+      throw new Error("Mapbox access token is not configured.");
+    }
+    const response = await fetch(
+      `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(
+        locationName
+      )}.json?access_token=${MAPBOX_ACCESS_TOKEN}&limit=1`
+    );
+    const data = await response.json();
+    if (data.features && data.features.length > 0) {
+      const [longitude, latitude] = data.features[0].center;
+      return { latitude, longitude };
+    } else {
+      throw new Error(`Could not find coordinates for "${locationName}". Please provide them manually or check the spelling.`);
+    }
+  }
 
   async function onSubmit(values: z.infer<typeof locationSchema>) {
     const toastId = showLoading(editingId ? "Updating location..." : "Adding new location...");
     
     try {
+      let { latitude, longitude } = values;
+
+      // Geocode if coordinates are missing but a name is present
+      if ((!latitude || !longitude) && values.name) {
+        dismissToast(toastId);
+        const geocodeToastId = showLoading(`Finding coordinates for ${values.name}...`);
+        try {
+          const coords = await geocodeLocation(values.name);
+          latitude = coords.latitude;
+          longitude = coords.longitude;
+          form.setValue('latitude', coords.latitude);
+          form.setValue('longitude', coords.longitude);
+        } finally {
+          dismissToast(geocodeToastId);
+        }
+      }
+
+      if (!latitude || !longitude) {
+        throw new Error("Coordinates are required. Could not automatically find them for the given place name.");
+      }
+
       const existingLocation = locations.find(l => l.id === editingId);
       let imageUrl = existingLocation?.marker_image_url || null;
 
-      // Handle image upload
       if (values.image && values.image.length > 0) {
         const file = values.image[0];
         const fileName = `${Date.now()}_${file.name}`;
 
-        // If editing and there was an old image, remove it
         if (editingId && imageUrl) {
           const oldFileName = imageUrl.substring(imageUrl.lastIndexOf('/') + 1);
           await supabase.storage.from('map_markers').remove([oldFileName]);
         }
 
         const { error: uploadError } = await supabase.storage.from('map_markers').upload(fileName, file);
-
         if (uploadError) throw uploadError;
 
         const { data: { publicUrl } } = supabase.storage.from('map_markers').getPublicUrl(fileName);
@@ -86,8 +124,8 @@ const ManageTravel = () => {
       const locationData = {
         title: values.title,
         name: values.name,
-        latitude: values.latitude,
-        longitude: values.longitude,
+        latitude,
+        longitude,
         blog_url: values.blog_url,
         marker_image_url: imageUrl,
       };
@@ -106,7 +144,7 @@ const ManageTravel = () => {
       dismissToast(toastId);
       showSuccess(`Location ${editingId ? "updated" : "added"} successfully!`);
       setEditingId(null);
-      form.reset();
+      form.reset({ title: "", name: "", latitude: "", longitude: "", blog_url: "" });
       if (fileInputRef.current) fileInputRef.current.value = "";
       fetchLocations();
     } catch (error: any) {
@@ -148,7 +186,7 @@ const ManageTravel = () => {
   
   const cancelEdit = () => {
     setEditingId(null);
-    form.reset();
+    form.reset({ title: "", name: "", latitude: "", longitude: "", blog_url: "" });
     if (fileInputRef.current) fileInputRef.current.value = "";
   }
 
@@ -158,7 +196,7 @@ const ManageTravel = () => {
         <CardHeader>
           <CardTitle>{editingId ? "Edit Location" : "Add New Location"}</CardTitle>
           <CardDescription>
-            {editingId ? "Update the details for this travel location." : "Add a new pin to your travel map."}
+            {editingId ? "Update the details for this travel location." : "Add a new pin to your travel map. Coordinates are optional."}
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -196,9 +234,9 @@ const ManageTravel = () => {
                   name="latitude"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Latitude</FormLabel>
+                      <FormLabel>Latitude (Optional)</FormLabel>
                       <FormControl>
-                        <Input type="number" step="any" placeholder="e.g., 48.8584" {...field} />
+                        <Input type="number" step="any" placeholder="Auto-detected" {...field} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -209,9 +247,9 @@ const ManageTravel = () => {
                   name="longitude"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Longitude</FormLabel>
+                      <FormLabel>Longitude (Optional)</FormLabel>
                       <FormControl>
-                        <Input type="number" step="any" placeholder="e.g., 2.2945" {...field} />
+                        <Input type="number" step="any" placeholder="Auto-detected" {...field} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>

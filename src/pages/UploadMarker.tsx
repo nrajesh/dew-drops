@@ -17,6 +17,8 @@ import { showSuccess, showError, showLoading, dismissToast } from "@/utils/toast
 import { useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 
+const MAPBOX_ACCESS_TOKEN = import.meta.env.VITE_MAPBOX_ACCESS_TOKEN;
+
 const locationSchema = z.object({
   title: z.string().min(3, { message: "Title must be at least 3 characters." }),
   name: z.string().min(3, { message: "Place name must be at least 3 characters." }),
@@ -34,14 +36,53 @@ const UploadMarker = () => {
     defaultValues: {
       title: "",
       name: "",
+      latitude: "",
+      longitude: "",
       blog_url: "",
     },
   });
+
+  async function geocodeLocation(locationName: string) {
+    if (!MAPBOX_ACCESS_TOKEN) {
+      throw new Error("Mapbox access token is not configured.");
+    }
+    const response = await fetch(
+      `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(
+        locationName
+      )}.json?access_token=${MAPBOX_ACCESS_TOKEN}&limit=1`
+    );
+    const data = await response.json();
+    if (data.features && data.features.length > 0) {
+      const [longitude, latitude] = data.features[0].center;
+      return { latitude, longitude };
+    } else {
+      throw new Error(`Could not find coordinates for "${locationName}". Please provide them manually or check the spelling.`);
+    }
+  }
 
   async function onSubmit(values: z.infer<typeof locationSchema>) {
     const toastId = showLoading("Uploading new location...");
     
     try {
+      let { latitude, longitude } = values;
+
+      // Geocode if coordinates are missing but a name is present
+      if ((!latitude || !longitude) && values.name) {
+        dismissToast(toastId);
+        const geocodeToastId = showLoading(`Finding coordinates for ${values.name}...`);
+        try {
+          const coords = await geocodeLocation(values.name);
+          latitude = coords.latitude;
+          longitude = coords.longitude;
+        } finally {
+          dismissToast(geocodeToastId);
+        }
+      }
+
+      if (!latitude || !longitude) {
+        throw new Error("Coordinates are required. Could not automatically find them for the given place name.");
+      }
+
       let imageUrl = null;
 
       if (values.image && values.image.length > 0) {
@@ -58,8 +99,8 @@ const UploadMarker = () => {
       const locationData = {
         title: values.title,
         name: values.name,
-        latitude: values.latitude || null,
-        longitude: values.longitude || null,
+        latitude,
+        longitude,
         blog_url: values.blog_url || null,
         marker_image_url: imageUrl,
       };
@@ -72,7 +113,8 @@ const UploadMarker = () => {
       form.reset();
       if (fileInputRef.current) fileInputRef.current.value = "";
 
-    } catch (error: any) {
+    } catch (error: any)
+     {
       dismissToast(toastId);
       showError(error.message);
       console.error(error);
@@ -85,7 +127,7 @@ const UploadMarker = () => {
         <CardHeader>
           <CardTitle>Upload New Map Marker</CardTitle>
           <CardDescription>
-            Add a new location to your travel map. Only title and place name are required.
+            Add a new location to your travel map. Coordinates are optional and will be auto-detected.
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -125,7 +167,7 @@ const UploadMarker = () => {
                     <FormItem>
                       <FormLabel>Latitude (Optional)</FormLabel>
                       <FormControl>
-                        <Input type="number" step="any" placeholder="e.g., 41.9028" {...field} />
+                        <Input type="number" step="any" placeholder="Auto-detected" {...field} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -138,7 +180,7 @@ const UploadMarker = () => {
                     <FormItem>
                       <FormLabel>Longitude (Optional)</FormLabel>
                       <FormControl>
-                        <Input type="number" step="any" placeholder="e.g., 12.4964" {...field} />
+                        <Input type="number" step="any" placeholder="Auto-detected" {...field} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
