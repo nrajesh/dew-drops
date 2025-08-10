@@ -62,7 +62,7 @@ Your travel locations are stored in the Supabase database, making them persisten
 
 **Configuration Requirements:**
 *   **Mapbox API Key:** The map on the "Travel" page is powered by Mapbox. You must have a valid `VITE_MAPBOX_ACCESS_TOKEN` set in your environment variables for it to display correctly.
-*   **Supabase Storage:** To use custom marker icons, you must create a public Storage bucket named `map_markers` in your Supabase project.
+*   **Supabase Storage:** To use custom marker icons, you must create a public Storage bucket named `mapmarkers` in your Supabase project.
 
 ### 🎬 Managing Videos
 

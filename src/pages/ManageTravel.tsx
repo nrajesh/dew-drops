@@ -13,7 +13,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { showSuccess, showError, showLoading, dismissToast } from "@/utils/toast";
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import { Trash2, Edit } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import type { TravelLocation } from "@/types";
@@ -26,13 +26,13 @@ const locationSchema = z.object({
   latitude: z.coerce.number().min(-90).max(90).optional().or(z.literal('')),
   longitude: z.coerce.number().min(-180).max(180).optional().or(z.literal('')),
   blog_url: z.string().url({ message: "Please enter a valid URL." }).optional().or(z.literal('')),
-  image: z.any().optional(),
+  image: z.instanceof(FileList).optional(),
 });
 
 const ManageTravel = () => {
   const [locations, setLocations] = useState<TravelLocation[]>([]);
   const [editingId, setEditingId] = useState<string | null>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [editingImageUrl, setEditingImageUrl] = useState<string | null>(null);
 
   useEffect(() => {
     fetchLocations();
@@ -79,20 +79,21 @@ const ManageTravel = () => {
 
   async function onSubmit(values: z.infer<typeof locationSchema>) {
     const toastId = showLoading(editingId ? "Updating location..." : "Adding new location...");
+    console.log("Form submitted. Starting process...", { values });
     
     try {
       let { latitude, longitude } = values;
 
-      // Geocode if coordinates are missing but a name is present
       if ((!latitude || !longitude) && values.name) {
-        dismissToast(toastId);
         const geocodeToastId = showLoading(`Finding coordinates for ${values.name}...`);
+        console.log(`Geocoding location: ${values.name}`);
         try {
           const coords = await geocodeLocation(values.name);
           latitude = coords.latitude;
           longitude = coords.longitude;
           form.setValue('latitude', coords.latitude);
           form.setValue('longitude', coords.longitude);
+          console.log("Geocoding successful:", { latitude, longitude });
         } finally {
           dismissToast(geocodeToastId);
         }
@@ -104,21 +105,39 @@ const ManageTravel = () => {
 
       const existingLocation = locations.find(l => l.id === editingId);
       let imageUrl = existingLocation?.marker_image_url || null;
+      console.log("Initial imageUrl:", imageUrl);
 
       if (values.image && values.image.length > 0) {
         const file = values.image[0];
         const fileName = `${Date.now()}_${file.name}`;
+        console.log("Image file found. Preparing to upload:", { file, fileName });
 
         if (editingId && imageUrl) {
+          console.log("Editing mode: removing old image.", { imageUrl });
           const oldFileName = imageUrl.substring(imageUrl.lastIndexOf('/') + 1);
-          await supabase.storage.from('map_markers').remove([oldFileName]);
+          const { error: removeError } = await supabase.storage.from('mapmarkers').remove([oldFileName]);
+          if (removeError) {
+            console.error("Error removing old image:", removeError);
+            showError(`Could not remove old image: ${removeError.message}`);
+          } else {
+            console.log("Old image removed successfully.");
+          }
         }
 
-        const { error: uploadError } = await supabase.storage.from('map_markers').upload(fileName, file);
-        if (uploadError) throw uploadError;
+        console.log(`Uploading new image to 'mapmarkers' bucket as '${fileName}'...`);
+        const { data: uploadData, error: uploadError } = await supabase.storage.from('mapmarkers').upload(fileName, file);
+        
+        console.log("Upload attempt finished.", { uploadData, uploadError });
 
-        const { data: { publicUrl } } = supabase.storage.from('map_markers').getPublicUrl(fileName);
+        if (uploadError) {
+          console.error("UPLOAD FAILED. Throwing error.", uploadError);
+          throw uploadError;
+        }
+
+        console.log("Upload successful. Getting public URL.");
+        const { data: { publicUrl } } = supabase.storage.from('mapmarkers').getPublicUrl(fileName);
         imageUrl = publicUrl;
+        console.log("New image URL:", imageUrl);
       }
 
       const locationData = {
@@ -129,38 +148,66 @@ const ManageTravel = () => {
         blog_url: values.blog_url,
         marker_image_url: imageUrl,
       };
+      console.log("Preparing to save location data to database:", { locationData });
 
       let error;
       if (editingId) {
+        console.log(`Updating location with id: ${editingId}`);
         const { error: updateError } = await supabase.from("travel_locations").update(locationData).eq("id", editingId);
         error = updateError;
       } else {
+        console.log("Inserting new location.");
         const { error: insertError } = await supabase.from("travel_locations").insert(locationData);
         error = insertError;
       }
 
-      if (error) throw error;
+      if (error) {
+        console.error("DATABASE SAVE FAILED. Throwing error.", error);
+        throw error;
+      }
 
+      console.log("Database operation successful.");
       dismissToast(toastId);
       showSuccess(`Location ${editingId ? "updated" : "added"} successfully!`);
-      setEditingId(null);
-      form.reset({ title: "", name: "", latitude: "", longitude: "", blog_url: "" });
-      if (fileInputRef.current) fileInputRef.current.value = "";
+      cancelEdit();
       fetchLocations();
     } catch (error: any) {
+      console.error("An error occurred in onSubmit:", error);
       dismissToast(toastId);
-      showError(error.message);
-      console.error(error);
+      showError(`Operation failed: ${error.message}`);
     }
   }
 
   const handleEdit = (location: TravelLocation) => {
     setEditingId(location.id);
+    setEditingImageUrl(location.marker_image_url || null);
     form.setValue("title", location.title);
     form.setValue("name", location.name);
     form.setValue("latitude", location.latitude);
     form.setValue("longitude", location.longitude);
     form.setValue("blog_url", location.blog_url || "");
+  };
+
+  const handleRemoveImage = async () => {
+    if (!editingId || !editingImageUrl) return;
+
+    const toastId = showLoading("Removing image...");
+    try {
+      const fileName = editingImageUrl.substring(editingImageUrl.lastIndexOf('/') + 1);
+      const { error: removeError } = await supabase.storage.from('mapmarkers').remove([fileName]);
+      if (removeError) throw removeError;
+
+      const { error: updateError } = await supabase.from("travel_locations").update({ marker_image_url: null }).eq("id", editingId);
+      if (updateError) throw updateError;
+      
+      dismissToast(toastId);
+      showSuccess("Image removed successfully.");
+      setEditingImageUrl(null);
+      fetchLocations();
+    } catch (error: any) {
+      dismissToast(toastId);
+      showError(error.message);
+    }
   };
 
   const handleDelete = async (id: string) => {
@@ -169,7 +216,7 @@ const ManageTravel = () => {
       const locationToDelete = locations.find(l => l.id === id);
       if (locationToDelete?.marker_image_url) {
         const fileName = locationToDelete.marker_image_url.substring(locationToDelete.marker_image_url.lastIndexOf('/') + 1);
-        await supabase.storage.from('map_markers').remove([fileName]);
+        await supabase.storage.from('mapmarkers').remove([fileName]);
       }
 
       const { error } = await supabase.from("travel_locations").delete().eq("id", id);
@@ -186,8 +233,8 @@ const ManageTravel = () => {
   
   const cancelEdit = () => {
     setEditingId(null);
-    form.reset({ title: "", name: "", latitude: "", longitude: "", blog_url: "" });
-    if (fileInputRef.current) fileInputRef.current.value = "";
+    setEditingImageUrl(null);
+    form.reset();
   }
 
   return (
@@ -269,14 +316,29 @@ const ManageTravel = () => {
                   </FormItem>
                 )}
               />
+              
+              {editingId && editingImageUrl && (
+                <div className="space-y-2">
+                  <FormLabel>Current Marker Image</FormLabel>
+                  <div className="flex items-center gap-4">
+                    <img src={editingImageUrl} alt="Current marker" className="h-16 w-16 rounded-full object-cover border" />
+                    <Button type="button" variant="outline" size="sm" onClick={handleRemoveImage}>Remove Image</Button>
+                  </div>
+                </div>
+              )}
+
               <FormField
                 control={form.control}
                 name="image"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Custom Marker Image (Optional)</FormLabel>
+                    <FormLabel>{editingImageUrl ? 'Replace Marker Image (Optional)' : 'Custom Marker Image (Optional)'}</FormLabel>
                     <FormControl>
-                      <Input type="file" accept="image/*" {...form.register("image")} ref={fileInputRef} />
+                      <Input 
+                        type="file" 
+                        accept="image/*"
+                        onChange={(e) => field.onChange(e.target.files)}
+                      />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -284,7 +346,7 @@ const ManageTravel = () => {
               />
               <div className="flex gap-2">
                 <Button type="submit">{editingId ? "Update Location" : "Add Location"}</Button>
-                {editingId && <Button variant="outline" onClick={cancelEdit}>Cancel</Button>}
+                {editingId && <Button type="button" variant="outline" onClick={cancelEdit}>Cancel</Button>}
               </div>
             </form>
           </Form>

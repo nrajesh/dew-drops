@@ -48,8 +48,8 @@ const Map: React.FC<MapProps> = ({ locations }) => {
     // Add new markers
     locations.forEach(location => {
       if (location.latitude && location.longitude) {
-        const popup = new mapboxgl.Popup({ offset: 25 }).setHTML(
-          `<div class="p-1"><h3 class="font-bold text-base">${location.title}</h3><p class="text-sm">${location.name}</p></div>`
+        const popup = new mapboxgl.Popup({ offset: 25, className: 'custom-popup' }).setHTML(
+          `<div style="text-align: center;"><h3 style="font-weight: bold; font-size: 0.875rem; margin: 0 0 4px;">${location.title}</h3><p style="font-size: 0.75rem; margin: 0;">${location.name}</p></div>`
         );
 
         let marker;
