@@ -238,13 +238,55 @@ const ManageTravel = () => {
   const parseCsv = (csvText: string): any[] => {
     const lines = csvText.trim().split(/\r\n|\n/);
     if (lines.length < 2) return [];
-
+  
     const headers = lines[0].split(',').map(h => h.trim());
     const data = [];
-
+  
     for (let i = 1; i < lines.length; i++) {
-      if (!lines[i]) continue;
-      const values = lines[i].split(',');
+      const line = lines[i];
+      if (!line) continue;
+  
+      const values = [];
+      let currentPos = 0;
+      while (currentPos < line.length) {
+        let endPos = currentPos;
+        let value = '';
+        if (line[currentPos] === '"') {
+          // Quoted field
+          endPos = currentPos + 1;
+          while (endPos < line.length) {
+            if (line[endPos] === '"' && line[endPos + 1] === '"') {
+              // Escaped quote
+              value += '"';
+              endPos += 2;
+            } else if (line[endPos] === '"') {
+              // End of quoted field
+              endPos++;
+              break;
+            } else {
+              value += line[endPos];
+              endPos++;
+            }
+          }
+          // Find the next comma
+          if (line[endPos] === ',') {
+            endPos++;
+          }
+        } else {
+          // Unquoted field
+          endPos = line.indexOf(',', currentPos);
+          if (endPos === -1) {
+            endPos = line.length;
+          }
+          value = line.substring(currentPos, endPos);
+          if (line[endPos] === ',') {
+            endPos++;
+          }
+        }
+        values.push(value);
+        currentPos = endPos;
+      }
+  
       const entry: { [key: string]: string } = {};
       for (let j = 0; j < headers.length; j++) {
         entry[headers[j]] = values[j]?.trim() || '';
@@ -252,7 +294,7 @@ const ManageTravel = () => {
       data.push(entry);
     }
     return data;
-  }
+  };
 
   const handleBulkUpload = async () => {
     if (!uploadFile) return;
