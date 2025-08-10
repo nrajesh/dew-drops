@@ -1,26 +1,12 @@
 import { NavLink, Outlet, Link } from "react-router-dom";
-import { Home, Newspaper, Youtube, Image, Map, Menu, Settings, MapPin, Edit, Bot } from "lucide-react";
+import { Menu } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { ThemeToggle } from "./ThemeToggle";
 import { useState } from "react";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
-
-const navItems = [
-  { to: "/", icon: Home, label: "Home" },
-  { to: "/blog", icon: Newspaper, label: "Blog" },
-  { to: "/videos", icon: Youtube, label: "Videos" },
-  { to: "/gallery", icon: Image, label: "Gallery" },
-  { to: "/travel", icon: Map, label: "Travel" },
-  { to: "/chat", icon: Bot, label: "Chatbot" },
-];
-
-const managementItems = [
-  { to: "/manage-blog", icon: Edit, label: "Manage Blog" },
-  { to: "/manage-videos", icon: Settings, label: "Manage Videos" },
-  { to: "/manage-travel", icon: MapPin, label: "Manage Travel" },
-];
+import { mainNavItems, managementNavItems } from "@/config/navigation";
 
 const NavContent = ({ onLinkClick }: { onLinkClick?: () => void }) => {
   const navLinkClassName = ({ isActive }: { isActive: boolean }) =>
@@ -31,7 +17,7 @@ const NavContent = ({ onLinkClick }: { onLinkClick?: () => void }) => {
   return (
     <>
       <nav className="grid items-start px-2 text-sm font-medium lg:px-4">
-        {navItems.map((item) => (
+        {mainNavItems.filter(item => item.visible).map((item) => (
           <NavLink
             key={item.to}
             to={item.to}
@@ -50,7 +36,7 @@ const NavContent = ({ onLinkClick }: { onLinkClick?: () => void }) => {
         </h3>
       </div>
       <nav className="grid items-start px-2 text-sm font-medium lg:px-4">
-        {managementItems.map((item) => (
+        {managementNavItems.filter(item => item.visible).map((item) => (
           <NavLink
             key={item.to}
             to={item.to}
