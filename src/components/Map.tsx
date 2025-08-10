@@ -47,7 +47,7 @@ const Map: React.FC<MapProps> = ({ locations }) => {
 
     // Add new markers
     locations.forEach(location => {
-      if (location.latitude && location.longitude) {
+      if (typeof location.latitude === 'number' && typeof location.longitude === 'number') {
         const popup = new mapboxgl.Popup({ offset: 25 }).setHTML(
           `<div class="p-1"><h3 class="font-bold text-base">${location.title}</h3><p class="text-sm">${location.name}</p></div>`
         );
