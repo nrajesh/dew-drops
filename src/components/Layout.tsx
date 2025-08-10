@@ -1,5 +1,5 @@
-import { NavLink, Outlet } from "react-router-dom";
-import { Home, Newspaper, Youtube, Image, Map, Mail, Menu, Settings, MapPin, Edit } from "lucide-react";
+import { NavLink, Outlet, Link } from "react-router-dom";
+import { Home, Newspaper, Youtube, Image, Map, Menu, Settings, MapPin, Edit, Bot } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { ThemeToggle } from "./ThemeToggle";
@@ -13,7 +13,7 @@ const navItems = [
   { to: "/videos", icon: Youtube, label: "Videos" },
   { to: "/gallery", icon: Image, label: "Gallery" },
   { to: "/travel", icon: Map, label: "Travel" },
-  { to: "/contact", icon: Mail, label: "Contact" },
+  { to: "/chat", icon: Bot, label: "Chatbot" },
 ];
 
 const managementItems = [
@@ -116,6 +116,19 @@ const Layout = () => {
           <main className="flex-1 overflow-auto p-4 md:p-8">
             <Outlet />
           </main>
+          <footer className="border-t bg-background px-6 py-4">
+            <div className="flex items-center justify-between text-sm text-muted-foreground">
+              <p>&copy; {new Date().getFullYear()} My Portfolio. All rights reserved.</p>
+              <div className="flex items-center gap-4">
+                <Link to="/contact" className="hover:text-primary transition-colors">
+                  Contact
+                </Link>
+                <Link to="/privacy" className="hover:text-primary transition-colors">
+                  Privacy Policy
+                </Link>
+              </div>
+            </div>
+          </footer>
         </div>
       </div>
       <Toaster />

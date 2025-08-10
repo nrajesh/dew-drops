@@ -1,7 +1,7 @@
 import React, { useRef, useEffect } from 'react';
 import mapboxgl from 'mapbox-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
-import { TravelLocation } from '@/contexts/TravelContext';
+import type { TravelLocation } from '@/types';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Terminal } from "lucide-react";
 
@@ -14,6 +14,7 @@ interface MapProps {
 const Map: React.FC<MapProps> = ({ locations }) => {
   const mapContainer = useRef<HTMLDivElement>(null);
   const map = useRef<mapboxgl.Map | null>(null);
+  const markers = useRef<mapboxgl.Marker[]>([]);
 
   useEffect(() => {
     if (!MAPBOX_ACCESS_TOKEN) {
@@ -27,29 +28,60 @@ const Map: React.FC<MapProps> = ({ locations }) => {
     map.current = new mapboxgl.Map({
       container: mapContainer.current,
       style: 'mapbox://styles/mapbox/streets-v12',
-      center: [10, 45], // Default center
+      center: [10, 45],
       zoom: 1.5,
-    });
-
-    map.current.on('load', () => {
-      locations.forEach(location => {
-        if (location.latitude && location.longitude) {
-          const popup = new mapboxgl.Popup({ offset: 25 }).setHTML(
-            `<div class="p-1"><h3 class="font-bold text-base">${location.city}</h3><p class="text-sm">${location.description}</p></div>`
-          );
-
-          new mapboxgl.Marker()
-            .setLngLat([location.longitude, location.latitude])
-            .setPopup(popup)
-            .addTo(map.current!);
-        }
-      });
     });
 
     return () => {
       map.current?.remove();
       map.current = null;
     };
+  }, []);
+
+  useEffect(() => {
+    if (!map.current) return;
+
+    // Clear existing markers
+    markers.current.forEach(marker => marker.remove());
+    markers.current = [];
+
+    // Add new markers
+    locations.forEach(location => {
+      if (location.latitude && location.longitude) {
+        const popup = new mapboxgl.Popup({ offset: 25 }).setHTML(
+          `<div class="p-1"><h3 class="font-bold text-base">${location.title}</h3><p class="text-sm">${location.name}</p></div>`
+        );
+
+        let marker;
+
+        if (location.marker_image_url) {
+          // Create a custom HTML element for the marker
+          const el = document.createElement('div');
+          el.style.backgroundImage = `url(${location.marker_image_url})`;
+          el.style.width = '40px';
+          el.style.height = '40px';
+          el.style.backgroundSize = 'cover';
+          el.style.borderRadius = '50%';
+          el.style.border = '2px solid white';
+          el.style.boxShadow = '0 2px 4px rgba(0,0,0,0.3)';
+          el.style.cursor = 'pointer';
+
+          marker = new mapboxgl.Marker(el)
+            .setLngLat([location.longitude, location.latitude])
+            .setPopup(popup)
+            .addTo(map.current!);
+        } else {
+          // Use the default marker
+          marker = new mapboxgl.Marker()
+            .setLngLat([location.longitude, location.latitude])
+            .setPopup(popup)
+            .addTo(map.current!);
+        }
+        
+        markers.current.push(marker);
+      }
+    });
+
   }, [locations]);
 
   if (!MAPBOX_ACCESS_TOKEN) {
