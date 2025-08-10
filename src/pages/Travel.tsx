@@ -1,19 +1,17 @@
 import React, { Suspense, useEffect, useState } from "react";
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
-import { MapPin, ExternalLink } from "lucide-react";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { MapPin } from "lucide-react";
 import { Link } from "react-router-dom";
 import { Skeleton } from "@/components/ui/skeleton";
 import { supabase } from "@/integrations/supabase/client";
 import type { TravelLocation } from "@/types";
 import { showError } from "@/utils/toast";
-import { Button } from "@/components/ui/button";
 
 const Map = React.lazy(() => import('@/components/Map'));
 
 const Travel = () => {
   const [locations, setLocations] = useState<TravelLocation[]>([]);
   const [loading, setLoading] = useState(true);
-  const [focusedLocation, setFocusedLocation] = useState<TravelLocation | null>(null);
 
   useEffect(() => {
     const fetchLocations = async () => {
@@ -35,6 +33,11 @@ const Travel = () => {
     fetchLocations();
   }, []);
 
+  const createGoogleMapsUrl = (name: string) => {
+    const query = encodeURIComponent(name);
+    return `https://www.google.com/maps/search/?api=1&query=${query}`;
+  };
+
   return (
     <div className="space-y-8">
       <div className="text-center">
@@ -45,7 +48,7 @@ const Travel = () => {
       </div>
 
       <Suspense fallback={<Skeleton className="h-[450px] w-full rounded-lg" />}>
-        <Map locations={locations} focusedLocation={focusedLocation} />
+        <Map locations={locations} />
       </Suspense>
 
       {loading ? (
@@ -68,43 +71,40 @@ const Travel = () => {
             const hasBlogUrl = location.blog_url && location.blog_url.trim() !== '';
             const isInternalLink = hasBlogUrl && location.blog_url!.startsWith('/');
             
-            return (
-              <Card 
-                key={location.id}
-                onClick={() => setFocusedLocation(location)}
-                className="h-full flex flex-col transition-all hover:shadow-md hover:border-primary/50 cursor-pointer"
-              >
+            const card = (
+              <Card className="h-full transition-all hover:shadow-md hover:border-primary/50">
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
                     <MapPin className="h-5 w-5 text-primary" />
-                    {location.title}
+                    {location.name}
                   </CardTitle>
-                  <CardDescription>{location.name}</CardDescription>
                 </CardHeader>
-                <CardContent className="flex-grow">
-                  <p className="text-muted-foreground text-sm">Click to view on map.</p>
+                <CardContent>
+                  <p className="text-muted-foreground">A pin on the map marking a visit.</p>
                 </CardContent>
-                {hasBlogUrl && (
-                  <CardFooter>
-                    <Button 
-                      variant="link" 
-                      className="p-0 h-auto text-sm"
-                      asChild
-                      onClick={(e) => e.stopPropagation()}
-                    >
-                      {isInternalLink ? (
-                        <Link to={location.blog_url!}>
-                          Read Blog Post
-                        </Link>
-                      ) : (
-                        <a href={location.blog_url!} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1">
-                          Visit Website <ExternalLink className="h-3 w-3" />
-                        </a>
-                      )}
-                    </Button>
-                  </CardFooter>
-                )}
               </Card>
+            );
+
+            if (isInternalLink) {
+              return (
+                <Link key={location.id} to={location.blog_url!} className="block">
+                  {card}
+                </Link>
+              );
+            }
+
+            const href = hasBlogUrl ? location.blog_url! : createGoogleMapsUrl(location.name);
+
+            return (
+              <a
+                key={location.id}
+                href={href}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="block"
+              >
+                {card}
+              </a>
             );
           })}
         </div>

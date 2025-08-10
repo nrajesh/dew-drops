@@ -1,9 +1,5 @@
 import React, { useRef, useEffect } from 'react';
-// The 'mapbox-gl' library has some quirks with modern bundlers like Vite.
-// Using `import * as mapboxgl from 'mapbox-gl'` is a more robust way to ensure
-// all of its exports are correctly loaded into a single namespace,
-// which resolves the "Map is not a constructor" error.
-import * as mapboxgl from 'mapbox-gl';
+import mapboxgl from 'mapbox-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
 import type { TravelLocation } from '@/types';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -13,13 +9,12 @@ const MAPBOX_ACCESS_TOKEN = import.meta.env.VITE_MAPBOX_ACCESS_TOKEN;
 
 interface MapProps {
   locations: TravelLocation[];
-  focusedLocation: TravelLocation | null;
 }
 
-const Map: React.FC<MapProps> = ({ locations, focusedLocation }) => {
+const Map: React.FC<MapProps> = ({ locations }) => {
   const mapContainer = useRef<HTMLDivElement>(null);
   const map = useRef<mapboxgl.Map | null>(null);
-  const markers = useRef<Map<string, mapboxgl.Marker>>(new Map());
+  const markers = useRef<mapboxgl.Marker[]>([]);
 
   useEffect(() => {
     if (!MAPBOX_ACCESS_TOKEN) {
@@ -46,9 +41,11 @@ const Map: React.FC<MapProps> = ({ locations, focusedLocation }) => {
   useEffect(() => {
     if (!map.current) return;
 
+    // Clear existing markers
     markers.current.forEach(marker => marker.remove());
-    markers.current.clear();
+    markers.current = [];
 
+    // Add new markers
     locations.forEach(location => {
       if (location.latitude && location.longitude) {
         const popup = new mapboxgl.Popup({ offset: 25 }).setHTML(
@@ -58,6 +55,7 @@ const Map: React.FC<MapProps> = ({ locations, focusedLocation }) => {
         let marker;
 
         if (location.marker_image_url) {
+          // Create a custom HTML element for the marker
           const el = document.createElement('div');
           el.style.backgroundImage = `url(${location.marker_image_url})`;
           el.style.width = '40px';
@@ -73,33 +71,18 @@ const Map: React.FC<MapProps> = ({ locations, focusedLocation }) => {
             .setPopup(popup)
             .addTo(map.current!);
         } else {
+          // Use the default marker
           marker = new mapboxgl.Marker()
             .setLngLat([location.longitude, location.latitude])
             .setPopup(popup)
             .addTo(map.current!);
         }
         
-        markers.current.set(location.id, marker);
+        markers.current.push(marker);
       }
     });
 
   }, [locations]);
-
-  useEffect(() => {
-    if (map.current && focusedLocation) {
-      map.current.flyTo({
-        center: [focusedLocation.longitude, focusedLocation.latitude],
-        zoom: 12,
-        essential: true,
-      });
-
-      const marker = markers.current.get(focusedLocation.id);
-      if (marker && !marker.getPopup().isOpen()) {
-        markers.current.forEach(m => m.getPopup().isOpen() && m.togglePopup());
-        marker.togglePopup();
-      }
-    }
-  }, [focusedLocation]);
 
   if (!MAPBOX_ACCESS_TOKEN) {
     return (
