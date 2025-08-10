@@ -9,8 +9,10 @@ This README provides a comprehensive guide to understanding, customizing, and ma
 -   **Dynamic Blog:** A full-featured blog powered by a Supabase database, with Markdown support for writing posts.
 -   **Video Showcase:** A dedicated page to embed and display your YouTube videos.
 -   **Photo Gallery:** A simple, clean gallery to show off your photography.
--   **Interactive Travel Map:** Pin your travel destinations on a world map, complete with descriptions and links.
+-   **Interactive Travel Map:** Pin your travel destinations on a world map, complete with descriptions, links, and custom marker icons.
 -   **Contact Form:** A secure, serverless contact form that sends emails directly to you.
+-   **AI Chatbot:** An integrated chatbot powered by Google Gemini for interactive conversations.
+-   **Streamlined Content Management:** Dedicated pages for creating, editing, and deleting your content.
 -   **Light & Dark Mode:** A sleek theme toggle for user preference.
 -   **Fully Responsive:** Designed to look great on all devices, from desktops to mobile phones.
 
@@ -25,8 +27,10 @@ This portfolio is built with a selection of modern tools chosen for their perfor
 | **Styling**       | [Tailwind CSS](https://tailwindcss.com/)                                | A utility-first CSS framework for rapid, responsive UI development without leaving your HTML.      |
 | **UI Components** | [shadcn/ui](https://ui.shadcn.com/)                                     | A collection of beautifully designed, accessible, and unstyled components that you can own and customize. |
 | **Backend**       | [Supabase](https://supabase.com/)                                       | The open-source Firebase alternative. Used for:                                                    |
-|                   | &nbsp;&nbsp;&nbsp;**Database**                                          | A PostgreSQL database for storing blog posts and user data.                                        |
+|                   | &nbsp;&nbsp;&nbsp;**Database**                                          | A PostgreSQL database for storing blog posts and travel locations.                                 |
+|                   | &nbsp;&nbsp;&nbsp;**Storage**                                           | For hosting user-uploaded images like custom map markers.                                          |
 |                   | &nbsp;&nbsp;&nbsp;**Edge Functions**                                    | Serverless functions for backend logic, like the contact form.                                     |
+| **AI**            | [Google Gemini](https://ai.google.dev/)                                 | Powers the conversational AI chatbot feature.                                                      |
 | **Routing**       | [React Router](https://reactrouter.com/)                                | The standard for declarative routing in React applications.                                        |
 | **Forms**         | [React Hook Form](https://react-hook-form.com/) & [Zod](https://zod.dev/) | A powerful combination for building performant, type-safe, and validated forms.                    |
 | **Icons**         | [Lucide React](https://lucide.dev/)                                     | A beautiful and consistent open-source icon set.                                                   |
@@ -47,6 +51,25 @@ Your blog posts are stored in the Supabase database, allowing for persistent sto
 4.  **Save:** Click "Add Post" or "Update Post" to save your changes to the database.
 
 **File Location:** `src/pages/ManageBlog.tsx`
+
+### 🗺️ Managing the Travel Map
+
+Your travel locations are stored in the Supabase database, making them persistent and easy to manage through the application. The management is split into two pages for a clear workflow.
+
+1.  **Adding a New Location:**
+    *   **Navigate:** Go to the **Upload Marker** page from the sidebar.
+    *   **Fill out the form:** Provide a title, place name, and optionally, coordinates, a blog post URL, and a custom image for the map pin.
+    *   **Save:** Click "Upload Marker" to add the new pin to your map.
+
+2.  **Editing or Deleting Locations:**
+    *   **Navigate:** Go to the **Manage Travel** page.
+    *   **Use the list:** You will see a list of all your travel locations.
+    *   **Edit:** Click the pencil icon to load a location's details into the form for editing.
+    *   **Delete:** Click the trash can icon to permanently remove a location.
+
+**Configuration Requirements:**
+*   **Mapbox API Key:** The map on the "Travel" page is powered by Mapbox. You must have a valid `VITE_MAPBOX_ACCESS_TOKEN` set in your environment variables for it to display correctly.
+*   **Supabase Storage:** To use custom marker icons, you must create a public Storage bucket named `map_markers` in your Supabase project.
 
 ### 🎬 Managing Videos
 
@@ -80,19 +103,6 @@ const images = [
 ];
 ```
 
-### 🗺️ Managing the Travel Map
-
-Your travel log is managed through a React Context and a dedicated management page.
-
-1.  **Navigate:** Go to the **Manage Travel** page from the sidebar.
-2.  **How it Works:** This page also uses local state managed by a React Context (`TravelContext`). **Changes are not persistent** and will reset on refresh.
-3.  **To Permanently Add/Remove Locations:**
-    *   Open the file: `src/contexts/TravelContext.tsx`.
-    *   Find the `initialTravelLocations` array.
-    *   Modify this array to add, edit, or remove locations. You'll need coordinates (`latitude`, `longitude`) for the map pins.
-
-**API Key Requirement:** The map on the "Travel" page is powered by Mapbox. You must have a valid `VITE_MAPBOX_ACCESS_TOKEN` set in your environment variables for it to display correctly.
-
 ### 📧 Configuring the Contact Form
 
 The contact form uses a Supabase Edge Function to send emails via the Resend service.
@@ -116,10 +126,8 @@ A brief overview of the most important files and directories.
 │   └── gallery/      # Add your gallery images here
 ├── src/
 │   ├── components/   # Reusable React components (e.g., Layout, Map)
-│   ├── contexts/     # React Context providers (e.g., TravelContext)
-│   ├── integrations/ # Supabase client setup
-│   ├── lib/          # Utility functions
-│   ├── pages/        # Page components for each route
+│   ├── integrations/ # Supabase & Gemini client setup
+│   ├── pages/        # Page components for each route (e.g., Blog, Travel, UploadMarker)
 │   ├── types/        # TypeScript type definitions
 │   ├── App.tsx       # Main application component with routing
 │   └── main.tsx      # Application entry point
