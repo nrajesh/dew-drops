@@ -124,10 +124,58 @@ const ManageBlog = () => {
         <CardContent>
           <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-              <FormField control={form.control} name="title" render={({ field }) => ( <FormItem> <FormLabel>Title</FormLabel> <FormControl><Input placeholder="Your Post Title" {...field} /></FormControl> <FormMessage /> </FormItem> )} />
-              <FormField control={form.control} name="published_at" render={({ field }) => ( <FormItem> <FormLabel>Publication Date</FormLabel> <FormControl><Input type="date" {...field} /></FormControl> <FormMessage /> </FormItem> )} />
-              <FormField control={form.control} name="description" render={({ field }) => ( <FormItem> <FormLabel>Description</FormLabel> <FormControl><Textarea placeholder="A short summary of the post." {...field} /></FormControl> <FormMessage /> </FormItem> )} />
-              <FormField control={form.control} name="content" render={({ field }) => ( <FormItem> <FormLabel>Content (Markdown supported)</FormLabel> <FormControl><Textarea placeholder="Write your full article here..." className="min-h-[200px]" {...field} /></FormControl> <FormMessage /> </FormItem> )} />
+              <FormField
+                control={form.control}
+                name="title"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Title</FormLabel>
+                    <FormControl>
+                      <Input placeholder="Your Post Title" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="published_at"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Publication Date</FormLabel>
+                    <FormControl>
+                      <Input type="date" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="description"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Description</FormLabel>
+                    <FormControl>
+                      <Textarea placeholder="A short summary of the post." {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="content"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Content (Markdown supported)</FormLabel>
+                    <FormControl>
+                      <Textarea placeholder="Write your full article here..." className="min-h-[200px]" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
               <div className="flex gap-2">
                 <Button type="submit">{editingId ? "Update Post" : "Add Post"}</Button>
                 {editingId && <Button variant="outline" onClick={cancelEdit}>Cancel</Button>}
