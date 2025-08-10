@@ -80,18 +80,21 @@ const ManageTravel = () => {
 
   async function onSubmit(values: z.infer<typeof locationSchema>) {
     const toastId = showLoading(editingId ? "Updating location..." : "Adding new location...");
+    console.log("Form submitted. Starting process...", { values });
     
     try {
       let { latitude, longitude } = values;
 
       if ((!latitude || !longitude) && values.name) {
         const geocodeToastId = showLoading(`Finding coordinates for ${values.name}...`);
+        console.log(`Geocoding location: ${values.name}`);
         try {
           const coords = await geocodeLocation(values.name);
           latitude = coords.latitude;
           longitude = coords.longitude;
           form.setValue('latitude', coords.latitude);
           form.setValue('longitude', coords.longitude);
+          console.log("Geocoding successful:", { latitude, longitude });
         } finally {
           dismissToast(geocodeToastId);
         }
@@ -103,21 +106,39 @@ const ManageTravel = () => {
 
       const existingLocation = locations.find(l => l.id === editingId);
       let imageUrl = existingLocation?.marker_image_url || null;
+      console.log("Initial imageUrl:", imageUrl);
 
       if (values.image && values.image.length > 0) {
         const file = values.image[0];
         const fileName = `${Date.now()}_${file.name}`;
+        console.log("Image file found. Preparing to upload:", { file, fileName });
 
         if (editingId && imageUrl) {
+          console.log("Editing mode: removing old image.", { imageUrl });
           const oldFileName = imageUrl.substring(imageUrl.lastIndexOf('/') + 1);
-          await supabase.storage.from('mapmarkers').remove([oldFileName]);
+          const { error: removeError } = await supabase.storage.from('mapmarkers').remove([oldFileName]);
+          if (removeError) {
+            console.error("Error removing old image:", removeError);
+            showError(`Could not remove old image: ${removeError.message}`);
+          } else {
+            console.log("Old image removed successfully.");
+          }
         }
 
-        const { error: uploadError } = await supabase.storage.from('mapmarkers').upload(fileName, file);
-        if (uploadError) throw uploadError;
+        console.log(`Uploading new image to 'mapmarkers' bucket as '${fileName}'...`);
+        const { data: uploadData, error: uploadError } = await supabase.storage.from('mapmarkers').upload(fileName, file);
+        
+        console.log("Upload attempt finished.", { uploadData, uploadError });
 
+        if (uploadError) {
+          console.error("UPLOAD FAILED. Throwing error.", uploadError);
+          throw uploadError;
+        }
+
+        console.log("Upload successful. Getting public URL.");
         const { data: { publicUrl } } = supabase.storage.from('mapmarkers').getPublicUrl(fileName);
         imageUrl = publicUrl;
+        console.log("New image URL:", imageUrl);
       }
 
       const locationData = {
@@ -128,26 +149,33 @@ const ManageTravel = () => {
         blog_url: values.blog_url,
         marker_image_url: imageUrl,
       };
+      console.log("Preparing to save location data to database:", { locationData });
 
       let error;
       if (editingId) {
+        console.log(`Updating location with id: ${editingId}`);
         const { error: updateError } = await supabase.from("travel_locations").update(locationData).eq("id", editingId);
         error = updateError;
       } else {
+        console.log("Inserting new location.");
         const { error: insertError } = await supabase.from("travel_locations").insert(locationData);
         error = insertError;
       }
 
-      if (error) throw error;
+      if (error) {
+        console.error("DATABASE SAVE FAILED. Throwing error.", error);
+        throw error;
+      }
 
+      console.log("Database operation successful.");
       dismissToast(toastId);
       showSuccess(`Location ${editingId ? "updated" : "added"} successfully!`);
       cancelEdit();
       fetchLocations();
     } catch (error: any) {
+      console.error("An error occurred in onSubmit:", error);
       dismissToast(toastId);
-      showError(error.message);
-      console.error(error);
+      showError(`Operation failed: ${error.message}`);
     }
   }
 
