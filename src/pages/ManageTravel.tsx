@@ -164,13 +164,73 @@ const ManageTravel = () => {
         <CardContent>
           <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-              <FormField control={form.control} name="title" render={({ field }) => ( <FormItem> <FormLabel>Title</FormLabel> <FormControl><Input placeholder="e.g., Eiffel Tower Trip" {...field} /></FormControl> <FormMessage /> </FormItem> )} />
-              <FormField control={form.control} name="name" render={({ field }) => ( <FormItem> <FormLabel>Place Name</FormLabel> <FormControl><Input placeholder="e.g., Paris, France" {...field} /></FormControl> <FormMessage /> </FormItem> )} />
+              <FormField
+                control={form.control}
+                name="title"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Title</FormLabel>
+                    <FormControl>
+                      <Input placeholder="e.g., Eiffel Tower Trip" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="name"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Place Name</FormLabel>
+                    <FormControl>
+                      <Input placeholder="e.g., Paris, France" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
               <div className="grid grid-cols-2 gap-4">
-                <FormField control={form.control} name="latitude" render={({ field }) => ( <FormItem> <FormLabel>Latitude</FormLabel> <FormControl><Input type="number" step="any" placeholder="e.g., 48.8584" {...field} /></FormControl> <FormMessage /> </FormItem> )} />
-                <FormField control={form.control} name="longitude" render={({ field }) => ( <FormItem> <FormLabel>Longitude</FormLabel> <FormControl><Input type="number" step="any" placeholder="e.g., 2.2945" {...field} /></FormControl> <FormMessage /> </FormItem> )} />
+                <FormField
+                  control={form.control}
+                  name="latitude"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Latitude</FormLabel>
+                      <FormControl>
+                        <Input type="number" step="any" placeholder="e.g., 48.8584" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="longitude"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Longitude</FormLabel>
+                      <FormControl>
+                        <Input type="number" step="any" placeholder="e.g., 2.2945" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
               </div>
-              <FormField control={form.control} name="blog_url" render={({ field }) => ( <FormItem> <FormLabel>Blog Post URL (Optional)</FormLabel> <FormControl> <Input placeholder="/blog/my-awesome-trip" {...field} value={field.value ?? ''} /> </FormControl> <FormMessage /> </FormItem> )} />
+              <FormField
+                control={form.control}
+                name="blog_url"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Blog Post URL (Optional)</FormLabel>
+                    <FormControl>
+                      <Input placeholder="/blog/my-awesome-trip" {...field} value={field.value ?? ''} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
               <FormField
                 control={form.control}
                 name="image"
