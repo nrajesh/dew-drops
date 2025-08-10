@@ -15,7 +15,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { showSuccess, showError, showLoading, dismissToast } from "@/utils/toast";
 import { useState, useEffect, useRef } from "react";
-import { Trash2, Edit, Upload } from "lucide-react";
+import { Trash2, Edit, Upload, Download } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import type { TravelLocation } from "@/types";
 
@@ -342,134 +342,168 @@ const ManageTravel = () => {
   };
 
   return (
-    <div className="grid gap-8 md:grid-cols-2">
+    <div className="space-y-8">
       <Card>
         <CardHeader>
-          <CardTitle>{editingId ? "Edit Location" : "Add New Location"}</CardTitle>
-          <CardDescription>
-            {editingId ? "Update the details for this travel location." : "Add a new pin to your travel map. Coordinates are optional."}
-          </CardDescription>
+          <CardTitle>Bulk Upload Locations</CardTitle>
+          <CardDescription>Upload a CSV file to add multiple locations at once.</CardDescription>
         </CardHeader>
         <CardContent>
-          <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-              <FormField
-                control={form.control}
-                name="title"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Title</FormLabel>
-                    <FormControl>
-                      <Input placeholder="e.g., Eiffel Tower Trip" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
+          <div className="space-y-4">
+            <div className="flex items-center justify-between p-3 bg-muted rounded-md">
+                <p className="text-sm text-muted-foreground">
+                  Use a CSV with headers: <code>title,name,description,latitude,longitude,blog_url</code>
+                </p>
+                <Button asChild variant="secondary" size="sm">
+                    <a href="/sample-travel-locations.csv" download>
+                        <Download className="h-4 w-4 mr-2" />
+                        Download Sample
+                    </a>
+                </Button>
+            </div>
+            <div className="flex items-center gap-2">
+              <Input 
+                type="file" 
+                accept=".csv" 
+                onChange={handleFileSelect} 
+                ref={fileInputRef}
+                className="flex-grow"
               />
-               <FormField
-                control={form.control}
-                name="description"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Description (Optional)</FormLabel>
-                    <FormControl>
-                      <Textarea placeholder="A short description of your visit." {...field} value={field.value ?? ''} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="name"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Place Name</FormLabel>
-                    <FormControl>
-                      <Input placeholder="e.g., Paris, France" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <div className="grid grid-cols-2 gap-4">
-                <FormField
-                  control={form.control}
-                  name="latitude"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Latitude (Optional)</FormLabel>
-                      <FormControl>
-                        <Input type="number" step="any" placeholder="Auto-detected" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={form.control}
-                  name="longitude"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Longitude (Optional)</FormLabel>
-                      <FormControl>
-                        <Input type="number" step="any" placeholder="Auto-detected" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              </div>
-              <FormField
-                control={form.control}
-                name="blog_url"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Blog Post URL (Optional)</FormLabel>
-                    <FormControl>
-                      <Input placeholder="/blog/my-awesome-trip" {...field} value={field.value ?? ''} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              
-              {editingId && editingImageUrl && (
-                <div className="space-y-2">
-                  <FormLabel>Current Marker Image</FormLabel>
-                  <div className="flex items-center gap-4">
-                    <img src={editingImageUrl} alt="Current marker" className="h-16 w-16 rounded-full object-cover border" />
-                    <Button type="button" variant="outline" size="sm" onClick={handleRemoveImage}>Remove Image</Button>
-                  </div>
-                </div>
-              )}
-
-              <FormField
-                control={form.control}
-                name="image"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>{editingImageUrl ? 'Replace Marker Image (Optional)' : 'Custom Marker Image (Optional)'}</FormLabel>
-                    <FormControl>
-                      <Input 
-                        type="file" 
-                        accept="image/*"
-                        onChange={(e) => field.onChange(e.target.files)}
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <div className="flex gap-2">
-                <Button type="submit">{editingId ? "Update Location" : "Add Location"}</Button>
-                {editingId && <Button type="button" variant="outline" onClick={cancelEdit}>Cancel</Button>}
-              </div>
-            </form>
-          </Form>
+              <Button onClick={handleBulkUpload} disabled={!uploadFile || isUploading}>
+                <Upload className="h-4 w-4 mr-2" />
+                {isUploading ? "Uploading..." : "Upload"}
+              </Button>
+            </div>
+          </div>
         </CardContent>
       </Card>
-      <div className="space-y-8">
+      <div className="grid gap-8 md:grid-cols-2">
+        <Card>
+          <CardHeader>
+            <CardTitle>{editingId ? "Edit Location" : "Add New Location"}</CardTitle>
+            <CardDescription>
+              {editingId ? "Update the details for this travel location." : "Add a new pin to your travel map. Coordinates are optional."}
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Form {...form}>
+              <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+                <FormField
+                  control={form.control}
+                  name="title"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Title</FormLabel>
+                      <FormControl>
+                        <Input placeholder="e.g., Eiffel Tower Trip" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="description"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Description (Optional)</FormLabel>
+                      <FormControl>
+                        <Textarea placeholder="A short description of your visit." {...field} value={field.value ?? ''} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="name"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Place Name</FormLabel>
+                      <FormControl>
+                        <Input placeholder="e.g., Paris, France" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <div className="grid grid-cols-2 gap-4">
+                  <FormField
+                    control={form.control}
+                    name="latitude"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Latitude (Optional)</FormLabel>
+                        <FormControl>
+                          <Input type="number" step="any" placeholder="Auto-detected" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="longitude"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Longitude (Optional)</FormLabel>
+                        <FormControl>
+                          <Input type="number" step="any" placeholder="Auto-detected" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+                <FormField
+                  control={form.control}
+                  name="blog_url"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Blog Post URL (Optional)</FormLabel>
+                      <FormControl>
+                        <Input placeholder="/blog/my-awesome-trip" {...field} value={field.value ?? ''} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                
+                {editingId && editingImageUrl && (
+                  <div className="space-y-2">
+                    <FormLabel>Current Marker Image</FormLabel>
+                    <div className="flex items-center gap-4">
+                      <img src={editingImageUrl} alt="Current marker" className="h-16 w-16 rounded-full object-cover border" />
+                      <Button type="button" variant="outline" size="sm" onClick={handleRemoveImage}>Remove Image</Button>
+                    </div>
+                  </div>
+                )}
+
+                <FormField
+                  control={form.control}
+                  name="image"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>{editingImageUrl ? 'Replace Marker Image (Optional)' : 'Custom Marker Image (Optional)'}</FormLabel>
+                      <FormControl>
+                        <Input 
+                          type="file" 
+                          accept="image/*"
+                          onChange={(e) => field.onChange(e.target.files)}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <div className="flex gap-2">
+                  <Button type="submit">{editingId ? "Update Location" : "Add Location"}</Button>
+                  {editingId && <Button type="button" variant="outline" onClick={cancelEdit}>Cancel</Button>}
+                </div>
+              </form>
+            </Form>
+          </CardContent>
+        </Card>
         <Card>
           <CardHeader>
             <CardTitle>Travel Log</CardTitle>
@@ -494,33 +528,6 @@ const ManageTravel = () => {
               ) : (
                 <p className="text-muted-foreground text-center">No locations yet. Add one using the form!</p>
               )}
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader>
-            <CardTitle>Bulk Upload Locations</CardTitle>
-            <CardDescription>Upload a CSV file to add multiple locations at once.</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              <p className="text-xs text-muted-foreground p-3 bg-muted rounded-md">
-                <strong>Required CSV Headers:</strong> <code>title,name,description,latitude,longitude,blog_url</code><br/>
-                Only <code>title</code> and <code>name</code> are mandatory. Coordinates are auto-detected if blank. The CSV parser is simple and does not support commas within quoted fields.
-              </p>
-              <div className="flex items-center gap-2">
-                <Input 
-                  type="file" 
-                  accept=".csv" 
-                  onChange={handleFileSelect} 
-                  ref={fileInputRef}
-                  className="flex-grow"
-                />
-                <Button onClick={handleBulkUpload} disabled={!uploadFile || isUploading}>
-                  <Upload className="h-4 w-4 mr-2" />
-                  {isUploading ? "Uploading..." : "Upload"}
-                </Button>
-              </div>
             </div>
           </CardContent>
         </Card>
