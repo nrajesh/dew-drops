@@ -13,7 +13,7 @@ export const mainNavItems = [
 ];
 
 export const managementNavItems = [
-  { to: "/manage-blog", icon: Edit, label: "Manage Blog", visible: false },
+  { to: "/manage-blog", icon: Edit, label: "Manage Blog", visible: true },
   { to: "/manage-videos", icon: Settings, label: "Manage Videos", visible: true },
   { to: "/manage-travel", icon: MapPin, label: "Manage Travel", visible: true },
   { to: "/manage-gallery", icon: GalleryThumbnails, label: "Manage Gallery", visible: true },
