@@ -30,3 +30,11 @@ export interface GalleryImage {
   user_id: string | null;
   exif_data: Record<string, any> | null;
 }
+
+export interface Video {
+  id: string;
+  user_id: string | null;
+  title: string;
+  youtube_id: string;
+  created_at: string;
+}
