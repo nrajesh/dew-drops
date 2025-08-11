@@ -68,7 +68,10 @@ const Layout = () => {
 
   const handleLogout = async () => {
     const { error } = await supabase.auth.signOut();
-    if (error) {
+    
+    // If the error is AuthSessionMissingError, it means the user was already logged out.
+    // We can treat this as a successful logout.
+    if (error && error.name !== 'AuthSessionMissingError') {
       showError("Logout failed. Please try again.");
       console.error("Logout error:", error);
     } else {
