@@ -9,7 +9,7 @@ import { ImageLightbox } from "@/components/ImageLightbox";
 const Gallery = () => {
   const [images, setImages] = useState<GalleryImage[]>([]);
   const [loading, setLoading] = useState(true);
-  const [selectedImage, setSelectedImage] = useState<GalleryImage | null>(null);
+  const [selectedImageIndex, setSelectedImageIndex] = useState<number | null>(null);
 
   useEffect(() => {
     const fetchImages = async () => {
@@ -30,6 +30,18 @@ const Gallery = () => {
     fetchImages();
   }, []);
 
+  const handleNavigate = (direction: 'prev' | 'next') => {
+    if (selectedImageIndex === null || images.length < 2) return;
+
+    if (direction === 'next') {
+      setSelectedImageIndex((prevIndex) => (prevIndex! + 1) % images.length);
+    } else {
+      setSelectedImageIndex((prevIndex) => (prevIndex! - 1 + images.length) % images.length);
+    }
+  };
+
+  const selectedImage = selectedImageIndex !== null ? images[selectedImageIndex] : null;
+
   return (
     <>
       <div className="space-y-6">
@@ -49,11 +61,11 @@ const Gallery = () => {
               </Card>
             ))
           ) : images.length > 0 ? (
-            images.map((image) => (
+            images.map((image, index) => (
               <Card 
                 key={image.id} 
                 className="overflow-hidden group cursor-pointer"
-                onClick={() => setSelectedImage(image)}
+                onClick={() => setSelectedImageIndex(index)}
               >
                 <CardContent className="p-0">
                   <AspectRatio ratio={4 / 3}>
@@ -74,7 +86,13 @@ const Gallery = () => {
           )}
         </div>
       </div>
-      <ImageLightbox image={selectedImage} onClose={() => setSelectedImage(null)} />
+      <ImageLightbox 
+        image={selectedImage} 
+        onClose={() => setSelectedImageIndex(null)}
+        onNavigate={handleNavigate}
+        hasNext={images.length > 1}
+        hasPrev={images.length > 1}
+      />
     </>
   );
 };
