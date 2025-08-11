@@ -77,7 +77,9 @@ const ManageGallery = () => {
         const tags = ExifReader.load(fileBuffer);
         delete tags['MakerNote'];
         delete tags['UserComment'];
-        exifData = tags;
+        // Sanitize the EXIF data by converting to a JSON string and back.
+        // This handles any special characters or invalid escape sequences.
+        exifData = JSON.parse(JSON.stringify(tags));
       } catch (error) {
         console.warn(`Could not read EXIF data for ${file.name}:`, error);
       }
