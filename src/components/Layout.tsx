@@ -17,6 +17,8 @@ const NavContent = ({ onLinkClick }: { onLinkClick?: () => void }) => {
       isActive ? "bg-sidebar-primary text-sidebar-primary-foreground" : "text-sidebar-foreground"
     }`;
 
+  const areManagementItemsVisible = managementNavItems.some(item => item.visible);
+
   return (
     <>
       <nav className="grid items-start px-2 text-sm font-medium lg:px-4">
@@ -34,24 +36,28 @@ const NavContent = ({ onLinkClick }: { onLinkClick?: () => void }) => {
         ))}
       </nav>
       
-      <div className="mt-4 px-4 lg:px-6">
-        <h3 className="mb-2 text-xs font-semibold uppercase text-sidebar-foreground/70 tracking-wider">
-          Management
-        </h3>
-      </div>
-      <nav className="grid items-start px-2 text-sm font-medium lg:px-4">
-        {managementNavItems.filter(item => item.visible).map((item) => (
-          <NavLink
-            key={item.to}
-            to={item.to}
-            onClick={onLinkClick}
-            className={navLinkClassName}
-          >
-            <item.icon className="h-4 w-4" />
-            {item.label}
-          </NavLink>
-        ))}
-      </nav>
+      {areManagementItemsVisible && (
+        <>
+          <div className="mt-4 px-4 lg:px-6">
+            <h3 className="mb-2 text-xs font-semibold uppercase text-sidebar-foreground/70 tracking-wider">
+              Management
+            </h3>
+          </div>
+          <nav className="grid items-start px-2 text-sm font-medium lg:px-4">
+            {managementNavItems.filter(item => item.visible).map((item) => (
+              <NavLink
+                key={item.to}
+                to={item.to}
+                onClick={onLinkClick}
+                className={navLinkClassName}
+              >
+                <item.icon className="h-4 w-4" />
+                {item.label}
+              </NavLink>
+            ))}
+          </nav>
+        </>
+      )}
     </>
   );
 };
