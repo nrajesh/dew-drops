@@ -16,8 +16,8 @@ const Login = () => {
     <div className="flex justify-center items-center h-full">
       <Card className="w-full max-w-md">
         <CardHeader>
-          <CardTitle>Welcome Back</CardTitle>
-          <CardDescription>Sign in to manage your portfolio.</CardDescription>
+          <CardTitle>Administrator Access</CardTitle>
+          <CardDescription>Please sign in with the administrator account to manage your portfolio.</CardDescription>
         </CardHeader>
         <CardContent>
           <Auth
@@ -25,6 +25,8 @@ const Login = () => {
             appearance={{ theme: ThemeSupa }}
             providers={[]}
             theme="dark"
+            view="sign_in"
+            showLinks={false}
           />
         </CardContent>
       </Card>
