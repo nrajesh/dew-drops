@@ -26,6 +26,7 @@ const Login = () => {
             providers={[]}
             theme="dark"
             view="sign_in"
+            showLinks={false}
           />
         </CardContent>
       </Card>
