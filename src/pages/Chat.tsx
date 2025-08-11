@@ -9,6 +9,7 @@ import { showError } from "@/utils/toast";
 import { Bot, User, Send } from "lucide-react";
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
+import { usePortfolioContext } from "@/hooks/usePortfolioContext";
 
 interface Message {
   role: 'user' | 'model';
@@ -20,6 +21,7 @@ const Chat = () => {
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
+  const { context, loading: contextLoading } = usePortfolioContext();
 
   const GEMINI_API_KEY = import.meta.env.VITE_GEMINI_API_KEY;
 
@@ -32,9 +34,56 @@ const Chat = () => {
     }
   }, [messages]);
 
+  const formatContext = () => {
+    if (!context) return "";
+
+    const homePageContext = `
+**Home Page Introduction:**
+"Welcome to My Creative Space. A curated collection of professional work, personal projects and travels of Rajesh Narayanan. Explore my blog, watch my videos, and get in touch."
+    `.trim();
+
+    const postsContext = context.posts.length > 0 ? `
+**Recent Blog Posts:**
+${context.posts.map(p => `- Title: ${p.title}${p.description ? `, Description: ${p.description}` : ''}`).join('\n')}
+    `.trim() : '';
+
+    const locationsContext = context.locations.length > 0 ? `
+**Recent Travel Locations:**
+${context.locations.map(l => `- Location: ${l.title} in ${l.name}${l.description ? `. Notes: ${l.description}` : ''}`).join('\n')}
+    `.trim() : '';
+
+    const videosContext = context.videos.length > 0 ? `
+**Featured Videos:**
+${context.videos.map(v => `- ${v.title}`).join('\n')}
+    `.trim() : '';
+
+    const imagesContext = context.images.length > 0 ? `
+**Photo Gallery Highlights (from image descriptions):**
+${context.images.map(i => `- ${i.alt_text}`).join('\n')}
+    `.trim() : '';
+
+    return `
+Here is some context about this portfolio website and its owner, Rajesh Narayanan. Please use this information to answer user questions conversationally, as if you are a helpful assistant for this website.
+
+${homePageContext}
+
+${postsContext}
+
+${locationsContext}
+
+${videosContext}
+
+${imagesContext}
+
+Based on this context, please answer the user's question.
+---
+User's question:
+    `.trim();
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!input.trim() || isLoading) return;
+    if (!input.trim() || isLoading || contextLoading) return;
 
     const userMessage: Message = { role: 'user', text: input };
     setMessages(prev => [...prev, userMessage]);
@@ -43,7 +92,9 @@ const Chat = () => {
     setIsLoading(true);
 
     try {
-      const response = await sendMessageToGemini(currentInput);
+      const systemPrompt = formatContext();
+      const fullPrompt = `${systemPrompt} ${currentInput}`;
+      const response = await sendMessageToGemini(fullPrompt);
       const modelMessage: Message = { role: 'model', text: response };
       setMessages(prev => [...prev, modelMessage]);
     } catch (error: any) {
@@ -127,11 +178,11 @@ const Chat = () => {
           <Input
             value={input}
             onChange={(e) => setInput(e.target.value)}
-            placeholder="Type your message..."
-            disabled={isLoading}
+            placeholder={contextLoading ? "Learning about the portfolio..." : "Type your message..."}
+            disabled={isLoading || contextLoading}
             autoComplete="off"
           />
-          <Button type="submit" disabled={isLoading || !input.trim()}>
+          <Button type="submit" disabled={isLoading || !input.trim() || contextLoading}>
             <Send className="h-4 w-4" />
           </Button>
         </form>
