@@ -101,16 +101,20 @@ const ManageGallery = () => {
         
         for (const key in tags) {
           if (Object.prototype.hasOwnProperty.call(tags, key)) {
-            if (tags[key] && typeof tags[key].description !== 'undefined') {
-              if (key === 'MakerNote' || key === 'UserComment' || key === 'thumbnail') {
-                continue;
-              }
-              let description = tags[key].description;
-              // Forcefully escape any backslashes in the string description to prevent JSON errors.
+            if (key === 'MakerNote' || key === 'UserComment' || key === 'thumbnail') {
+              continue;
+            }
+
+            const tagValue = tags[key];
+            if (tagValue && typeof tagValue.description !== 'undefined') {
+              const description = tagValue.description;
+
               if (typeof description === 'string') {
-                description = description.replace(/\\/g, '\\\\');
+                cleanExif[key] = description.replace(/\\/g, '\\\\');
+              } else if (typeof description === 'number') {
+                cleanExif[key] = description;
               }
-              cleanExif[key] = description;
+              // Intentionally ignore objects, arrays, and other complex types
             }
           }
         }
