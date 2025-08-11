@@ -146,9 +146,9 @@ export const ImageLightbox = ({ image, onClose, onNavigate, hasNext, hasPrev }: 
             </button>
           )}
 
-          {/* Main Image */}
+          {/* Main Image and Description */}
           <motion.div
-            className="relative max-w-4xl max-h-[90vh] w-full"
+            className="relative max-w-4xl w-full flex flex-col items-center gap-2"
             onClick={(e) => e.stopPropagation()}
             variants={modalVariants}
             key={image.id}
@@ -156,8 +156,13 @@ export const ImageLightbox = ({ image, onClose, onNavigate, hasNext, hasPrev }: 
             <img
               src={image.image_url}
               alt={image.alt_text || "Enlarged gallery image"}
-              className="w-full h-auto object-contain max-h-[90vh] rounded-lg shadow-2xl"
+              className="w-full h-auto object-contain max-h-[85vh] rounded-lg shadow-2xl"
             />
+            {image.alt_text && (
+              <figcaption className="text-center text-white/90 text-base p-2 bg-black/30 rounded-md max-w-full">
+                {image.alt_text}
+              </figcaption>
+            )}
           </motion.div>
 
           {/* EXIF Overlay */}
