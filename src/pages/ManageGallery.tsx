@@ -105,7 +105,12 @@ const ManageGallery = () => {
               if (key === 'MakerNote' || key === 'UserComment' || key === 'thumbnail') {
                 continue;
               }
-              cleanExif[key] = tags[key].description;
+              let description = tags[key].description;
+              // Forcefully escape any backslashes in the string description to prevent JSON errors.
+              if (typeof description === 'string') {
+                description = description.replace(/\\/g, '\\\\');
+              }
+              cleanExif[key] = description;
             }
           }
         }
