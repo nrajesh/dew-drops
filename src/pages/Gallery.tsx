@@ -33,12 +33,12 @@ const Gallery = () => {
   }, []);
 
   const deviceMakes = Array.from(
-    new Set(images.map(img => img.exif_data?.Make?.description).filter(Boolean) as string[])
+    new Set(images.map(img => img.exif_data?.Make).filter(Boolean) as string[])
   ).sort();
 
   const filteredImages = images.filter(image => {
     if (activeMake === 'all') return true;
-    return image.exif_data?.Make?.description === activeMake;
+    return image.exif_data?.Make === activeMake;
   });
 
   const handleNavigate = (direction: 'prev' | 'next') => {

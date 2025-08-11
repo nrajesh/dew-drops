@@ -72,14 +72,25 @@ const ManageGallery = () => {
       const fileName = `${user.id}/${Date.now()}_${sanitizedName}`;
       
       const fileBuffer = await file.arrayBuffer();
-      let exifData = null;
+      let exifData: Record<string, any> | null = null;
       try {
         const tags = ExifReader.load(fileBuffer);
-        delete tags['MakerNote'];
-        delete tags['UserComment'];
-        // Sanitize the EXIF data by converting to a JSON string and back.
-        // This handles any special characters or invalid escape sequences.
-        exifData = JSON.parse(JSON.stringify(tags));
+        const cleanExif: Record<string, any> = {};
+        
+        // Manually build a clean EXIF object with only string descriptions
+        // to prevent serialization errors with complex data structures.
+        for (const key in tags) {
+          if (Object.prototype.hasOwnProperty.call(tags, key)) {
+            if (tags[key] && typeof tags[key].description !== 'undefined') {
+              // Skip tags that are known to be problematic or huge
+              if (key === 'MakerNote' || key === 'UserComment' || key === 'thumbnail') {
+                continue;
+              }
+              cleanExif[key] = tags[key].description;
+            }
+          }
+        }
+        exifData = cleanExif;
       } catch (error) {
         console.warn(`Could not read EXIF data for ${file.name}:`, error);
       }

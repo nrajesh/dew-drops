@@ -44,7 +44,7 @@ const ExifDisplay = ({ data }: { data: Record<string, any> }) => {
 
     const entries = Object.entries(relevantTags)
         .map(([key, label]) => {
-            const value = data[key]?.description;
+            const value = data[key]; // Data is now the direct string value
             return value ? { label, value } : null;
         })
         .filter((item): item is { label: string; value: any } => item !== null);
