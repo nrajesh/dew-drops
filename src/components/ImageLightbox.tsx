@@ -95,6 +95,7 @@ export const ImageLightbox = ({ image, onClose, onNavigate, hasNext, hasPrev }: 
   }, [image]);
 
   const exifData = image?.exif_data;
+  const isRealDescription = image?.alt_text && !/\.(jpe?g|png|tiff|gif)$/i.test(image.alt_text);
 
   return (
     <AnimatePresence>
@@ -158,7 +159,7 @@ export const ImageLightbox = ({ image, onClose, onNavigate, hasNext, hasPrev }: 
               alt={image.alt_text || "Enlarged gallery image"}
               className="w-full h-auto object-contain max-h-[85vh] rounded-lg shadow-2xl"
             />
-            {image.alt_text && (
+            {isRealDescription && (
               <figcaption className="text-center text-white/90 text-base p-2 bg-black/30 rounded-md max-w-full">
                 {image.alt_text}
               </figcaption>
