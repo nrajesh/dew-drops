@@ -110,11 +110,15 @@ const ManageGallery = () => {
               const description = tagValue.description;
 
               if (typeof description === 'string') {
-                cleanExif[key] = description.replace(/\\/g, '\\\\');
+                const sanitized = description
+                  .replace(/,/g, '.')
+                  .replace(/\u00D7/g, 'x')
+                  .replace(/[\u200A-\u200F]/g, '')
+                  .replace(/\\/g, '\\\\');
+                cleanExif[key] = sanitized;
               } else if (typeof description === 'number') {
                 cleanExif[key] = description;
               }
-              // Intentionally ignore objects, arrays, and other complex types
             }
           }
         }
