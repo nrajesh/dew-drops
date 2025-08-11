@@ -1,10 +1,17 @@
 import { useState, useEffect } from "react";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import * as z from "zod";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Textarea } from "@/components/ui/textarea";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
+import { AspectRatio } from "@/components/ui/aspect-ratio";
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { supabase } from "@/integrations/supabase/client";
 import { showSuccess, showError, showLoading, dismissToast } from "@/utils/toast";
-import { Upload, Trash2 } from "lucide-react";
+import { Upload, Trash2, Edit } from "lucide-react";
 import type { GalleryImage } from "@/types";
 import {
   AlertDialog,
@@ -22,6 +29,10 @@ import { sanitizeFileName } from "@/lib/utils";
 import ExifReader from 'exifreader';
 import { Checkbox } from "@/components/ui/checkbox";
 
+const editSchema = z.object({
+  alt_text: z.string().min(3, "Alt text must be at least 3 characters.").max(200, "Alt text cannot exceed 200 characters."),
+});
+
 const ManageGallery = () => {
   const { user } = useAuth();
   const [images, setImages] = useState<GalleryImage[]>([]);
@@ -29,6 +40,17 @@ const ManageGallery = () => {
   const [isUploading, setIsUploading] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [selectedImages, setSelectedImages] = useState<Set<string>>(new Set());
+  const [editingImage, setEditingImage] = useState<GalleryImage | null>(null);
+
+  const form = useForm<z.infer<typeof editSchema>>({
+    resolver: zodResolver(editSchema),
+  });
+
+  useEffect(() => {
+    if (editingImage) {
+      form.reset({ alt_text: editingImage.alt_text || '' });
+    }
+  }, [editingImage, form]);
 
   useEffect(() => {
     fetchImages();
@@ -77,12 +99,9 @@ const ManageGallery = () => {
         const tags = ExifReader.load(fileBuffer);
         const cleanExif: Record<string, any> = {};
         
-        // Manually build a clean EXIF object with only string descriptions
-        // to prevent serialization errors with complex data structures.
         for (const key in tags) {
           if (Object.prototype.hasOwnProperty.call(tags, key)) {
             if (tags[key] && typeof tags[key].description !== 'undefined') {
-              // Skip tags that are known to be problematic or huge
               if (key === 'MakerNote' || key === 'UserComment' || key === 'thumbnail') {
                 continue;
               }
@@ -172,6 +191,25 @@ const ManageGallery = () => {
     }
   };
 
+  const handleUpdateAltText = async (values: z.infer<typeof editSchema>) => {
+    if (!editingImage) return;
+
+    const toastId = showLoading("Updating alt text...");
+    const { error } = await supabase
+      .from("gallery_images")
+      .update({ alt_text: values.alt_text })
+      .eq("id", editingImage.id);
+
+    dismissToast(toastId);
+    if (error) {
+      showError(`Update failed: ${error.message}`);
+    } else {
+      showSuccess("Alt text updated successfully!");
+      setImages(images.map(img => img.id === editingImage.id ? { ...img, alt_text: values.alt_text } : img));
+      setEditingImage(null);
+    }
+  };
+
   const handleSelectImage = (id: string) => {
     const newSelection = new Set(selectedImages);
     if (newSelection.has(id)) {
@@ -191,110 +229,156 @@ const ManageGallery = () => {
   };
 
   return (
-    <div className="space-y-8">
-      <Card>
-        <CardHeader>
-          <CardTitle>Upload to Gallery</CardTitle>
-          <CardDescription>
-            Select one or more images to upload. EXIF data will be automatically extracted.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="flex items-center gap-4">
-            <Input
-              id="file-input"
-              type="file"
-              multiple
-              accept="image/jpeg,image/png,image/tiff"
-              onChange={handleFileChange}
-              className="flex-grow"
-            />
-            <Button onClick={handleUpload} disabled={isUploading || !selectedFiles}>
-              <Upload className="h-4 w-4 mr-2" />
-              {isUploading ? "Uploading..." : "Upload"}
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between">
-          <div>
-            <CardTitle>Manage Gallery</CardTitle>
+    <>
+      <div className="space-y-8">
+        <Card>
+          <CardHeader>
+            <CardTitle>Upload to Gallery</CardTitle>
             <CardDescription>
-              View and delete your uploaded images.
+              Select one or more images to upload. EXIF data will be automatically extracted.
             </CardDescription>
-          </div>
-          {selectedImages.size > 0 && (
-            <AlertDialog>
-              <AlertDialogTrigger asChild>
-                <Button variant="destructive">
-                  <Trash2 className="h-4 w-4 mr-2" />
-                  Delete ({selectedImages.size})
-                </Button>
-              </AlertDialogTrigger>
-              <AlertDialogContent>
-                <AlertDialogHeader>
-                  <AlertDialogTitle>Are you sure?</AlertDialogTitle>
-                  <AlertDialogDescription>
-                    This will permanently delete the {selectedImages.size} selected image(s). This action cannot be undone.
-                  </AlertDialogDescription>
-                </AlertDialogHeader>
-                <AlertDialogFooter>
-                  <AlertDialogCancel>Cancel</AlertDialogCancel>
-                  <AlertDialogAction onClick={() => handleDelete(Array.from(selectedImages))}>
-                    Delete
-                  </AlertDialogAction>
-                </AlertDialogFooter>
-              </AlertDialogContent>
-            </AlertDialog>
-          )}
-        </CardHeader>
-        <CardContent>
-          {isLoading ? (
-            <p>Loading images...</p>
-          ) : images.length > 0 ? (
-            <>
-              <div className="flex items-center space-x-2 mb-4 pb-4 border-b">
-                <Checkbox
-                  id="select-all"
-                  checked={selectedImages.size === images.length && images.length > 0}
-                  onCheckedChange={(checked) => handleSelectAll(Boolean(checked))}
-                />
-                <label htmlFor="select-all" className="text-sm font-medium leading-none">
-                  Select All
-                </label>
-              </div>
-              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
-                {images.map((image) => (
-                  <div key={image.id} className="relative group">
-                    <div
-                      className={`absolute inset-0 bg-black flex items-center justify-center transition-opacity rounded-lg z-10
-                        ${selectedImages.has(image.id) ? 'opacity-50' : 'opacity-0 group-hover:opacity-50'}`}
-                    >
-                      <Checkbox
-                        className="h-6 w-6 bg-white border-gray-300 data-[state=checked]:bg-primary data-[state=checked]:text-primary-foreground"
-                        checked={selectedImages.has(image.id)}
-                        onCheckedChange={() => handleSelectImage(image.id)}
+          </CardHeader>
+          <CardContent>
+            <div className="flex items-center gap-4">
+              <Input
+                id="file-input"
+                type="file"
+                multiple
+                accept="image/jpeg,image/png,image/tiff"
+                onChange={handleFileChange}
+                className="flex-grow"
+              />
+              <Button onClick={handleUpload} disabled={isUploading || !selectedFiles}>
+                <Upload className="h-4 w-4 mr-2" />
+                {isUploading ? "Uploading..." : "Upload"}
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between">
+            <div>
+              <CardTitle>Manage Gallery</CardTitle>
+              <CardDescription>
+                View, edit, and delete your uploaded images.
+              </CardDescription>
+            </div>
+            {selectedImages.size > 0 && (
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button variant="destructive">
+                    <Trash2 className="h-4 w-4 mr-2" />
+                    Delete ({selectedImages.size})
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      This will permanently delete the {selectedImages.size} selected image(s). This action cannot be undone.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                    <AlertDialogAction onClick={() => handleDelete(Array.from(selectedImages))}>
+                      Delete
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+            )}
+          </CardHeader>
+          <CardContent>
+            {isLoading ? (
+              <p>Loading images...</p>
+            ) : images.length > 0 ? (
+              <>
+                <div className="flex items-center space-x-2 mb-4 pb-4 border-b">
+                  <Checkbox
+                    id="select-all"
+                    checked={selectedImages.size === images.length && images.length > 0}
+                    onCheckedChange={(checked) => handleSelectAll(Boolean(checked))}
+                  />
+                  <label htmlFor="select-all" className="text-sm font-medium leading-none">
+                    Select All
+                  </label>
+                </div>
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+                  {images.map((image) => (
+                    <Card key={image.id} className="flex flex-col">
+                      <CardContent className="p-0">
+                        <AspectRatio ratio={1}>
+                          <img
+                            src={image.image_url}
+                            alt={image.alt_text || "Gallery image"}
+                            className="rounded-t-lg object-cover w-full h-full"
+                          />
+                        </AspectRatio>
+                      </CardContent>
+                      <CardFooter className="p-2 flex-col items-start flex-grow justify-between">
+                        <p className="text-xs text-muted-foreground truncate w-full h-8">
+                          {image.alt_text}
+                        </p>
+                        <div className="flex justify-between w-full items-center mt-1">
+                          <Checkbox
+                            id={`select-${image.id}`}
+                            checked={selectedImages.has(image.id)}
+                            onCheckedChange={() => handleSelectImage(image.id)}
+                          />
+                          <Button variant="ghost" size="sm" onClick={() => setEditingImage(image)}>
+                            <Edit className="h-3 w-3 mr-1" /> Edit
+                          </Button>
+                        </div>
+                      </CardFooter>
+                    </Card>
+                  ))}
+                </div>
+              </>
+            ) : (
+              <p className="text-muted-foreground text-center py-8">
+                No images found. Upload your first image to get started!
+              </p>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+
+      <Dialog open={!!editingImage} onOpenChange={(isOpen) => !isOpen && setEditingImage(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Edit Alt Text</DialogTitle>
+            <DialogDescription>
+              Write a descriptive alt text for this image. This helps with accessibility and SEO.
+            </DialogDescription>
+          </DialogHeader>
+          <Form {...form}>
+            <form onSubmit={form.handleSubmit(handleUpdateAltText)} className="space-y-4">
+              <FormField
+                control={form.control}
+                name="alt_text"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Alt Text</FormLabel>
+                    <FormControl>
+                      <Textarea
+                        placeholder="e.g., A beautiful sunset over the mountains"
+                        {...field}
                       />
-                    </div>
-                    <img
-                      src={image.image_url}
-                      alt={image.alt_text || "Gallery image"}
-                      className="rounded-lg object-cover aspect-square w-full h-full"
-                    />
-                  </div>
-                ))}
-              </div>
-            </>
-          ) : (
-            <p className="text-muted-foreground text-center py-8">
-              No images found. Upload your first image to get started!
-            </p>
-          )}
-        </CardContent>
-      </Card>
-    </div>
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <DialogFooter>
+                <Button type="button" variant="outline" onClick={() => setEditingImage(null)}>Cancel</Button>
+                <Button type="submit">Save Changes</Button>
+              </DialogFooter>
+            </form>
+          </Form>
+        </DialogContent>
+      </Dialog>
+    </>
   );
 };
 
