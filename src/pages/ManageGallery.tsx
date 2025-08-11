@@ -110,11 +110,10 @@ const ManageGallery = () => {
               const description = tagValue.description;
 
               if (typeof description === 'string') {
+                // Aggressively sanitize string values
                 const sanitized = description
-                  .replace(/,/g, '.')
-                  .replace(/\u00D7/g, 'x')
-                  .replace(/[\u200A-\u200F]/g, '')
-                  .replace(/\\/g, '\\\\');
+                  .replace(/,/g, '.') // Normalize decimals
+                  .replace(/[^\w\s.:/-]/g, ''); // Whitelist safe characters
                 cleanExif[key] = sanitized;
               } else if (typeof description === 'number') {
                 cleanExif[key] = description;
