@@ -11,6 +11,7 @@ import NotFound from "./pages/NotFound";
 import ManageBlog from "./pages/ManageBlog";
 import ManageVideos from "./pages/ManageVideos";
 import ManageTravel from "./pages/ManageTravel";
+import ManageGallery from "./pages/ManageGallery";
 import PrivacyPolicy from "./pages/PrivacyPolicy";
 import Chat from "./pages/Chat";
 import { mainNavItems, managementNavItems } from "./config/navigation";
@@ -25,6 +26,7 @@ const componentMap: { [key: string]: React.ComponentType } = {
   "/manage-blog": ManageBlog,
   "/manage-videos": ManageVideos,
   "/manage-travel": ManageTravel,
+  "/manage-gallery": ManageGallery,
 };
 
 const allNavItems = [...mainNavItems, ...managementNavItems];

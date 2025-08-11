@@ -20,3 +20,12 @@ export interface TravelLocation {
   marker_image_url: string | null;
   user_id: string | null;
 }
+
+export interface GalleryImage {
+  id: string;
+  image_url: string;
+  alt_text: string | null;
+  file_name: string;
+  created_at: string;
+  user_id: string | null;
+}
