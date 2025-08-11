@@ -172,35 +172,24 @@ const ManageGallery = () => {
   const handleDelete = async (imageIds: string[]) => {
     const toastId = showLoading(`Deleting ${imageIds.length} image(s)...`);
     try {
-      const imagesToDelete = images.filter(img => imageIds.includes(img.id));
-      const fileNamesToDelete = imagesToDelete.map(img => img.file_name);
+      const deletePromises = imageIds.map(id =>
+        supabase.rpc('delete_gallery_image', { image_id: id })
+      );
 
-      if (fileNamesToDelete.length > 0) {
-        const { error: storageError } = await supabase.storage
-          .from("gallery")
-          .remove(fileNamesToDelete);
+      const results = await Promise.all(deletePromises);
 
-        if (storageError) {
-          throw new Error(`Storage deletion failed: ${storageError.message}`);
-        }
-      }
-
-      const { error: dbError } = await supabase
-        .from("gallery_images")
-        .delete()
-        .in("id", imageIds);
-
-      if (dbError) {
-        throw new Error(`Database deletion failed: ${dbError.message}`);
+      const firstError = results.find(res => res.error);
+      if (firstError) {
+        throw new Error(firstError.error.message);
       }
 
       dismissToast(toastId);
       showError(`${imageIds.length} image(s) deleted successfully.`);
-      setImages(images.filter((i) => !imageIds.includes(i.id)));
+      fetchImages();
       setSelectedImages(new Set());
     } catch (error: any) {
       dismissToast(toastId);
-      showError(error.message);
+      showError(`Deletion failed: ${error.message}`);
     }
   };
 
