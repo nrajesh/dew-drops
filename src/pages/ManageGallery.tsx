@@ -18,6 +18,7 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { useAuth } from "@/contexts/AuthContext";
+import { sanitizeFileName } from "@/lib/utils";
 
 const ManageGallery = () => {
   const { user } = useAuth();
@@ -64,7 +65,9 @@ const ManageGallery = () => {
     const toastId = showLoading(`Uploading ${selectedFiles.length} image(s)...`);
 
     const uploadPromises = Array.from(selectedFiles).map(async (file) => {
-      const fileName = `${user.id}/${Date.now()}_${file.name}`;
+      const sanitizedName = sanitizeFileName(file.name);
+      const fileName = `${user.id}/${Date.now()}_${sanitizedName}`;
+      
       const { error: uploadError } = await supabase.storage
         .from("gallery")
         .upload(fileName, file);
@@ -79,7 +82,7 @@ const ManageGallery = () => {
 
       const { error: dbError } = await supabase.from("gallery_images").insert({
         image_url: publicUrl,
-        alt_text: file.name,
+        alt_text: file.name, // Keep original name for alt text
         file_name: fileName,
         user_id: user.id,
       });
