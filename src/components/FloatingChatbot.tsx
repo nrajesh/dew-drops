@@ -10,7 +10,7 @@ const getVisibility = (envVar: string | undefined, defaultValue: boolean): boole
   return envVar.toLowerCase() === 'true';
 };
 
-const isChatVisible = getVisibility(import.meta.env.VITE_NAV_CHATBOT_VISIBLE, false);
+const isChatVisible = getVisibility(import.meta.env.VITE_NAV_CHATBOT_VISIBLE, true);
 
 const FloatingChatbot = () => {
   if (!isChatVisible) {
