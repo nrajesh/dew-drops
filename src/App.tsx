@@ -13,7 +13,6 @@ import ManageVideos from "./pages/ManageVideos";
 import ManageTravel from "./pages/ManageTravel";
 import ManageGallery from "./pages/ManageGallery";
 import PrivacyPolicy from "./pages/PrivacyPolicy";
-import Chat from "./pages/Chat";
 import Login from "./pages/Login";
 import ProtectedRoute from "./components/ProtectedRoute";
 import { mainNavItems, managementNavItems } from "./config/navigation";
@@ -29,8 +28,7 @@ const App = () => (
                             item.to === "/blog" ? Blog :
                             item.to === "/videos" ? Videos :
                             item.to === "/gallery" ? Gallery :
-                            item.to === "/travel" ? Travel :
-                            item.to === "/chat" ? Chat : null;
+                            item.to === "/travel" ? Travel : null;
           if (!Component) return null;
           return <Route key={item.to} path={item.to} element={<Component />} />;
         })}

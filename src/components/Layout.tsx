@@ -10,6 +10,7 @@ import { mainNavItems, managementNavItems } from "@/config/navigation";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { showError, showSuccess } from "@/utils/toast";
+import FloatingChatbot from "./FloatingChatbot";
 
 const NavContent = ({ onLinkClick }: { onLinkClick?: () => void }) => {
   const navLinkClassName = ({ isActive }: { isActive: boolean }) =>
@@ -156,6 +157,7 @@ const Layout = () => {
           </footer>
         </div>
       </div>
+      <FloatingChatbot />
       <Toaster />
       <Sonner />
     </>

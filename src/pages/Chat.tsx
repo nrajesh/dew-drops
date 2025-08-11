@@ -56,7 +56,7 @@ const Chat = () => {
 
   if (!GEMINI_API_KEY) {
     return (
-      <Card className="w-full max-w-3xl mx-auto">
+      <Card className="w-full h-full flex flex-col border-0 rounded-none">
         <CardHeader>
           <CardTitle>Chatbot Configuration Needed</CardTitle>
           <CardDescription>
@@ -82,7 +82,7 @@ const Chat = () => {
   }
 
   return (
-    <Card className="w-full max-w-3xl mx-auto h-[calc(100vh-10rem)] flex flex-col">
+    <Card className="w-full h-full flex flex-col border-0 rounded-none">
       <CardHeader>
         <CardTitle>Gemini Chatbot</CardTitle>
         <CardDescription>Ask me anything! I'm here to help.</CardDescription>
