@@ -95,6 +95,8 @@ export const ImageLightbox = ({ image, onClose, onNavigate, hasNext, hasPrev }: 
   }, [image]);
 
   const exifData = image?.exif_data;
+  const captionText = image?.alt_text;
+  const showCaption = captionText && !/\.(jpe?g|png|tiff|gif)$/i.test(captionText);
 
   return (
     <AnimatePresence>
@@ -158,9 +160,9 @@ export const ImageLightbox = ({ image, onClose, onNavigate, hasNext, hasPrev }: 
               alt={image.alt_text || "Enlarged gallery image"}
               className="w-full h-auto object-contain max-h-[85vh] rounded-lg shadow-2xl"
             />
-            {image.alt_text && (
+            {showCaption && (
               <figcaption className="text-center text-white/90 text-base p-2 bg-black/30 rounded-md max-w-full">
-                {image.alt_text}
+                {captionText}
               </figcaption>
             )}
           </motion.div>

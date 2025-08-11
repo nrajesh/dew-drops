@@ -140,7 +140,7 @@ const ManageGallery = () => {
 
       const { error: dbError } = await supabase.from("gallery_images").insert({
         image_url: publicUrl,
-        alt_text: file.name,
+        alt_text: "",
         file_name: fileName,
         user_id: user.id,
         exif_data: exifData,
