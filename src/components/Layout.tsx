@@ -1,5 +1,5 @@
-import { NavLink, Outlet, Link } from "react-router-dom";
-import { Menu } from "lucide-react";
+import { NavLink, Outlet, Link, useNavigate } from "react-router-dom";
+import { Menu, LogIn, LogOut } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { ThemeToggle } from "./ThemeToggle";
@@ -7,6 +7,9 @@ import { useState } from "react";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { mainNavItems, managementNavItems } from "@/config/navigation";
+import { useAuth } from "@/contexts/AuthContext";
+import { supabase } from "@/integrations/supabase/client";
+import { showSuccess } from "@/utils/toast";
 
 const NavContent = ({ onLinkClick }: { onLinkClick?: () => void }) => {
   const navLinkClassName = ({ isActive }: { isActive: boolean }) =>
@@ -30,6 +33,7 @@ const NavContent = ({ onLinkClick }: { onLinkClick?: () => void }) => {
           </NavLink>
         ))}
       </nav>
+      
       <div className="mt-4 px-4 lg:px-6">
         <h3 className="mb-2 text-xs font-semibold uppercase text-sidebar-foreground/70 tracking-wider">
           Management
@@ -54,6 +58,14 @@ const NavContent = ({ onLinkClick }: { onLinkClick?: () => void }) => {
 
 const Layout = () => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const { session } = useAuth();
+  const navigate = useNavigate();
+
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
+    showSuccess("You have been logged out.");
+    navigate("/");
+  };
 
   return (
     <>
@@ -98,6 +110,19 @@ const Layout = () => {
               {/* Future content like breadcrumbs can go here */}
             </div>
             <ThemeToggle />
+            {session ? (
+              <Button variant="ghost" size="icon" onClick={handleLogout}>
+                <LogOut className="h-5 w-5" />
+                <span className="sr-only">Logout</span>
+              </Button>
+            ) : (
+              <Button variant="ghost" size="icon" asChild>
+                <Link to="/login">
+                  <LogIn className="h-5 w-5" />
+                  <span className="sr-only">Login</span>
+                </Link>
+              </Button>
+            )}
           </header>
           <main className="flex-1 overflow-auto p-4 md:p-8">
             <Outlet />

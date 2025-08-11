@@ -12,72 +12,94 @@ import {
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { showSuccess, showError } from "@/utils/toast";
-import { useState } from "react";
+import { showSuccess, showError, showLoading, dismissToast } from "@/utils/toast";
+import { useState, useEffect } from "react";
 import { Trash2, Edit } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
+import type { Video } from "@/types";
+import { useAuth } from "@/contexts/AuthContext";
 
 const videoSchema = z.object({
-  id: z.string().optional(), // Hidden field for editing
   title: z.string().min(3, { message: "Title must be at least 3 characters." }),
-  youtubeId: z.string().min(11, { message: "Please enter a valid YouTube Video ID." }).max(11),
+  youtube_id: z.string().min(11, { message: "Please enter a valid YouTube Video ID." }).max(11),
 });
 
-const initialVideos = [
-  {
-    id: "1",
-    title: "Building a Portfolio with React & Dyad",
-    youtubeId: "dQw4w9WgXcQ",
-  },
-  {
-    id: "2",
-    title: "Exploring the Swiss Alps",
-    youtubeId: "z_m4_vY_q-M",
-  },
-  {
-    id: "3",
-    title: "A Guide to Sourdough Baking",
-    youtubeId: "bSYdABrP_44",
-  },
-];
-
-type Video = z.infer<typeof videoSchema> & { id: string };
-
 const ManageVideos = () => {
-  const [videos, setVideos] = useState<Video[]>(initialVideos.map(v => ({...v, id: v.id || String(Math.random())})));
+  const { user } = useAuth();
+  const [videos, setVideos] = useState<Video[]>([]);
   const [editingId, setEditingId] = useState<string | null>(null);
+
+  useEffect(() => {
+    fetchVideos();
+  }, []);
+
+  const fetchVideos = async () => {
+    const { data, error } = await supabase.from("videos").select("*").order("created_at", { ascending: false });
+    if (error) {
+      showError("Failed to fetch videos.");
+      console.error(error);
+    } else {
+      setVideos(data as Video[]);
+    }
+  };
 
   const form = useForm<z.infer<typeof videoSchema>>({
     resolver: zodResolver(videoSchema),
     defaultValues: {
       title: "",
-      youtubeId: "",
+      youtube_id: "",
     },
   });
 
-  function onSubmit(values: z.infer<typeof videoSchema>) {
-    if (editingId) {
-      // Update existing video
-      setVideos(videos.map(v => v.id === editingId ? { ...v, ...values } : v));
-      showSuccess("Video updated successfully!");
-      setEditingId(null);
-    } else {
-      // Add new video
-      const newVideo = { ...values, id: String(Date.now()) };
-      setVideos([...videos, newVideo]);
-      showSuccess("Video added successfully!");
+  async function onSubmit(values: z.infer<typeof videoSchema>) {
+    if (!user) {
+      showError("You must be logged in to manage videos.");
+      return;
     }
-    form.reset();
+    const toastId = showLoading(editingId ? "Updating video..." : "Adding new video...");
+    
+    const videoData = {
+      ...values,
+      user_id: user.id,
+    };
+
+    let error;
+    if (editingId) {
+      const { error: updateError } = await supabase.from("videos").update(videoData).eq("id", editingId);
+      error = updateError;
+    } else {
+      const { error: insertError } = await supabase.from("videos").insert(videoData);
+      error = insertError;
+    }
+
+    dismissToast(toastId);
+    if (error) {
+      showError(error.message);
+      console.error(error);
+    } else {
+      showSuccess(`Video ${editingId ? "updated" : "added"} successfully!`);
+      setEditingId(null);
+      form.reset();
+      fetchVideos();
+    }
   }
 
   const handleEdit = (video: Video) => {
     setEditingId(video.id);
     form.setValue("title", video.title);
-    form.setValue("youtubeId", video.youtubeId);
+    form.setValue("youtube_id", video.youtube_id);
   };
 
-  const handleDelete = (id: string) => {
-    setVideos(videos.filter(v => v.id !== id));
-    showError("Video removed.");
+  const handleDelete = async (id: string) => {
+    const toastId = showLoading("Deleting video...");
+    const { error } = await supabase.from("videos").delete().eq("id", id);
+    dismissToast(toastId);
+    if (error) {
+      showError(error.message);
+    } else {
+      showError("Video removed.");
+      fetchVideos();
+    }
   };
   
   const cancelEdit = () => {
@@ -112,7 +134,7 @@ const ManageVideos = () => {
               />
               <FormField
                 control={form.control}
-                name="youtubeId"
+                name="youtube_id"
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>YouTube Video ID</FormLabel>
@@ -134,7 +156,7 @@ const ManageVideos = () => {
       <Card>
         <CardHeader>
           <CardTitle>Video List</CardTitle>
-          <CardDescription>Your current list of videos. Changes here are not saved permanently.</CardDescription>
+          <CardDescription>Your current list of videos.</CardDescription>
         </CardHeader>
         <CardContent>
           <div className="space-y-4">

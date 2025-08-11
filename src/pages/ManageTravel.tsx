@@ -30,6 +30,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import { sanitizeFileName } from "@/lib/utils";
 
 const MAPBOX_ACCESS_TOKEN = import.meta.env.VITE_MAPBOX_ACCESS_TOKEN;
 
@@ -134,7 +135,8 @@ const ManageTravel = () => {
 
       if (values.image && values.image.length > 0) {
         const file = values.image[0];
-        const fileName = `${Date.now()}_${file.name}`;
+        const sanitizedName = sanitizeFileName(file.name);
+        const fileName = `${Date.now()}_${sanitizedName}`;
 
         if (editingId && imageUrl) {
           const oldFileName = imageUrl.substring(imageUrl.lastIndexOf('/') + 1);
