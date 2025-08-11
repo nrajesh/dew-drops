@@ -17,8 +17,10 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import { useAuth } from "@/contexts/AuthContext";
 
 const ManageGallery = () => {
+  const { user } = useAuth();
   const [images, setImages] = useState<GalleryImage[]>([]);
   const [selectedFiles, setSelectedFiles] = useState<FileList | null>(null);
   const [isUploading, setIsUploading] = useState(false);
@@ -53,12 +55,16 @@ const ManageGallery = () => {
       showError("Please select files to upload.");
       return;
     }
+    if (!user) {
+      showError("You must be logged in to upload images.");
+      return;
+    }
 
     setIsUploading(true);
     const toastId = showLoading(`Uploading ${selectedFiles.length} image(s)...`);
 
     const uploadPromises = Array.from(selectedFiles).map(async (file) => {
-      const fileName = `${Date.now()}_${file.name}`;
+      const fileName = `${user.id}/${Date.now()}_${file.name}`;
       const { error: uploadError } = await supabase.storage
         .from("gallery")
         .upload(fileName, file);
@@ -75,9 +81,12 @@ const ManageGallery = () => {
         image_url: publicUrl,
         alt_text: file.name,
         file_name: fileName,
+        user_id: user.id,
       });
 
       if (dbError) {
+        // If DB insert fails, try to clean up the uploaded file
+        await supabase.storage.from("gallery").remove([fileName]);
         throw new Error(`Failed to save ${file.name} to database: ${dbError.message}`);
       }
     });
@@ -93,7 +102,6 @@ const ManageGallery = () => {
     } finally {
       setIsUploading(false);
       setSelectedFiles(null);
-      // Reset file input
       const fileInput = document.getElementById('file-input') as HTMLInputElement;
       if (fileInput) fileInput.value = '';
     }
@@ -106,7 +114,7 @@ const ManageGallery = () => {
         .from("gallery")
         .remove([image.file_name]);
 
-      if (storageError) {
+      if (storageError && storageError.message !== 'The resource was not found') {
         throw new Error(`Storage error: ${storageError.message}`);
       }
 
