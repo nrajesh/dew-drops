@@ -91,7 +91,7 @@ const ManageGallery = () => {
 
     const uploadPromises = Array.from(selectedFiles).map(async (file) => {
       const sanitizedName = sanitizeFileName(file.name);
-      const intendedPath = `${user.id}/${Date.now()}_${sanitizedName}`;
+      const fileName = `${user.id}/${Date.now()}_${sanitizedName}`;
       
       const fileBuffer = await file.arrayBuffer();
       let exifData: Record<string, any> | null = null;
@@ -110,9 +110,10 @@ const ManageGallery = () => {
               const description = tagValue.description;
 
               if (typeof description === 'string') {
+                // Aggressively sanitize string values
                 const sanitized = description
-                  .replace(/,/g, '.')
-                  .replace(/[^\w\s.:/-]/g, '');
+                  .replace(/,/g, '.') // Normalize decimals
+                  .replace(/[^\w\s.:/-]/g, ''); // Whitelist safe characters
                 cleanExif[key] = sanitized;
               } else if (typeof description === 'number') {
                 cleanExif[key] = description;
@@ -125,30 +126,28 @@ const ManageGallery = () => {
         console.warn(`Could not read EXIF data for ${file.name}:`, error);
       }
 
-      const { data: uploadData, error: uploadError } = await supabase.storage
+      const { error: uploadError } = await supabase.storage
         .from("gallery")
-        .upload(intendedPath, file);
+        .upload(fileName, file);
 
       if (uploadError) {
         throw new Error(`Failed to upload ${file.name}: ${uploadError.message}`);
       }
 
-      const actualPath = uploadData.path;
-
       const { data: { publicUrl } } = supabase.storage
         .from("gallery")
-        .getPublicUrl(actualPath);
+        .getPublicUrl(fileName);
 
       const { error: dbError } = await supabase.from("gallery_images").insert({
         image_url: publicUrl,
         alt_text: file.name,
-        file_name: actualPath,
+        file_name: fileName,
         user_id: user.id,
         exif_data: exifData,
       });
 
       if (dbError) {
-        await supabase.storage.from("gallery").remove([actualPath]);
+        await supabase.storage.from("gallery").remove([fileName]);
         throw new Error(`Failed to save ${file.name} to database: ${dbError.message}`);
       }
     });
@@ -172,24 +171,35 @@ const ManageGallery = () => {
   const handleDelete = async (imageIds: string[]) => {
     const toastId = showLoading(`Deleting ${imageIds.length} image(s)...`);
     try {
-      const deletePromises = imageIds.map(id =>
-        supabase.rpc('delete_gallery_image', { image_id: id })
-      );
+      const imagesToDelete = images.filter(img => imageIds.includes(img.id));
+      const fileNamesToDelete = imagesToDelete.map(img => img.file_name);
 
-      const results = await Promise.all(deletePromises);
+      if (fileNamesToDelete.length > 0) {
+        const { error: storageError } = await supabase.storage
+          .from("gallery")
+          .remove(fileNamesToDelete);
 
-      const firstError = results.find(res => res.error);
-      if (firstError) {
-        throw new Error(firstError.error.message);
+        if (storageError && storageError.message !== 'The resource was not found') {
+          throw new Error(`Storage error: ${storageError.message}`);
+        }
+      }
+
+      const { error: dbError } = await supabase
+        .from("gallery_images")
+        .delete()
+        .in("id", imageIds);
+
+      if (dbError) {
+        throw new Error(`Database error: ${dbError.message}`);
       }
 
       dismissToast(toastId);
       showError(`${imageIds.length} image(s) deleted successfully.`);
-      fetchImages();
+      setImages(images.filter((i) => !imageIds.includes(i.id)));
       setSelectedImages(new Set());
     } catch (error: any) {
       dismissToast(toastId);
-      showError(`Deletion failed: ${error.message}`);
+      showError(error.message);
     }
   };
 
