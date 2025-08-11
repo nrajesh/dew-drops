@@ -179,8 +179,8 @@ const ManageGallery = () => {
           .from("gallery")
           .remove(fileNamesToDelete);
 
-        if (storageError && storageError.message !== 'The resource was not found') {
-          throw new Error(`Storage error: ${storageError.message}`);
+        if (storageError) {
+          throw new Error(`Storage deletion failed: ${storageError.message}`);
         }
       }
 
@@ -190,7 +190,7 @@ const ManageGallery = () => {
         .in("id", imageIds);
 
       if (dbError) {
-        throw new Error(`Database error: ${dbError.message}`);
+        throw new Error(`Database deletion failed: ${dbError.message}`);
       }
 
       dismissToast(toastId);
