@@ -11,7 +11,7 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-const ALLOWED_EMAIL = 'write@nrajesh.com';
+const ALLOWED_EMAIL = import.meta.env.VITE_ALLOWED_EMAIL || 'write@nrajesh.com';
 
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [session, setSession] = useState<Session | null>(null);
