@@ -28,4 +28,5 @@ export interface GalleryImage {
   file_name: string;
   created_at: string;
   user_id: string | null;
+  exif_data: Record<string, any> | null;
 }

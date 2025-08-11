@@ -19,6 +19,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { useAuth } from "@/contexts/AuthContext";
 import { sanitizeFileName } from "@/lib/utils";
+import ExifReader from 'exifreader';
 
 const ManageGallery = () => {
   const { user } = useAuth();
@@ -68,6 +69,19 @@ const ManageGallery = () => {
       const sanitizedName = sanitizeFileName(file.name);
       const fileName = `${user.id}/${Date.now()}_${sanitizedName}`;
       
+      // Read file for EXIF data
+      const fileBuffer = await file.arrayBuffer();
+      let exifData = null;
+      try {
+        const tags = ExifReader.load(fileBuffer);
+        // Remove potentially very large or unnecessary fields
+        delete tags['MakerNote'];
+        delete tags['UserComment'];
+        exifData = tags;
+      } catch (error) {
+        console.warn(`Could not read EXIF data for ${file.name}:`, error);
+      }
+
       const { error: uploadError } = await supabase.storage
         .from("gallery")
         .upload(fileName, file);
@@ -85,6 +99,7 @@ const ManageGallery = () => {
         alt_text: file.name, // Keep original name for alt text
         file_name: fileName,
         user_id: user.id,
+        exif_data: exifData,
       });
 
       if (dbError) {
@@ -145,7 +160,7 @@ const ManageGallery = () => {
         <CardHeader>
           <CardTitle>Upload to Gallery</CardTitle>
           <CardDescription>
-            Select one or more images to upload. They will be publicly visible in your gallery.
+            Select one or more images to upload. EXIF data will be automatically extracted.
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -154,7 +169,7 @@ const ManageGallery = () => {
               id="file-input"
               type="file"
               multiple
-              accept="image/*"
+              accept="image/jpeg,image/png,image/tiff"
               onChange={handleFileChange}
               className="flex-grow"
             />
