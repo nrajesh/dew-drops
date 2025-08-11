@@ -32,6 +32,17 @@ const Gallery = () => {
     fetchImages();
   }, []);
 
+  const getThumbnailUrl = (fileName: string) => {
+    const { data } = supabase.storage.from('gallery').getPublicUrl(fileName, {
+      transform: {
+        width: 400,
+        height: 300,
+        resize: 'cover',
+      },
+    });
+    return data.publicUrl;
+  };
+
   const deviceMakes = Array.from(
     new Set(images.map(img => img.exif_data?.Make).filter(Boolean) as string[])
   ).sort();
@@ -103,7 +114,7 @@ const Gallery = () => {
                 <CardContent className="p-0">
                   <AspectRatio ratio={4 / 3}>
                     <img
-                      src={image.image_url}
+                      src={getThumbnailUrl(image.file_name)}
                       alt={image.alt_text || "Gallery image"}
                       className="h-full w-full object-cover bg-background transition-transform duration-300 group-hover:scale-105"
                     />

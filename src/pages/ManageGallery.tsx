@@ -72,6 +72,17 @@ const ManageGallery = () => {
     setIsLoading(false);
   };
 
+  const getThumbnailUrl = (fileName: string) => {
+    const { data } = supabase.storage.from('gallery').getPublicUrl(fileName, {
+      transform: {
+        width: 200,
+        height: 200,
+        resize: 'cover',
+      },
+    });
+    return data.publicUrl;
+  };
+
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setSelectedFiles(e.target.files);
   };
@@ -128,7 +139,10 @@ const ManageGallery = () => {
 
       const { error: uploadError } = await supabase.storage
         .from("gallery")
-        .upload(fileName, file);
+        .upload(fileName, file, {
+          cacheControl: '31536000', // Cache for 1 year
+          upsert: false,
+        });
 
       if (uploadError) {
         throw new Error(`Failed to upload ${file.name}: ${uploadError.message}`);
@@ -322,7 +336,7 @@ const ManageGallery = () => {
                       <CardContent className="p-0">
                         <AspectRatio ratio={1}>
                           <img
-                            src={image.image_url}
+                            src={getThumbnailUrl(image.file_name)}
                             alt={image.alt_text || "Gallery image"}
                             className="rounded-t-lg object-cover w-full h-full"
                           />
