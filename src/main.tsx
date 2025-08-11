@@ -14,7 +14,11 @@ const queryClient = new QueryClient();
 createRoot(document.getElementById("root")!).render(
   <React.StrictMode>
     <BrowserRouter>
-      <ThemeProvider defaultTheme="light" storageKey="portfolio-theme">
+      <ThemeProvider
+        attribute="class"
+        defaultTheme="dark"
+        storageKey="portfolio-theme"
+      >
         <QueryClientProvider client={queryClient}>
           <AuthProvider>
             <TooltipProvider>
