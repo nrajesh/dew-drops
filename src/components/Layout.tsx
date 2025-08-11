@@ -12,7 +12,6 @@ import { supabase } from "@/integrations/supabase/client";
 import { showSuccess } from "@/utils/toast";
 
 const NavContent = ({ onLinkClick }: { onLinkClick?: () => void }) => {
-  const { session } = useAuth();
   const navLinkClassName = ({ isActive }: { isActive: boolean }) =>
     `flex items-center gap-3 rounded-lg px-3 py-2 transition-all hover:bg-sidebar-accent hover:text-sidebar-accent-foreground ${
       isActive ? "bg-sidebar-primary text-sidebar-primary-foreground" : "text-sidebar-foreground"
@@ -34,28 +33,25 @@ const NavContent = ({ onLinkClick }: { onLinkClick?: () => void }) => {
           </NavLink>
         ))}
       </nav>
-      {session && (
-        <>
-          <div className="mt-4 px-4 lg:px-6">
-            <h3 className="mb-2 text-xs font-semibold uppercase text-sidebar-foreground/70 tracking-wider">
-              Management
-            </h3>
-          </div>
-          <nav className="grid items-start px-2 text-sm font-medium lg:px-4">
-            {managementNavItems.filter(item => item.visible).map((item) => (
-              <NavLink
-                key={item.to}
-                to={item.to}
-                onClick={onLinkClick}
-                className={navLinkClassName}
-              >
-                <item.icon className="h-4 w-4" />
-                {item.label}
-              </NavLink>
-            ))}
-          </nav>
-        </>
-      )}
+      
+      <div className="mt-4 px-4 lg:px-6">
+        <h3 className="mb-2 text-xs font-semibold uppercase text-sidebar-foreground/70 tracking-wider">
+          Management
+        </h3>
+      </div>
+      <nav className="grid items-start px-2 text-sm font-medium lg:px-4">
+        {managementNavItems.filter(item => item.visible).map((item) => (
+          <NavLink
+            key={item.to}
+            to={item.to}
+            onClick={onLinkClick}
+            className={navLinkClassName}
+          >
+            <item.icon className="h-4 w-4" />
+            {item.label}
+          </NavLink>
+        ))}
+      </nav>
     </>
   );
 };
