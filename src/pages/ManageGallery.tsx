@@ -91,7 +91,7 @@ const ManageGallery = () => {
 
     const uploadPromises = Array.from(selectedFiles).map(async (file) => {
       const sanitizedName = sanitizeFileName(file.name);
-      const fileName = `${user.id}/${Date.now()}_${sanitizedName}`;
+      const intendedPath = `${user.id}/${Date.now()}_${sanitizedName}`;
       
       const fileBuffer = await file.arrayBuffer();
       let exifData: Record<string, any> | null = null;
@@ -110,10 +110,9 @@ const ManageGallery = () => {
               const description = tagValue.description;
 
               if (typeof description === 'string') {
-                // Aggressively sanitize string values
                 const sanitized = description
-                  .replace(/,/g, '.') // Normalize decimals
-                  .replace(/[^\w\s.:/-]/g, ''); // Whitelist safe characters
+                  .replace(/,/g, '.')
+                  .replace(/[^\w\s.:/-]/g, '');
                 cleanExif[key] = sanitized;
               } else if (typeof description === 'number') {
                 cleanExif[key] = description;
@@ -126,28 +125,30 @@ const ManageGallery = () => {
         console.warn(`Could not read EXIF data for ${file.name}:`, error);
       }
 
-      const { error: uploadError } = await supabase.storage
+      const { data: uploadData, error: uploadError } = await supabase.storage
         .from("gallery")
-        .upload(fileName, file);
+        .upload(intendedPath, file);
 
       if (uploadError) {
         throw new Error(`Failed to upload ${file.name}: ${uploadError.message}`);
       }
 
+      const actualPath = uploadData.path;
+
       const { data: { publicUrl } } = supabase.storage
         .from("gallery")
-        .getPublicUrl(fileName);
+        .getPublicUrl(actualPath);
 
       const { error: dbError } = await supabase.from("gallery_images").insert({
         image_url: publicUrl,
         alt_text: file.name,
-        file_name: fileName,
+        file_name: actualPath,
         user_id: user.id,
         exif_data: exifData,
       });
 
       if (dbError) {
-        await supabase.storage.from("gallery").remove([fileName]);
+        await supabase.storage.from("gallery").remove([actualPath]);
         throw new Error(`Failed to save ${file.name} to database: ${dbError.message}`);
       }
     });
