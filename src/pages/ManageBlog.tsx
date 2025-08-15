@@ -168,15 +168,46 @@ const ManageBlog = () => {
   };
 
   const parseMarkdownFile = async (file: File): Promise<NewPost> => {
-    const content = await file.text();
-    const title = file.name.replace(/\.md$/, '').replace(/[-_]/g, ' ');
-    const description = content.substring(0, 150) + (content.length > 150 ? '...' : '');
+    const fullContent = await file.text();
+    let title = file.name.replace(/\.md$/, ''); // Default title from filename, preserving case
+    let description = '';
+    let published_at = new Date().toISOString();
+    let content = fullContent;
+
+    // Regex to find YAML frontmatter at the beginning of the file
+    const frontmatterRegex = /^---\n([\s\S]*?)\n---\n([\s\S]*)$/;
+    const match = fullContent.match(frontmatterRegex);
+
+    if (match) {
+      const frontmatterContent = match[1];
+      content = match[2].trim(); // Content is everything after the second '---'
+
+      // Parse frontmatter lines
+      frontmatterContent.split('\n').forEach(line => {
+        const parts = line.split(':');
+        if (parts.length >= 2) {
+          const key = parts[0].trim();
+          // Remove quotes and unescape inner quotes
+          const value = parts.slice(1).join(':').trim().replace(/^"|"$/g, '').replace(/\\"/g, '"'); 
+          if (key === 'title') {
+            title = value;
+          } else if (key === 'description') {
+            description = value;
+          } else if (key === 'published_at') {
+            published_at = value;
+          }
+        }
+      });
+    } else {
+      // If no frontmatter, derive description from content
+      description = fullContent.substring(0, 150) + (fullContent.length > 150 ? '...' : '');
+    }
     
     return {
       title,
       description,
       content,
-      published_at: new Date().toISOString(),
+      published_at,
     };
   };
 
@@ -203,8 +234,8 @@ const ManageBlog = () => {
         }
       }
 
-      const existingTitles = new Set(posts.map(p => p.title.toLowerCase()));
-      const uniqueNewPosts = allNewPosts.filter(p => !existingTitles.has(p.title.toLowerCase()));
+      const existingTitles = new Set(posts.map(p => p.title)); // Check against original case
+      const uniqueNewPosts = allNewPosts.filter(p => !existingTitles.has(p.title)); // Use original case for comparison
       const skippedCount = allNewPosts.length - uniqueNewPosts.length;
 
       if (uniqueNewPosts.length > 0) {
