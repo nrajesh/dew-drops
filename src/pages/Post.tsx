@@ -46,7 +46,7 @@ const Post = () => {
 
   const formatDate = (dateString: string | null) => {
     if (!dateString) return "";
-    return new Date(dateString).toLocaleDateDateString('en-US', {
+    return new Date(dateString).toLocaleDateString('en-US', { // Fixed: toLocaleDateDateString to toLocaleDateString
       year: 'numeric',
       month: 'long',
       day: 'numeric',
