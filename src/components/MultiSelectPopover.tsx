@@ -17,6 +17,7 @@ interface MultiSelectPopoverProps {
   onChange: (value: string[]) => void;
   suggestions: string[];
   placeholder?: string;
+  canCreate?: boolean;
 }
 
 export function MultiSelectPopover({
@@ -24,6 +25,7 @@ export function MultiSelectPopover({
   onChange,
   suggestions,
   placeholder = "Select or create tags...",
+  canCreate = true,
 }: MultiSelectPopoverProps) {
   const [open, setOpen] = React.useState(false);
   const [inputValue, setInputValue] = React.useState("");
@@ -48,6 +50,8 @@ export function MultiSelectPopover({
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (!canCreate) return;
+
     if (e.key === "Enter" && inputValue) {
       // If there are no suggestions and no explicit "create" option,
       // then the user is in the "empty" state and wants to create the tag.
@@ -70,7 +74,7 @@ export function MultiSelectPopover({
       suggestion.toLowerCase().includes(inputValue.toLowerCase())
   );
 
-  const showCreateOption = inputValue && !suggestions.some(s => s.toLowerCase() === inputValue.toLowerCase().trim()) && !selected.includes(inputValue.trim());
+  const showCreateOption = canCreate && inputValue && !suggestions.some(s => s.toLowerCase() === inputValue.toLowerCase().trim()) && !selected.includes(inputValue.trim());
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
@@ -116,7 +120,7 @@ export function MultiSelectPopover({
           />
           <CommandList>
             <CommandEmpty>
-              {inputValue ? `Press Enter to create "${inputValue}"` : "No tags found."}
+              {inputValue && canCreate ? `Press Enter to create "${inputValue}"` : "No tags found."}
             </CommandEmpty>
             <CommandGroup>
               {showCreateOption && (
