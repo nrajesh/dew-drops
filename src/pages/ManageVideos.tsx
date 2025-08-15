@@ -126,11 +126,20 @@ const ManageVideos = () => {
     const headers = lines[0].split(';').map(h => h.trim().replace(/"/g, ''));
     const data = [];
 
+    const csvRowRegex = /;(?=(?:(?:[^"]*"){2})*[^"]*$)/;
+
     for (let i = 1; i < lines.length; i++) {
         const line = lines[i];
         if (!line) continue;
 
-        const values = line.split(';').map(val => val.trim().replace(/^"|"$/g, ''));
+        const values = line.split(csvRowRegex).map(val => {
+            let value = val.trim();
+            if (value.startsWith('"') && value.endsWith('"')) {
+                value = value.substring(1, value.length - 1);
+            }
+            return value.replace(/""/g, '"');
+        });
+
         const entry: { [key: string]: string } = {};
         for (let j = 0; j < headers.length; j++) {
             entry[headers[j]] = values[j] || '';
