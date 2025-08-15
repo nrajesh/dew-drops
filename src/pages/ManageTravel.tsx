@@ -295,6 +295,8 @@ const ManageTravel = () => {
 
     setIsUploading(true);
     const toastId = showLoading("Reading CSV file...");
+    let progressToastId: string | number | undefined;
+    let insertToastId: string | number | undefined;
 
     try {
       const fileContent = await uploadFile.text();
@@ -305,7 +307,7 @@ const ManageTravel = () => {
       }
 
       dismissToast(toastId);
-      const progressToastId = showLoading(`Processing ${parsedData.length} rows...`);
+      progressToastId = showLoading(`Processing ${parsedData.length} rows...`);
 
       const existingNames = new Set(locations.map(loc => loc.name.toLowerCase()));
       const existingCoords = new Set(locations.map(loc => `${loc.latitude},${loc.longitude}`));
@@ -362,7 +364,7 @@ const ManageTravel = () => {
       dismissToast(progressToastId);
 
       if (locationsToInsert.length > 0) {
-        const insertToastId = showLoading(`Uploading ${locationsToInsert.length} valid locations...`);
+        insertToastId = showLoading(`Uploading ${locationsToInsert.length} valid locations...`);
         const { error } = await supabase.from("travel_locations").insert(locationsToInsert);
         dismissToast(insertToastId);
 
@@ -396,7 +398,9 @@ const ManageTravel = () => {
       }
 
     } catch (error: any) {
-      dismissToast(toastId);
+      if (toastId) dismissToast(toastId);
+      if (progressToastId) dismissToast(progressToastId);
+      if (insertToastId) dismissToast(insertToastId);
       showError(error.message);
     } finally {
       setIsUploading(false);

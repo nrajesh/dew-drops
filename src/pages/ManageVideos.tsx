@@ -154,6 +154,8 @@ const ManageVideos = () => {
 
     setIsUploading(true);
     const toastId = showLoading("Reading CSV file...");
+    let progressToastId: string | number | undefined;
+    let insertToastId: string | number | undefined;
 
     try {
       const fileContent = await uploadFile.text();
@@ -162,7 +164,7 @@ const ManageVideos = () => {
       if (parsedData.length === 0) throw new Error("No data rows found in CSV.");
 
       dismissToast(toastId);
-      const progressToastId = showLoading(`Processing ${parsedData.length} rows...`);
+      progressToastId = showLoading(`Processing ${parsedData.length} rows...`);
 
       const existingIds = new Set(videos.map(v => v.youtube_id));
       const videosToInsert = [];
@@ -186,7 +188,7 @@ const ManageVideos = () => {
       dismissToast(progressToastId);
 
       if (videosToInsert.length > 0) {
-        const insertToastId = showLoading(`Uploading ${videosToInsert.length} new videos...`);
+        insertToastId = showLoading(`Uploading ${videosToInsert.length} new videos...`);
         const { error } = await supabase.from("videos").insert(videosToInsert);
         dismissToast(insertToastId);
         if (error) throw new Error(`Database insert failed: ${error.message}`);
@@ -197,7 +199,9 @@ const ManageVideos = () => {
       showSuccess(summary);
 
     } catch (error: any) {
-      dismissToast(toastId);
+      if (toastId) dismissToast(toastId);
+      if (progressToastId) dismissToast(progressToastId);
+      if (insertToastId) dismissToast(insertToastId);
       showError(error.message);
     } finally {
       setIsUploading(false);
