@@ -43,6 +43,7 @@ import JSZip from 'jszip';
 import { sanitizeFileName } from "@/lib/utils";
 import { useAuth } from "@/contexts/AuthContext";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { TagInput } from "@/components/TagInput";
 
 const postSchema = z.object({
   title: z.string().min(3, { message: "Title must be at least 3 characters." }),
@@ -63,6 +64,7 @@ const ManageBlog = () => {
   const { user } = useAuth();
   const [posts, setPosts] = useState<Post[]>([]);
   const [galleryImages, setGalleryImages] = useState<GalleryImage[]>([]);
+  const [uniqueTags, setUniqueTags] = useState<string[]>([]);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [selectedFiles, setSelectedFiles] = useState<FileList | null>(null);
   const [isUploading, setIsUploading] = useState(false);
@@ -88,6 +90,11 @@ const ManageBlog = () => {
       console.error(error);
     } else {
       setPosts(data as Post[]);
+      const allTags = new Set<string>();
+      (data as Post[]).forEach(post => {
+        post.tags?.forEach(tag => allTags.add(tag));
+      });
+      setUniqueTags(Array.from(allTags).sort());
     }
   };
 
@@ -489,7 +496,17 @@ published_at: ${post.published_at ? new Date(post.published_at).toISOString().sp
                   <FormItem><FormLabel>Description</FormLabel><FormControl><Textarea placeholder="A short summary of the post." {...field} /></FormControl><FormMessage /></FormItem>
                 )} />
                 <FormField control={form.control} name="tags" render={({ field }) => (
-                  <FormItem><FormLabel>Tags (comma-separated)</FormLabel><FormControl><Input placeholder="e.g., react, javascript, webdev" {...field} /></FormControl><FormMessage /></FormItem>
+                  <FormItem>
+                    <FormLabel>Tags (comma-separated)</FormLabel>
+                    <FormControl>
+                      <TagInput
+                        value={field.value || ""}
+                        onChange={field.onChange}
+                        suggestions={uniqueTags}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
                 )} />
                 <FormField
                   control={form.control}
