@@ -6,6 +6,7 @@ export interface Post {
   content: string | null;
   published_at: string | null;
   user_id: string | null;
+  tags: string[] | null;
 }
 
 export interface TravelLocation {

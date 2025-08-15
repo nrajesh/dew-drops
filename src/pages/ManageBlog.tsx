@@ -40,9 +40,10 @@ const postSchema = z.object({
   description: z.string().min(10, { message: "Description must be at least 10 characters." }),
   content: z.string().min(20, { message: "Content must be at least 20 characters." }),
   published_at: z.string().refine((val) => !isNaN(Date.parse(val)), { message: "Invalid date format." }),
+  tags: z.string().optional(), // Tags as a comma-separated string
 });
 
-type NewPost = Omit<Post, 'id' | 'created_at' | 'user_id'>;
+type NewPost = Omit<Post, 'id' | 'created_at' | 'user_id' | 'tags'> & { tags?: string[] | null };
 
 const ManageBlog = () => {
   const { user } = useAuth(); // Get the current user
@@ -75,6 +76,7 @@ const ManageBlog = () => {
       description: "",
       content: "",
       published_at: new Date().toISOString().split("T")[0],
+      tags: "",
     },
   });
 
@@ -86,9 +88,12 @@ const ManageBlog = () => {
 
     const toastId = showLoading(editingId ? "Updating post..." : "Adding new post...");
     
+    const tagsArray = values.tags ? values.tags.split(',').map(tag => tag.trim()).filter(tag => tag.length > 0) : null;
+
     const postData = { 
       ...values,
       user_id: user.id, // Set the user_id here
+      tags: tagsArray,
     };
 
     const { error } = editingId
@@ -112,6 +117,7 @@ const ManageBlog = () => {
       description: post.description || "",
       content: post.content || "",
       published_at: post.published_at ? post.published_at.split("T")[0] : new Date().toISOString().split("T")[0],
+      tags: post.tags ? post.tags.join(', ') : "",
     });
   };
 
@@ -135,6 +141,7 @@ const ManageBlog = () => {
       description: "",
       content: "",
       published_at: new Date().toISOString().split("T")[0],
+      tags: "",
     });
   };
 
@@ -154,6 +161,8 @@ const ManageBlog = () => {
       const description = item.querySelector("description")?.textContent || "";
       const contentHtml = item.getElementsByTagNameNS("*", "encoded")[0]?.textContent || "";
       const content = turndownService.turndown(contentHtml);
+      // No tags in WordPress XML by default, so leave as null or empty array
+      const tags: string[] | null = null; 
 
       if (title && content) {
         newPosts.push({
@@ -161,6 +170,7 @@ const ManageBlog = () => {
           description,
           content,
           published_at: new Date(pubDate).toISOString(),
+          tags,
         });
       }
     });
@@ -173,6 +183,7 @@ const ManageBlog = () => {
     let description = '';
     let published_at = new Date().toISOString();
     let content = fullContent;
+    let tags: string[] | null = null;
 
     // Regex to find YAML frontmatter at the beginning of the file
     const frontmatterRegex = /^---\n([\s\S]*?)\n---\n([\s\S]*)$/;
@@ -195,6 +206,8 @@ const ManageBlog = () => {
             description = value;
           } else if (key === 'published_at') {
             published_at = value;
+          } else if (key === 'tags') {
+            tags = value.split(',').map(tag => tag.trim()).filter(tag => tag.length > 0);
           }
         }
       });
@@ -208,6 +221,7 @@ const ManageBlog = () => {
       description,
       content,
       published_at,
+      tags,
     };
   };
 
@@ -269,10 +283,11 @@ const ManageBlog = () => {
         const postsToDownload = posts.filter(post => selectedPosts.has(post.id));
 
         postsToDownload.forEach(post => {
+            const tagsString = post.tags && post.tags.length > 0 ? `\ntags: "${post.tags.join(', ').replace(/"/g, '\\"')}"` : '';
             const frontmatter = `---
 title: "${post.title.replace(/"/g, '\\"')}"
 description: "${(post.description || '').replace(/"/g, '\\"')}"
-published_at: ${post.published_at ? new Date(post.published_at).toISOString().split('T')[0] : ''}
+published_at: ${post.published_at ? new Date(post.published_at).toISOString().split('T')[0] : ''}${tagsString}
 ---
 
 `;
@@ -353,6 +368,9 @@ published_at: ${post.published_at ? new Date(post.published_at).toISOString().sp
                 )} />
                 <FormField control={form.control} name="description" render={({ field }) => (
                   <FormItem><FormLabel>Description</FormLabel><FormControl><Textarea placeholder="A short summary of the post." {...field} /></FormControl><FormMessage /></FormItem>
+                )} />
+                <FormField control={form.control} name="tags" render={({ field }) => (
+                  <FormItem><FormLabel>Tags (comma-separated)</FormLabel><FormControl><Input placeholder="e.g., react, javascript, webdev" {...field} /></FormControl><FormMessage /></FormItem>
                 )} />
                 <FormField control={form.control} name="content" render={({ field }) => (
                   <FormItem><FormLabel>Content (Markdown supported)</FormLabel><FormControl><Textarea placeholder="Write your full article here..." className="min-h-[200px]" {...field} /></FormControl><FormMessage /></FormItem>
