@@ -1,10 +1,16 @@
 import * as React from "react";
 import { X } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
-import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "@/components/ui/command";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Button } from "@/components/ui/button";
-import { cn } from "@/lib/utils";
 
 interface MultiSelectPopoverProps {
   value: string[];
@@ -13,23 +19,57 @@ interface MultiSelectPopoverProps {
   placeholder?: string;
 }
 
-export function MultiSelectPopover({ value: selected, onChange, suggestions, placeholder = "Select tags..." }: MultiSelectPopoverProps) {
+export function MultiSelectPopover({
+  value: selected,
+  onChange,
+  suggestions,
+  placeholder = "Select or create tags...",
+}: MultiSelectPopoverProps) {
   const [open, setOpen] = React.useState(false);
+  const [inputValue, setInputValue] = React.useState("");
 
   const handleSelect = (tag: string) => {
     if (!selected.includes(tag)) {
       onChange([...selected, tag]);
     }
+    setInputValue(""); // Clear input after selection
+  };
+
+  const handleCreate = (tag: string) => {
+    const newTag = tag.trim();
+    if (newTag && !selected.includes(newTag)) {
+      onChange([...selected, newTag]);
+    }
+    setInputValue(""); // Clear input after creation
   };
 
   const handleUnselect = (tag: string) => {
     onChange(selected.filter((s) => s !== tag));
   };
 
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if ((e.key === "Enter" || e.key === ",") && inputValue) {
+      e.preventDefault();
+      handleCreate(inputValue);
+    }
+  };
+
+  const filteredSuggestions = suggestions.filter(
+    (suggestion) =>
+      !selected.includes(suggestion) &&
+      suggestion.toLowerCase().includes(inputValue.toLowerCase())
+  );
+
+  const showCreateOption = inputValue && !suggestions.some(s => s.toLowerCase() === inputValue.toLowerCase().trim()) && !selected.includes(inputValue.trim());
+
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
-        <Button variant="outline" className="w-full justify-start font-normal h-auto min-h-10">
+        <Button
+          variant="outline"
+          className="w-full justify-start font-normal h-auto min-h-10"
+          onClick={() => setOpen(true)}
+        >
           <div className="flex flex-wrap gap-1">
             {selected.length > 0 ? (
               selected.map((tag) => (
@@ -52,24 +92,40 @@ export function MultiSelectPopover({ value: selected, onChange, suggestions, pla
           </div>
         </Button>
       </PopoverTrigger>
-      <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
+      <PopoverContent
+        className="w-[--radix-popover-trigger-width] p-0"
+        align="start"
+        onCloseAutoFocus={(e) => e.preventDefault()}
+      >
         <Command>
-          <CommandInput placeholder="Search tags..." />
+          <CommandInput
+            placeholder="Search or create..."
+            value={inputValue}
+            onValueChange={setInputValue}
+            onKeyDown={handleKeyDown}
+          />
           <CommandList>
-            <CommandEmpty>No tags found. You can create new tags by typing them in the old input field.</CommandEmpty>
+            <CommandEmpty>
+              {inputValue ? `Press Enter to create "${inputValue}"` : "No tags found."}
+            </CommandEmpty>
             <CommandGroup>
-              {suggestions.map((suggestion) => (
+              {showCreateOption && (
+                <CommandItem
+                  value={inputValue}
+                  onSelect={() => handleCreate(inputValue)}
+                  className="cursor-pointer"
+                >
+                  Create "{inputValue}"
+                </CommandItem>
+              )}
+              {filteredSuggestions.map((suggestion) => (
                 <CommandItem
                   key={suggestion}
                   value={suggestion}
                   onSelect={() => {
                     handleSelect(suggestion);
                   }}
-                  className={cn(
-                    "cursor-pointer",
-                    selected.includes(suggestion) && "opacity-50 cursor-not-allowed"
-                  )}
-                  disabled={selected.includes(suggestion)}
+                  className="cursor-pointer"
                 >
                   {suggestion}
                 </CommandItem>
