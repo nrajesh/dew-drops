@@ -30,6 +30,14 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from "@/components/ui/dialog";
 import TurndownService from "turndown";
 import JSZip from 'jszip';
 import { sanitizeFileName } from "@/lib/utils";
@@ -61,6 +69,12 @@ const ManageBlog = () => {
   const [selectedPosts, setSelectedPosts] = useState<Set<string>>(new Set());
   const fileInputRef = useRef<HTMLInputElement>(null);
   const turndownService = new TurndownService();
+
+  // State for the update confirmation dialog
+  const [isUpdateDialogVisible, setIsUpdateDialogVisible] = useState(false);
+  const [postsToInsert, setPostsToInsert] = useState<NewPost[]>([]);
+  const [postsToUpdate, setPostsToUpdate] = useState<{ existingId: string; existingTitle: string; newData: NewPost }[]>([]);
+  const [selectedUpdates, setSelectedUpdates] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     fetchPosts();
@@ -260,6 +274,60 @@ const ManageBlog = () => {
     };
   };
 
+  const processUploads = async (inserts: NewPost[], updates: { existingId: string; newData: NewPost }[]) => {
+    if (!user) {
+      showError("You must be logged in to process uploads.");
+      return;
+    }
+    const toastId = showLoading(`Processing import...`);
+    try {
+      const insertPromises = [];
+      if (inserts.length > 0) {
+        const insertsWithUserId = inserts.map(p => ({ ...p, user_id: user.id }));
+        insertPromises.push(supabase.from("posts").insert(insertsWithUserId));
+      }
+
+      const updatePromises = updates.map(u =>
+        supabase.from("posts").update({ ...u.newData, user_id: user.id }).eq('id', u.existingId)
+      );
+
+      const results = await Promise.all([...insertPromises, ...updatePromises]);
+
+      for (const result of results) {
+        if (result.error) {
+          throw new Error(result.error.message);
+        }
+      }
+
+      dismissToast(toastId);
+      if (inserts.length > 0 || updates.length > 0) {
+        showSuccess(`${inserts.length} new posts added, ${updates.length} posts updated.`);
+      }
+      fetchPosts();
+
+    } catch (error: any) {
+      dismissToast(toastId);
+      showError(`Import failed: ${error.message}`);
+    }
+  };
+
+  const handleConfirmAndProcessUploads = async () => {
+    setIsUpdateDialogVisible(false);
+
+    const updatesToPerform = postsToUpdate.filter(u => selectedUpdates.has(u.existingId));
+    const skippedCount = postsToUpdate.length - updatesToPerform.length;
+
+    await processUploads(postsToInsert, updatesToPerform);
+
+    if (skippedCount > 0) {
+      showError(`${skippedCount} potential updates were skipped.`);
+    }
+
+    setPostsToInsert([]);
+    setPostsToUpdate([]);
+    setSelectedUpdates(new Set());
+  };
+
   const handleUpload = async () => {
     if (!selectedFiles || selectedFiles.length === 0) return;
     if (!user) {
@@ -283,23 +351,36 @@ const ManageBlog = () => {
         }
       }
 
-      const existingTitles = new Set(posts.map(p => p.title));
-      const uniqueNewPosts = allNewPosts.filter(p => !existingTitles.has(p.title));
-      const skippedCount = allNewPosts.length - uniqueNewPosts.length;
+      const existingPostsMap = new Map(posts.map(p => [p.title.toLowerCase(), p]));
+      const newPostsToInsert: NewPost[] = [];
+      const potentialUpdates: { existingId: string; existingTitle: string; newData: NewPost }[] = [];
 
-      if (uniqueNewPosts.length > 0) {
-        const postsWithUserId = uniqueNewPosts.map(post => ({ ...post, user_id: user.id }));
-        const { error } = await supabase.from("posts").insert(postsWithUserId);
-        if (error) throw error;
+      for (const newPost of allNewPosts) {
+        const existingPost = existingPostsMap.get(newPost.title.toLowerCase());
+        if (existingPost) {
+          potentialUpdates.push({
+            existingId: existingPost.id,
+            existingTitle: existingPost.title,
+            newData: newPost,
+          });
+        } else {
+          newPostsToInsert.push(newPost);
+        }
       }
 
       dismissToast(toastId);
-      let successMessage = `${uniqueNewPosts.length} new post(s) imported successfully.`;
-      if (skippedCount > 0) {
-        successMessage += ` ${skippedCount} duplicate(s) were skipped.`;
+
+      setPostsToInsert(newPostsToInsert);
+      setPostsToUpdate(potentialUpdates);
+
+      if (potentialUpdates.length > 0) {
+        setSelectedUpdates(new Set());
+        setIsUpdateDialogVisible(true);
+      } else if (newPostsToInsert.length > 0) {
+        await processUploads(newPostsToInsert, []);
+      } else {
+        showSuccess("No new posts to import.");
       }
-      showSuccess(successMessage);
-      fetchPosts();
 
     } catch (error: any) {
       dismissToast(toastId);
@@ -522,6 +603,43 @@ published_at: ${post.published_at ? new Date(post.published_at).toISOString().sp
           </CardContent>
         </Card>
       </div>
+      <Dialog open={isUpdateDialogVisible} onOpenChange={setIsUpdateDialogVisible}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Confirm Updates</DialogTitle>
+            <DialogDescription>
+              The following posts already exist. Select the ones you want to update with the data from your file(s). Unselected posts will be skipped.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="max-h-60 overflow-y-auto space-y-2 p-1">
+            {postsToUpdate.map(item => (
+              <div key={item.existingId} className="flex items-center space-x-2 p-2 border rounded-md">
+                <Checkbox
+                  id={`update-${item.existingId}`}
+                  onCheckedChange={(checked) => {
+                    const newSelection = new Set(selectedUpdates);
+                    if (checked) {
+                      newSelection.add(item.existingId);
+                    } else {
+                      newSelection.delete(item.existingId);
+                    }
+                    setSelectedUpdates(newSelection);
+                  }}
+                />
+                <label htmlFor={`update-${item.existingId}`} className="text-sm font-medium leading-none">
+                  Update "{item.existingTitle}"
+                </label>
+              </div>
+            ))}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsUpdateDialogVisible(false)}>Cancel</Button>
+            <Button onClick={handleConfirmAndProcessUploads}>
+              Import ({postsToInsert.length}) & Update ({selectedUpdates.size})
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
