@@ -482,7 +482,7 @@ const ManageTravel = () => {
         const blogTitleMap = new Map(blogPosts.map(p => [p.id, p.title]));
         const locationsToDownload = locations.filter(loc => selectedLocations.has(loc.id));
 
-        const headers = ["title", "name", "description", "latitude", "longitude", "blog_url", "marker_image_url", "blog_title"];
+        const headers = ["title", "name", "description", "latitude", "longitude", "marker_image_url", "blog_title"];
         
         const escapeCsv = (val: any) => {
             const str = String(val);
@@ -502,7 +502,6 @@ const ManageTravel = () => {
                 loc.description || '',
                 loc.latitude,
                 loc.longitude,
-                loc.blog_url || '',
                 loc.marker_image_url || '',
                 blogTitle,
             ];
@@ -543,7 +542,7 @@ const ManageTravel = () => {
           <div className="space-y-4">
             <div className="flex items-center justify-between p-3 bg-muted rounded-md">
                 <p className="text-sm text-muted-foreground">
-                  Headers: code"title";"name";"blog_title";.../code
+                  Headers: <code>"title";"name";"blog_title";...</code>
                 </p>
                 <Button asChild variant="secondary" size="sm">
                     <a href="/sample-travel-locations.csv" download>

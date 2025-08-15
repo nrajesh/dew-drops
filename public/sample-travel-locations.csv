@@ -1,4 +1,3 @@
-"title";"name";"description";"latitude";"longitude";"blog_url";"marker_image_url";"blog_title"
-"Eiffel Tower Visit";"Paris, France";"A wonderful trip to see the iconic tower.";"48.8584";"2.2945";"";"";"My Trip to Paris"
-"Statue of Liberty Tour";"New York, USA";"Visited the famous landmark.";"40.6892";"-74.0445";"";"";"Exploring New York City"
-"Colosseum Adventure";"Rome, Italy";"Exploring the ancient Roman amphitheater.";"41.8902";"12.4922";"";"";""
+"title";"name";"description";"latitude";"longitude";"marker_image_url";"blog_title"
+"Eiffel Tower Visit";"Paris, France";"A wonderful trip to see the iconic tower.";"48.8584";"2.2945";"";"My First Blog Post"
+"Statue of Liberty";"New York, USA";"Visited the famous landmark.";"40.6892";"-74.0445";"";""
