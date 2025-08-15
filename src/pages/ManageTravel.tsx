@@ -30,6 +30,14 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from "@/components/ui/dialog";
 import { sanitizeFileName } from "@/lib/utils";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
@@ -57,6 +65,12 @@ const ManageTravel = () => {
   const [selectedLocations, setSelectedLocations] = useState<Set<string>>(new Set());
   const [blogPopoverOpen, setBlogPopoverOpen] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // State for the update confirmation dialog
+  const [isUpdateDialogVisible, setIsUpdateDialogVisible] = useState(false);
+  const [locationsToInsert, setLocationsToInsert] = useState<any[]>([]);
+  const [locationsToUpdate, setLocationsToUpdate] = useState<{ existingId: string; existingTitle: string; newData: any }[]>([]);
+  const [selectedUpdates, setSelectedUpdates] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     fetchLocations();
@@ -286,129 +300,147 @@ const ManageTravel = () => {
     return data;
   };
 
+  const processUploads = async (inserts: any[], updates: {existingId: string, newData: any}[]) => {
+    const toastId = showLoading(`Processing import...`);
+    try {
+        const insertPromises = [];
+        if (inserts.length > 0) {
+            insertPromises.push(supabase.from("travel_locations").insert(inserts));
+        }
+
+        const updatePromises = updates.map(u => 
+            supabase.from("travel_locations").update(u.newData).eq('id', u.existingId)
+        );
+
+        const results = await Promise.all([...insertPromises, ...updatePromises]);
+
+        for (const result of results) {
+            if (result.error) {
+                throw new Error(result.error.message);
+            }
+        }
+        
+        dismissToast(toastId);
+        if (inserts.length > 0 || updates.length > 0) {
+          showSuccess(`${inserts.length} new locations added, ${updates.length} locations updated.`);
+        }
+        fetchLocations();
+
+    } catch (error: any) {
+        dismissToast(toastId);
+        showError(`Import failed: ${error.message}`);
+    }
+  };
+
+  const handleConfirmAndProcessUploads = async () => {
+    setIsUpdateDialogVisible(false);
+    
+    const updatesToPerform = locationsToUpdate.filter(u => selectedUpdates.has(u.existingId)).map(u => ({
+        existingId: u.existingId,
+        newData: u.newData
+    }));
+
+    const skippedCount = locationsToUpdate.length - updatesToPerform.length;
+
+    await processUploads(locationsToInsert, updatesToPerform);
+
+    if (skippedCount > 0) {
+        showError(`${skippedCount} potential updates were skipped.`);
+    }
+    
+    setLocationsToInsert([]);
+    setLocationsToUpdate([]);
+    setSelectedUpdates(new Set());
+  };
+
   const handleBulkUpload = async () => {
     if (!uploadFile) return;
 
     setIsUploading(true);
-    const toastId = showLoading("Reading CSV file...");
-    let progressToastId: string | number | undefined;
-    let insertToastId: string | number | undefined;
+    const toastId = showLoading("Processing CSV file...");
 
     try {
       const fileContent = await uploadFile.text();
       const parsedData = parseCsv(fileContent);
 
-      if (parsedData.length === 0) {
-        throw new Error("No data rows found in the CSV file.");
-      }
+      if (parsedData.length === 0) throw new Error("No data rows found in CSV.");
 
-      dismissToast(toastId);
-      progressToastId = showLoading(`Processing ${parsedData.length} rows...`);
-
-      const existingNames = new Set(locations.map(loc => loc.name.toLowerCase()));
-      const existingCoords = new Set(locations.map(loc => `${loc.latitude},${loc.longitude}`));
       const blogTitleMap = new Map(blogPosts.map(p => [p.title.toLowerCase(), p.id]));
       
-      const locationsToInsert = [];
+      const newLocations: any[] = [];
+      const potentialUpdates: { existingId: string; existingTitle: string; newData: any }[] = [];
       const failedRows = [];
-      let skippedCount = 0;
 
       for (const [index, row] of parsedData.entries()) {
         try {
-          if (!row.title || !row.name) {
-            throw new Error("Missing required 'title' or 'name'.");
-          }
+          if (!row.title || !row.name) throw new Error("Missing required 'title' or 'name'.");
 
           let { latitude, longitude } = row;
-
           if ((!latitude || !longitude) && row.name) {
             const coords = await geocodeLocation(row.name);
             latitude = coords.latitude;
             longitude = coords.longitude;
           }
-
-          if (!latitude || !longitude) {
-            throw new Error(`Could not determine coordinates for "${row.name}".`);
-          }
-
-          const finalName = row.name;
-          const finalLat = parseFloat(latitude);
-          const finalLng = parseFloat(longitude);
-
-          if (existingNames.has(finalName.toLowerCase()) || existingCoords.has(`${finalLat},${finalLng}`)) {
-            skippedCount++;
-            continue;
-          }
+          if (!latitude || !longitude) throw new Error(`Could not determine coordinates for "${row.name}".`);
 
           let blog_url = null;
           if (row.blog_title) {
             const postId = blogTitleMap.get(row.blog_title.toLowerCase());
-            if (postId) {
-              blog_url = `/blog/${postId}`;
-            } else {
-              console.warn(`Blog post with title "${row.blog_title}" not found for CSV row ${index + 2}.`);
-            }
+            if (postId) blog_url = `/blog/${postId}`;
           }
 
-          locationsToInsert.push({
+          const locationData = {
             title: row.title,
-            name: finalName,
+            name: row.name,
             description: row.description || null,
-            latitude: finalLat,
-            longitude: finalLng,
+            latitude: parseFloat(latitude),
+            longitude: parseFloat(longitude),
             blog_url: blog_url,
             marker_image_url: row.marker_image_url || null,
-          });
+          };
 
-          existingNames.add(finalName.toLowerCase());
-          existingCoords.add(`${finalLat},${finalLng}`);
+          const existingLocation = locations.find(loc => loc.name.toLowerCase() === locationData.name.toLowerCase());
 
+          if (existingLocation) {
+            potentialUpdates.push({
+              existingId: existingLocation.id,
+              existingTitle: existingLocation.title,
+              newData: locationData
+            });
+          } else {
+            newLocations.push(locationData);
+          }
         } catch (error: any) {
           failedRows.push({ row: index + 2, error: error.message });
         }
       }
 
-      dismissToast(progressToastId);
-
-      if (locationsToInsert.length > 0) {
-        insertToastId = showLoading(`Uploading ${locationsToInsert.length} valid locations...`);
-        const { error } = await supabase.from("travel_locations").insert(locationsToInsert);
-        dismissToast(insertToastId);
-
-        if (error) {
-          throw new Error(`Database insert failed: ${error.message}`);
-        }
-        fetchLocations();
-      }
-
-      let summaryMessage = "";
-      if (locationsToInsert.length > 0) {
-        summaryMessage += `${locationsToInsert.length} locations uploaded successfully. `;
-      }
-      if (skippedCount > 0) {
-        summaryMessage += `${skippedCount} duplicate locations were skipped.`;
-      }
-      if (summaryMessage) {
-        showSuccess(summaryMessage.trim());
-      }
+      dismissToast(toastId);
 
       if (failedRows.length > 0) {
-        const errorMessage = `${failedRows.length} rows failed to upload. See console for details.`;
-        showError(errorMessage);
+        showError(`${failedRows.length} rows failed to process. See console for details.`);
         console.error("Bulk upload failures:", failedRows);
       }
 
+      setLocationsToInsert(newLocations);
+      setLocationsToUpdate(potentialUpdates);
+
+      if (potentialUpdates.length > 0) {
+        setSelectedUpdates(new Set());
+        setIsUpdateDialogVisible(true);
+      } else if (newLocations.length > 0) {
+        await processUploads(newLocations, []);
+      } else if (failedRows.length === 0) {
+        showSuccess("No new locations to import.");
+      }
+
     } catch (error: any) {
-      if (toastId) dismissToast(toastId);
-      if (progressToastId) dismissToast(progressToastId);
-      if (insertToastId) dismissToast(insertToastId);
+      dismissToast(toastId);
       showError(error.message);
     } finally {
       setIsUploading(false);
       setUploadFile(null);
-      if (fileInputRef.current) {
-        fileInputRef.current.value = "";
-      }
+      if (fileInputRef.current) fileInputRef.current.value = "";
     }
   };
 
@@ -681,6 +713,43 @@ const ManageTravel = () => {
           </CardContent>
         </Card>
       </div>
+      <Dialog open={isUpdateDialogVisible} onOpenChange={setIsUpdateDialogVisible}>
+        <DialogContent className="max-w-md">
+            <DialogHeader>
+                <DialogTitle>Confirm Updates</DialogTitle>
+                <DialogDescription>
+                    The following locations already exist. Select the ones you want to update with the data from your CSV file. Unselected locations will be skipped.
+                </DialogDescription>
+            </DialogHeader>
+            <div className="max-h-60 overflow-y-auto space-y-2 p-1">
+                {locationsToUpdate.map(item => (
+                    <div key={item.existingId} className="flex items-center space-x-2 p-2 border rounded-md">
+                        <Checkbox
+                            id={`update-${item.existingId}`}
+                            onCheckedChange={(checked) => {
+                                const newSelection = new Set(selectedUpdates);
+                                if (checked) {
+                                    newSelection.add(item.existingId);
+                                } else {
+                                    newSelection.delete(item.existingId);
+                                }
+                                setSelectedUpdates(newSelection);
+                            }}
+                        />
+                        <label htmlFor={`update-${item.existingId}`} className="text-sm font-medium leading-none">
+                            Update "{item.existingTitle}"
+                        </label>
+                    </div>
+                ))}
+            </div>
+            <DialogFooter>
+                <Button variant="outline" onClick={() => setIsUpdateDialogVisible(false)}>Cancel</Button>
+                <Button onClick={handleConfirmAndProcessUploads}>
+                    Import ({locationsToInsert.length}) & Update ({selectedUpdates.size})
+                </Button>
+            </DialogFooter>
+        </DialogContent>
+    </Dialog>
     </div>
   );
 };
