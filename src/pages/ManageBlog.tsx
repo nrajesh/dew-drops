@@ -43,14 +43,14 @@ import JSZip from 'jszip';
 import { sanitizeFileName } from "@/lib/utils";
 import { useAuth } from "@/contexts/AuthContext";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { TagInput } from "@/components/TagInput";
+import { MultiSelectPopover } from "@/components/MultiSelectPopover";
 
 const postSchema = z.object({
   title: z.string().min(3, { message: "Title must be at least 3 characters." }),
   description: z.string().min(10, { message: "Description must be at least 10 characters." }),
   content: z.string().min(20, { message: "Content must be at least 20 characters." }),
   published_at: z.string().refine((val) => !isNaN(Date.parse(val)), { message: "Invalid date format." }),
-  tags: z.string().optional(),
+  tags: z.array(z.string()).optional(),
   cover_image_id: z.preprocess(
     (val) => (val === "--none--" || val === "" ? null : val),
     z.string().uuid("Invalid image ID").nullable().optional()
@@ -114,7 +114,7 @@ const ManageBlog = () => {
       description: "",
       content: "",
       published_at: new Date().toISOString().split("T")[0],
-      tags: "",
+      tags: [],
       cover_image_id: null,
       youtube_video_id: "",
     },
@@ -128,15 +128,13 @@ const ManageBlog = () => {
 
     const toastId = showLoading(editingId ? "Updating post..." : "Adding new post...");
     
-    const tagsArray = values.tags ? values.tags.split(',').map(tag => tag.trim()).filter(tag => tag.length > 0) : null;
-
     const postData = { 
       title: values.title,
       description: values.description,
       content: values.content,
       published_at: values.published_at,
       user_id: user.id,
-      tags: tagsArray,
+      tags: values.tags,
       cover_image_id: values.cover_image_id,
       youtube_video_id: values.youtube_video_id,
     };
@@ -162,7 +160,7 @@ const ManageBlog = () => {
       description: post.description || "",
       content: post.content || "",
       published_at: post.published_at ? post.published_at.split("T")[0] : new Date().toISOString().split("T")[0],
-      tags: post.tags ? post.tags.join(', ') : "",
+      tags: post.tags || [],
       cover_image_id: post.cover_image_id || null,
       youtube_video_id: post.youtube_video_id || "",
     });
@@ -188,7 +186,7 @@ const ManageBlog = () => {
       description: "",
       content: "",
       published_at: new Date().toISOString().split("T")[0],
-      tags: "",
+      tags: [],
       cover_image_id: null,
       youtube_video_id: "",
     });
@@ -495,19 +493,23 @@ published_at: ${post.published_at ? new Date(post.published_at).toISOString().sp
                 <FormField control={form.control} name="description" render={({ field }) => (
                   <FormItem><FormLabel>Description</FormLabel><FormControl><Textarea placeholder="A short summary of the post." {...field} /></FormControl><FormMessage /></FormItem>
                 )} />
-                <FormField control={form.control} name="tags" render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Tags (comma-separated)</FormLabel>
-                    <FormControl>
-                      <TagInput
-                        value={field.value || ""}
-                        onChange={field.onChange}
-                        suggestions={uniqueTags}
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )} />
+                <FormField
+                  control={form.control}
+                  name="tags"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Tags</FormLabel>
+                      <FormControl>
+                        <MultiSelectPopover
+                          suggestions={uniqueTags}
+                          value={field.value || []}
+                          onChange={field.onChange}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
                 <FormField
                   control={form.control}
                   name="cover_image_id"
