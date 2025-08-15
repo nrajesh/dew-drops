@@ -13,11 +13,23 @@ import {
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { showSuccess, showError, showLoading, dismissToast } from "@/utils/toast";
-import { useState, useEffect } from "react";
-import { Trash2, Edit } from "lucide-react";
+import { useState, useEffect, useRef } from "react";
+import { Trash2, Edit, Upload, Download } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import type { Video } from "@/types";
 import { useAuth } from "@/contexts/AuthContext";
+import { Checkbox } from "@/components/ui/checkbox";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 
 const videoSchema = z.object({
   title: z.string().min(3, { message: "Title must be at least 3 characters." }),
@@ -28,6 +40,10 @@ const ManageVideos = () => {
   const { user } = useAuth();
   const [videos, setVideos] = useState<Video[]>([]);
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [uploadFile, setUploadFile] = useState<File | null>(null);
+  const [isUploading, setIsUploading] = useState(false);
+  const [selectedVideos, setSelectedVideos] = useState<Set<string>>(new Set());
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     fetchVideos();
@@ -89,97 +105,251 @@ const ManageVideos = () => {
     form.setValue("title", video.title);
     form.setValue("youtube_id", video.youtube_id);
   };
-
-  const handleDelete = async (id: string) => {
-    const toastId = showLoading("Deleting video...");
-    const { error } = await supabase.from("videos").delete().eq("id", id);
-    dismissToast(toastId);
-    if (error) {
-      showError(error.message);
-    } else {
-      showError("Video removed.");
-      fetchVideos();
-    }
-  };
   
   const cancelEdit = () => {
     setEditingId(null);
     form.reset();
   }
 
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files.length > 0) {
+      setUploadFile(e.target.files[0]);
+    } else {
+      setUploadFile(null);
+    }
+  };
+
+  const parseCsv = (csvText: string): any[] => {
+    const lines = csvText.trim().split(/\r\n|\n/);
+    if (lines.length < 2) return [];
+
+    const headers = lines[0].split(';').map(h => h.trim().replace(/"/g, ''));
+    const data = [];
+
+    const csvRowRegex = /;(?=(?:(?:[^"]*"){2})*[^"]*$)/;
+
+    for (let i = 1; i < lines.length; i++) {
+        const line = lines[i];
+        if (!line) continue;
+
+        const values = line.split(csvRowRegex).map(val => {
+            let value = val.trim();
+            if (value.startsWith('"') && value.endsWith('"')) {
+                value = value.substring(1, value.length - 1);
+            }
+            return value.replace(/""/g, '"');
+        });
+
+        const entry: { [key: string]: string } = {};
+        for (let j = 0; j < headers.length; j++) {
+            entry[headers[j]] = values[j] || '';
+        }
+        data.push(entry);
+    }
+    return data;
+  };
+
+  const handleBulkUpload = async () => {
+    if (!uploadFile || !user) return;
+
+    setIsUploading(true);
+    const toastId = showLoading("Reading CSV file...");
+    let progressToastId: string | number | undefined;
+    let insertToastId: string | number | undefined;
+
+    try {
+      const fileContent = await uploadFile.text();
+      const parsedData = parseCsv(fileContent);
+
+      if (parsedData.length === 0) throw new Error("No data rows found in CSV.");
+
+      dismissToast(toastId);
+      progressToastId = showLoading(`Processing ${parsedData.length} rows...`);
+
+      const existingIds = new Set(videos.map(v => v.youtube_id));
+      const videosToInsert = [];
+      let skippedCount = 0;
+
+      for (const row of parsedData) {
+        if (!row.title || !row.youtube_id) continue;
+        if (existingIds.has(row.youtube_id)) {
+          skippedCount++;
+          continue;
+        }
+
+        videosToInsert.push({
+          title: row.title,
+          youtube_id: row.youtube_id,
+          user_id: user.id,
+        });
+        existingIds.add(row.youtube_id);
+      }
+
+      dismissToast(progressToastId);
+
+      if (videosToInsert.length > 0) {
+        insertToastId = showLoading(`Uploading ${videosToInsert.length} new videos...`);
+        const { error } = await supabase.from("videos").insert(videosToInsert);
+        dismissToast(insertToastId);
+        if (error) throw new Error(`Database insert failed: ${error.message}`);
+        fetchVideos();
+      }
+
+      let summary = `${videosToInsert.length} videos uploaded. ${skippedCount} duplicates skipped.`;
+      showSuccess(summary);
+
+    } catch (error: any) {
+      if (toastId) dismissToast(toastId);
+      if (progressToastId) dismissToast(progressToastId);
+      if (insertToastId) dismissToast(insertToastId);
+      showError(error.message);
+    } finally {
+      setIsUploading(false);
+      setUploadFile(null);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    }
+  };
+
+  const handleBulkDelete = async () => {
+    const toastId = showLoading(`Deleting ${selectedVideos.size} videos...`);
+    try {
+      const { error } = await supabase.from("videos").delete().in("id", Array.from(selectedVideos));
+      if (error) throw error;
+
+      dismissToast(toastId);
+      showError(`${selectedVideos.size} videos removed.`);
+      fetchVideos();
+      setSelectedVideos(new Set());
+    } catch (error: any) {
+      dismissToast(toastId);
+      showError(error.message);
+    }
+  };
+
+  const handleSelectVideo = (id: string) => {
+    const newSelection = new Set(selectedVideos);
+    if (newSelection.has(id)) {
+      newSelection.delete(id);
+    } else {
+      newSelection.add(id);
+    }
+    setSelectedVideos(newSelection);
+  };
+
+  const handleSelectAll = (checked: boolean) => {
+    setSelectedVideos(checked ? new Set(videos.map(v => v.id)) : new Set());
+  };
+
   return (
-    <div className="grid gap-8 md:grid-cols-2">
+    <div className="space-y-8">
       <Card>
         <CardHeader>
-          <CardTitle>{editingId ? "Edit Video" : "Add New Video"}</CardTitle>
-          <CardDescription>
-            {editingId ? "Update the details for this video." : "Enter the details for a new YouTube video."}
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
-              <FormField
-                control={form.control}
-                name="title"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Video Title</FormLabel>
-                    <FormControl>
-                      <Input placeholder="e.g., My Awesome Project" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="youtube_id"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>YouTube Video ID</FormLabel>
-                    <FormControl>
-                      <Input placeholder="e.g., dQw4w9WgXcQ" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <div className="flex gap-2">
-                <Button type="submit">{editingId ? "Update Video" : "Add Video"}</Button>
-                {editingId && <Button variant="outline" onClick={cancelEdit}>Cancel</Button>}
-              </div>
-            </form>
-          </Form>
-        </CardContent>
-      </Card>
-      <Card>
-        <CardHeader>
-          <CardTitle>Video List</CardTitle>
-          <CardDescription>Your current list of videos.</CardDescription>
+          <CardTitle>Bulk Upload Videos</CardTitle>
+          <CardDescription>Upload a semicolon-separated CSV file to add multiple videos at once.</CardDescription>
         </CardHeader>
         <CardContent>
           <div className="space-y-4">
-            {videos.length > 0 ? (
-              videos.map((video) => (
-                <div key={video.id} className="flex items-center justify-between p-2 rounded-lg border">
-                  <p className="font-medium truncate pr-2">{video.title}</p>
-                  <div className="flex items-center gap-2 shrink-0">
-                    <Button variant="ghost" size="icon" onClick={() => handleEdit(video)}>
-                      <Edit className="h-4 w-4" />
-                    </Button>
-                    <Button variant="ghost" size="icon" onClick={() => handleDelete(video.id)}>
-                      <Trash2 className="h-4 w-4 text-destructive" />
-                    </Button>
-                  </div>
-                </div>
-              ))
-            ) : (
-              <p className="text-muted-foreground text-center">No videos yet. Add one using the form!</p>
-            )}
+            <div className="flex items-center justify-between p-3 bg-muted rounded-md">
+              <p className="text-sm text-muted-foreground">Headers: <code>"title";"youtube_id"</code></p>
+              <Button asChild variant="secondary" size="sm">
+                <a href="/sample-videos.csv" download>
+                  <Download className="h-4 w-4 mr-2" />
+                  Download Sample
+                </a>
+              </Button>
+            </div>
+            <div className="flex items-center gap-2">
+              <Input type="file" accept=".csv,text/csv" onChange={handleFileSelect} ref={fileInputRef} className="flex-grow" />
+              <Button onClick={handleBulkUpload} disabled={!uploadFile || isUploading}>
+                <Upload className="h-4 w-4 mr-2" />
+                {isUploading ? "Uploading..." : "Upload"}
+              </Button>
+            </div>
           </div>
         </CardContent>
       </Card>
+      <div className="grid gap-8 md:grid-cols-2">
+        <Card>
+          <CardHeader>
+            <CardTitle>{editingId ? "Edit Video" : "Add New Video"}</CardTitle>
+            <CardDescription>{editingId ? "Update the details for this video." : "Enter the details for a new YouTube video."}</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Form {...form}>
+              <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
+                <FormField control={form.control} name="title" render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Video Title</FormLabel>
+                    <FormControl><Input placeholder="e.g., My Awesome Project" {...field} /></FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )} />
+                <FormField control={form.control} name="youtube_id" render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>YouTube Video ID</FormLabel>
+                    <FormControl><Input placeholder="e.g., dQw4w9WgXcQ" {...field} /></FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )} />
+                <div className="flex gap-2">
+                  <Button type="submit">{editingId ? "Update Video" : "Add Video"}</Button>
+                  {editingId && <Button variant="outline" onClick={cancelEdit}>Cancel</Button>}
+                </div>
+              </form>
+            </Form>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <div>
+                <CardTitle>Video List</CardTitle>
+                <CardDescription>Your current list of videos.</CardDescription>
+              </div>
+              {selectedVideos.size > 0 && (
+                <AlertDialog>
+                  <AlertDialogTrigger asChild>
+                    <Button variant="destructive" size="sm"><Trash2 className="h-4 w-4 mr-2" />Delete ({selectedVideos.size})</Button>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+                      <AlertDialogDescription>This will permanently delete {selectedVideos.size} selected videos.</AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel onClick={() => setSelectedVideos(new Set())}>Cancel</AlertDialogCancel>
+                      <AlertDialogAction onClick={handleBulkDelete}>Continue</AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
+              )}
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="flex items-center border-b pb-2 mb-2 space-x-3">
+              <Checkbox id="select-all" onCheckedChange={(checked) => handleSelectAll(Boolean(checked))} checked={videos.length > 0 && selectedVideos.size === videos.length} disabled={videos.length === 0} />
+              <label htmlFor="select-all" className="text-sm font-medium">Select All</label>
+            </div>
+            <div className="space-y-2 mt-4">
+              {videos.length > 0 ? (
+                videos.map((video) => (
+                  <div key={video.id} className="flex items-center justify-between p-2 rounded-lg border">
+                    <div className="flex items-center gap-3">
+                      <Checkbox id={`select-${video.id}`} checked={selectedVideos.has(video.id)} onCheckedChange={() => handleSelectVideo(video.id)} />
+                      <label htmlFor={`select-${video.id}`} className="font-medium truncate pr-2 cursor-pointer">{video.title}</label>
+                    </div>
+                    <div className="flex items-center gap-2 shrink-0">
+                      <Button variant="ghost" size="icon" onClick={() => handleEdit(video)}><Edit className="h-4 w-4" /></Button>
+                    </div>
+                  </div>
+                ))
+              ) : (
+                <p className="text-muted-foreground text-center pt-4">No videos yet. Add one using the form!</p>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+      </div>
     </div>
   );
 };

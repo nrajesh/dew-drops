@@ -1,4 +1,4 @@
-import { NavLink, Outlet, Link, useNavigate } from "react-router-dom";
+import { NavLink, Outlet, Link } from "react-router-dom";
 import { Menu, LogIn, LogOut } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
@@ -9,7 +9,8 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { mainNavItems, managementNavItems } from "@/config/navigation";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
-import { showSuccess } from "@/utils/toast";
+import { showError, showSuccess } from "@/utils/toast";
+import FloatingChatbot from "./FloatingChatbot";
 
 const NavContent = ({ onLinkClick }: { onLinkClick?: () => void }) => {
   const navLinkClassName = ({ isActive }: { isActive: boolean }) =>
@@ -65,12 +66,20 @@ const NavContent = ({ onLinkClick }: { onLinkClick?: () => void }) => {
 const Layout = () => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const { session } = useAuth();
-  const navigate = useNavigate();
 
   const handleLogout = async () => {
-    await supabase.auth.signOut();
-    showSuccess("You have been logged out.");
-    navigate("/");
+    const { error } = await supabase.auth.signOut();
+    
+    // If the error is AuthSessionMissingError, it means the user was already logged out.
+    // We can treat this as a successful logout.
+    if (error && error.name !== 'AuthSessionMissingError') {
+      showError("Logout failed. Please try again.");
+      console.error("Logout error:", error);
+    } else {
+      showSuccess("You have been logged out.");
+      // Use a full page reload to ensure state is cleared, which is more reliable on some browsers like Safari.
+      window.location.href = "/";
+    }
   };
 
   return (
@@ -148,6 +157,7 @@ const Layout = () => {
           </footer>
         </div>
       </div>
+      <FloatingChatbot />
       <Toaster />
       <Sonner />
     </>

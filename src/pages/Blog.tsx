@@ -5,18 +5,44 @@ import { supabase } from "@/integrations/supabase/client";
 import type { Post } from "@/types";
 import { Link } from "react-router-dom";
 import { Skeleton } from "@/components/ui/skeleton";
+import { MultiSelectPopover } from "@/components/MultiSelectPopover";
 
 const Blog = () => {
   const [posts, setPosts] = useState<Post[]>([]);
   const [loading, setLoading] = useState(true);
+  const [uniqueTags, setUniqueTags] = useState<string[]>([]);
+  const [selectedTags, setSelectedTags] = useState<string[]>([]);
 
+  // Effect to fetch all unique tags once on component mount
+  useEffect(() => {
+    const fetchAllTags = async () => {
+      const { data, error } = await supabase.from('posts').select('tags');
+      if (error) {
+        console.error("Error fetching tags:", error);
+      } else {
+        const allTags = new Set<string>();
+        data.forEach(post => {
+          if (post.tags) {
+            post.tags.forEach(tag => allTags.add(tag));
+          }
+        });
+        setUniqueTags(Array.from(allTags).sort());
+      }
+    };
+    fetchAllTags();
+  }, []);
+
+  // Effect to fetch posts whenever the selected tags change
   useEffect(() => {
     const fetchPosts = async () => {
       setLoading(true);
-      const { data, error } = await supabase
-        .from("posts")
-        .select("*")
-        .order("published_at", { ascending: false });
+      let query = supabase.from("posts").select("*").order("published_at", { ascending: false });
+
+      if (selectedTags.length > 0) {
+        query = query.overlaps("tags", selectedTags);
+      }
+
+      const { data, error } = await query;
 
       if (error) {
         console.error("Error fetching posts:", error);
@@ -27,7 +53,7 @@ const Blog = () => {
     };
 
     fetchPosts();
-  }, []);
+  }, [selectedTags]);
 
   const formatDate = (dateString: string | null) => {
     if (!dateString) return "";
@@ -44,6 +70,19 @@ const Blog = () => {
         <h1 className="text-3xl font-bold">Blog</h1>
         <p className="text-muted-foreground">My thoughts on design, development, and more.</p>
       </div>
+
+      <div className="flex justify-center">
+        <div className="w-full max-w-xs">
+          <MultiSelectPopover
+            suggestions={uniqueTags}
+            value={selectedTags}
+            onChange={setSelectedTags}
+            placeholder="Filter by tags..."
+            canCreate={false}
+          />
+        </div>
+      </div>
+
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
         {loading ? (
           Array.from({ length: 3 }).map((_, index) => (
@@ -60,7 +99,7 @@ const Blog = () => {
               </CardFooter>
             </Card>
           ))
-        ) : (
+        ) : posts.length > 0 ? (
           posts.map((post) => (
             <Card key={post.id}>
               <CardHeader>
@@ -69,6 +108,15 @@ const Blog = () => {
               </CardHeader>
               <CardContent>
                 <p>{post.description}</p>
+                {post.tags && post.tags.length > 0 && (
+                  <div className="flex flex-wrap gap-1 mt-2">
+                    {post.tags.map(tag => (
+                      <span key={tag} className="text-xs px-2 py-1 rounded-full bg-muted text-muted-foreground">
+                        {tag}
+                      </span>
+                    ))}
+                  </div>
+                )}
               </CardContent>
               <CardFooter>
                 <Button asChild variant="link" className="p-0">
@@ -77,6 +125,10 @@ const Blog = () => {
               </CardFooter>
             </Card>
           ))
+        ) : (
+          <p className="text-center text-muted-foreground col-span-full">
+            No posts found for the selected tags.
+          </p>
         )}
       </div>
     </div>

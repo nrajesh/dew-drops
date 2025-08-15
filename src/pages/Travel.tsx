@@ -7,7 +7,7 @@ import type { TravelLocation } from "@/types";
 import { showError } from "@/utils/toast";
 import type { MapRef } from "@/components/Map";
 
-const Map = React.lazy(() => import('@/components/Map'));
+const MapComponent = React.lazy(() => import('@/components/Map'));
 
 const Travel = () => {
   const [locations, setLocations] = useState<TravelLocation[]>([]);
@@ -15,23 +15,52 @@ const Travel = () => {
   const mapRef = useRef<MapRef>(null);
 
   useEffect(() => {
-    const fetchLocations = async () => {
+    const fetchLocationsAndPosts = async () => {
       setLoading(true);
-      const { data, error } = await supabase
+      const { data: locationsData, error: locationsError } = await supabase
         .from("travel_locations")
         .select("*")
         .order("created_at", { ascending: false });
 
-      if (error) {
+      if (locationsError) {
         showError("Could not fetch travel locations.");
-        console.error(error);
-      } else {
-        setLocations(data as TravelLocation[]);
+        console.error(locationsError);
+        setLoading(false);
+        return;
       }
+
+      const postIds = locationsData
+        .map(l => l.blog_url?.startsWith('/blog/') ? l.blog_url.split('/').pop() : null)
+        .filter((id): id is string => id !== null);
+
+      if (postIds.length > 0) {
+        const { data: postsData, error: postsError } = await supabase
+          .from('posts')
+          .select('id, title')
+          .in('id', postIds);
+        
+        if (postsError) {
+          console.error("Could not fetch linked blog posts:", postsError);
+          setLocations(locationsData as TravelLocation[]);
+        } else {
+          const postsMap = new Map(postsData.map(p => [p.id, p.title]));
+          const enrichedLocations = locationsData.map(loc => {
+            const postId = loc.blog_url?.split('/').pop();
+            return {
+              ...loc,
+              blog_title: postId ? postsMap.get(postId) : undefined,
+            };
+          });
+          setLocations(enrichedLocations as TravelLocation[]);
+        }
+      } else {
+        setLocations(locationsData as TravelLocation[]);
+      }
+      
       setLoading(false);
     };
 
-    fetchLocations();
+    fetchLocationsAndPosts();
   }, []);
 
   return (
@@ -44,7 +73,7 @@ const Travel = () => {
       </div>
 
       <Suspense fallback={<Skeleton className="h-[450px] w-full rounded-lg" />}>
-        <Map ref={mapRef} locations={locations} />
+        <MapComponent ref={mapRef} locations={locations} />
       </Suspense>
 
       {loading ? (

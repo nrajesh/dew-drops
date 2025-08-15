@@ -1,4 +1,4 @@
-import { createContext, useState, useEffect, useContext, ReactNode } from 'react';
+import { createContext, useState, useEffect, useContext, ReactNode, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import type { Session, User } from '@supabase/supabase-js';
 import { showError } from '@/utils/toast';
@@ -11,29 +11,15 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-const ALLOWED_EMAIL = import.meta.env.VITE_ALLOWED_EMAIL;
+const ALLOWED_EMAIL = import.meta.env.VITE_ALLOWED_EMAIL || 'write@nrajesh.com';
 
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [session, setSession] = useState<Session | null>(null);
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
+  const isInitialLoad = useRef(true);
 
   useEffect(() => {
-    const getSession = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (session && session.user.email !== ALLOWED_EMAIL) {
-        await supabase.auth.signOut();
-        setSession(null);
-        setUser(null);
-      } else {
-        setSession(session);
-        setUser(session?.user ?? null);
-      }
-      setLoading(false);
-    };
-
-    getSession();
-
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       if (session && session.user.email !== ALLOWED_EMAIL) {
         supabase.auth.signOut();
@@ -43,6 +29,12 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       } else {
         setSession(session);
         setUser(session?.user ?? null);
+      }
+      
+      // This ensures we only stop loading on the very first auth event.
+      if (isInitialLoad.current) {
+        setLoading(false);
+        isInitialLoad.current = false;
       }
     });
 
@@ -55,7 +47,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     loading,
   };
 
-  return <AuthContext.Provider value={value}>{!loading && children}</AuthContext.Provider>;
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };
 
 export const useAuth = () => {

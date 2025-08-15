@@ -6,6 +6,9 @@ export interface Post {
   content: string | null;
   published_at: string | null;
   user_id: string | null;
+  tags: string[] | null;
+  cover_image_id: string | null;
+  youtube_video_id: string | null;
 }
 
 export interface TravelLocation {
@@ -17,6 +20,7 @@ export interface TravelLocation {
   latitude: number;
   longitude: number;
   blog_url: string | null;
+  blog_title?: string; // Added for map popups
   marker_image_url: string | null;
   user_id: string | null;
 }
