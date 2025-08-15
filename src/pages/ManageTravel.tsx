@@ -198,7 +198,7 @@ const ManageTravel = () => {
       dismissToast(toastId);
       showError(`Operation failed: ${error.message}`);
     }
-  }
+  };
 
   const handleEdit = (location: TravelLocation) => {
     setEditingId(location.id);
@@ -246,7 +246,7 @@ const ManageTravel = () => {
       longitude: "",
       blog_url: null,
     });
-  }
+  };
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files.length > 0) {
@@ -444,6 +444,62 @@ const ManageTravel = () => {
     }
   };
 
+  const handleBulkDownload = async () => {
+    const toastId = showLoading(`Preparing ${selectedLocations.size} location(s) for download...`);
+    try {
+        const blogTitleMap = new Map(blogPosts.map(p => [p.id, p.title]));
+        const locationsToDownload = locations.filter(loc => selectedLocations.has(loc.id));
+
+        const headers = ["title", "name", "description", "latitude", "longitude", "blog_url", "marker_image_url", "blog_title"];
+        
+        const escapeCsv = (val: any) => {
+            const str = String(val);
+            if (str.includes('"') || str.includes(';') || str.includes('\n') || str.includes(',')) {
+                return `"${str.replace(/"/g, '""')}"`;
+            }
+            return `"${str}"`;
+        };
+
+        const csvRows = locationsToDownload.map(loc => {
+            const postId = loc.blog_url ? loc.blog_url.split('/').pop() : null;
+            const blogTitle = postId ? blogTitleMap.get(postId) || '' : '';
+
+            const rowData = [
+                loc.title,
+                loc.name,
+                loc.description || '',
+                loc.latitude,
+                loc.longitude,
+                loc.blog_url || '',
+                loc.marker_image_url || '',
+                blogTitle,
+            ];
+            return rowData.map(escapeCsv).join(';');
+        });
+
+        const csvHeader = headers.map(h => `"${h}"`).join(';');
+        const csvContent = [csvHeader, ...csvRows].join('\r\n');
+
+        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+        const link = document.createElement("a");
+        const url = URL.createObjectURL(blob);
+        link.setAttribute("href", url);
+        link.setAttribute("download", "travel_locations_export.csv");
+        link.style.visibility = 'hidden';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+
+        dismissToast(toastId);
+        showSuccess(`${locationsToDownload.length} location(s) downloaded.`);
+
+    } catch (error: any) {
+        dismissToast(toastId);
+        showError(`Download failed: ${error.message}`);
+    }
+  };
+
   return (
     <div className="space-y-8">
       <Card>
@@ -586,13 +642,19 @@ const ManageTravel = () => {
                 <CardDescription>Your current list of visited places.</CardDescription>
               </div>
               {selectedLocations.size > 0 && (
-                <AlertDialog>
-                  <AlertDialogTrigger asChild><Button variant="destructive" size="sm"><Trash2 className="h-4 w-4 mr-2" />Delete ({selectedLocations.size})</Button></AlertDialogTrigger>
-                  <AlertDialogContent>
-                    <AlertDialogHeader><AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle><AlertDialogDescription>This action cannot be undone. This will permanently delete {selectedLocations.size} selected locations and any associated images.</AlertDialogDescription></AlertDialogHeader>
-                    <AlertDialogFooter><AlertDialogCancel onClick={() => setSelectedLocations(new Set())}>Cancel</AlertDialogCancel><AlertDialogAction onClick={handleBulkDelete}>Continue</AlertDialogAction></AlertDialogFooter>
-                  </AlertDialogContent>
-                </AlertDialog>
+                <div className="flex items-center gap-2">
+                  <Button variant="outline" size="sm" onClick={handleBulkDownload}>
+                    <Download className="h-4 w-4 mr-2" />
+                    Download ({selectedLocations.size})
+                  </Button>
+                  <AlertDialog>
+                    <AlertDialogTrigger asChild><Button variant="destructive" size="sm"><Trash2 className="h-4 w-4 mr-2" />Delete ({selectedLocations.size})</Button></AlertDialogTrigger>
+                    <AlertDialogContent>
+                      <AlertDialogHeader><AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle><AlertDialogDescription>This action cannot be undone. This will permanently delete {selectedLocations.size} selected locations and any associated images.</AlertDialogDescription></AlertDialogHeader>
+                      <AlertDialogFooter><AlertDialogCancel onClick={() => setSelectedLocations(new Set())}>Cancel</AlertDialogCancel><AlertDialogAction onClick={handleBulkDelete}>Continue</AlertDialogAction></AlertDialogFooter>
+                    </AlertDialogContent>
+                  </AlertDialog>
+                </div>
               )}
             </div>
           </CardHeader>
