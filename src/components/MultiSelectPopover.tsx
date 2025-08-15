@@ -48,7 +48,17 @@ export function MultiSelectPopover({
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if ((e.key === "Enter" || e.key === ",") && inputValue) {
+    if (e.key === "Enter" && inputValue) {
+      // If there are no suggestions and no explicit "create" option,
+      // then the user is in the "empty" state and wants to create the tag.
+      if (filteredSuggestions.length === 0 && !showCreateOption) {
+        e.preventDefault();
+        handleCreate(inputValue);
+      }
+      // Otherwise, we do nothing and let cmdk handle the Enter key,
+      // which will trigger onSelect for the highlighted item.
+    } else if (e.key === "," && inputValue) {
+      // The comma key should always create a tag.
       e.preventDefault();
       handleCreate(inputValue);
     }
