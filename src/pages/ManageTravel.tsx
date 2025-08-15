@@ -55,6 +55,7 @@ const ManageTravel = () => {
   const [uploadFile, setUploadFile] = useState<File | null>(null);
   const [isUploading, setIsUploading] = useState(false);
   const [selectedLocations, setSelectedLocations] = useState<Set<string>>(new Set());
+  const [blogPopoverOpen, setBlogPopoverOpen] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -454,7 +455,7 @@ const ManageTravel = () => {
           <div className="space-y-4">
             <div className="flex items-center justify-between p-3 bg-muted rounded-md">
                 <p className="text-sm text-muted-foreground">
-                  Headers: <code>"title";"name";"blog_title";...</code>
+                  Headers: code"title";"name";"blog_title";.../code
                 </p>
                 <Button asChild variant="secondary" size="sm">
                     <a href="/sample-travel-locations.csv" download>
@@ -510,11 +511,13 @@ const ManageTravel = () => {
                 <FormField control={form.control} name="blog_url" render={({ field }) => (
                   <FormItem className="flex flex-col">
                     <FormLabel>Linked Blog Post (Optional)</FormLabel>
-                    <Popover>
+                    <Popover open={blogPopoverOpen} onOpenChange={setBlogPopoverOpen}>
                       <PopoverTrigger asChild>
                         <FormControl>
                           <Button variant="outline" role="combobox" className={cn("w-full justify-between", !field.value && "text-muted-foreground")}>
-                            {field.value ? blogPosts.find(post => `/blog/${post.id}` === field.value)?.title : "Select a blog post"}
+                            <span className="truncate">
+                              {field.value ? blogPosts.find(post => `/blog/${post.id}` === field.value)?.title : "Select a blog post"}
+                            </span>
                             <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                           </Button>
                         </FormControl>
@@ -525,12 +528,18 @@ const ManageTravel = () => {
                           <CommandList>
                             <CommandEmpty>No posts found.</CommandEmpty>
                             <CommandGroup>
-                              <CommandItem value="--none--" onSelect={() => field.onChange(null)}>
+                              <CommandItem value="--none--" onSelect={() => {
+                                field.onChange(null);
+                                setBlogPopoverOpen(false);
+                              }}>
                                 <Check className={cn("mr-2 h-4 w-4", field.value === null ? "opacity-100" : "opacity-0")} />
                                 None
                               </CommandItem>
                               {blogPosts.map((post) => (
-                                <CommandItem value={post.title} key={post.id} onSelect={() => field.onChange(`/blog/${post.id}`)}>
+                                <CommandItem value={post.title} key={post.id} onSelect={() => {
+                                  field.onChange(`/blog/${post.id}`);
+                                  setBlogPopoverOpen(false);
+                                }}>
                                   <Check className={cn("mr-2 h-4 w-4", `/blog/${post.id}` === field.value ? "opacity-100" : "opacity-0")}/>
                                   {post.title}
                                 </CommandItem>
