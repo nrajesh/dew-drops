@@ -33,7 +33,7 @@ import {
 import TurndownService from "turndown";
 import JSZip from 'jszip';
 import { sanitizeFileName } from "@/lib/utils";
-import { useAuth } from "@/contexts/AuthContext"; // Corrected import path
+import { useAuth } from "@/contexts/AuthContext";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 const postSchema = z.object({
@@ -41,9 +41,12 @@ const postSchema = z.object({
   description: z.string().min(10, { message: "Description must be at least 10 characters." }),
   content: z.string().min(20, { message: "Content must be at least 20 characters." }),
   published_at: z.string().refine((val) => !isNaN(Date.parse(val)), { message: "Invalid date format." }),
-  tags: z.string().optional(), // Tags as a comma-separated string
-  cover_image_id: z.string().uuid("Invalid image ID").nullable().optional(),
-  youtube_video_id: z.string().min(11, "YouTube ID must be 11 characters").max(11, "YouTube ID must be 11 characters").nullable().optional().or(z.literal('')),
+  tags: z.string().optional(),
+  cover_image_id: z.preprocess(
+    (val) => (val === "--none--" || val === "" ? null : val),
+    z.string().uuid("Invalid image ID").nullable().optional()
+  ),
+  youtube_video_id: z.string().min(11, "YouTube ID must be 11 characters").max(11, "YouTube ID must be 11 characters").optional().or(z.literal('')).transform(val => val === '' ? null : val),
 });
 
 type NewPost = Omit<Post, 'id' | 'created_at' | 'user_id'>;
@@ -105,7 +108,6 @@ const ManageBlog = () => {
     const toastId = showLoading(editingId ? "Updating post..." : "Adding new post...");
     
     const tagsArray = values.tags ? values.tags.split(',').map(tag => tag.trim()).filter(tag => tag.length > 0) : null;
-    const youtubeId = values.youtube_video_id === '' ? null : values.youtube_video_id;
 
     const postData = { 
       title: values.title,
@@ -115,7 +117,7 @@ const ManageBlog = () => {
       user_id: user.id,
       tags: tagsArray,
       cover_image_id: values.cover_image_id,
-      youtube_video_id: youtubeId,
+      youtube_video_id: values.youtube_video_id,
     };
 
     const { error } = editingId
@@ -187,7 +189,7 @@ const ManageBlog = () => {
       const description = item.querySelector("description")?.textContent || "";
       const contentHtml = item.getElementsByTagNameNS("*", "encoded")[0]?.textContent || "";
       const content = turndownService.turndown(contentHtml);
-      const tags: string[] | null = null; // WordPress XML typically doesn't have a standard tag field
+      const tags: string[] | null = null;
       const cover_image_id: string | null = null;
       const youtube_video_id: string | null = null;
 
@@ -421,7 +423,7 @@ published_at: ${post.published_at ? new Date(post.published_at).toISOString().sp
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
-                          <SelectItem value="">No Cover Image</SelectItem>
+                          <SelectItem value="--none--">No Cover Image</SelectItem>
                           {galleryImages.map((image) => (
                             <SelectItem key={image.id} value={image.id}>
                               <div className="flex items-center gap-2">
@@ -433,7 +435,7 @@ published_at: ${post.published_at ? new Date(post.published_at).toISOString().sp
                         </SelectContent>
                       </Select>
                       <FormMessage />
-                      {field.value && (
+                      {field.value && field.value !== '--none--' && (
                         <div className="mt-2">
                           <img 
                             src={galleryImages.find(img => img.id === field.value)?.image_url || ""} 
