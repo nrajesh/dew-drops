@@ -17,7 +17,7 @@ import { showSuccess, showError, showLoading, dismissToast } from "@/utils/toast
 import { useState, useEffect, useRef } from "react";
 import { Trash2, Edit, Upload, Download } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
-import type { Post } from "@/types";
+import type { Post, GalleryImage } from "@/types";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
   AlertDialog,
@@ -33,7 +33,8 @@ import {
 import TurndownService from "turndown";
 import JSZip from 'jszip';
 import { sanitizeFileName } from "@/lib/utils";
-import { useAuth } from "@/contexts/AuthContext"; // Import useAuth
+import { useAuth } from "@/contexts/AuthContext";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 const postSchema = z.object({
   title: z.string().min(3, { message: "Title must be at least 3 characters." }),
@@ -41,13 +42,16 @@ const postSchema = z.object({
   content: z.string().min(20, { message: "Content must be at least 20 characters." }),
   published_at: z.string().refine((val) => !isNaN(Date.parse(val)), { message: "Invalid date format." }),
   tags: z.string().optional(), // Tags as a comma-separated string
+  cover_image_id: z.string().uuid("Invalid image ID").nullable().optional(),
+  youtube_video_id: z.string().min(11, "YouTube ID must be 11 characters").max(11, "YouTube ID must be 11 characters").nullable().optional().or(z.literal('')),
 });
 
-type NewPost = Omit<Post, 'id' | 'created_at' | 'user_id' | 'tags'> & { tags?: string[] | null };
+type NewPost = Omit<Post, 'id' | 'created_at' | 'user_id'>;
 
 const ManageBlog = () => {
-  const { user } = useAuth(); // Get the current user
+  const { user } = useAuth();
   const [posts, setPosts] = useState<Post[]>([]);
+  const [galleryImages, setGalleryImages] = useState<GalleryImage[]>([]);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [selectedFiles, setSelectedFiles] = useState<FileList | null>(null);
   const [isUploading, setIsUploading] = useState(false);
@@ -57,6 +61,7 @@ const ManageBlog = () => {
 
   useEffect(() => {
     fetchPosts();
+    fetchGalleryImages();
   }, []);
 
   const fetchPosts = async () => {
@@ -69,6 +74,15 @@ const ManageBlog = () => {
     }
   };
 
+  const fetchGalleryImages = async () => {
+    const { data, error } = await supabase.from("gallery_images").select("id, image_url, alt_text").order("created_at", { ascending: false });
+    if (error) {
+      console.error("Error fetching gallery images:", error);
+    } else {
+      setGalleryImages(data as GalleryImage[]);
+    }
+  };
+
   const form = useForm<z.infer<typeof postSchema>>({
     resolver: zodResolver(postSchema),
     defaultValues: {
@@ -77,6 +91,8 @@ const ManageBlog = () => {
       content: "",
       published_at: new Date().toISOString().split("T")[0],
       tags: "",
+      cover_image_id: null,
+      youtube_video_id: "",
     },
   });
 
@@ -89,11 +105,17 @@ const ManageBlog = () => {
     const toastId = showLoading(editingId ? "Updating post..." : "Adding new post...");
     
     const tagsArray = values.tags ? values.tags.split(',').map(tag => tag.trim()).filter(tag => tag.length > 0) : null;
+    const youtubeId = values.youtube_video_id === '' ? null : values.youtube_video_id;
 
     const postData = { 
-      ...values,
-      user_id: user.id, // Set the user_id here
+      title: values.title,
+      description: values.description,
+      content: values.content,
+      published_at: values.published_at,
+      user_id: user.id,
       tags: tagsArray,
+      cover_image_id: values.cover_image_id,
+      youtube_video_id: youtubeId,
     };
 
     const { error } = editingId
@@ -118,6 +140,8 @@ const ManageBlog = () => {
       content: post.content || "",
       published_at: post.published_at ? post.published_at.split("T")[0] : new Date().toISOString().split("T")[0],
       tags: post.tags ? post.tags.join(', ') : "",
+      cover_image_id: post.cover_image_id || null,
+      youtube_video_id: post.youtube_video_id || "",
     });
   };
 
@@ -142,6 +166,8 @@ const ManageBlog = () => {
       content: "",
       published_at: new Date().toISOString().split("T")[0],
       tags: "",
+      cover_image_id: null,
+      youtube_video_id: "",
     });
   };
 
@@ -161,8 +187,9 @@ const ManageBlog = () => {
       const description = item.querySelector("description")?.textContent || "";
       const contentHtml = item.getElementsByTagNameNS("*", "encoded")[0]?.textContent || "";
       const content = turndownService.turndown(contentHtml);
-      // No tags in WordPress XML by default, so leave as null or empty array
-      const tags: string[] | null = null; 
+      const tags: string[] | null = null; // WordPress XML typically doesn't have a standard tag field
+      const cover_image_id: string | null = null;
+      const youtube_video_id: string | null = null;
 
       if (title && content) {
         newPosts.push({
@@ -171,6 +198,8 @@ const ManageBlog = () => {
           content,
           published_at: new Date(pubDate).toISOString(),
           tags,
+          cover_image_id,
+          youtube_video_id,
         });
       }
     });
@@ -179,26 +208,25 @@ const ManageBlog = () => {
 
   const parseMarkdownFile = async (file: File): Promise<NewPost> => {
     const fullContent = await file.text();
-    let title = file.name.replace(/\.md$/, ''); // Default title from filename, preserving case
+    let title = file.name.replace(/\.md$/, '');
     let description = '';
     let published_at = new Date().toISOString();
     let content = fullContent;
     let tags: string[] | null = null;
+    let cover_image_id: string | null = null;
+    let youtube_video_id: string | null = null;
 
-    // Regex to find YAML frontmatter at the beginning of the file
     const frontmatterRegex = /^---\n([\s\S]*?)\n---\n([\s\S]*)$/;
     const match = fullContent.match(frontmatterRegex);
 
     if (match) {
       const frontmatterContent = match[1];
-      content = match[2].trim(); // Content is everything after the second '---'
+      content = match[2].trim();
 
-      // Parse frontmatter lines
       frontmatterContent.split('\n').forEach(line => {
         const parts = line.split(':');
         if (parts.length >= 2) {
           const key = parts[0].trim();
-          // Remove quotes and unescape inner quotes
           const value = parts.slice(1).join(':').trim().replace(/^"|"$/g, '').replace(/\\"/g, '"'); 
           if (key === 'title') {
             title = value;
@@ -208,11 +236,14 @@ const ManageBlog = () => {
             published_at = value;
           } else if (key === 'tags') {
             tags = value.split(',').map(tag => tag.trim()).filter(tag => tag.length > 0);
+          } else if (key === 'cover_image_id') {
+            cover_image_id = value;
+          } else if (key === 'youtube_video_id') {
+            youtube_video_id = value;
           }
         }
       });
     } else {
-      // If no frontmatter, derive description from content
       description = fullContent.substring(0, 150) + (fullContent.length > 150 ? '...' : '');
     }
     
@@ -222,6 +253,8 @@ const ManageBlog = () => {
       content,
       published_at,
       tags,
+      cover_image_id,
+      youtube_video_id,
     };
   };
 
@@ -248,8 +281,8 @@ const ManageBlog = () => {
         }
       }
 
-      const existingTitles = new Set(posts.map(p => p.title)); // Check against original case
-      const uniqueNewPosts = allNewPosts.filter(p => !existingTitles.has(p.title)); // Use original case for comparison
+      const existingTitles = new Set(posts.map(p => p.title));
+      const uniqueNewPosts = allNewPosts.filter(p => !existingTitles.has(p.title));
       const skippedCount = allNewPosts.length - uniqueNewPosts.length;
 
       if (uniqueNewPosts.length > 0) {
@@ -284,10 +317,13 @@ const ManageBlog = () => {
 
         postsToDownload.forEach(post => {
             const tagsString = post.tags && post.tags.length > 0 ? `\ntags: "${post.tags.join(', ').replace(/"/g, '\\"')}"` : '';
+            const coverImageIdString = post.cover_image_id ? `\ncover_image_id: "${post.cover_image_id}"` : '';
+            const youtubeVideoIdString = post.youtube_video_id ? `\nyoutube_video_id: "${post.youtube_video_id}"` : '';
+
             const frontmatter = `---
 title: "${post.title.replace(/"/g, '\\"')}"
 description: "${(post.description || '').replace(/"/g, '\\"')}"
-published_at: ${post.published_at ? new Date(post.published_at).toISOString().split('T')[0] : ''}${tagsString}
+published_at: ${post.published_at ? new Date(post.published_at).toISOString().split('T')[0] : ''}${tagsString}${coverImageIdString}${youtubeVideoIdString}
 ---
 
 `;
@@ -371,6 +407,50 @@ published_at: ${post.published_at ? new Date(post.published_at).toISOString().sp
                 )} />
                 <FormField control={form.control} name="tags" render={({ field }) => (
                   <FormItem><FormLabel>Tags (comma-separated)</FormLabel><FormControl><Input placeholder="e.g., react, javascript, webdev" {...field} /></FormControl><FormMessage /></FormItem>
+                )} />
+                <FormField
+                  control={form.control}
+                  name="cover_image_id"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Cover Image (Optional)</FormLabel>
+                      <Select onValueChange={field.onChange} value={field.value || ""}>
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select a gallery image" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          <SelectItem value="">No Cover Image</SelectItem>
+                          {galleryImages.map((image) => (
+                            <SelectItem key={image.id} value={image.id}>
+                              <div className="flex items-center gap-2">
+                                <img src={image.image_url} alt={image.alt_text || "Gallery image"} className="h-8 w-8 object-cover rounded-sm" />
+                                <span>{image.alt_text || `Image ${image.id.substring(0, 8)}`}</span>
+                              </div>
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                      {field.value && (
+                        <div className="mt-2">
+                          <img 
+                            src={galleryImages.find(img => img.id === field.value)?.image_url || ""} 
+                            alt="Selected cover preview" 
+                            className="w-32 h-auto rounded-md border"
+                          />
+                        </div>
+                      )}
+                    </FormItem>
+                  )}
+                />
+                <FormField control={form.control} name="youtube_video_id" render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>YouTube Video ID (Optional)</FormLabel>
+                    <FormControl><Input placeholder="e.g., dQw4w9WgXcQ" {...field} value={field.value ?? ''} /></FormControl>
+                    <FormMessage />
+                  </FormItem>
                 )} />
                 <FormField control={form.control} name="content" render={({ field }) => (
                   <FormItem><FormLabel>Content (Markdown supported)</FormLabel><FormControl><Textarea placeholder="Write your full article here..." className="min-h-[200px]" {...field} /></FormControl><FormMessage /></FormItem>

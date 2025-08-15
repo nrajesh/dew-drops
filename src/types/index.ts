@@ -7,6 +7,8 @@ export interface Post {
   published_at: string | null;
   user_id: string | null;
   tags: string[] | null;
+  cover_image_id: string | null;
+  youtube_video_id: string | null;
 }
 
 export interface TravelLocation {
