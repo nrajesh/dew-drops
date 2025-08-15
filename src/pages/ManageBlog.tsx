@@ -33,6 +33,7 @@ import {
 import TurndownService from "turndown";
 import JSZip from 'jszip';
 import { sanitizeFileName } from "@/lib/utils";
+import { useAuth } from "@/contexts/AuthContext"; // Import useAuth
 
 const postSchema = z.object({
   title: z.string().min(3, { message: "Title must be at least 3 characters." }),
@@ -44,6 +45,7 @@ const postSchema = z.object({
 type NewPost = Omit<Post, 'id' | 'created_at' | 'user_id'>;
 
 const ManageBlog = () => {
+  const { user } = useAuth(); // Get the current user
   const [posts, setPosts] = useState<Post[]>([]);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [selectedFiles, setSelectedFiles] = useState<FileList | null>(null);
@@ -77,9 +79,17 @@ const ManageBlog = () => {
   });
 
   async function onSubmit(values: z.infer<typeof postSchema>) {
+    if (!user) {
+      showError("You must be logged in to manage blog posts.");
+      return;
+    }
+
     const toastId = showLoading(editingId ? "Updating post..." : "Adding new post...");
     
-    const postData = { ...values };
+    const postData = { 
+      ...values,
+      user_id: user.id, // Set the user_id here
+    };
 
     const { error } = editingId
       ? await supabase.from("posts").update(postData).eq("id", editingId)
@@ -172,6 +182,11 @@ const ManageBlog = () => {
 
   const handleUpload = async () => {
     if (!selectedFiles || selectedFiles.length === 0) return;
+    if (!user) {
+      showError("You must be logged in to import posts.");
+      return;
+    }
+
     setIsUploading(true);
     const toastId = showLoading(`Importing ${selectedFiles.length} file(s)...`);
 
@@ -193,7 +208,8 @@ const ManageBlog = () => {
       const skippedCount = allNewPosts.length - uniqueNewPosts.length;
 
       if (uniqueNewPosts.length > 0) {
-        const { error } = await supabase.from("posts").insert(uniqueNewPosts);
+        const postsWithUserId = uniqueNewPosts.map(post => ({ ...post, user_id: user.id }));
+        const { error } = await supabase.from("posts").insert(postsWithUserId);
         if (error) throw error;
       }
 
