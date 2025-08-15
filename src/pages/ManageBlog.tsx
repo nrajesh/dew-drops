@@ -14,10 +14,23 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { showSuccess, showError, showLoading, dismissToast } from "@/utils/toast";
-import { useState, useEffect } from "react";
-import { Trash2, Edit } from "lucide-react";
+import { useState, useEffect, useRef } from "react";
+import { Trash2, Edit, Upload } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import type { Post } from "@/types";
+import { Checkbox } from "@/components/ui/checkbox";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
+import TurndownService from "turndown";
 
 const postSchema = z.object({
   title: z.string().min(3, { message: "Title must be at least 3 characters." }),
@@ -26,9 +39,16 @@ const postSchema = z.object({
   published_at: z.string().refine((val) => !isNaN(Date.parse(val)), { message: "Invalid date format." }),
 });
 
+type NewPost = Omit<Post, 'id' | 'created_at' | 'user_id'>;
+
 const ManageBlog = () => {
   const [posts, setPosts] = useState<Post[]>([]);
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [selectedFiles, setSelectedFiles] = useState<FileList | null>(null);
+  const [isUploading, setIsUploading] = useState(false);
+  const [selectedPosts, setSelectedPosts] = useState<Set<string>>(new Set());
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const turndownService = new TurndownService();
 
   useEffect(() => {
     fetchPosts();
@@ -57,160 +77,258 @@ const ManageBlog = () => {
   async function onSubmit(values: z.infer<typeof postSchema>) {
     const toastId = showLoading(editingId ? "Updating post..." : "Adding new post...");
     
-    const postData = {
-      ...values,
-    };
+    const postData = { ...values };
 
-    let error;
-    if (editingId) {
-      const { error: updateError } = await supabase.from("posts").update(postData).eq("id", editingId);
-      error = updateError;
-    } else {
-      const { error: insertError } = await supabase.from("posts").insert(postData);
-      error = insertError;
-    }
+    const { error } = editingId
+      ? await supabase.from("posts").update(postData).eq("id", editingId)
+      : await supabase.from("posts").insert(postData);
 
     dismissToast(toastId);
     if (error) {
       showError(error.message);
-      console.error(error);
     } else {
       showSuccess(`Post ${editingId ? "updated" : "added"} successfully!`);
-      setEditingId(null);
-      form.reset({
-        title: "",
-        description: "",
-        content: "",
-        published_at: new Date().toISOString().split("T")[0],
-      });
+      cancelEdit();
       fetchPosts();
     }
   }
 
   const handleEdit = (post: Post) => {
     setEditingId(post.id);
-    form.setValue("title", post.title);
-    form.setValue("description", post.description || "");
-    form.setValue("content", post.content || "");
-    form.setValue("published_at", post.published_at ? post.published_at.split("T")[0] : "");
+    form.reset({
+      title: post.title,
+      description: post.description || "",
+      content: post.content || "",
+      published_at: post.published_at ? post.published_at.split("T")[0] : new Date().toISOString().split("T")[0],
+    });
   };
 
-  const handleDelete = async (id: string) => {
-    const toastId = showLoading("Deleting post...");
-    const { error } = await supabase.from("posts").delete().eq("id", id);
+  const handleBulkDelete = async () => {
+    const toastId = showLoading(`Deleting ${selectedPosts.size} posts...`);
+    const { error } = await supabase.from("posts").delete().in("id", Array.from(selectedPosts));
     dismissToast(toastId);
     if (error) {
       showError(error.message);
     } else {
-      showError("Post removed.");
+      showError(`${selectedPosts.size} posts removed.`);
       fetchPosts();
+      setSelectedPosts(new Set());
     }
   };
   
   const cancelEdit = () => {
     setEditingId(null);
-    form.reset();
-  }
+    form.reset({
+      title: "",
+      description: "",
+      content: "",
+      published_at: new Date().toISOString().split("T")[0],
+    });
+  };
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setSelectedFiles(e.target.files);
+  };
+
+  const parseWordPressXml = async (xmlString: string): Promise<NewPost[]> => {
+    const parser = new DOMParser();
+    const xmlDoc = parser.parseFromString(xmlString, "text/xml");
+    const items = xmlDoc.querySelectorAll("item");
+    const newPosts: NewPost[] = [];
+
+    items.forEach(item => {
+      const title = item.querySelector("title")?.textContent || "";
+      const pubDate = item.querySelector("pubDate")?.textContent || new Date().toISOString();
+      const description = item.querySelector("description")?.textContent || "";
+      const contentHtml = item.getElementsByTagNameNS("*", "encoded")[0]?.textContent || "";
+      const content = turndownService.turndown(contentHtml);
+
+      if (title && content) {
+        newPosts.push({
+          title,
+          description,
+          content,
+          published_at: new Date(pubDate).toISOString(),
+        });
+      }
+    });
+    return newPosts;
+  };
+
+  const parseMarkdownFile = async (file: File): Promise<NewPost> => {
+    const content = await file.text();
+    const title = file.name.replace(/\.md$/, '').replace(/[-_]/g, ' ');
+    const description = content.substring(0, 150) + (content.length > 150 ? '...' : '');
+    
+    return {
+      title,
+      description,
+      content,
+      published_at: new Date().toISOString(),
+    };
+  };
+
+  const handleUpload = async () => {
+    if (!selectedFiles || selectedFiles.length === 0) return;
+    setIsUploading(true);
+    const toastId = showLoading(`Importing ${selectedFiles.length} file(s)...`);
+
+    try {
+      let allNewPosts: NewPost[] = [];
+      for (const file of Array.from(selectedFiles)) {
+        if (file.type === "text/xml" || file.name.endsWith(".xml")) {
+          const content = await file.text();
+          const posts = await parseWordPressXml(content);
+          allNewPosts.push(...posts);
+        } else if (file.type === "text/markdown" || file.name.endsWith(".md")) {
+          const post = await parseMarkdownFile(file);
+          allNewPosts.push(post);
+        }
+      }
+
+      const existingTitles = new Set(posts.map(p => p.title.toLowerCase()));
+      const uniqueNewPosts = allNewPosts.filter(p => !existingTitles.has(p.title.toLowerCase()));
+      const skippedCount = allNewPosts.length - uniqueNewPosts.length;
+
+      if (uniqueNewPosts.length > 0) {
+        const { error } = await supabase.from("posts").insert(uniqueNewPosts);
+        if (error) throw error;
+      }
+
+      dismissToast(toastId);
+      let successMessage = `${uniqueNewPosts.length} new post(s) imported successfully.`;
+      if (skippedCount > 0) {
+        successMessage += ` ${skippedCount} duplicate(s) were skipped.`;
+      }
+      showSuccess(successMessage);
+      fetchPosts();
+
+    } catch (error: any) {
+      dismissToast(toastId);
+      showError(`Import failed: ${error.message}`);
+    } finally {
+      setIsUploading(false);
+      setSelectedFiles(null);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    }
+  };
+
+  const handleSelectPost = (id: string) => {
+    const newSelection = new Set(selectedPosts);
+    newSelection.has(id) ? newSelection.delete(id) : newSelection.add(id);
+    setSelectedPosts(newSelection);
+  };
+
+  const handleSelectAll = (checked: boolean) => {
+    setSelectedPosts(checked ? new Set(posts.map(p => p.id)) : new Set());
+  };
 
   return (
-    <div className="grid gap-8 md:grid-cols-2">
+    <div className="space-y-8">
       <Card>
         <CardHeader>
-          <CardTitle>{editingId ? "Edit Post" : "Add New Post"}</CardTitle>
-          <CardDescription>
-            {editingId ? "Update the details for this blog post." : "Create a new article. You can use Markdown for the content."}
-          </CardDescription>
+          <CardTitle>Bulk Import Posts</CardTitle>
+          <CardDescription>Upload WordPress XML export files or Markdown (.md) files to create new posts.</CardDescription>
         </CardHeader>
         <CardContent>
-          <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-              <FormField
-                control={form.control}
-                name="title"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Title</FormLabel>
-                    <FormControl>
-                      <Input placeholder="Your Post Title" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="published_at"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Publication Date</FormLabel>
-                    <FormControl>
-                      <Input type="date" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="description"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Description</FormLabel>
-                    <FormControl>
-                      <Textarea placeholder="A short summary of the post." {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="content"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Content (Markdown supported)</FormLabel>
-                    <FormControl>
-                      <Textarea placeholder="Write your full article here..." className="min-h-[200px]" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <div className="flex gap-2">
-                <Button type="submit">{editingId ? "Update Post" : "Add Post"}</Button>
-                {editingId && <Button variant="outline" onClick={cancelEdit}>Cancel</Button>}
-              </div>
-            </form>
-          </Form>
-        </CardContent>
-      </Card>
-      <Card>
-        <CardHeader>
-          <CardTitle>Post List</CardTitle>
-          <CardDescription>Your current list of blog posts.</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-4">
-            {posts.length > 0 ? (
-              posts.map((post) => (
-                <div key={post.id} className="flex items-center justify-between p-2 rounded-lg border">
-                  <p className="font-medium truncate pr-2">{post.title}</p>
-                  <div className="flex items-center gap-2 shrink-0">
-                    <Button variant="ghost" size="icon" onClick={() => handleEdit(post)}>
-                      <Edit className="h-4 w-4" />
-                    </Button>
-                    <Button variant="ghost" size="icon" onClick={() => handleDelete(post.id)}>
-                      <Trash2 className="h-4 w-4 text-destructive" />
-                    </Button>
-                  </div>
-                </div>
-              ))
-            ) : (
-              <p className="text-muted-foreground text-center">No posts yet. Add one using the form!</p>
-            )}
+          <div className="flex items-center gap-2">
+            <Input 
+              type="file" 
+              accept=".xml,.md,text/xml,text/markdown" 
+              multiple
+              onChange={handleFileChange} 
+              ref={fileInputRef}
+              className="flex-grow"
+            />
+            <Button onClick={handleUpload} disabled={!selectedFiles || isUploading}>
+              <Upload className="h-4 w-4 mr-2" />
+              {isUploading ? "Importing..." : "Import"}
+            </Button>
           </div>
         </CardContent>
       </Card>
+      <div className="grid gap-8 md:grid-cols-2">
+        <Card>
+          <CardHeader>
+            <CardTitle>{editingId ? "Edit Post" : "Add New Post"}</CardTitle>
+            <CardDescription>
+              {editingId ? "Update the details for this blog post." : "Create a new article. You can use Markdown for the content."}
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Form {...form}>
+              <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+                <FormField control={form.control} name="title" render={({ field }) => (
+                  <FormItem><FormLabel>Title</FormLabel><FormControl><Input placeholder="Your Post Title" {...field} /></FormControl><FormMessage /></FormItem>
+                )} />
+                <FormField control={form.control} name="published_at" render={({ field }) => (
+                  <FormItem><FormLabel>Publication Date</FormLabel><FormControl><Input type="date" {...field} /></FormControl><FormMessage /></FormItem>
+                )} />
+                <FormField control={form.control} name="description" render={({ field }) => (
+                  <FormItem><FormLabel>Description</FormLabel><FormControl><Textarea placeholder="A short summary of the post." {...field} /></FormControl><FormMessage /></FormItem>
+                )} />
+                <FormField control={form.control} name="content" render={({ field }) => (
+                  <FormItem><FormLabel>Content (Markdown supported)</FormLabel><FormControl><Textarea placeholder="Write your full article here..." className="min-h-[200px]" {...field} /></FormControl><FormMessage /></FormItem>
+                )} />
+                <div className="flex gap-2">
+                  <Button type="submit">{editingId ? "Update Post" : "Add Post"}</Button>
+                  {editingId && <Button variant="outline" onClick={cancelEdit}>Cancel</Button>}
+                </div>
+              </form>
+            </Form>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <div>
+                <CardTitle>Post List</CardTitle>
+                <CardDescription>Your current list of blog posts.</CardDescription>
+              </div>
+              {selectedPosts.size > 0 && (
+                <AlertDialog>
+                  <AlertDialogTrigger asChild>
+                    <Button variant="destructive" size="sm"><Trash2 className="h-4 w-4 mr-2" />Delete ({selectedPosts.size})</Button>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+                      <AlertDialogDescription>This will permanently delete {selectedPosts.size} selected posts.</AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel onClick={() => setSelectedPosts(new Set())}>Cancel</AlertDialogCancel>
+                      <AlertDialogAction onClick={handleBulkDelete}>Continue</AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
+              )}
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="flex items-center border-b pb-2 mb-2 space-x-3">
+              <Checkbox id="select-all" onCheckedChange={(checked) => handleSelectAll(Boolean(checked))} checked={posts.length > 0 && selectedPosts.size === posts.length} disabled={posts.length === 0} />
+              <label htmlFor="select-all" className="text-sm font-medium">Select All</label>
+            </div>
+            <div className="space-y-2 mt-4">
+              {posts.length > 0 ? (
+                posts.map((post) => (
+                  <div key={post.id} className="flex items-center justify-between p-2 rounded-lg border">
+                    <div className="flex items-center gap-3">
+                      <Checkbox id={`select-${post.id}`} checked={selectedPosts.has(post.id)} onCheckedChange={() => handleSelectPost(post.id)} />
+                      <label htmlFor={`select-${post.id}`} className="font-medium truncate pr-2 cursor-pointer">{post.title}</label>
+                    </div>
+                    <div className="flex items-center gap-2 shrink-0">
+                      <Button variant="ghost" size="icon" onClick={() => handleEdit(post)}><Edit className="h-4 w-4" /></Button>
+                    </div>
+                  </div>
+                ))
+              ) : (
+                <p className="text-muted-foreground text-center pt-4">No posts yet. Add one using the form!</p>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+      </div>
     </div>
   );
 };
