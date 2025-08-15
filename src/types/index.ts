@@ -20,6 +20,7 @@ export interface TravelLocation {
   latitude: number;
   longitude: number;
   blog_url: string | null;
+  blog_title?: string; // Added for map popups
   marker_image_url: string | null;
   user_id: string | null;
 }

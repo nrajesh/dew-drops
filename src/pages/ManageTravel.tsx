@@ -15,9 +15,9 @@ import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { showSuccess, showError, showLoading, dismissToast } from "@/utils/toast";
 import { useState, useEffect, useRef } from "react";
-import { Trash2, Edit, Upload, Download } from "lucide-react";
+import { Trash2, Edit, Upload, Download, Check, ChevronsUpDown } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
-import type { TravelLocation } from "@/types";
+import type { TravelLocation, Post } from "@/types";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
   AlertDialog,
@@ -31,6 +31,9 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { sanitizeFileName } from "@/lib/utils";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
+import { cn } from "@/lib/utils";
 
 const MAPBOX_ACCESS_TOKEN = import.meta.env.VITE_MAPBOX_ACCESS_TOKEN;
 
@@ -40,12 +43,13 @@ const locationSchema = z.object({
   name: z.string().min(3, { message: "Place name must be at least 3 characters." }),
   latitude: z.coerce.number().min(-90).max(90).optional().or(z.literal('')),
   longitude: z.coerce.number().min(-180).max(180).optional().or(z.literal('')),
-  blog_url: z.string().url({ message: "Please enter a valid URL." }).optional().or(z.literal('')),
+  blog_url: z.string().optional().nullable(),
   image: z.instanceof(FileList).optional(),
 });
 
 const ManageTravel = () => {
   const [locations, setLocations] = useState<TravelLocation[]>([]);
+  const [blogPosts, setBlogPosts] = useState<Pick<Post, 'id' | 'title'>[]>([]);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editingImageUrl, setEditingImageUrl] = useState<string | null>(null);
   const [uploadFile, setUploadFile] = useState<File | null>(null);
@@ -55,6 +59,7 @@ const ManageTravel = () => {
 
   useEffect(() => {
     fetchLocations();
+    fetchBlogPosts();
   }, []);
 
   const fetchLocations = async () => {
@@ -67,6 +72,15 @@ const ManageTravel = () => {
     }
   };
 
+  const fetchBlogPosts = async () => {
+    const { data, error } = await supabase.from("posts").select("id, title").order("published_at", { ascending: false });
+    if (error) {
+      showError("Failed to fetch blog posts for linking.");
+    } else {
+      setBlogPosts(data as Pick<Post, 'id' | 'title'>[]);
+    }
+  };
+
   const form = useForm<z.infer<typeof locationSchema>>({
     resolver: zodResolver(locationSchema),
     defaultValues: {
@@ -75,7 +89,7 @@ const ManageTravel = () => {
       name: "",
       latitude: "",
       longitude: "",
-      blog_url: "",
+      blog_url: null,
     },
   });
 
@@ -188,12 +202,14 @@ const ManageTravel = () => {
   const handleEdit = (location: TravelLocation) => {
     setEditingId(location.id);
     setEditingImageUrl(location.marker_image_url || null);
-    form.setValue("title", location.title);
-    form.setValue("description", location.description || "");
-    form.setValue("name", location.name);
-    form.setValue("latitude", location.latitude);
-    form.setValue("longitude", location.longitude);
-    form.setValue("blog_url", location.blog_url || "");
+    form.reset({
+      title: location.title,
+      description: location.description || "",
+      name: location.name,
+      latitude: location.latitude,
+      longitude: location.longitude,
+      blog_url: location.blog_url || null,
+    });
   };
 
   const handleRemoveImage = async () => {
@@ -217,27 +233,6 @@ const ManageTravel = () => {
       showError(error.message);
     }
   };
-
-  const handleDelete = async (id: string) => {
-    const toastId = showLoading("Deleting location...");
-    try {
-      const locationToDelete = locations.find(l => l.id === id);
-      if (locationToDelete?.marker_image_url) {
-        const fileName = locationToDelete.marker_image_url.substring(locationToDelete.marker_image_url.lastIndexOf('/') + 1);
-        await supabase.storage.from('mapmarkers').remove([fileName]);
-      }
-
-      const { error } = await supabase.from("travel_locations").delete().eq("id", id);
-      if (error) throw error;
-
-      dismissToast(toastId);
-      showError("Location removed.");
-      fetchLocations();
-    } catch (error: any) {
-      dismissToast(toastId);
-      showError(error.message);
-    }
-  };
   
   const cancelEdit = () => {
     setEditingId(null);
@@ -248,7 +243,7 @@ const ManageTravel = () => {
       name: "",
       latitude: "",
       longitude: "",
-      blog_url: "",
+      blog_url: null,
     });
   }
 
@@ -311,6 +306,7 @@ const ManageTravel = () => {
 
       const existingNames = new Set(locations.map(loc => loc.name.toLowerCase()));
       const existingCoords = new Set(locations.map(loc => `${loc.latitude},${loc.longitude}`));
+      const blogTitleMap = new Map(blogPosts.map(p => [p.title.toLowerCase(), p.id]));
       
       const locationsToInsert = [];
       const failedRows = [];
@@ -343,13 +339,23 @@ const ManageTravel = () => {
             continue;
           }
 
+          let blog_url = null;
+          if (row.blog_title) {
+            const postId = blogTitleMap.get(row.blog_title.toLowerCase());
+            if (postId) {
+              blog_url = `/blog/${postId}`;
+            } else {
+              console.warn(`Blog post with title "${row.blog_title}" not found for CSV row ${index + 2}.`);
+            }
+          }
+
           locationsToInsert.push({
             title: row.title,
             name: finalName,
             description: row.description || null,
             latitude: finalLat,
             longitude: finalLng,
-            blog_url: row.blog_url || null,
+            blog_url: blog_url,
             marker_image_url: row.marker_image_url || null,
           });
 
@@ -389,12 +395,6 @@ const ManageTravel = () => {
         const errorMessage = `${failedRows.length} rows failed to upload. See console for details.`;
         showError(errorMessage);
         console.error("Bulk upload failures:", failedRows);
-      }
-
-      if (locationsToInsert.length === 0 && failedRows.length === 0 && skippedCount > 0) {
-        showSuccess(`All ${skippedCount} locations in the file were already present and have been skipped.`);
-      } else if (locationsToInsert.length === 0 && failedRows.length > 0) {
-        throw new Error("Upload failed. No valid locations found in the file.");
       }
 
     } catch (error: any) {
@@ -454,7 +454,7 @@ const ManageTravel = () => {
           <div className="space-y-4">
             <div className="flex items-center justify-between p-3 bg-muted rounded-md">
                 <p className="text-sm text-muted-foreground">
-                  Headers: <code>"title";"name";"description";...</code>
+                  Headers: <code>"title";"name";"blog_title";...</code>
                 </p>
                 <Button asChild variant="secondary" size="sm">
                     <a href="/sample-travel-locations.csv" download>
@@ -490,86 +490,59 @@ const ManageTravel = () => {
           <CardContent>
             <Form {...form}>
               <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-                <FormField
-                  control={form.control}
-                  name="title"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Title</FormLabel>
-                      <FormControl>
-                        <Input placeholder="e.g., Eiffel Tower Trip" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={form.control}
-                  name="description"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Description (Optional)</FormLabel>
-                      <FormControl>
-                        <Textarea placeholder="A short description of your visit." {...field} value={field.value ?? ''} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={form.control}
-                  name="name"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Place Name</FormLabel>
-                      <FormControl>
-                        <Input placeholder="e.g., Paris, France" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+                <FormField control={form.control} name="title" render={({ field }) => (
+                  <FormItem><FormLabel>Title</FormLabel><FormControl><Input placeholder="e.g., Eiffel Tower Trip" {...field} /></FormControl><FormMessage /></FormItem>
+                )}/>
+                <FormField control={form.control} name="description" render={({ field }) => (
+                  <FormItem><FormLabel>Description (Optional)</FormLabel><FormControl><Textarea placeholder="A short description of your visit." {...field} value={field.value ?? ''} /></FormControl><FormMessage /></FormItem>
+                )}/>
+                <FormField control={form.control} name="name" render={({ field }) => (
+                  <FormItem><FormLabel>Place Name</FormLabel><FormControl><Input placeholder="e.g., Paris, France" {...field} /></FormControl><FormMessage /></FormItem>
+                )}/>
                 <div className="grid grid-cols-2 gap-4">
-                  <FormField
-                    control={form.control}
-                    name="latitude"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Latitude (Optional)</FormLabel>
-                        <FormControl>
-                          <Input type="number" step="any" placeholder="Auto-detected" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={form.control}
-                    name="longitude"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Longitude (Optional)</FormLabel>
-                        <FormControl>
-                          <Input type="number" step="any" placeholder="Auto-detected" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
+                  <FormField control={form.control} name="latitude" render={({ field }) => (
+                    <FormItem><FormLabel>Latitude (Optional)</FormLabel><FormControl><Input type="number" step="any" placeholder="Auto-detected" {...field} /></FormControl><FormMessage /></FormItem>
+                  )}/>
+                  <FormField control={form.control} name="longitude" render={({ field }) => (
+                    <FormItem><FormLabel>Longitude (Optional)</FormLabel><FormControl><Input type="number" step="any" placeholder="Auto-detected" {...field} /></FormControl><FormMessage /></FormItem>
+                  )}/>
                 </div>
-                <FormField
-                  control={form.control}
-                  name="blog_url"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Blog Post URL (Optional)</FormLabel>
-                      <FormControl>
-                        <Input placeholder="/blog/my-awesome-trip" {...field} value={field.value ?? ''} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+                <FormField control={form.control} name="blog_url" render={({ field }) => (
+                  <FormItem className="flex flex-col">
+                    <FormLabel>Linked Blog Post (Optional)</FormLabel>
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <FormControl>
+                          <Button variant="outline" role="combobox" className={cn("w-full justify-between", !field.value && "text-muted-foreground")}>
+                            {field.value ? blogPosts.find(post => `/blog/${post.id}` === field.value)?.title : "Select a blog post"}
+                            <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                          </Button>
+                        </FormControl>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-[--radix-popover-trigger-width] max-h-[--radix-popover-content-available-height] p-0">
+                        <Command>
+                          <CommandInput placeholder="Search posts..." />
+                          <CommandList>
+                            <CommandEmpty>No posts found.</CommandEmpty>
+                            <CommandGroup>
+                              <CommandItem value="--none--" onSelect={() => field.onChange(null)}>
+                                <Check className={cn("mr-2 h-4 w-4", field.value === null ? "opacity-100" : "opacity-0")} />
+                                None
+                              </CommandItem>
+                              {blogPosts.map((post) => (
+                                <CommandItem value={post.title} key={post.id} onSelect={() => field.onChange(`/blog/${post.id}`)}>
+                                  <Check className={cn("mr-2 h-4 w-4", `/blog/${post.id}` === field.value ? "opacity-100" : "opacity-0")}/>
+                                  {post.title}
+                                </CommandItem>
+                              ))}
+                            </CommandGroup>
+                          </CommandList>
+                        </Command>
+                      </PopoverContent>
+                    </Popover>
+                    <FormMessage />
+                  </FormItem>
+                )}/>
                 
                 {editingId && editingImageUrl && (
                   <div className="space-y-2">
@@ -581,23 +554,13 @@ const ManageTravel = () => {
                   </div>
                 )}
 
-                <FormField
-                  control={form.control}
-                  name="image"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>{editingImageUrl ? 'Replace Marker Image (Optional)' : 'Custom Marker Image (Optional)'}</FormLabel>
-                      <FormControl>
-                        <Input 
-                          type="file" 
-                          accept="image/*"
-                          onChange={(e) => field.onChange(e.target.files)}
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+                <FormField control={form.control} name="image" render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>{editingImageUrl ? 'Replace Marker Image (Optional)' : 'Custom Marker Image (Optional)'}</FormLabel>
+                    <FormControl><Input type="file" accept="image/*" onChange={(e) => field.onChange(e.target.files)}/></FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}/>
                 <div className="flex gap-2">
                   <Button type="submit">{editingId ? "Update Location" : "Add Location"}</Button>
                   {editingId && <Button type="button" variant="outline" onClick={cancelEdit}>Cancel</Button>}
@@ -615,23 +578,10 @@ const ManageTravel = () => {
               </div>
               {selectedLocations.size > 0 && (
                 <AlertDialog>
-                  <AlertDialogTrigger asChild>
-                    <Button variant="destructive" size="sm">
-                      <Trash2 className="h-4 w-4 mr-2" />
-                      Delete ({selectedLocations.size})
-                    </Button>
-                  </AlertDialogTrigger>
+                  <AlertDialogTrigger asChild><Button variant="destructive" size="sm"><Trash2 className="h-4 w-4 mr-2" />Delete ({selectedLocations.size})</Button></AlertDialogTrigger>
                   <AlertDialogContent>
-                    <AlertDialogHeader>
-                      <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
-                      <AlertDialogDescription>
-                        This action cannot be undone. This will permanently delete {selectedLocations.size} selected locations and any associated images.
-                      </AlertDialogDescription>
-                    </AlertDialogHeader>
-                    <AlertDialogFooter>
-                      <AlertDialogCancel onClick={() => setSelectedLocations(new Set())}>Cancel</AlertDialogCancel>
-                      <AlertDialogAction onClick={handleBulkDelete}>Continue</AlertDialogAction>
-                    </AlertDialogFooter>
+                    <AlertDialogHeader><AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle><AlertDialogDescription>This action cannot be undone. This will permanently delete {selectedLocations.size} selected locations and any associated images.</AlertDialogDescription></AlertDialogHeader>
+                    <AlertDialogFooter><AlertDialogCancel onClick={() => setSelectedLocations(new Set())}>Cancel</AlertDialogCancel><AlertDialogAction onClick={handleBulkDelete}>Continue</AlertDialogAction></AlertDialogFooter>
                   </AlertDialogContent>
                 </AlertDialog>
               )}
@@ -639,47 +589,18 @@ const ManageTravel = () => {
           </CardHeader>
           <CardContent>
             <div className="flex items-center border-b pb-2 mb-2 space-x-3">
-              <Checkbox
-                  id="select-all"
-                  onCheckedChange={(checked) => {
-                      const newSelected = new Set<string>();
-                      if (checked) {
-                          locations.forEach(loc => newSelected.add(loc.id));
-                      }
-                      setSelectedLocations(newSelected);
-                  }}
-                  checked={locations.length > 0 && selectedLocations.size === locations.length}
-                  disabled={locations.length === 0}
-              />
-              <label htmlFor="select-all" className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
-                Select All
-              </label>
+              <Checkbox id="select-all" onCheckedChange={(checked) => { const newSelected = new Set<string>(); if (checked) { locations.forEach(loc => newSelected.add(loc.id)); } setSelectedLocations(newSelected); }} checked={locations.length > 0 && selectedLocations.size === locations.length} disabled={locations.length === 0}/>
+              <label htmlFor="select-all" className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">Select All</label>
             </div>
             <div className="space-y-2 mt-4">
               {locations.length > 0 ? (
                 locations.map((location) => (
                   <div key={location.id} className="flex items-center justify-between p-2 rounded-lg border">
                     <div className="flex items-center gap-3">
-                      <Checkbox
-                        id={`select-${location.id}`}
-                        checked={selectedLocations.has(location.id)}
-                        onCheckedChange={() => {
-                            const newSelected = new Set(selectedLocations);
-                            if (newSelected.has(location.id)) {
-                                newSelected.delete(location.id);
-                            } else {
-                                newSelected.add(location.id);
-                            }
-                            setSelectedLocations(newSelected);
-                        }}
-                      />
+                      <Checkbox id={`select-${location.id}`} checked={selectedLocations.has(location.id)} onCheckedChange={() => { const newSelected = new Set(selectedLocations); if (newSelected.has(location.id)) { newSelected.delete(location.id); } else { newSelected.add(location.id); } setSelectedLocations(newSelected); }}/>
                       <label htmlFor={`select-${location.id}`} className="font-medium truncate pr-2 cursor-pointer">{location.title}</label>
                     </div>
-                    <div className="flex items-center gap-2 shrink-0">
-                      <Button variant="ghost" size="icon" onClick={() => handleEdit(location)}>
-                        <Edit className="h-4 w-4" />
-                      </Button>
-                    </div>
+                    <div className="flex items-center gap-2 shrink-0"><Button variant="ghost" size="icon" onClick={() => handleEdit(location)}><Edit className="h-4 w-4" /></Button></div>
                   </div>
                 ))
               ) : (
