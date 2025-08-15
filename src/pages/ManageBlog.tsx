@@ -15,7 +15,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { showSuccess, showError, showLoading, dismissToast } from "@/utils/toast";
 import { useState, useEffect, useRef } from "react";
-import { Trash2, Edit, Upload } from "lucide-react";
+import { Trash2, Edit, Upload, Download } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import type { Post } from "@/types";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -31,6 +31,8 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import TurndownService from "turndown";
+import JSZip from 'jszip';
+import { sanitizeFileName } from "@/lib/utils";
 
 const postSchema = z.object({
   title: z.string().min(3, { message: "Title must be at least 3 characters." }),
@@ -213,6 +215,44 @@ const ManageBlog = () => {
     }
   };
 
+  const handleBulkDownload = async () => {
+    const toastId = showLoading(`Preparing ${selectedPosts.size} post(s) for download...`);
+    try {
+        const zip = new JSZip();
+        const postsToDownload = posts.filter(post => selectedPosts.has(post.id));
+
+        postsToDownload.forEach(post => {
+            const frontmatter = `---
+title: "${post.title.replace(/"/g, '\\"')}"
+description: "${(post.description || '').replace(/"/g, '\\"')}"
+published_at: ${post.published_at ? new Date(post.published_at).toISOString().split('T')[0] : ''}
+---
+
+`;
+            const markdownContent = frontmatter + (post.content || '');
+            const fileName = sanitizeFileName(post.title).replace(/\.[^/.]+$/, "") + ".md";
+            zip.file(fileName, markdownContent);
+        });
+
+        const zipBlob = await zip.generateAsync({ type: "blob" });
+        
+        const link = document.createElement("a");
+        link.href = URL.createObjectURL(zipBlob);
+        link.download = "blog_export.zip";
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(link.href);
+
+        dismissToast(toastId);
+        showSuccess(`${postsToDownload.length} post(s) downloaded.`);
+
+    } catch (error: any) {
+        dismissToast(toastId);
+        showError(`Download failed: ${error.message}`);
+    }
+  };
+
   const handleSelectPost = (id: string) => {
     const newSelection = new Set(selectedPosts);
     newSelection.has(id) ? newSelection.delete(id) : newSelection.add(id);
@@ -286,21 +326,27 @@ const ManageBlog = () => {
                 <CardDescription>Your current list of blog posts.</CardDescription>
               </div>
               {selectedPosts.size > 0 && (
-                <AlertDialog>
-                  <AlertDialogTrigger asChild>
-                    <Button variant="destructive" size="sm"><Trash2 className="h-4 w-4 mr-2" />Delete ({selectedPosts.size})</Button>
-                  </AlertDialogTrigger>
-                  <AlertDialogContent>
-                    <AlertDialogHeader>
-                      <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
-                      <AlertDialogDescription>This will permanently delete {selectedPosts.size} selected posts.</AlertDialogDescription>
-                    </AlertDialogHeader>
-                    <AlertDialogFooter>
-                      <AlertDialogCancel onClick={() => setSelectedPosts(new Set())}>Cancel</AlertDialogCancel>
-                      <AlertDialogAction onClick={handleBulkDelete}>Continue</AlertDialogAction>
-                    </AlertDialogFooter>
-                  </AlertDialogContent>
-                </AlertDialog>
+                <div className="flex items-center gap-2">
+                  <Button variant="outline" size="sm" onClick={handleBulkDownload}>
+                    <Download className="h-4 w-4 mr-2" />
+                    Download ({selectedPosts.size})
+                  </Button>
+                  <AlertDialog>
+                    <AlertDialogTrigger asChild>
+                      <Button variant="destructive" size="sm"><Trash2 className="h-4 w-4 mr-2" />Delete ({selectedPosts.size})</Button>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent>
+                      <AlertDialogHeader>
+                        <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+                        <AlertDialogDescription>This will permanently delete {selectedPosts.size} selected posts.</AlertDialogDescription>
+                      </AlertDialogHeader>
+                      <AlertDialogFooter>
+                        <AlertDialogCancel onClick={() => setSelectedPosts(new Set())}>Cancel</AlertDialogCancel>
+                        <AlertDialogAction onClick={handleBulkDelete}>Continue</AlertDialogAction>
+                      </AlertDialogFooter>
+                    </AlertDialogContent>
+                  </AlertDialog>
+                </div>
               )}
             </div>
           </CardHeader>

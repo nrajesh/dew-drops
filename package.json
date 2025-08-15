@@ -55,6 +55,7 @@
     "exifreader": "^4.31.1",
     "framer-motion": "^12.23.12",
     "input-otp": "^1.2.4",
+    "jszip": "^3.10.1",
     "lucide-react": "^0.462.0",
     "mapbox-gl": "^3.14.0",
     "next-themes": "^0.3.0",
