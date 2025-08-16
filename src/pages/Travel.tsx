@@ -1,18 +1,28 @@
-import React, { Suspense, useEffect, useState, useRef } from "react";
+import React, { Suspense, useEffect, useState, useMemo, useRef } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { MapPin } from "lucide-react";
+import { MapPin, Search } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { supabase } from "@/integrations/supabase/client";
 import type { TravelLocation } from "@/types";
 import { showError } from "@/utils/toast";
 import type { MapRef } from "@/components/Map";
+import { Input } from "@/components/ui/input";
+import { useDebounce } from "@/hooks/useDebounce";
+import { PaginationControls } from "@/components/PaginationControls";
+import { usePaginationNavigation } from "@/hooks/usePaginationNavigation";
 
 const MapComponent = React.lazy(() => import('@/components/Map'));
+const LOCATIONS_PER_PAGE = 6;
 
 const Travel = () => {
-  const [locations, setLocations] = useState<TravelLocation[]>([]);
+  const [allLocations, setAllLocations] = useState<TravelLocation[]>([]);
   const [loading, setLoading] = useState(true);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [currentPage, setCurrentPage] = useState(1);
   const mapRef = useRef<MapRef>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  const debouncedSearchTerm = useDebounce(searchTerm, 300);
 
   useEffect(() => {
     const fetchLocationsAndPosts = async () => {
@@ -41,20 +51,17 @@ const Travel = () => {
         
         if (postsError) {
           console.error("Could not fetch linked blog posts:", postsError);
-          setLocations(locationsData as TravelLocation[]);
+          setAllLocations(locationsData as TravelLocation[]);
         } else {
           const postsMap = new Map(postsData.map(p => [p.id, p.title]));
           const enrichedLocations = locationsData.map(loc => {
             const postId = loc.blog_url?.split('/').pop();
-            return {
-              ...loc,
-              blog_title: postId ? postsMap.get(postId) : undefined,
-            };
+            return { ...loc, blog_title: postId ? postsMap.get(postId) : undefined };
           });
-          setLocations(enrichedLocations as TravelLocation[]);
+          setAllLocations(enrichedLocations as TravelLocation[]);
         }
       } else {
-        setLocations(locationsData as TravelLocation[]);
+        setAllLocations(locationsData as TravelLocation[]);
       }
       
       setLoading(false);
@@ -63,8 +70,35 @@ const Travel = () => {
     fetchLocationsAndPosts();
   }, []);
 
+  const filteredLocations = useMemo(() => {
+    const lowercasedTerm = debouncedSearchTerm.toLowerCase();
+    return allLocations.filter(loc => 
+      !lowercasedTerm || 
+      loc.title.toLowerCase().includes(lowercasedTerm) ||
+      loc.name.toLowerCase().includes(lowercasedTerm) ||
+      (loc.description && loc.description.toLowerCase().includes(lowercasedTerm))
+    );
+  }, [allLocations, debouncedSearchTerm]);
+
+  const totalPages = Math.ceil(filteredLocations.length / LOCATIONS_PER_PAGE);
+  const paginatedLocations = filteredLocations.slice(
+    (currentPage - 1) * LOCATIONS_PER_PAGE,
+    currentPage * LOCATIONS_PER_PAGE
+  );
+
+  usePaginationNavigation({
+    currentPage,
+    totalPages,
+    onPageChange: setCurrentPage,
+    targetRef: containerRef,
+  });
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [debouncedSearchTerm]);
+
   return (
-    <div className="space-y-8">
+    <div className="space-y-8" ref={containerRef}>
       <div className="text-center">
         <h1 className="text-3xl font-bold">Travel Map</h1>
         <p className="text-muted-foreground">
@@ -73,52 +107,50 @@ const Travel = () => {
       </div>
 
       <Suspense fallback={<Skeleton className="h-[450px] w-full rounded-lg" />}>
-        <MapComponent ref={mapRef} locations={locations} />
+        <MapComponent ref={mapRef} locations={allLocations} />
       </Suspense>
+
+      <div className="relative sm:w-full sm:max-w-xs mx-auto">
+        <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+        <Input
+          type="search"
+          placeholder="Search locations..."
+          className="pl-8 w-full"
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+        />
+      </div>
 
       {loading ? (
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
           {Array.from({ length: 3 }).map((_, i) => (
-            <Card key={i}>
-              <CardHeader>
-                <Skeleton className="h-6 w-3/4" />
-                <Skeleton className="h-4 w-1/2 mt-2" />
-              </CardHeader>
-              <CardContent>
-                <Skeleton className="h-10 w-full" />
-              </CardContent>
-            </Card>
+            <Card key={i}><CardHeader><Skeleton className="h-6 w-3/4" /><Skeleton className="h-4 w-1/2 mt-2" /></CardHeader><CardContent><Skeleton className="h-10 w-full" /></CardContent></Card>
           ))}
         </div>
-      ) : locations.length > 0 ? (
+      ) : paginatedLocations.length > 0 ? (
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-          {locations.map((location) => (
+          {paginatedLocations.map((location) => (
             <Card 
               key={location.id} 
               className="h-full transition-all hover:shadow-md hover:border-primary/50 cursor-pointer flex flex-col"
               onClick={() => mapRef.current?.triggerPopup(location.id)}
             >
               <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <MapPin className="h-5 w-5 text-primary" />
-                  {location.title}
-                </CardTitle>
+                <CardTitle className="flex items-center gap-2"><MapPin className="h-5 w-5 text-primary" />{location.title}</CardTitle>
                 <CardDescription>{location.name}</CardDescription>
               </CardHeader>
               {location.description && (
-                <CardContent>
-                  <p className="text-sm text-muted-foreground">{location.description}</p>
-                </CardContent>
+                <CardContent><p className="text-sm text-muted-foreground">{location.description}</p></CardContent>
               )}
             </Card>
           ))}
         </div>
       ) : (
         <div className="text-center py-10 border rounded-lg bg-muted">
-          <p className="text-muted-foreground">No travel locations have been added yet.</p>
-          <p className="text-sm text-muted-foreground mt-2">Go to "Manage Travel" to add your first pin!</p>
+          <p className="text-muted-foreground">No locations found for your search.</p>
         </div>
       )}
+      <PaginationControls currentPage={currentPage} totalPages={totalPages} onPageChange={setCurrentPage} />
     </div>
   );
 };

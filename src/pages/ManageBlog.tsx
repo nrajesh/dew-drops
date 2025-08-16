@@ -67,8 +67,23 @@ const ManageBlog = () => {
 
     const toastId = showLoading(editingPost ? "Updating post..." : "Adding new post...");
     
+    let description = values.description;
+    if (!description || description.trim() === '') {
+        const content = values.content;
+        const codeBlockRegex = /```([\s\S]*?)```/;
+        const match = content.match(codeBlockRegex);
+        if (match && match[1]) {
+            let extractedDescription = match[1].trim();
+            if (extractedDescription.length > 500) {
+                extractedDescription = extractedDescription.substring(0, 497) + '...';
+            }
+            description = extractedDescription;
+        }
+    }
+
     const postData = { 
       ...values,
+      description: description,
       user_id: user.id,
     };
 
@@ -112,8 +127,9 @@ const ManageBlog = () => {
     items.forEach(item => {
       const title = item.querySelector("title")?.textContent || "";
       const pubDate = item.querySelector("pubDate")?.textContent || new Date().toISOString();
-      const description = item.querySelector("description")?.textContent || "";
+      let description = item.querySelector("description")?.textContent || "";
       let contentHtml = item.getElementsByTagNameNS("*", "encoded")[0]?.textContent || "";
+      const status = item.querySelector("status, \\:status")?.textContent || 'draft';
       
       contentHtml = contentHtml.replace(/<!--\s*(more|nextpage)\s*-->/gi, '');
 
@@ -122,12 +138,25 @@ const ManageBlog = () => {
       const cover_image_id: string | null = null;
       const youtube_video_id: string | null = null;
 
+      if (!description || description.trim() === '') {
+        const codeBlockRegex = /```([\s\S]*?)```/;
+        const match = content.match(codeBlockRegex);
+        if (match && match[1]) {
+            let extractedDescription = match[1].trim();
+            if (extractedDescription.length > 500) {
+                extractedDescription = extractedDescription.substring(0, 497) + '...';
+            }
+            description = extractedDescription;
+        }
+      }
+
       if (title && content) {
         newPosts.push({
           title,
           description,
           content,
           published_at: new Date(pubDate).toISOString(),
+          published: status === 'publish',
           tags,
           cover_image_id,
           youtube_video_id,
@@ -142,6 +171,7 @@ const ManageBlog = () => {
     let title = file.name.replace(/\.md$/, '');
     let description = '';
     let published_at = new Date().toISOString();
+    let published = false; // Default to unpublished
     let content = fullContent;
     let tags: string[] | null = null;
     let cover_image_id: string | null = null;
@@ -177,19 +207,18 @@ const ManageBlog = () => {
               const dateOnlyRegex = /^\d{4}-\d{2}-\d{2}$/;
 
               if (dateOnlyRegex.test(trimmedValue)) {
-                // For date-only strings (YYYY-MM-DD), we must parse them as UTC
-                // to prevent the browser's timezone from shifting the date.
                 const parts = trimmedValue.split('-').map(p => parseInt(p, 10));
-                // Month is 0-indexed in JavaScript's Date constructor.
                 const utcDate = new Date(Date.UTC(parts[0], parts[1] - 1, parts[2]));
                 published_at = utcDate.toISOString();
               } else {
-                // For other formats (e.g., full ISO strings), attempt to parse directly.
                 const parsedDate = new Date(trimmedValue);
                 if (!isNaN(parsedDate.getTime())) {
                   published_at = parsedDate.toISOString();
                 }
               }
+              break;
+            case 'published':
+              published = value === 'true';
               break;
             case 'tags':
               let rawTags = value;
@@ -207,13 +236,23 @@ const ManageBlog = () => {
           }
         }
       });
-    } else {
-      description = fullContent.substring(0, 150) + (fullContent.length > 150 ? '...' : '');
     }
     
     content = content.trim().replace(/<!--\s*(more|nextpage)\s*-->/gi, '');
 
-    return { title, description, content, published_at, tags, cover_image_id, youtube_video_id };
+    if (!description || description.trim() === '') {
+        const codeBlockRegex = /```([\s\S]*?)```/;
+        const codeMatch = content.match(codeBlockRegex);
+        if (codeMatch && codeMatch[1]) {
+            let extractedDescription = codeMatch[1].trim();
+            if (extractedDescription.length > 500) {
+                extractedDescription = extractedDescription.substring(0, 497) + '...';
+            }
+            description = extractedDescription;
+        }
+    }
+
+    return { title, description, content, published_at, published, tags, cover_image_id, youtube_video_id };
   };
 
   const processUploads = async (inserts: NewPost[], updates: { existingId: string; newData: NewPost }[]) => {
@@ -225,7 +264,7 @@ const ManageBlog = () => {
     try {
       const insertPromises = [];
       if (inserts.length > 0) {
-        const insertsWithUserId = inserts.map(p => ({ ...p, user_id: user.id }));
+        const insertsWithUserId = inserts.map(p => ({ ...p, user_id: user.id, published: false })); // Always import as draft
         insertPromises.push(supabase.from("posts").insert(insertsWithUserId));
       }
 
@@ -291,7 +330,6 @@ const ManageBlog = () => {
         }
       }
 
-      // De-duplicate allNewPosts by title (case-insensitive), keeping the last one found.
       const uniqueNewPostsMap = new Map<string, NewPost>();
       for (const post of allNewPosts) {
         uniqueNewPostsMap.set(post.title.toLowerCase(), post);
@@ -352,12 +390,14 @@ const ManageBlog = () => {
             const frontmatter = `---
 title: "${post.title.replace(/"/g, '\\"')}"
 description: "${(post.description || '').replace(/"/g, '\\"')}"
-published_at: ${post.published_at ? new Date(post.published_at).toISOString().split('T')[0] : ''}${tagsString}${coverImageIdString}${youtubeVideoIdString}
+published_at: ${post.published_at ? new Date(post.published_at).toISOString().split('T')[0] : ''}
+published: ${post.published}${tagsString}${coverImageIdString}${youtubeVideoIdString}
 ---
 
 `;
             const markdownContent = frontmatter + (post.content || '');
-            const fileName = sanitizeFileName(post.title).replace(/\.[^/.]+$/, "") + ".md";
+            const sanitizedTitle = sanitizeFileName(post.title).replace(/\.[^/.]+$/, "");
+            const fileName = (sanitizedTitle.trim().length > 0 ? sanitizedTitle : post.id) + ".md";
             zip.file(fileName, markdownContent);
         });
 
@@ -388,6 +428,41 @@ published_at: ${post.published_at ? new Date(post.published_at).toISOString().sp
     setSelectedPosts(checked ? new Set(posts.map(p => p.id)) : new Set());
   };
 
+  const handleBulkTagUpdate = async (tags: string[]) => {
+    const toastId = showLoading(`Updating tags for ${selectedPosts.size} posts...`);
+    const { error } = await supabase
+      .from("posts")
+      .update({ tags })
+      .in("id", Array.from(selectedPosts));
+    
+    dismissToast(toastId);
+    if (error) {
+      showError(`Failed to update tags: ${error.message}`);
+    } else {
+      showSuccess("Tags updated successfully.");
+      fetchPosts();
+      setSelectedPosts(new Set());
+    }
+  };
+
+  const handleBulkStatusChange = async (published: boolean) => {
+    const status = published ? "published" : "unpublished";
+    const toastId = showLoading(`Setting ${selectedPosts.size} posts to ${status}...`);
+    const { error } = await supabase
+      .from("posts")
+      .update({ published })
+      .in("id", Array.from(selectedPosts));
+
+    dismissToast(toastId);
+    if (error) {
+      showError(`Failed to update status: ${error.message}`);
+    } else {
+      showSuccess(`Posts marked as ${status}.`);
+      fetchPosts();
+      setSelectedPosts(new Set());
+    }
+  };
+
   return (
     <div className="space-y-8">
       <BulkImport 
@@ -412,6 +487,9 @@ published_at: ${post.published_at ? new Date(post.published_at).toISOString().sp
           onEdit={setEditingPost}
           onDelete={handleBulkDelete}
           onDownload={handleBulkDownload}
+          onBulkTagUpdate={handleBulkTagUpdate}
+          onBulkStatusChange={handleBulkStatusChange}
+          uniqueTags={uniqueTags}
         />
       </div>
       <UpdatePostsDialog 

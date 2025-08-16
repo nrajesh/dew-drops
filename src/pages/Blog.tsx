@@ -1,59 +1,80 @@
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import type { Post } from "@/types";
 import { Link } from "react-router-dom";
 import { Skeleton } from "@/components/ui/skeleton";
 import { MultiSelectPopover } from "@/components/MultiSelectPopover";
+import { Input } from "@/components/ui/input";
+import { Search } from "lucide-react";
+import { useDebounce } from "@/hooks/useDebounce";
+import { PaginationControls } from "@/components/PaginationControls";
+import { usePaginationNavigation } from "@/hooks/usePaginationNavigation";
+
+const POSTS_PER_PAGE = 6;
 
 const Blog = () => {
-  const [posts, setPosts] = useState<Post[]>([]);
+  const [allPosts, setAllPosts] = useState<Post[]>([]);
   const [loading, setLoading] = useState(true);
   const [uniqueTags, setUniqueTags] = useState<string[]>([]);
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [currentPage, setCurrentPage] = useState(1);
+  const containerRef = useRef<HTMLDivElement>(null);
 
-  // Effect to fetch all unique tags once on component mount
+  const debouncedSearchTerm = useDebounce(searchTerm, 300);
+
   useEffect(() => {
-    const fetchAllTags = async () => {
-      const { data, error } = await supabase.from('posts').select('tags');
-      if (error) {
-        console.error("Error fetching tags:", error);
+    const fetchInitialData = async () => {
+      setLoading(true);
+      const { data: postsData, error: postsError } = await supabase
+        .from("posts")
+        .select("*")
+        .eq('published', true)
+        .order("published_at", { ascending: false });
+
+      if (postsError) {
+        console.error("Error fetching posts:", postsError);
       } else {
+        setAllPosts(postsData as Post[]);
         const allTags = new Set<string>();
-        data.forEach(post => {
+        (postsData as Post[]).forEach(post => {
           if (post.tags) {
             post.tags.forEach(tag => allTags.add(tag));
           }
         });
         setUniqueTags(Array.from(allTags).sort());
       }
-    };
-    fetchAllTags();
-  }, []);
-
-  // Effect to fetch posts whenever the selected tags change
-  useEffect(() => {
-    const fetchPosts = async () => {
-      setLoading(true);
-      let query = supabase.from("posts").select("*").order("published_at", { ascending: false });
-
-      if (selectedTags.length > 0) {
-        query = query.overlaps("tags", selectedTags);
-      }
-
-      const { data, error } = await query;
-
-      if (error) {
-        console.error("Error fetching posts:", error);
-      } else {
-        setPosts(data as Post[]);
-      }
       setLoading(false);
     };
+    fetchInitialData();
+  }, []);
 
-    fetchPosts();
-  }, [selectedTags]);
+  const filteredPosts = useMemo(() => {
+    return allPosts.filter(post => {
+      const tagMatch = selectedTags.length === 0 || selectedTags.every(tag => post.tags?.includes(tag));
+      const searchMatch = !debouncedSearchTerm || post.title.toLowerCase().includes(debouncedSearchTerm.toLowerCase());
+      return tagMatch && searchMatch;
+    });
+  }, [allPosts, selectedTags, debouncedSearchTerm]);
+
+  const totalPages = Math.ceil(filteredPosts.length / POSTS_PER_PAGE);
+  const paginatedPosts = filteredPosts.slice(
+    (currentPage - 1) * POSTS_PER_PAGE,
+    currentPage * POSTS_PER_PAGE
+  );
+
+  usePaginationNavigation({
+    currentPage,
+    totalPages,
+    onPageChange: setCurrentPage,
+    targetRef: containerRef,
+  });
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [selectedTags, debouncedSearchTerm]);
 
   const formatDate = (dateString: string | null) => {
     if (!dateString) return "";
@@ -65,14 +86,24 @@ const Blog = () => {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6" ref={containerRef}>
       <div className="text-center">
         <h1 className="text-3xl font-bold">Blog</h1>
         <p className="text-muted-foreground">My thoughts on design, development, and more.</p>
       </div>
 
-      <div className="flex justify-center">
-        <div className="w-full max-w-xs">
+      <div className="flex flex-col sm:flex-row gap-4 justify-center">
+        <div className="relative sm:w-full sm:max-w-xs">
+          <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+          <Input
+            type="search"
+            placeholder="Search posts..."
+            className="pl-8 w-full"
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+          />
+        </div>
+        <div className="sm:w-full sm:max-w-xs">
           <MultiSelectPopover
             suggestions={uniqueTags}
             value={selectedTags}
@@ -85,7 +116,7 @@ const Blog = () => {
 
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
         {loading ? (
-          Array.from({ length: 3 }).map((_, index) => (
+          Array.from({ length: POSTS_PER_PAGE }).map((_, index) => (
             <Card key={index}>
               <CardHeader>
                 <Skeleton className="h-6 w-3/4" />
@@ -99,8 +130,8 @@ const Blog = () => {
               </CardFooter>
             </Card>
           ))
-        ) : posts.length > 0 ? (
-          posts.map((post) => (
+        ) : paginatedPosts.length > 0 ? (
+          paginatedPosts.map((post) => (
             <Card key={post.id}>
               <CardHeader>
                 <CardTitle>{post.title}</CardTitle>
@@ -127,10 +158,15 @@ const Blog = () => {
           ))
         ) : (
           <p className="text-center text-muted-foreground col-span-full">
-            No posts found for the selected tags.
+            No posts found. Try adjusting your search or filters.
           </p>
         )}
       </div>
+      <PaginationControls
+        currentPage={currentPage}
+        totalPages={totalPages}
+        onPageChange={setCurrentPage}
+      />
     </div>
   );
 };

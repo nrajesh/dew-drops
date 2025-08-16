@@ -17,12 +17,14 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { MultiSelectPopover } from "@/components/MultiSelectPopover";
 import type { GalleryImage, Post } from "@/types";
 import { useEffect } from "react";
+import { Checkbox } from "../ui/checkbox";
 
 const postSchema = z.object({
   title: z.string().min(3, { message: "Title must be at least 3 characters." }),
-  description: z.string().min(10, { message: "Description must be at least 10 characters." }),
+  description: z.string().max(500, "Description cannot exceed 500 characters.").optional(),
   content: z.string().min(20, { message: "Content must be at least 20 characters." }),
   published_at: z.string().refine((val) => !isNaN(Date.parse(val)), { message: "Invalid date format." }),
+  published: z.boolean().default(false),
   tags: z.array(z.string()).optional(),
   cover_image_id: z.preprocess(
     (val) => (val === "--none--" || val === "" ? null : val),
@@ -49,6 +51,7 @@ export const BlogForm = ({ editingPost, galleryImages, uniqueTags, onSubmit, onC
       description: "",
       content: "",
       published_at: new Date().toISOString().split("T")[0],
+      published: false,
       tags: [],
       cover_image_id: null,
       youtube_video_id: "",
@@ -62,6 +65,7 @@ export const BlogForm = ({ editingPost, galleryImages, uniqueTags, onSubmit, onC
         description: editingPost.description || "",
         content: editingPost.content || "",
         published_at: editingPost.published_at ? editingPost.published_at.split("T")[0] : new Date().toISOString().split("T")[0],
+        published: editingPost.published,
         tags: editingPost.tags || [],
         cover_image_id: editingPost.cover_image_id || null,
         youtube_video_id: editingPost.youtube_video_id || "",
@@ -72,6 +76,7 @@ export const BlogForm = ({ editingPost, galleryImages, uniqueTags, onSubmit, onC
         description: "",
         content: "",
         published_at: new Date().toISOString().split("T")[0],
+        published: false,
         tags: [],
         cover_image_id: null,
         youtube_video_id: "",
@@ -93,11 +98,31 @@ export const BlogForm = ({ editingPost, galleryImages, uniqueTags, onSubmit, onC
             <FormField control={form.control} name="title" render={({ field }) => (
               <FormItem><FormLabel>Title</FormLabel><FormControl><Input placeholder="Your Post Title" {...field} /></FormControl><FormMessage /></FormItem>
             )} />
-            <FormField control={form.control} name="published_at" render={({ field }) => (
-              <FormItem><FormLabel>Publication Date</FormLabel><FormControl><Input type="date" {...field} /></FormControl><FormMessage /></FormItem>
-            )} />
+            <div className="flex items-center justify-between gap-4">
+              <FormField control={form.control} name="published_at" render={({ field }) => (
+                <FormItem className="flex-1"><FormLabel>Publication Date</FormLabel><FormControl><Input type="date" {...field} /></FormControl><FormMessage /></FormItem>
+              )} />
+              <FormField
+                control={form.control}
+                name="published"
+                render={({ field }) => (
+                  <FormItem className="flex flex-col items-start pt-8">
+                    <div className="flex items-center space-x-2">
+                      <FormControl>
+                        <Checkbox
+                          checked={field.value}
+                          onCheckedChange={field.onChange}
+                        />
+                      </FormControl>
+                      <FormLabel>Published</FormLabel>
+                    </div>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
             <FormField control={form.control} name="description" render={({ field }) => (
-              <FormItem><FormLabel>Description</FormLabel><FormControl><Textarea placeholder="A short summary of the post." {...field} /></FormControl><FormMessage /></FormItem>
+              <FormItem><FormLabel>Description (Optional)</FormLabel><FormControl><Textarea placeholder="A short summary of the post." {...field} /></FormControl><FormMessage /></FormItem>
             )} />
             <FormField
               control={form.control}
