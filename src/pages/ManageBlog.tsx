@@ -173,10 +173,22 @@ const ManageBlog = () => {
               break;
             case 'published_at':
             case 'date':
-              // Treat date-only strings as UTC to prevent timezone shifts.
-              const dateString = /^\d{4}-\d{2}-\d{2}$/.test(value) ? `${value}T00:00:00.000Z` : value;
-              if (!isNaN(Date.parse(dateString))) {
-                published_at = new Date(dateString).toISOString();
+              const trimmedValue = value.trim();
+              const dateOnlyRegex = /^\d{4}-\d{2}-\d{2}$/;
+
+              if (dateOnlyRegex.test(trimmedValue)) {
+                // For date-only strings (YYYY-MM-DD), we must parse them as UTC
+                // to prevent the browser's timezone from shifting the date.
+                const parts = trimmedValue.split('-').map(p => parseInt(p, 10));
+                // Month is 0-indexed in JavaScript's Date constructor.
+                const utcDate = new Date(Date.UTC(parts[0], parts[1] - 1, parts[2]));
+                published_at = utcDate.toISOString();
+              } else {
+                // For other formats (e.g., full ISO strings), attempt to parse directly.
+                const parsedDate = new Date(trimmedValue);
+                if (!isNaN(parsedDate.getTime())) {
+                  published_at = parsedDate.toISOString();
+                }
               }
               break;
             case 'tags':
