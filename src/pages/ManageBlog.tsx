@@ -272,8 +272,8 @@ const ManageBlog = () => {
       description = fullContent.substring(0, 150) + (fullContent.length > 150 ? '...' : '');
     }
     
-    // Remove the <!--more--> tag from the content
-    content = content.replace(/<!--more-->/g, '');
+    // Remove WordPress-specific comment tags
+    content = content.replace(/<!--more-->/g, '').replace(/<!--nextpage-->/g, '');
 
     return {
       title,
