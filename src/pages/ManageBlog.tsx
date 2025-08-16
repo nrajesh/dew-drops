@@ -67,8 +67,23 @@ const ManageBlog = () => {
 
     const toastId = showLoading(editingPost ? "Updating post..." : "Adding new post...");
     
+    let description = values.description;
+    if (!description || description.trim() === '') {
+        const content = values.content;
+        const codeBlockRegex = /```([\s\S]*?)```/;
+        const match = content.match(codeBlockRegex);
+        if (match && match[1]) {
+            let extractedDescription = match[1].trim();
+            if (extractedDescription.length > 500) {
+                extractedDescription = extractedDescription.substring(0, 497) + '...';
+            }
+            description = extractedDescription;
+        }
+    }
+
     const postData = { 
       ...values,
+      description: description,
       user_id: user.id,
     };
 
@@ -112,7 +127,7 @@ const ManageBlog = () => {
     items.forEach(item => {
       const title = item.querySelector("title")?.textContent || "";
       const pubDate = item.querySelector("pubDate")?.textContent || new Date().toISOString();
-      const description = item.querySelector("description")?.textContent || "";
+      let description = item.querySelector("description")?.textContent || "";
       let contentHtml = item.getElementsByTagNameNS("*", "encoded")[0]?.textContent || "";
       const status = item.querySelector("status, \\:status")?.textContent || 'draft';
       
@@ -122,6 +137,18 @@ const ManageBlog = () => {
       const tags: string[] | null = null;
       const cover_image_id: string | null = null;
       const youtube_video_id: string | null = null;
+
+      if (!description || description.trim() === '') {
+        const codeBlockRegex = /```([\s\S]*?)```/;
+        const match = content.match(codeBlockRegex);
+        if (match && match[1]) {
+            let extractedDescription = match[1].trim();
+            if (extractedDescription.length > 500) {
+                extractedDescription = extractedDescription.substring(0, 497) + '...';
+            }
+            description = extractedDescription;
+        }
+      }
 
       if (title && content) {
         newPosts.push({
@@ -209,11 +236,21 @@ const ManageBlog = () => {
           }
         }
       });
-    } else {
-      description = fullContent.substring(0, 150) + (fullContent.length > 150 ? '...' : '');
     }
     
     content = content.trim().replace(/<!--\s*(more|nextpage)\s*-->/gi, '');
+
+    if (!description || description.trim() === '') {
+        const codeBlockRegex = /```([\s\S]*?)```/;
+        const codeMatch = content.match(codeBlockRegex);
+        if (codeMatch && codeMatch[1]) {
+            let extractedDescription = codeMatch[1].trim();
+            if (extractedDescription.length > 500) {
+                extractedDescription = extractedDescription.substring(0, 497) + '...';
+            }
+            description = extractedDescription;
+        }
+    }
 
     return { title, description, content, published_at, published, tags, cover_image_id, youtube_video_id };
   };
