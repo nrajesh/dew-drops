@@ -115,7 +115,7 @@ const ManageBlog = () => {
       const description = item.querySelector("description")?.textContent || "";
       let contentHtml = item.getElementsByTagNameNS("*", "encoded")[0]?.textContent || "";
       
-      contentHtml = contentHtml.replace(/<!--more-->/g, '').replace(/<!--nextpage-->/g, '');
+      contentHtml = contentHtml.replace(/<!--\s*(more|nextpage)\s*-->/gi, '');
 
       const content = turndownService.turndown(contentHtml);
       const tags: string[] | null = null;
@@ -147,14 +147,14 @@ const ManageBlog = () => {
     let cover_image_id: string | null = null;
     let youtube_video_id: string | null = null;
 
-    const frontmatterRegex = /^---\n([\s\S]*?)\n---\n([\s\S]*)$/;
+    const frontmatterRegex = /^---\r?\n([\s\S]*?)\r?\n---\r?\n([\s\S]*)$/;
     const match = fullContent.match(frontmatterRegex);
 
     if (match) {
       const frontmatterContent = match[1];
-      content = match[2].trim();
+      content = match[2];
 
-      frontmatterContent.split('\n').forEach(line => {
+      frontmatterContent.split(/\r?\n/).forEach(line => {
         const colonIndex = line.indexOf(':');
         if (colonIndex > -1) {
           const key = line.slice(0, colonIndex).trim();
@@ -178,11 +178,11 @@ const ManageBlog = () => {
               }
               break;
             case 'tags':
-              if (value.startsWith('[') && value.endsWith(']')) {
-                tags = value.slice(1, -1).split(',').map(tag => tag.trim().replace(/^"|"$/g, '').replace(/^'|'$/g, '')).filter(Boolean);
-              } else {
-                tags = value.split(',').map(tag => tag.trim()).filter(Boolean);
+              let rawTags = value;
+              if (rawTags.startsWith('[') && rawTags.endsWith(']')) {
+                rawTags = rawTags.slice(1, -1);
               }
+              tags = rawTags.split(',').map(tag => tag.trim().replace(/^['"]|['"]$/g, '')).filter(Boolean);
               break;
             case 'cover_image_id':
               cover_image_id = value;
@@ -197,7 +197,7 @@ const ManageBlog = () => {
       description = fullContent.substring(0, 150) + (fullContent.length > 150 ? '...' : '');
     }
     
-    content = content.replace(/<!--more-->/g, '').replace(/<!--nextpage-->/g, '');
+    content = content.trim().replace(/<!--\s*(more|nextpage)\s*-->/gi, '');
 
     return { title, description, content, published_at, tags, cover_image_id, youtube_video_id };
   };
