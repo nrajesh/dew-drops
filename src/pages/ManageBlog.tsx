@@ -173,8 +173,10 @@ const ManageBlog = () => {
               break;
             case 'published_at':
             case 'date':
-              if (!isNaN(Date.parse(value))) {
-                published_at = new Date(value).toISOString();
+              // Treat date-only strings as UTC to prevent timezone shifts.
+              const dateString = /^\d{4}-\d{2}-\d{2}$/.test(value) ? `${value}T00:00:00.000Z` : value;
+              if (!isNaN(Date.parse(dateString))) {
+                published_at = new Date(dateString).toISOString();
               }
               break;
             case 'tags':
