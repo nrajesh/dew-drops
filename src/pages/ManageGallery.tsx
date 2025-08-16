@@ -11,7 +11,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { supabase } from "@/integrations/supabase/client";
 import { showSuccess, showError, showLoading, dismissToast } from "@/utils/toast";
-import { Upload, Trash2, Edit, BrainCircuit } from "lucide-react";
+import { Upload, Trash2, Edit } from "lucide-react";
 import type { GalleryImage } from "@/types";
 import {
   AlertDialog,
@@ -28,26 +28,10 @@ import { useAuth } from "@/contexts/AuthContext";
 import { sanitizeFileName } from "@/lib/utils";
 import ExifReader from 'exifreader';
 import { Checkbox } from "@/components/ui/checkbox";
-import { toast } from "sonner";
 
 const editSchema = z.object({
   alt_text: z.string().min(3, "Alt text must be at least 3 characters.").max(200, "Alt text cannot exceed 200 characters."),
 });
-
-// Helper to automatically retry a function call on failure, useful for cold starts.
-const invokeWithRetry = async (functionName: string, options: any, retries = 2, delay = 1500) => {
-  for (let i = 0; i < retries; i++) {
-    try {
-      const result = await supabase.functions.invoke(functionName, options);
-      if (result.error) throw result.error;
-      return result;
-    } catch (error) {
-      if (i === retries - 1) throw error; // Rethrow last error
-      console.warn(`Attempt ${i + 1} failed for ${functionName}. Retrying in ${delay}ms...`);
-      await new Promise(res => setTimeout(res, delay));
-    }
-  }
-};
 
 const ManageGallery = () => {
   const { user } = useAuth();
@@ -55,7 +39,6 @@ const ManageGallery = () => {
   const [selectedFiles, setSelectedFiles] = useState<FileList | null>(null);
   const [isUploading, setIsUploading] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
-  const [isBackfilling, setIsBackfilling] = useState(false);
   const [selectedImages, setSelectedImages] = useState<Set<string>>(new Set());
   const [editingImage, setEditingImage] = useState<GalleryImage | null>(null);
 
@@ -129,12 +112,19 @@ const ManageGallery = () => {
         
         for (const key in tags) {
           if (Object.prototype.hasOwnProperty.call(tags, key)) {
-            if (key === 'MakerNote' || key === 'UserComment' || key === 'thumbnail') continue;
+            if (key === 'MakerNote' || key === 'UserComment' || key === 'thumbnail') {
+              continue;
+            }
+
             const tagValue = tags[key];
             if (tagValue && typeof tagValue.description !== 'undefined') {
               const description = tagValue.description;
+
               if (typeof description === 'string') {
-                const sanitized = description.replace(/,/g, '.').replace(/[^\w\s.:/-]/g, '');
+                // Aggressively sanitize string values
+                const sanitized = description
+                  .replace(/,/g, '.') // Normalize decimals
+                  .replace(/[^\w\s.:/-]/g, ''); // Whitelist safe characters
                 cleanExif[key] = sanitized;
               } else if (typeof description === 'number') {
                 cleanExif[key] = description;
@@ -147,34 +137,32 @@ const ManageGallery = () => {
         console.warn(`Could not read EXIF data for ${file.name}:`, error);
       }
 
-      const { error: uploadError } = await supabase.storage.from("gallery").upload(fileName, file, { cacheControl: '31536000', upsert: false });
-      if (uploadError) throw new Error(`Failed to upload ${file.name}: ${uploadError.message}`);
+      const { error: uploadError } = await supabase.storage
+        .from("gallery")
+        .upload(fileName, file, {
+          cacheControl: '31536000', // Cache for 1 year
+          upsert: false,
+        });
 
-      const { data: { publicUrl } } = supabase.storage.from("gallery").getPublicUrl(fileName);
+      if (uploadError) {
+        throw new Error(`Failed to upload ${file.name}: ${uploadError.message}`);
+      }
 
-      const { data: newImageData, error: dbError } = await supabase.from("gallery_images").insert({
+      const { data: { publicUrl } } = supabase.storage
+        .from("gallery")
+        .getPublicUrl(fileName);
+
+      const { error: dbError } = await supabase.from("gallery_images").insert({
         image_url: publicUrl,
         alt_text: "",
         file_name: fileName,
         user_id: user.id,
         exif_data: exifData,
-      }).select('id').single();
+      });
 
       if (dbError) {
         await supabase.storage.from("gallery").remove([fileName]);
         throw new Error(`Failed to save ${file.name} to database: ${dbError.message}`);
-      }
-
-      if (newImageData) {
-        try {
-          const { data: embeddingData } = await invokeWithRetry('vector-search', {
-            body: { type: 'image', content: publicUrl },
-          });
-          const { error: updateError } = await supabase.from('gallery_images').update({ embedding: embeddingData.embedding }).eq('id', newImageData.id);
-          if (updateError) throw updateError;
-        } catch (error) {
-          console.warn(`Failed to generate embedding for ${file.name}:`, error);
-        }
       }
     });
 
@@ -201,14 +189,23 @@ const ManageGallery = () => {
       const fileNamesToDelete = imagesToDelete.map(img => img.file_name);
 
       if (fileNamesToDelete.length > 0) {
-        const { error: storageError } = await supabase.storage.from("gallery").remove(fileNamesToDelete);
+        const { error: storageError } = await supabase.storage
+          .from("gallery")
+          .remove(fileNamesToDelete);
+
         if (storageError && storageError.message !== 'The resource was not found') {
           throw new Error(`Storage error: ${storageError.message}`);
         }
       }
 
-      const { error: dbError } = await supabase.from("gallery_images").delete().in("id", imageIds);
-      if (dbError) throw new Error(`Database error: ${dbError.message}`);
+      const { error: dbError } = await supabase
+        .from("gallery_images")
+        .delete()
+        .in("id", imageIds);
+
+      if (dbError) {
+        throw new Error(`Database error: ${dbError.message}`);
+      }
 
       dismissToast(toastId);
       showError(`${imageIds.length} image(s) deleted successfully.`);
@@ -222,8 +219,13 @@ const ManageGallery = () => {
 
   const handleUpdateAltText = async (values: z.infer<typeof editSchema>) => {
     if (!editingImage) return;
+
     const toastId = showLoading("Updating alt text...");
-    const { error } = await supabase.from("gallery_images").update({ alt_text: values.alt_text }).eq("id", editingImage.id);
+    const { error } = await supabase
+      .from("gallery_images")
+      .update({ alt_text: values.alt_text })
+      .eq("id", editingImage.id);
+
     dismissToast(toastId);
     if (error) {
       showError(`Update failed: ${error.message}`);
@@ -236,88 +238,20 @@ const ManageGallery = () => {
 
   const handleSelectImage = (id: string) => {
     const newSelection = new Set(selectedImages);
-    newSelection.has(id) ? newSelection.delete(id) : newSelection.add(id);
+    if (newSelection.has(id)) {
+      newSelection.delete(id);
+    } else {
+      newSelection.add(id);
+    }
     setSelectedImages(newSelection);
   };
 
   const handleSelectAll = (checked: boolean) => {
-    setSelectedImages(checked ? new Set(images.map(img => img.id)) : new Set());
-  };
-
-  const handleBackfillEmbeddings = async () => {
-    setIsBackfilling(true);
-
-    let imagesToProcess: { id: string; image_url: string }[] = [];
-    let processMode: 'selected' | 'missing' = 'missing';
-
-    if (selectedImages.size > 0) {
-      processMode = 'selected';
-      const selectedIds = Array.from(selectedImages);
-      const { data, error } = await supabase
-        .from('gallery_images')
-        .select('id, image_url')
-        .in('id', selectedIds);
-      
-      if (error) {
-        showError('Failed to fetch selected images for processing.');
-        console.error(error);
-        setIsBackfilling(false);
-        return;
-      }
-      imagesToProcess = data;
+    if (checked) {
+      setSelectedImages(new Set(images.map(img => img.id)));
     } else {
-      processMode = 'missing';
-      const { data, error } = await supabase
-        .from('gallery_images')
-        .select('id, image_url')
-        .is('embedding', null);
-
-      if (error) {
-        showError('Failed to fetch images with missing embeddings.');
-        console.error(error);
-        setIsBackfilling(false);
-        return;
-      }
-      imagesToProcess = data;
+      setSelectedImages(new Set());
     }
-
-    if (imagesToProcess.length === 0) {
-      const message = processMode === 'selected' 
-        ? 'No images were selected for processing.' 
-        : 'All images already have embeddings.';
-      showSuccess(message);
-      setIsBackfilling(false);
-      return;
-    }
-
-    const toastId = showLoading(`Processing ${imagesToProcess.length} images... (0/${imagesToProcess.length})`);
-    let successCount = 0;
-    let failCount = 0;
-
-    for (const [index, image] of imagesToProcess.entries()) {
-      try {
-        const { data: embeddingData } = await invokeWithRetry('vector-search', {
-          body: { type: 'image', content: image.image_url },
-        });
-        const { error: updateError } = await supabase.from('gallery_images').update({ embedding: embeddingData.embedding }).eq('id', image.id);
-        if (updateError) throw updateError;
-        
-        successCount++;
-      } catch (err) {
-        console.error(`Failed to process image ${image.id}:`, err);
-        failCount++;
-      }
-      toast.loading(`Processing ${imagesToProcess.length} images... (${index + 1}/${imagesToProcess.length})`, { id: toastId });
-    }
-
-    dismissToast(toastId);
-    if (failCount > 0) {
-      showError(`${successCount} images processed, ${failCount} failed. Check console for details.`);
-    } else {
-      showSuccess(`Successfully generated embeddings for ${successCount} images!`);
-    }
-    setIsBackfilling(false);
-    setSelectedImages(new Set());
   };
 
   return (
@@ -326,56 +260,101 @@ const ManageGallery = () => {
         <Card>
           <CardHeader>
             <CardTitle>Upload to Gallery</CardTitle>
-            <CardDescription>Select images to upload. Content embeddings for vector search will be generated automatically.</CardDescription>
+            <CardDescription>
+              Select one or more images to upload. EXIF data will be automatically extracted.
+            </CardDescription>
           </CardHeader>
           <CardContent>
             <div className="flex items-center gap-4">
-              <Input id="file-input" type="file" multiple accept="image/jpeg,image/png,image/tiff" onChange={handleFileChange} className="flex-grow" />
-              <Button onClick={handleUpload} disabled={isUploading || !selectedFiles}><Upload className="h-4 w-4 mr-2" />{isUploading ? "Uploading..." : "Upload"}</Button>
+              <Input
+                id="file-input"
+                type="file"
+                multiple
+                accept="image/jpeg,image/png,image/tiff"
+                onChange={handleFileChange}
+                className="flex-grow"
+              />
+              <Button onClick={handleUpload} disabled={isUploading || !selectedFiles}>
+                <Upload className="h-4 w-4 mr-2" />
+                {isUploading ? "Uploading..." : "Upload"}
+              </Button>
             </div>
           </CardContent>
         </Card>
 
         <Card>
-          <CardHeader className="flex flex-row items-start justify-between">
+          <CardHeader className="flex flex-row items-center justify-between">
             <div>
               <CardTitle>Manage Gallery</CardTitle>
-              <CardDescription>View, edit, and delete images. You can also generate embeddings for selected images, or for all images that are missing them.</CardDescription>
+              <CardDescription>
+                View, edit, and delete your uploaded images.
+              </CardDescription>
             </div>
-            <div className="flex items-center gap-2">
-              <Button variant="outline" onClick={handleBackfillEmbeddings} disabled={isBackfilling}>
-                <BrainCircuit className="h-4 w-4 mr-2" />
-                {isBackfilling ? 'Processing...' : 
-                  selectedImages.size > 0 ? `Generate Embeddings (${selectedImages.size})` : 'Generate Missing Embeddings'
-                }
-              </Button>
-              {selectedImages.size > 0 && (
-                <AlertDialog>
-                  <AlertDialogTrigger asChild><Button variant="destructive"><Trash2 className="h-4 w-4 mr-2" />Delete ({selectedImages.size})</Button></AlertDialogTrigger>
-                  <AlertDialogContent>
-                    <AlertDialogHeader><AlertDialogTitle>Are you sure?</AlertDialogTitle><AlertDialogDescription>This will permanently delete the {selectedImages.size} selected image(s). This action cannot be undone.</AlertDialogDescription></AlertDialogHeader>
-                    <AlertDialogFooter><AlertDialogCancel>Cancel</AlertDialogCancel><AlertDialogAction onClick={() => handleDelete(Array.from(selectedImages))}>Delete</AlertDialogAction></AlertDialogFooter>
-                  </AlertDialogContent>
-                </AlertDialog>
-              )}
-            </div>
+            {selectedImages.size > 0 && (
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button variant="destructive">
+                    <Trash2 className="h-4 w-4 mr-2" />
+                    Delete ({selectedImages.size})
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      This will permanently delete the {selectedImages.size} selected image(s). This action cannot be undone.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                    <AlertDialogAction onClick={() => handleDelete(Array.from(selectedImages))}>
+                      Delete
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+            )}
           </CardHeader>
           <CardContent>
-            {isLoading ? <p>Loading images...</p> : images.length > 0 ? (
+            {isLoading ? (
+              <p>Loading images...</p>
+            ) : images.length > 0 ? (
               <>
                 <div className="flex items-center space-x-2 mb-4 pb-4 border-b">
-                  <Checkbox id="select-all" checked={selectedImages.size === images.length && images.length > 0} onCheckedChange={(checked) => handleSelectAll(Boolean(checked))} />
-                  <label htmlFor="select-all" className="text-sm font-medium leading-none">Select All</label>
+                  <Checkbox
+                    id="select-all"
+                    checked={selectedImages.size === images.length && images.length > 0}
+                    onCheckedChange={(checked) => handleSelectAll(Boolean(checked))}
+                  />
+                  <label htmlFor="select-all" className="text-sm font-medium leading-none">
+                    Select All
+                  </label>
                 </div>
                 <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
                   {images.map((image) => (
                     <Card key={image.id} className="flex flex-col">
-                      <CardContent className="p-0"><AspectRatio ratio={1}><img src={getThumbnailUrl(image.file_name)} alt={image.alt_text || "Gallery image"} className="rounded-t-lg object-cover w-full h-full" /></AspectRatio></CardContent>
+                      <CardContent className="p-0">
+                        <AspectRatio ratio={1}>
+                          <img
+                            src={getThumbnailUrl(image.file_name)}
+                            alt={image.alt_text || "Gallery image"}
+                            className="rounded-t-lg object-cover w-full h-full"
+                          />
+                        </AspectRatio>
+                      </CardContent>
                       <CardFooter className="p-2 flex-col items-start flex-grow justify-between">
-                        <p className="text-xs text-muted-foreground truncate w-full h-8">{image.alt_text}</p>
+                        <p className="text-xs text-muted-foreground truncate w-full h-8">
+                          {image.alt_text}
+                        </p>
                         <div className="flex justify-between w-full items-center mt-1">
-                          <Checkbox id={`select-${image.id}`} checked={selectedImages.has(image.id)} onCheckedChange={() => handleSelectImage(image.id)} />
-                          <Button variant="ghost" size="sm" onClick={() => setEditingImage(image)}><Edit className="h-3 w-3 mr-1" /> Edit</Button>
+                          <Checkbox
+                            id={`select-${image.id}`}
+                            checked={selectedImages.has(image.id)}
+                            onCheckedChange={() => handleSelectImage(image.id)}
+                          />
+                          <Button variant="ghost" size="sm" onClick={() => setEditingImage(image)}>
+                            <Edit className="h-3 w-3 mr-1" /> Edit
+                          </Button>
                         </div>
                       </CardFooter>
                     </Card>
@@ -383,7 +362,9 @@ const ManageGallery = () => {
                 </div>
               </>
             ) : (
-              <p className="text-muted-foreground text-center py-8">No images found. Upload your first image to get started!</p>
+              <p className="text-muted-foreground text-center py-8">
+                No images found. Upload your first image to get started!
+              </p>
             )}
           </CardContent>
         </Card>
@@ -391,13 +372,34 @@ const ManageGallery = () => {
 
       <Dialog open={!!editingImage} onOpenChange={(isOpen) => !isOpen && setEditingImage(null)}>
         <DialogContent>
-          <DialogHeader><DialogTitle>Edit Alt Text</DialogTitle><DialogDescription>Write a descriptive alt text for this image. This helps with accessibility and SEO.</DialogDescription></DialogHeader>
+          <DialogHeader>
+            <DialogTitle>Edit Alt Text</DialogTitle>
+            <DialogDescription>
+              Write a descriptive alt text for this image. This helps with accessibility and SEO.
+            </DialogDescription>
+          </DialogHeader>
           <Form {...form}>
             <form onSubmit={form.handleSubmit(handleUpdateAltText)} className="space-y-4">
-              <FormField control={form.control} name="alt_text" render={({ field }) => (
-                <FormItem><FormLabel>Alt Text</FormLabel><FormControl><Textarea placeholder="e.g., A beautiful sunset over the mountains" {...field} /></FormControl><FormMessage /></FormItem>
-              )} />
-              <DialogFooter><Button type="button" variant="outline" onClick={() => setEditingImage(null)}>Cancel</Button><Button type="submit">Save Changes</Button></DialogFooter>
+              <FormField
+                control={form.control}
+                name="alt_text"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Alt Text</FormLabel>
+                    <FormControl>
+                      <Textarea
+                        placeholder="e.g., A beautiful sunset over the mountains"
+                        {...field}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <DialogFooter>
+                <Button type="button" variant="outline" onClick={() => setEditingImage(null)}>Cancel</Button>
+                <Button type="submit">Save Changes</Button>
+              </DialogFooter>
             </form>
           </Form>
         </DialogContent>

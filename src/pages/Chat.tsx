@@ -4,12 +4,12 @@ import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { sendMessageToGemini } from "@/integrations/gemini/client";
 import { showError } from "@/utils/toast";
 import { Bot, User, Send } from "lucide-react";
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { usePortfolioContext } from "@/hooks/usePortfolioContext";
-import { sendMessageToGemini } from "@/integrations/gemini/client";
 
 interface Message {
   role: 'user' | 'model';
@@ -20,9 +20,10 @@ const Chat = () => {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
-  const [isClientError, setIsClientError] = useState(false);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
   const { context, loading: contextLoading } = usePortfolioContext();
+
+  const GEMINI_API_KEY = import.meta.env.VITE_GEMINI_API_KEY;
 
   useEffect(() => {
     if (scrollAreaRef.current) {
@@ -82,7 +83,7 @@ User's question:
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!input.trim() || isLoading || contextLoading || isClientError) return;
+    if (!input.trim() || isLoading || contextLoading) return;
 
     const userMessage: Message = { role: 'user', text: input };
     setMessages(prev => [...prev, userMessage]);
@@ -93,24 +94,43 @@ User's question:
     try {
       const systemPrompt = formatContext();
       const fullPrompt = `${systemPrompt} ${currentInput}`;
-      
-      const responseText = await sendMessageToGemini(fullPrompt);
-
-      const modelMessage: Message = { role: 'model', text: responseText };
+      const response = await sendMessageToGemini(fullPrompt);
+      const modelMessage: Message = { role: 'model', text: response };
       setMessages(prev => [...prev, modelMessage]);
     } catch (error: any) {
-      console.error("Chat error:", error);
-      if (error.message.includes("VITE_GEMINI_API_KEY")) {
-        showError("Chatbot is not configured. An API key is missing.");
-        setIsClientError(true);
-      } else {
-        showError(error.message || "An error occurred while chatting.");
-      }
+      showError(error.message);
       setMessages(prev => prev.slice(0, -1)); // Remove user message on failure
     } finally {
       setIsLoading(false);
     }
   };
+
+  if (!GEMINI_API_KEY) {
+    return (
+      <Card className="w-full h-full flex flex-col border-0 rounded-none">
+        <CardHeader>
+          <CardTitle>Chatbot Configuration Needed</CardTitle>
+          <CardDescription>
+            To use the chatbot, you need to provide a Google Gemini API key.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="p-4 border-l-4 border-destructive bg-destructive/10 rounded-md">
+            <p className="font-semibold">API Key Missing</p>
+            <p className="text-sm text-muted-foreground mt-1">
+              Please create a <code>.env.local</code> file in your project's root directory and add the following line:
+            </p>
+            <pre className="mt-2 p-2 bg-background rounded-md text-sm">
+              <code>VITE_GEMINI_API_KEY="YOUR_API_KEY_HERE"</code>
+            </pre>
+            <p className="text-sm text-muted-foreground mt-2">
+              You can get a free API key from <a href="https://aistudio.google.com/" target="_blank" rel="noopener noreferrer" className="underline">Google AI Studio</a>. After adding the key, please restart the application.
+            </p>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
 
   return (
     <Card className="w-full h-full flex flex-col border-0 rounded-none">
@@ -158,14 +178,11 @@ User's question:
           <Input
             value={input}
             onChange={(e) => setInput(e.target.value)}
-            placeholder={
-              isClientError ? "Chatbot not configured." :
-              contextLoading ? "Learning about the portfolio..." : "Type your message..."
-            }
-            disabled={isLoading || contextLoading || isClientError}
+            placeholder={contextLoading ? "Learning about the portfolio..." : "Type your message..."}
+            disabled={isLoading || contextLoading}
             autoComplete="off"
           />
-          <Button type="submit" disabled={isLoading || !input.trim() || contextLoading || isClientError}>
+          <Button type="submit" disabled={isLoading || !input.trim() || contextLoading}>
             <Send className="h-4 w-4" />
           </Button>
         </form>
