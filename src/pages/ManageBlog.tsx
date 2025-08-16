@@ -206,7 +206,11 @@ const ManageBlog = () => {
       const title = item.querySelector("title")?.textContent || "";
       const pubDate = item.querySelector("pubDate")?.textContent || new Date().toISOString();
       const description = item.querySelector("description")?.textContent || "";
-      const contentHtml = item.getElementsByTagNameNS("*", "encoded")[0]?.textContent || "";
+      let contentHtml = item.getElementsByTagNameNS("*", "encoded")[0]?.textContent || "";
+      
+      // Strip WordPress-specific comment tags
+      contentHtml = contentHtml.replace(/<!--more-->/g, '').replace(/<!--nextpage-->/g, '');
+
       const content = turndownService.turndown(contentHtml);
       const tags: string[] | null = null;
       const cover_image_id: string | null = null;
@@ -242,7 +246,7 @@ const ManageBlog = () => {
 
     if (match) {
       const frontmatterContent = match[1];
-      content = match[2].trim();
+      content = match[2]; // Removed .trim() to preserve leading/trailing whitespace, including newlines
 
       frontmatterContent.split('\n').forEach(line => {
         const parts = line.split(':');
