@@ -272,6 +272,9 @@ const ManageBlog = () => {
       description = fullContent.substring(0, 150) + (fullContent.length > 150 ? '...' : '');
     }
     
+    // Remove the <!--more--> tag from the content
+    content = content.replace(/<!--more-->/g, '');
+
     return {
       title,
       description,
