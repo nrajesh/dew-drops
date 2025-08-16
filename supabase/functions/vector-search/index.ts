@@ -1,0 +1,63 @@
+// @ts-nocheck
+import { serve } from "https://deno.land/std@0.190.0/http/server.ts"
+import { pipeline, RawImage } from 'https://esm.sh/@xenova/transformers@2.17.1'
+
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+}
+
+// Use a class to ensure the model is loaded only once per function instance.
+class FeatureExtractionPipeline {
+  static task = 'feature-extraction';
+  static model = 'Xenova/clip-vit-base-patch32';
+  static instance = null;
+
+  static async getInstance(progress_callback = null) {
+    if (this.instance === null) {
+      this.instance = pipeline(this.task, this.model, { progress_callback });
+    }
+    return this.instance;
+  }
+}
+
+serve(async (req) => {
+  if (req.method === 'OPTIONS') {
+    return new Response(null, { headers: corsHeaders })
+  }
+
+  try {
+    const { type, content } = await req.json()
+
+    if (!type || !content) {
+      throw new Error('Missing "type" or "content" in request body.');
+    }
+
+    const extractor = await FeatureExtractionPipeline.getInstance();
+    let embedding;
+
+    if (type === 'image') {
+      // Image embedding from URL
+      const image = await RawImage.fromURL(content);
+      const output = await extractor(image, { pooling: 'mean', normalize: true });
+      embedding = Array.from(output.data);
+    } else if (type === 'text') {
+      // Text embedding from string
+      const output = await extractor(content, { pooling: 'mean', normalize: true });
+      embedding = Array.from(output.data);
+    } else {
+      throw new Error('Invalid "type" specified. Must be "image" or "text".');
+    }
+
+    return new Response(JSON.stringify({ embedding }), {
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      status: 200,
+    })
+  } catch (error) {
+    console.error('Function Error:', error)
+    return new Response(JSON.stringify({ error: error.message }), {
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      status: 500,
+    })
+  }
+})

@@ -34,6 +34,7 @@ export interface GalleryImage {
   created_at: string;
   user_id: string | null;
   exif_data: Record<string, any> | null;
+  embedding?: number[]; // Optional embedding vector
 }
 
 export interface Video {
