@@ -251,11 +251,18 @@ const ManageBlog = () => {
         }
       }
 
+      // De-duplicate allNewPosts by title (case-insensitive), keeping the last one found.
+      const uniqueNewPostsMap = new Map<string, NewPost>();
+      for (const post of allNewPosts) {
+        uniqueNewPostsMap.set(post.title.toLowerCase(), post);
+      }
+      const uniqueNewPosts = Array.from(uniqueNewPostsMap.values());
+
       const existingPostsMap = new Map(posts.map(p => [p.title.toLowerCase(), p]));
       const newPostsToInsert: NewPost[] = [];
       const potentialUpdates: { existingId: string; existingTitle: string; newData: NewPost }[] = [];
 
-      for (const newPost of allNewPosts) {
+      for (const newPost of uniqueNewPosts) {
         const existingPost = existingPostsMap.get(newPost.title.toLowerCase());
         if (existingPost) {
           potentialUpdates.push({
