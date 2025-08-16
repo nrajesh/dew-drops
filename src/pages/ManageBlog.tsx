@@ -36,7 +36,7 @@ const ManageBlog = () => {
   }, []);
 
   const fetchPosts = async () => {
-    const { data, error } = await supabase.from("posts").select("*").order("created_at", { ascending: false });
+    const { data, error } = await supabase.from("posts").select("*").order("published_at", { ascending: false });
     if (error) {
       showError("Failed to fetch posts.");
       console.error(error);
