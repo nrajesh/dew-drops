@@ -67,6 +67,7 @@ const Gallery = () => {
     totalPages,
     onPageChange: setCurrentPage,
     targetRef: containerRef,
+    enabled: selectedImageIndex === null,
   });
 
   useEffect(() => {

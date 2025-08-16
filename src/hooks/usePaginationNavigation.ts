@@ -5,11 +5,13 @@ interface UsePaginationNavigationProps {
   totalPages: number;
   onPageChange: (page: number) => void;
   targetRef: React.RefObject<HTMLElement>;
+  enabled?: boolean;
 }
 
-export const usePaginationNavigation = ({ currentPage, totalPages, onPageChange, targetRef }: UsePaginationNavigationProps) => {
+export const usePaginationNavigation = ({ currentPage, totalPages, onPageChange, targetRef, enabled = true }: UsePaginationNavigationProps) => {
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
+      if (!enabled) return;
       if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
       if (e.key === 'ArrowLeft' && currentPage > 1) {
         onPageChange(currentPage - 1);
@@ -20,7 +22,7 @@ export const usePaginationNavigation = ({ currentPage, totalPages, onPageChange,
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [currentPage, totalPages, onPageChange]);
+  }, [currentPage, totalPages, onPageChange, enabled]);
 
   const [touchStart, setTouchStart] = useState<number | null>(null);
   const [touchEnd, setTouchEnd] = useState<number | null>(null);
@@ -28,7 +30,7 @@ export const usePaginationNavigation = ({ currentPage, totalPages, onPageChange,
 
   useEffect(() => {
     const targetElement = targetRef.current;
-    if (!targetElement) return;
+    if (!targetElement || !enabled) return;
 
     const onTouchStart = (e: TouchEvent) => {
       setTouchEnd(null);
@@ -61,5 +63,5 @@ export const usePaginationNavigation = ({ currentPage, totalPages, onPageChange,
         targetElement.removeEventListener('touchend', onTouchEnd);
       }
     };
-  }, [touchStart, touchEnd, targetRef, currentPage, totalPages, onPageChange]);
+  }, [touchStart, touchEnd, targetRef, currentPage, totalPages, onPageChange, enabled]);
 };

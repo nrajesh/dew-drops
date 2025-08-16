@@ -71,10 +71,12 @@ const Travel = () => {
   }, []);
 
   const filteredLocations = useMemo(() => {
+    const lowercasedTerm = debouncedSearchTerm.toLowerCase();
     return allLocations.filter(loc => 
-      !debouncedSearchTerm || 
-      loc.title.toLowerCase().includes(debouncedSearchTerm.toLowerCase()) ||
-      loc.name.toLowerCase().includes(debouncedSearchTerm.toLowerCase())
+      !lowercasedTerm || 
+      loc.title.toLowerCase().includes(lowercasedTerm) ||
+      loc.name.toLowerCase().includes(lowercasedTerm) ||
+      (loc.description && loc.description.toLowerCase().includes(lowercasedTerm))
     );
   }, [allLocations, debouncedSearchTerm]);
 
