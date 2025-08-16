@@ -359,7 +359,8 @@ published: ${post.published}${tagsString}${coverImageIdString}${youtubeVideoIdSt
 
 `;
             const markdownContent = frontmatter + (post.content || '');
-            const fileName = sanitizeFileName(post.title).replace(/\.[^/.]+$/, "") + ".md";
+            const sanitizedTitle = sanitizeFileName(post.title).replace(/\.[^/.]+$/, "");
+            const fileName = (sanitizedTitle.trim().length > 0 ? sanitizedTitle : post.id) + ".md";
             zip.file(fileName, markdownContent);
         });
 
