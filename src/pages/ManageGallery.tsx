@@ -232,23 +232,55 @@ const ManageGallery = () => {
 
   const handleBackfillEmbeddings = async () => {
     setIsBackfilling(true);
-    const { data, error } = await supabase.from('gallery_images').select('id, image_url').is('embedding', null);
-    if (error) {
-      showError('Failed to fetch images for processing.');
-      setIsBackfilling(false);
-      return;
+
+    let imagesToProcess: { id: string; image_url: string }[] = [];
+    let processMode: 'selected' | 'missing' = 'missing';
+
+    if (selectedImages.size > 0) {
+      processMode = 'selected';
+      const selectedIds = Array.from(selectedImages);
+      const { data, error } = await supabase
+        .from('gallery_images')
+        .select('id, image_url')
+        .in('id', selectedIds);
+      
+      if (error) {
+        showError('Failed to fetch selected images for processing.');
+        console.error(error);
+        setIsBackfilling(false);
+        return;
+      }
+      imagesToProcess = data;
+    } else {
+      processMode = 'missing';
+      const { data, error } = await supabase
+        .from('gallery_images')
+        .select('id, image_url')
+        .is('embedding', null);
+
+      if (error) {
+        showError('Failed to fetch images with missing embeddings.');
+        console.error(error);
+        setIsBackfilling(false);
+        return;
+      }
+      imagesToProcess = data;
     }
-    if (data.length === 0) {
-      showSuccess('All images already have embeddings.');
+
+    if (imagesToProcess.length === 0) {
+      const message = processMode === 'selected' 
+        ? 'No images were selected for processing.' 
+        : 'All images already have embeddings.';
+      showSuccess(message);
       setIsBackfilling(false);
       return;
     }
 
-    const toastId = showLoading(`Processing ${data.length} images... (0/${data.length})`);
+    const toastId = showLoading(`Processing ${imagesToProcess.length} images... (0/${imagesToProcess.length})`);
     let successCount = 0;
     let failCount = 0;
 
-    for (const [index, image] of data.entries()) {
+    for (const [index, image] of imagesToProcess.entries()) {
       try {
         const { data: embeddingData, error: embeddingError } = await supabase.functions.invoke('vector-search', {
           body: { type: 'image', content: image.image_url },
@@ -263,7 +295,7 @@ const ManageGallery = () => {
         console.error(`Failed to process image ${image.id}:`, err);
         failCount++;
       }
-      toast.loading(`Processing ${data.length} images... (${index + 1}/${data.length})`, { id: toastId });
+      toast.loading(`Processing ${imagesToProcess.length} images... (${index + 1}/${imagesToProcess.length})`, { id: toastId });
     }
 
     dismissToast(toastId);
@@ -273,6 +305,7 @@ const ManageGallery = () => {
       showSuccess(`Successfully generated embeddings for ${successCount} images!`);
     }
     setIsBackfilling(false);
+    setSelectedImages(new Set());
   };
 
   return (
@@ -295,12 +328,14 @@ const ManageGallery = () => {
           <CardHeader className="flex flex-row items-start justify-between">
             <div>
               <CardTitle>Manage Gallery</CardTitle>
-              <CardDescription>View, edit, and delete your uploaded images. You can also generate embeddings for existing images.</CardDescription>
+              <CardDescription>View, edit, and delete images. You can also generate embeddings for selected images, or for all images that are missing them.</CardDescription>
             </div>
             <div className="flex items-center gap-2">
               <Button variant="outline" onClick={handleBackfillEmbeddings} disabled={isBackfilling}>
                 <BrainCircuit className="h-4 w-4 mr-2" />
-                {isBackfilling ? 'Processing...' : 'Generate Missing Embeddings'}
+                {isBackfilling ? 'Processing...' : 
+                  selectedImages.size > 0 ? `Generate Embeddings (${selectedImages.size})` : 'Generate Missing Embeddings'
+                }
               </Button>
               {selectedImages.size > 0 && (
                 <AlertDialog>
