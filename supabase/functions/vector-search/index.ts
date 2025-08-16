@@ -1,10 +1,9 @@
 // @ts-nocheck
-import { serve } from "https://deno.land/std@0.190.0/http/server.ts"
-import { pipeline, RawImage } from 'https://esm.sh/@xenova/transformers@2.16.1'
+import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
+import { pipeline, RawImage } from 'https://esm.sh/@xenova/transformers@2.11.0'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Methods': 'POST, OPTIONS',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
@@ -22,12 +21,13 @@ class FeatureExtractionPipeline {
 }
 
 serve(async (req) => {
+  // This is needed for CORS and preflight requests
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders })
   }
 
   try {
-    const { type, content } = await req.json();
+    const { type, content } = await req.json()
 
     if (!type || !content) {
       throw new Error('Missing "type" or "content" in request body.');
@@ -50,16 +50,12 @@ serve(async (req) => {
     return new Response(JSON.stringify({ embedding }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       status: 200,
-    });
+    })
   } catch (error) {
-    console.error('Function Error:', error);
-    const errorMessage = {
-      message: error.message,
-      stack: error.stack,
-    };
-    return new Response(JSON.stringify({ error: errorMessage }), {
+    console.error('Function Error:', error)
+    return new Response(JSON.stringify({ error: error.message }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       status: 500,
-    });
+    })
   }
-});
+})
