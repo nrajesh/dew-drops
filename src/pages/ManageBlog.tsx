@@ -114,6 +114,7 @@ const ManageBlog = () => {
       const pubDate = item.querySelector("pubDate")?.textContent || new Date().toISOString();
       const description = item.querySelector("description")?.textContent || "";
       let contentHtml = item.getElementsByTagNameNS("*", "encoded")[0]?.textContent || "";
+      const status = item.querySelector("status, \\:status")?.textContent || 'draft';
       
       contentHtml = contentHtml.replace(/<!--\s*(more|nextpage)\s*-->/gi, '');
 
@@ -128,6 +129,7 @@ const ManageBlog = () => {
           description,
           content,
           published_at: new Date(pubDate).toISOString(),
+          published: status === 'publish',
           tags,
           cover_image_id,
           youtube_video_id,
@@ -142,6 +144,7 @@ const ManageBlog = () => {
     let title = file.name.replace(/\.md$/, '');
     let description = '';
     let published_at = new Date().toISOString();
+    let published = false; // Default to unpublished
     let content = fullContent;
     let tags: string[] | null = null;
     let cover_image_id: string | null = null;
@@ -177,19 +180,18 @@ const ManageBlog = () => {
               const dateOnlyRegex = /^\d{4}-\d{2}-\d{2}$/;
 
               if (dateOnlyRegex.test(trimmedValue)) {
-                // For date-only strings (YYYY-MM-DD), we must parse them as UTC
-                // to prevent the browser's timezone from shifting the date.
                 const parts = trimmedValue.split('-').map(p => parseInt(p, 10));
-                // Month is 0-indexed in JavaScript's Date constructor.
                 const utcDate = new Date(Date.UTC(parts[0], parts[1] - 1, parts[2]));
                 published_at = utcDate.toISOString();
               } else {
-                // For other formats (e.g., full ISO strings), attempt to parse directly.
                 const parsedDate = new Date(trimmedValue);
                 if (!isNaN(parsedDate.getTime())) {
                   published_at = parsedDate.toISOString();
                 }
               }
+              break;
+            case 'published':
+              published = value === 'true';
               break;
             case 'tags':
               let rawTags = value;
@@ -213,7 +215,7 @@ const ManageBlog = () => {
     
     content = content.trim().replace(/<!--\s*(more|nextpage)\s*-->/gi, '');
 
-    return { title, description, content, published_at, tags, cover_image_id, youtube_video_id };
+    return { title, description, content, published_at, published, tags, cover_image_id, youtube_video_id };
   };
 
   const processUploads = async (inserts: NewPost[], updates: { existingId: string; newData: NewPost }[]) => {
@@ -225,7 +227,7 @@ const ManageBlog = () => {
     try {
       const insertPromises = [];
       if (inserts.length > 0) {
-        const insertsWithUserId = inserts.map(p => ({ ...p, user_id: user.id }));
+        const insertsWithUserId = inserts.map(p => ({ ...p, user_id: user.id, published: false })); // Always import as draft
         insertPromises.push(supabase.from("posts").insert(insertsWithUserId));
       }
 
@@ -291,7 +293,6 @@ const ManageBlog = () => {
         }
       }
 
-      // De-duplicate allNewPosts by title (case-insensitive), keeping the last one found.
       const uniqueNewPostsMap = new Map<string, NewPost>();
       for (const post of allNewPosts) {
         uniqueNewPostsMap.set(post.title.toLowerCase(), post);
@@ -352,7 +353,8 @@ const ManageBlog = () => {
             const frontmatter = `---
 title: "${post.title.replace(/"/g, '\\"')}"
 description: "${(post.description || '').replace(/"/g, '\\"')}"
-published_at: ${post.published_at ? new Date(post.published_at).toISOString().split('T')[0] : ''}${tagsString}${coverImageIdString}${youtubeVideoIdString}
+published_at: ${post.published_at ? new Date(post.published_at).toISOString().split('T')[0] : ''}
+published: ${post.published}${tagsString}${coverImageIdString}${youtubeVideoIdString}
 ---
 
 `;
@@ -405,6 +407,24 @@ published_at: ${post.published_at ? new Date(post.published_at).toISOString().sp
     }
   };
 
+  const handleBulkStatusChange = async (published: boolean) => {
+    const status = published ? "published" : "unpublished";
+    const toastId = showLoading(`Setting ${selectedPosts.size} posts to ${status}...`);
+    const { error } = await supabase
+      .from("posts")
+      .update({ published })
+      .in("id", Array.from(selectedPosts));
+
+    dismissToast(toastId);
+    if (error) {
+      showError(`Failed to update status: ${error.message}`);
+    } else {
+      showSuccess(`Posts marked as ${status}.`);
+      fetchPosts();
+      setSelectedPosts(new Set());
+    }
+  };
+
   return (
     <div className="space-y-8">
       <BulkImport 
@@ -430,6 +450,7 @@ published_at: ${post.published_at ? new Date(post.published_at).toISOString().sp
           onDelete={handleBulkDelete}
           onDownload={handleBulkDownload}
           onBulkTagUpdate={handleBulkTagUpdate}
+          onBulkStatusChange={handleBulkStatusChange}
           uniqueTags={uniqueTags}
         />
       </div>

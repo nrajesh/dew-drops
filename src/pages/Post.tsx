@@ -67,6 +67,7 @@ const Post = () => {
       const { data: allPosts, error: allPostsError } = await supabase
         .from('posts')
         .select('id, title, published_at')
+        .eq('published', true)
         .order('published_at', { ascending: false });
 
       if (allPostsError) {

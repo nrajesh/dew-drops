@@ -16,7 +16,7 @@ const Blog = () => {
   // Effect to fetch all unique tags once on component mount
   useEffect(() => {
     const fetchAllTags = async () => {
-      const { data, error } = await supabase.from('posts').select('tags');
+      const { data, error } = await supabase.from('posts').select('tags').eq('published', true);
       if (error) {
         console.error("Error fetching tags:", error);
       } else {
@@ -36,7 +36,11 @@ const Blog = () => {
   useEffect(() => {
     const fetchPosts = async () => {
       setLoading(true);
-      let query = supabase.from("posts").select("*").order("published_at", { ascending: false });
+      let query = supabase
+        .from("posts")
+        .select("*")
+        .eq('published', true)
+        .order("published_at", { ascending: false });
 
       if (selectedTags.length > 0) {
         query = query.overlaps("tags", selectedTags);

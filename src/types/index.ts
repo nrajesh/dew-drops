@@ -9,6 +9,7 @@ export interface Post {
   tags: string[] | null;
   cover_image_id: string | null;
   youtube_video_id: string | null;
+  published: boolean;
 }
 
 export interface TravelLocation {

@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Trash2, Edit, Download, Tag } from "lucide-react";
+import { Trash2, Edit, Download, Tag, MoreHorizontal } from "lucide-react";
 import type { Post } from "@/types";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
@@ -17,6 +17,8 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { MultiSelectPopover } from "@/components/MultiSelectPopover";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { cn } from "@/lib/utils";
 
 interface PostListProps {
   posts: Post[];
@@ -27,10 +29,11 @@ interface PostListProps {
   onDelete: () => void;
   onDownload: () => void;
   onBulkTagUpdate: (tags: string[]) => void;
+  onBulkStatusChange: (published: boolean) => void;
   uniqueTags: string[];
 }
 
-export const PostList = ({ posts, selectedPosts, onSelectPost, onSelectAll, onEdit, onDelete, onDownload, onBulkTagUpdate, uniqueTags }: PostListProps) => {
+export const PostList = ({ posts, selectedPosts, onSelectPost, onSelectAll, onEdit, onDelete, onDownload, onBulkTagUpdate, onBulkStatusChange, uniqueTags }: PostListProps) => {
   const [isTagDialogOpen, setIsTagDialogOpen] = useState(false);
   const [bulkEditTags, setBulkEditTags] = useState<string[]>([]);
 
@@ -60,6 +63,15 @@ export const PostList = ({ posts, selectedPosts, onSelectPost, onSelectAll, onEd
                   <Tag className="h-4 w-4 mr-2" />
                   Edit Tags
                 </Button>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="outline" size="sm">Actions <MoreHorizontal className="ml-2 h-4 w-4" /></Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent>
+                    <DropdownMenuItem onClick={() => onBulkStatusChange(true)}>Publish Selected</DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => onBulkStatusChange(false)}>Unpublish Selected</DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
                 <Button variant="outline" size="sm" onClick={onDownload}>
                   <Download className="h-4 w-4 mr-2" />
                   Download ({selectedPosts.size})
@@ -94,6 +106,10 @@ export const PostList = ({ posts, selectedPosts, onSelectPost, onSelectAll, onEd
                 <div key={post.id} className="flex items-center justify-between p-2 rounded-lg border">
                   <div className="flex items-center gap-3">
                     <Checkbox id={`select-${post.id}`} checked={selectedPosts.has(post.id)} onCheckedChange={() => onSelectPost(post.id)} />
+                    <span
+                      className={cn("h-2 w-2 rounded-full", post.published ? "bg-green-500" : "bg-gray-400")}
+                      title={post.published ? "Published" : "Unpublished"}
+                    />
                     <label htmlFor={`select-${post.id}`} className="font-medium truncate pr-2 cursor-pointer">{post.title}</label>
                   </div>
                   <div className="flex items-center gap-2 shrink-0">
