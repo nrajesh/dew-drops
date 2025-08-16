@@ -720,11 +720,28 @@ const ManageTravel = () => {
                     The following locations already exist. Select the ones you want to update with the data from your CSV file. Unselected locations will be skipped.
                 </DialogDescription>
             </DialogHeader>
+            <div className="flex items-center space-x-2 border-b pb-2">
+                <Checkbox
+                    id="select-all-updates-travel"
+                    checked={locationsToUpdate.length > 0 && selectedUpdates.size === locationsToUpdate.length}
+                    onCheckedChange={(checked) => {
+                        if (checked) {
+                            setSelectedUpdates(new Set(locationsToUpdate.map(l => l.existingId)));
+                        } else {
+                            setSelectedUpdates(new Set());
+                        }
+                    }}
+                />
+                <label htmlFor="select-all-updates-travel" className="text-sm font-medium leading-none">
+                    Select All
+                </label>
+            </div>
             <div className="max-h-60 overflow-y-auto space-y-2 p-1">
                 {locationsToUpdate.map(item => (
                     <div key={item.existingId} className="flex items-center space-x-2 p-2 border rounded-md">
                         <Checkbox
                             id={`update-${item.existingId}`}
+                            checked={selectedUpdates.has(item.existingId)}
                             onCheckedChange={(checked) => {
                                 const newSelection = new Set(selectedUpdates);
                                 if (checked) {

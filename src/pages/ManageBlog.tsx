@@ -634,11 +634,28 @@ published_at: ${post.published_at ? new Date(post.published_at).toISOString().sp
               The following posts already exist. Select the ones you want to update with the data from your file(s). Unselected posts will be skipped.
             </DialogDescription>
           </DialogHeader>
+          <div className="flex items-center space-x-2 border-b pb-2">
+            <Checkbox
+              id="select-all-updates"
+              checked={postsToUpdate.length > 0 && selectedUpdates.size === postsToUpdate.length}
+              onCheckedChange={(checked) => {
+                if (checked) {
+                  setSelectedUpdates(new Set(postsToUpdate.map(p => p.existingId)));
+                } else {
+                  setSelectedUpdates(new Set());
+                }
+              }}
+            />
+            <label htmlFor="select-all-updates" className="text-sm font-medium leading-none">
+              Select All
+            </label>
+          </div>
           <div className="max-h-60 overflow-y-auto space-y-2 p-1">
             {postsToUpdate.map(item => (
               <div key={item.existingId} className="flex items-center space-x-2 p-2 border rounded-md">
                 <Checkbox
                   id={`update-${item.existingId}`}
+                  checked={selectedUpdates.has(item.existingId)}
                   onCheckedChange={(checked) => {
                     const newSelection = new Set(selectedUpdates);
                     if (checked) {
