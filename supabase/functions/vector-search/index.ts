@@ -15,8 +15,8 @@ class FeatureExtractionPipeline {
 
   static async getInstance(progress_callback = null) {
     if (this.instance === null) {
-      // The pipeline function returns a promise, so we need to await it.
-      this.instance = await pipeline(this.task, this.model, { progress_callback });
+      // Using a quantized model is crucial for performance in a serverless environment.
+      this.instance = await pipeline(this.task, this.model, { quantized: true, progress_callback });
     }
     return this.instance;
   }
