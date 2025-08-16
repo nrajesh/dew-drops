@@ -1,13 +1,12 @@
 // @ts-nocheck
-import { serve } from "https://deno.land/std@0.224.0/http/server.ts"
-import { pipeline, RawImage } from 'https://cdn.jsdelivr.net/npm/@xenova/transformers@2.17.1'
+import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
+import { pipeline, RawImage } from 'https://esm.sh/@xenova/transformers@2.16.1'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
-// Use a class to ensure the model is loaded only once per function instance.
 class FeatureExtractionPipeline {
   static task = 'feature-extraction';
   static model = 'Xenova/clip-vit-base-patch32';
@@ -15,7 +14,6 @@ class FeatureExtractionPipeline {
 
   static async getInstance(progress_callback = null) {
     if (this.instance === null) {
-      // Using a quantized model is crucial for performance in a serverless environment.
       this.instance = await pipeline(this.task, this.model, { quantized: true, progress_callback });
     }
     return this.instance;
@@ -23,7 +21,6 @@ class FeatureExtractionPipeline {
 }
 
 serve(async (req) => {
-  // Immediately handle OPTIONS request to prevent downstream errors during preflight.
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders, status: 200 });
   }
@@ -55,7 +52,11 @@ serve(async (req) => {
     });
   } catch (error) {
     console.error('Function Error:', error);
-    return new Response(JSON.stringify({ error: error.message }), {
+    const errorMessage = {
+      message: error.message,
+      stack: error.stack,
+    };
+    return new Response(JSON.stringify({ error: errorMessage }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       status: 500,
     });
