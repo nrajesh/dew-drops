@@ -152,19 +152,45 @@ const ManageBlog = () => {
 
     if (match) {
       const frontmatterContent = match[1];
-      content = match[2];
+      content = match[2].trim();
 
       frontmatterContent.split('\n').forEach(line => {
-        const parts = line.split(':');
-        if (parts.length >= 2) {
-          const key = parts[0].trim();
-          const value = parts.slice(1).join(':').trim().replace(/^"|"$/g, '').replace(/\\"/g, '"'); 
-          if (key === 'title') title = value;
-          else if (key === 'description') description = value;
-          else if (key === 'published_at') published_at = value;
-          else if (key === 'tags') tags = value.split(',').map(tag => tag.trim()).filter(tag => tag.length > 0);
-          else if (key === 'cover_image_id') cover_image_id = value;
-          else if (key === 'youtube_video_id') youtube_video_id = value;
+        const colonIndex = line.indexOf(':');
+        if (colonIndex > -1) {
+          const key = line.slice(0, colonIndex).trim();
+          let value = line.slice(colonIndex + 1).trim();
+          
+          if ((value.startsWith('"') && value.endsWith('"')) || (value.startsWith("'") && value.endsWith("'"))) {
+            value = value.slice(1, -1);
+          }
+
+          switch (key) {
+            case 'title':
+              title = value;
+              break;
+            case 'description':
+              description = value;
+              break;
+            case 'published_at':
+            case 'date':
+              if (!isNaN(Date.parse(value))) {
+                published_at = new Date(value).toISOString();
+              }
+              break;
+            case 'tags':
+              if (value.startsWith('[') && value.endsWith(']')) {
+                tags = value.slice(1, -1).split(',').map(tag => tag.trim().replace(/^"|"$/g, '').replace(/^'|'$/g, '')).filter(Boolean);
+              } else {
+                tags = value.split(',').map(tag => tag.trim()).filter(Boolean);
+              }
+              break;
+            case 'cover_image_id':
+              cover_image_id = value;
+              break;
+            case 'youtube_video_id':
+              youtube_video_id = value;
+              break;
+          }
         }
       });
     } else {
