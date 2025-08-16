@@ -1,62 +1,15 @@
-import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
-import * as z from "zod";
-import { Button } from "@/components/ui/button";
-import {
-  Form,
-  FormControl,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from "@/components/ui/form";
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { showSuccess, showError, showLoading, dismissToast } from "@/utils/toast";
-import { useState, useEffect, useRef } from "react";
-import { Trash2, Edit, Upload, Download } from "lucide-react";
+import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import type { Post, GalleryImage } from "@/types";
-import { Checkbox } from "@/components/ui/checkbox";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from "@/components/ui/alert-dialog";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-  DialogFooter,
-} from "@/components/ui/dialog";
+import { showSuccess, showError, showLoading, dismissToast, updateToastSuccess, updateToastError } from "@/utils/toast";
 import TurndownService from "turndown";
 import JSZip from 'jszip';
 import { sanitizeFileName } from "@/lib/utils";
 import { useAuth } from "@/contexts/AuthContext";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { MultiSelectPopover } from "@/components/MultiSelectPopover";
-
-const postSchema = z.object({
-  title: z.string().min(3, { message: "Title must be at least 3 characters." }),
-  description: z.string().min(10, { message: "Description must be at least 10 characters." }),
-  content: z.string().min(20, { message: "Content must be at least 20 characters." }),
-  published_at: z.string().refine((val) => !isNaN(Date.parse(val)), { message: "Invalid date format." }),
-  tags: z.array(z.string()).optional(),
-  cover_image_id: z.preprocess(
-    (val) => (val === "--none--" || val === "" ? null : val),
-    z.string().uuid("Invalid image ID").nullable().optional()
-  ),
-  youtube_video_id: z.string().min(11, "YouTube ID must be 11 characters").max(11, "YouTube ID must be 11 characters").optional().or(z.literal('')).transform(val => val === '' ? null : val),
-});
+import { BlogForm, PostFormData } from "../components/blog/BlogForm";
+import { PostList } from "../components/blog/PostList";
+import { BulkImport } from "../components/blog/BulkImport";
+import { UpdatePostsDialog } from "../components/blog/UpdatePostsDialog";
 
 type NewPost = Omit<Post, 'id' | 'created_at' | 'user_id'>;
 
@@ -65,11 +18,10 @@ const ManageBlog = () => {
   const [posts, setPosts] = useState<Post[]>([]);
   const [galleryImages, setGalleryImages] = useState<GalleryImage[]>([]);
   const [uniqueTags, setUniqueTags] = useState<string[]>([]);
-  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editingPost, setEditingPost] = useState<Post | null>(null);
   const [selectedFiles, setSelectedFiles] = useState<FileList | null>(null);
   const [isUploading, setIsUploading] = useState(false);
   const [selectedPosts, setSelectedPosts] = useState<Set<string>>(new Set());
-  const fileInputRef = useRef<HTMLInputElement>(null);
   const turndownService = new TurndownService();
 
   // State for the update confirmation dialog
@@ -107,64 +59,32 @@ const ManageBlog = () => {
     }
   };
 
-  const form = useForm<z.infer<typeof postSchema>>({
-    resolver: zodResolver(postSchema),
-    defaultValues: {
-      title: "",
-      description: "",
-      content: "",
-      published_at: new Date().toISOString().split("T")[0],
-      tags: [],
-      cover_image_id: null,
-      youtube_video_id: "",
-    },
-  });
-
-  async function onSubmit(values: z.infer<typeof postSchema>) {
+  async function handleFormSubmit(values: PostFormData) {
     if (!user) {
       showError("You must be logged in to manage blog posts.");
       return;
     }
 
-    const toastId = showLoading(editingId ? "Updating post..." : "Adding new post...");
+    const toastId = showLoading(editingPost ? "Updating post..." : "Adding new post...");
     
     const postData = { 
-      title: values.title,
-      description: values.description,
-      content: values.content,
-      published_at: values.published_at,
+      ...values,
       user_id: user.id,
-      tags: values.tags,
-      cover_image_id: values.cover_image_id,
-      youtube_video_id: values.youtube_video_id,
     };
 
-    const { error } = editingId
-      ? await supabase.from("posts").update(postData).eq("id", editingId)
+    const { error } = editingPost
+      ? await supabase.from("posts").update(postData).eq("id", editingPost.id)
       : await supabase.from("posts").insert(postData);
 
     dismissToast(toastId);
     if (error) {
       showError(error.message);
     } else {
-      showSuccess(`Post ${editingId ? "updated" : "added"} successfully!`);
-      cancelEdit();
+      showSuccess(`Post ${editingPost ? "updated" : "added"} successfully!`);
+      setEditingPost(null);
       fetchPosts();
     }
   }
-
-  const handleEdit = (post: Post) => {
-    setEditingId(post.id);
-    form.reset({
-      title: post.title,
-      description: post.description || "",
-      content: post.content || "",
-      published_at: post.published_at ? post.published_at.split("T")[0] : new Date().toISOString().split("T")[0],
-      tags: post.tags || [],
-      cover_image_id: post.cover_image_id || null,
-      youtube_video_id: post.youtube_video_id || "",
-    });
-  };
 
   const handleBulkDelete = async () => {
     const toastId = showLoading(`Deleting ${selectedPosts.size} posts...`);
@@ -180,20 +100,7 @@ const ManageBlog = () => {
   };
   
   const cancelEdit = () => {
-    setEditingId(null);
-    form.reset({
-      title: "",
-      description: "",
-      content: "",
-      published_at: new Date().toISOString().split("T")[0],
-      tags: [],
-      cover_image_id: null,
-      youtube_video_id: "",
-    });
-  };
-
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setSelectedFiles(e.target.files);
+    setEditingPost(null);
   };
 
   const parseWordPressXml = async (xmlString: string): Promise<NewPost[]> => {
@@ -206,7 +113,10 @@ const ManageBlog = () => {
       const title = item.querySelector("title")?.textContent || "";
       const pubDate = item.querySelector("pubDate")?.textContent || new Date().toISOString();
       const description = item.querySelector("description")?.textContent || "";
-      const contentHtml = item.getElementsByTagNameNS("*", "encoded")[0]?.textContent || "";
+      let contentHtml = item.getElementsByTagNameNS("*", "encoded")[0]?.textContent || "";
+      
+      contentHtml = contentHtml.replace(/<!--\s*(more|nextpage)\s*-->/gi, '');
+
       const content = turndownService.turndown(contentHtml);
       const tags: string[] | null = null;
       const cover_image_id: string | null = null;
@@ -237,30 +147,63 @@ const ManageBlog = () => {
     let cover_image_id: string | null = null;
     let youtube_video_id: string | null = null;
 
-    const frontmatterRegex = /^---\n([\s\S]*?)\n---\n([\s\S]*)$/;
+    const frontmatterRegex = /^---\r?\n([\s\S]*?)\r?\n---\r?\n([\s\S]*)$/;
     const match = fullContent.match(frontmatterRegex);
 
     if (match) {
       const frontmatterContent = match[1];
-      content = match[2].trim();
+      content = match[2];
 
-      frontmatterContent.split('\n').forEach(line => {
-        const parts = line.split(':');
-        if (parts.length >= 2) {
-          const key = parts[0].trim();
-          const value = parts.slice(1).join(':').trim().replace(/^"|"$/g, '').replace(/\\"/g, '"'); 
-          if (key === 'title') {
-            title = value;
-          } else if (key === 'description') {
-            description = value;
-          } else if (key === 'published_at') {
-            published_at = value;
-          } else if (key === 'tags') {
-            tags = value.split(',').map(tag => tag.trim()).filter(tag => tag.length > 0);
-          } else if (key === 'cover_image_id') {
-            cover_image_id = value;
-          } else if (key === 'youtube_video_id') {
-            youtube_video_id = value;
+      frontmatterContent.split(/\r?\n/).forEach(line => {
+        const colonIndex = line.indexOf(':');
+        if (colonIndex > -1) {
+          const key = line.slice(0, colonIndex).trim();
+          let value = line.slice(colonIndex + 1).trim();
+          
+          if ((value.startsWith('"') && value.endsWith('"')) || (value.startsWith("'") && value.endsWith("'"))) {
+            value = value.slice(1, -1);
+          }
+
+          switch (key) {
+            case 'title':
+              title = value;
+              break;
+            case 'description':
+              description = value;
+              break;
+            case 'published_at':
+            case 'date':
+              const trimmedValue = value.trim();
+              const dateOnlyRegex = /^\d{4}-\d{2}-\d{2}$/;
+
+              if (dateOnlyRegex.test(trimmedValue)) {
+                // For date-only strings (YYYY-MM-DD), we must parse them as UTC
+                // to prevent the browser's timezone from shifting the date.
+                const parts = trimmedValue.split('-').map(p => parseInt(p, 10));
+                // Month is 0-indexed in JavaScript's Date constructor.
+                const utcDate = new Date(Date.UTC(parts[0], parts[1] - 1, parts[2]));
+                published_at = utcDate.toISOString();
+              } else {
+                // For other formats (e.g., full ISO strings), attempt to parse directly.
+                const parsedDate = new Date(trimmedValue);
+                if (!isNaN(parsedDate.getTime())) {
+                  published_at = parsedDate.toISOString();
+                }
+              }
+              break;
+            case 'tags':
+              let rawTags = value;
+              if (rawTags.startsWith('[') && rawTags.endsWith(']')) {
+                rawTags = rawTags.slice(1, -1);
+              }
+              tags = rawTags.split(',').map(tag => tag.trim().replace(/^['"]|['"]$/g, '')).filter(Boolean);
+              break;
+            case 'cover_image_id':
+              cover_image_id = value;
+              break;
+            case 'youtube_video_id':
+              youtube_video_id = value;
+              break;
           }
         }
       });
@@ -268,15 +211,9 @@ const ManageBlog = () => {
       description = fullContent.substring(0, 150) + (fullContent.length > 150 ? '...' : '');
     }
     
-    return {
-      title,
-      description,
-      content,
-      published_at,
-      tags,
-      cover_image_id,
-      youtube_video_id,
-    };
+    content = content.trim().replace(/<!--\s*(more|nextpage)\s*-->/gi, '');
+
+    return { title, description, content, published_at, tags, cover_image_id, youtube_video_id };
   };
 
   const processUploads = async (inserts: NewPost[], updates: { existingId: string; newData: NewPost }[]) => {
@@ -299,9 +236,7 @@ const ManageBlog = () => {
       const results = await Promise.all([...insertPromises, ...updatePromises]);
 
       for (const result of results) {
-        if (result.error) {
-          throw new Error(result.error.message);
-        }
+        if (result.error) throw new Error(result.error.message);
       }
 
       dismissToast(toastId);
@@ -356,11 +291,18 @@ const ManageBlog = () => {
         }
       }
 
+      // De-duplicate allNewPosts by title (case-insensitive), keeping the last one found.
+      const uniqueNewPostsMap = new Map<string, NewPost>();
+      for (const post of allNewPosts) {
+        uniqueNewPostsMap.set(post.title.toLowerCase(), post);
+      }
+      const uniqueNewPosts = Array.from(uniqueNewPostsMap.values());
+
       const existingPostsMap = new Map(posts.map(p => [p.title.toLowerCase(), p]));
       const newPostsToInsert: NewPost[] = [];
       const potentialUpdates: { existingId: string; existingTitle: string; newData: NewPost }[] = [];
 
-      for (const newPost of allNewPosts) {
+      for (const newPost of uniqueNewPosts) {
         const existingPost = existingPostsMap.get(newPost.title.toLowerCase());
         if (existingPost) {
           potentialUpdates.push({
@@ -393,7 +335,6 @@ const ManageBlog = () => {
     } finally {
       setIsUploading(false);
       setSelectedFiles(null);
-      if (fileInputRef.current) fileInputRef.current.value = "";
     }
   };
 
@@ -430,12 +371,10 @@ published_at: ${post.published_at ? new Date(post.published_at).toISOString().sp
         document.body.removeChild(link);
         URL.revokeObjectURL(link.href);
 
-        dismissToast(toastId);
-        showSuccess(`${postsToDownload.length} post(s) downloaded.`);
+        updateToastSuccess(toastId, `${postsToDownload.length} post(s) downloaded.`);
 
     } catch (error: any) {
-        dismissToast(toastId);
-        showError(`Download failed: ${error.message}`);
+        updateToastError(toastId, `Download failed: ${error.message}`);
     }
   };
 
@@ -451,214 +390,39 @@ published_at: ${post.published_at ? new Date(post.published_at).toISOString().sp
 
   return (
     <div className="space-y-8">
-      <Card>
-        <CardHeader>
-          <CardTitle>Bulk Import Posts</CardTitle>
-          <CardDescription>Upload WordPress XML export files or Markdown (.md) files to create new posts.</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="flex items-center gap-2">
-            <Input 
-              type="file" 
-              accept=".xml,.md,text/xml,text/markdown" 
-              multiple
-              onChange={handleFileChange} 
-              ref={fileInputRef}
-              className="flex-grow"
-            />
-            <Button onClick={handleUpload} disabled={!selectedFiles || isUploading}>
-              <Upload className="h-4 w-4 mr-2" />
-              {isUploading ? "Importing..." : "Import"}
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
+      <BulkImport 
+        onFileChange={setSelectedFiles}
+        onUpload={handleUpload}
+        isUploading={isUploading}
+        selectedFiles={selectedFiles}
+      />
       <div className="grid gap-8 md:grid-cols-2">
-        <Card>
-          <CardHeader>
-            <CardTitle>{editingId ? "Edit Post" : "Add New Post"}</CardTitle>
-            <CardDescription>
-              {editingId ? "Update the details for this blog post." : "Create a new article. You can use Markdown for the content."}
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <Form {...form}>
-              <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-                <FormField control={form.control} name="title" render={({ field }) => (
-                  <FormItem><FormLabel>Title</FormLabel><FormControl><Input placeholder="Your Post Title" {...field} /></FormControl><FormMessage /></FormItem>
-                )} />
-                <FormField control={form.control} name="published_at" render={({ field }) => (
-                  <FormItem><FormLabel>Publication Date</FormLabel><FormControl><Input type="date" {...field} /></FormControl><FormMessage /></FormItem>
-                )} />
-                <FormField control={form.control} name="description" render={({ field }) => (
-                  <FormItem><FormLabel>Description</FormLabel><FormControl><Textarea placeholder="A short summary of the post." {...field} /></FormControl><FormMessage /></FormItem>
-                )} />
-                <FormField
-                  control={form.control}
-                  name="tags"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Tags</FormLabel>
-                      <FormControl>
-                        <MultiSelectPopover
-                          suggestions={uniqueTags}
-                          value={field.value || []}
-                          onChange={field.onChange}
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={form.control}
-                  name="cover_image_id"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Cover Image (Optional)</FormLabel>
-                      <Select onValueChange={field.onChange} value={field.value || ""}>
-                        <FormControl>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select a gallery image" />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          <SelectItem value="--none--">No Cover Image</SelectItem>
-                          {galleryImages.map((image) => (
-                            <SelectItem key={image.id} value={image.id}>
-                              <div className="flex items-center gap-2">
-                                <img src={image.image_url} alt={image.alt_text || "Gallery image"} className="h-8 w-8 object-cover rounded-sm" />
-                                <span>{image.alt_text || `Image ${image.id.substring(0, 8)}`}</span>
-                              </div>
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      <FormMessage />
-                      {field.value && field.value !== '--none--' && (
-                        <div className="mt-2">
-                          <img 
-                            src={galleryImages.find(img => img.id === field.value)?.image_url || ""} 
-                            alt="Selected cover preview" 
-                            className="w-32 h-auto rounded-md border"
-                          />
-                        </div>
-                      )}
-                    </FormItem>
-                  )}
-                />
-                <FormField control={form.control} name="youtube_video_id" render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>YouTube Video ID (Optional)</FormLabel>
-                    <FormControl><Input placeholder="e.g., dQw4w9WgXcQ" {...field} value={field.value ?? ''} /></FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )} />
-                <FormField control={form.control} name="content" render={({ field }) => (
-                  <FormItem><FormLabel>Content (Markdown supported)</FormLabel><FormControl><Textarea placeholder="Write your full article here..." className="min-h-[200px]" {...field} /></FormControl><FormMessage /></FormItem>
-                )} />
-                <div className="flex gap-2">
-                  <Button type="submit">{editingId ? "Update Post" : "Add Post"}</Button>
-                  {editingId && <Button variant="outline" onClick={cancelEdit}>Cancel</Button>}
-                </div>
-              </form>
-            </Form>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader>
-            <div className="flex items-center justify-between">
-              <div>
-                <CardTitle>Post List</CardTitle>
-                <CardDescription>Your current list of blog posts.</CardDescription>
-              </div>
-              {selectedPosts.size > 0 && (
-                <div className="flex items-center gap-2">
-                  <Button variant="outline" size="sm" onClick={handleBulkDownload}>
-                    <Download className="h-4 w-4 mr-2" />
-                    Download ({selectedPosts.size})
-                  </Button>
-                  <AlertDialog>
-                    <AlertDialogTrigger asChild>
-                      <Button variant="destructive" size="sm"><Trash2 className="h-4 w-4 mr-2" />Delete ({selectedPosts.size})</Button>
-                    </AlertDialogTrigger>
-                    <AlertDialogContent>
-                      <AlertDialogHeader>
-                        <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
-                        <AlertDialogDescription>This will permanently delete {selectedPosts.size} selected posts.</AlertDialogDescription>
-                      </AlertDialogHeader>
-                      <AlertDialogFooter>
-                        <AlertDialogCancel onClick={() => setSelectedPosts(new Set())}>Cancel</AlertDialogCancel>
-                        <AlertDialogAction onClick={handleBulkDelete}>Continue</AlertDialogAction>
-                      </AlertDialogFooter>
-                    </AlertDialogContent>
-                  </AlertDialog>
-                </div>
-              )}
-            </div>
-          </CardHeader>
-          <CardContent>
-            <div className="flex items-center border-b pb-2 mb-2 space-x-3">
-              <Checkbox id="select-all" onCheckedChange={(checked) => handleSelectAll(Boolean(checked))} checked={posts.length > 0 && selectedPosts.size === posts.length} disabled={posts.length === 0} />
-              <label htmlFor="select-all" className="text-sm font-medium">Select All</label>
-            </div>
-            <div className="space-y-2 mt-4">
-              {posts.length > 0 ? (
-                posts.map((post) => (
-                  <div key={post.id} className="flex items-center justify-between p-2 rounded-lg border">
-                    <div className="flex items-center gap-3">
-                      <Checkbox id={`select-${post.id}`} checked={selectedPosts.has(post.id)} onCheckedChange={() => handleSelectPost(post.id)} />
-                      <label htmlFor={`select-${post.id}`} className="font-medium truncate pr-2 cursor-pointer">{post.title}</label>
-                    </div>
-                    <div className="flex items-center gap-2 shrink-0">
-                      <Button variant="ghost" size="icon" onClick={() => handleEdit(post)}><Edit className="h-4 w-4" /></Button>
-                    </div>
-                  </div>
-                ))
-              ) : (
-                <p className="text-muted-foreground text-center pt-4">No posts yet. Add one using the form!</p>
-              )}
-            </div>
-          </CardContent>
-        </Card>
+        <BlogForm 
+          editingPost={editingPost}
+          galleryImages={galleryImages}
+          uniqueTags={uniqueTags}
+          onSubmit={handleFormSubmit}
+          onCancel={cancelEdit}
+        />
+        <PostList 
+          posts={posts}
+          selectedPosts={selectedPosts}
+          onSelectPost={handleSelectPost}
+          onSelectAll={handleSelectAll}
+          onEdit={setEditingPost}
+          onDelete={handleBulkDelete}
+          onDownload={handleBulkDownload}
+        />
       </div>
-      <Dialog open={isUpdateDialogVisible} onOpenChange={setIsUpdateDialogVisible}>
-        <DialogContent className="max-w-md">
-          <DialogHeader>
-            <DialogTitle>Confirm Updates</DialogTitle>
-            <DialogDescription>
-              The following posts already exist. Select the ones you want to update with the data from your file(s). Unselected posts will be skipped.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="max-h-60 overflow-y-auto space-y-2 p-1">
-            {postsToUpdate.map(item => (
-              <div key={item.existingId} className="flex items-center space-x-2 p-2 border rounded-md">
-                <Checkbox
-                  id={`update-${item.existingId}`}
-                  onCheckedChange={(checked) => {
-                    const newSelection = new Set(selectedUpdates);
-                    if (checked) {
-                      newSelection.add(item.existingId);
-                    } else {
-                      newSelection.delete(item.existingId);
-                    }
-                    setSelectedUpdates(newSelection);
-                  }}
-                />
-                <label htmlFor={`update-${item.existingId}`} className="text-sm font-medium leading-none">
-                  Update "{item.existingTitle}"
-                </label>
-              </div>
-            ))}
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setIsUpdateDialogVisible(false)}>Cancel</Button>
-            <Button onClick={handleConfirmAndProcessUploads}>
-              Import ({postsToInsert.length}) & Update ({selectedUpdates.size})
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <UpdatePostsDialog 
+        isOpen={isUpdateDialogVisible}
+        onOpenChange={setIsUpdateDialogVisible}
+        postsToInsert={postsToInsert}
+        postsToUpdate={postsToUpdate}
+        selectedUpdates={selectedUpdates}
+        onSelectedUpdatesChange={setSelectedUpdates}
+        onConfirm={handleConfirmAndProcessUploads}
+      />
     </div>
   );
 };

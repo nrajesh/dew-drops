@@ -12,7 +12,7 @@ import {
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { showSuccess, showError, showLoading, dismissToast } from "@/utils/toast";
+import { showSuccess, showError, showLoading, dismissToast, updateToastSuccess, updateToastError } from "@/utils/toast";
 import { useState, useEffect, useRef } from "react";
 import { Trash2, Edit, Upload, Download } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
@@ -30,6 +30,14 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 
 const videoSchema = z.object({
   title: z.string().min(3, { message: "Title must be at least 3 characters." }),
@@ -44,6 +52,12 @@ const ManageVideos = () => {
   const [isUploading, setIsUploading] = useState(false);
   const [selectedVideos, setSelectedVideos] = useState<Set<string>>(new Set());
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // State for the update confirmation dialog
+  const [isUpdateDialogVisible, setIsUpdateDialogVisible] = useState(false);
+  const [videosToInsert, setVideosToInsert] = useState<any[]>([]);
+  const [videosToUpdate, setVideosToUpdate] = useState<{ existingId: string; existingTitle: string; newData: any }[]>([]);
+  const [selectedUpdates, setSelectedUpdates] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     fetchVideos();
@@ -149,13 +163,60 @@ const ManageVideos = () => {
     return data;
   };
 
+  const processUploads = async (inserts: any[], updates: { existingId: string; newData: any }[]) => {
+    if (!user) return;
+    const toastId = showLoading(`Processing import...`);
+    try {
+        const insertPromises = [];
+        if (inserts.length > 0) {
+            const insertsWithUserId = inserts.map(v => ({ ...v, user_id: user.id }));
+            insertPromises.push(supabase.from("videos").insert(insertsWithUserId));
+        }
+
+        const updatePromises = updates.map(u =>
+            supabase.from("videos").update({ ...u.newData, user_id: user.id }).eq('id', u.existingId)
+        );
+
+        const results = await Promise.all([...insertPromises, ...updatePromises]);
+
+        for (const result of results) {
+            if (result.error) throw new Error(result.error.message);
+        }
+
+        dismissToast(toastId);
+        if (inserts.length > 0 || updates.length > 0) {
+            showSuccess(`${inserts.length} new videos added, ${updates.length} videos updated.`);
+        }
+        fetchVideos();
+
+    } catch (error: any) {
+        dismissToast(toastId);
+        showError(`Import failed: ${error.message}`);
+    }
+  };
+
+  const handleConfirmAndProcessUploads = async () => {
+    setIsUpdateDialogVisible(false);
+    
+    const updatesToPerform = videosToUpdate.filter(u => selectedUpdates.has(u.existingId));
+    const skippedCount = videosToUpdate.length - updatesToPerform.length;
+
+    await processUploads(videosToInsert, updatesToPerform);
+
+    if (skippedCount > 0) {
+        showError(`${skippedCount} potential updates were skipped.`);
+    }
+    
+    setVideosToInsert([]);
+    setVideosToUpdate([]);
+    setSelectedUpdates(new Set());
+  };
+
   const handleBulkUpload = async () => {
     if (!uploadFile || !user) return;
 
     setIsUploading(true);
     const toastId = showLoading("Reading CSV file...");
-    let progressToastId: string | number | undefined;
-    let insertToastId: string | number | undefined;
 
     try {
       const fileContent = await uploadFile.text();
@@ -163,45 +224,47 @@ const ManageVideos = () => {
 
       if (parsedData.length === 0) throw new Error("No data rows found in CSV.");
 
-      dismissToast(toastId);
-      progressToastId = showLoading(`Processing ${parsedData.length} rows...`);
-
-      const existingIds = new Set(videos.map(v => v.youtube_id));
-      const videosToInsert = [];
-      let skippedCount = 0;
+      const existingVideosMap = new Map(videos.map(v => [v.youtube_id, v]));
+      const newVideosToInsert: any[] = [];
+      const potentialUpdates: { existingId: string; existingTitle: string; newData: any }[] = [];
 
       for (const row of parsedData) {
         if (!row.title || !row.youtube_id) continue;
-        if (existingIds.has(row.youtube_id)) {
-          skippedCount++;
-          continue;
+        
+        const videoData = {
+            title: row.title,
+            youtube_id: row.youtube_id,
+        };
+
+        const existingVideo = existingVideosMap.get(row.youtube_id);
+
+        if (existingVideo) {
+            potentialUpdates.push({
+                existingId: existingVideo.id,
+                existingTitle: existingVideo.title,
+                newData: videoData
+            });
+        } else {
+            newVideosToInsert.push(videoData);
         }
-
-        videosToInsert.push({
-          title: row.title,
-          youtube_id: row.youtube_id,
-          user_id: user.id,
-        });
-        existingIds.add(row.youtube_id);
       }
+      
+      dismissToast(toastId);
 
-      dismissToast(progressToastId);
+      setVideosToInsert(newVideosToInsert);
+      setVideosToUpdate(potentialUpdates);
 
-      if (videosToInsert.length > 0) {
-        insertToastId = showLoading(`Uploading ${videosToInsert.length} new videos...`);
-        const { error } = await supabase.from("videos").insert(videosToInsert);
-        dismissToast(insertToastId);
-        if (error) throw new Error(`Database insert failed: ${error.message}`);
-        fetchVideos();
+      if (potentialUpdates.length > 0) {
+          setSelectedUpdates(new Set());
+          setIsUpdateDialogVisible(true);
+      } else if (newVideosToInsert.length > 0) {
+          await processUploads(newVideosToInsert, []);
+      } else {
+          showSuccess("No new videos to import.");
       }
-
-      let summary = `${videosToInsert.length} videos uploaded. ${skippedCount} duplicates skipped.`;
-      showSuccess(summary);
 
     } catch (error: any) {
-      if (toastId) dismissToast(toastId);
-      if (progressToastId) dismissToast(progressToastId);
-      if (insertToastId) dismissToast(insertToastId);
+      dismissToast(toastId);
       showError(error.message);
     } finally {
       setIsUploading(false);
@@ -223,6 +286,50 @@ const ManageVideos = () => {
     } catch (error: any) {
       dismissToast(toastId);
       showError(error.message);
+    }
+  };
+
+  const handleBulkDownload = async () => {
+    const toastId = showLoading(`Preparing ${selectedVideos.size} video(s) for download...`);
+    try {
+        const videosToDownload = videos.filter(video => selectedVideos.has(video.id));
+
+        const headers = ["title", "youtube_id"];
+        
+        const escapeCsv = (val: any) => {
+            const str = String(val ?? '');
+            if (str.includes('"') || str.includes(';') || str.includes('\n') || str.includes(',')) {
+                return `"${str.replace(/"/g, '""')}"`;
+            }
+            return `"${str}"`;
+        };
+
+        const csvRows = videosToDownload.map(video => {
+            const rowData = [
+                video.title,
+                video.youtube_id,
+            ];
+            return rowData.map(escapeCsv).join(';');
+        });
+
+        const csvHeader = headers.map(h => `"${h}"`).join(';');
+        const csvContent = [csvHeader, ...csvRows].join('\r\n');
+
+        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+        const link = document.createElement("a");
+        const url = URL.createObjectURL(blob);
+        link.setAttribute("href", url);
+        link.setAttribute("download", "videos_export.csv");
+        link.style.visibility = 'hidden';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+
+        updateToastSuccess(toastId, `${videosToDownload.length} video(s) downloaded.`);
+
+    } catch (error: any) {
+        updateToastError(toastId, `Download failed: ${error.message}`);
     }
   };
 
@@ -307,21 +414,27 @@ const ManageVideos = () => {
                 <CardDescription>Your current list of videos.</CardDescription>
               </div>
               {selectedVideos.size > 0 && (
-                <AlertDialog>
-                  <AlertDialogTrigger asChild>
-                    <Button variant="destructive" size="sm"><Trash2 className="h-4 w-4 mr-2" />Delete ({selectedVideos.size})</Button>
-                  </AlertDialogTrigger>
-                  <AlertDialogContent>
-                    <AlertDialogHeader>
-                      <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
-                      <AlertDialogDescription>This will permanently delete {selectedVideos.size} selected videos.</AlertDialogDescription>
-                    </AlertDialogHeader>
-                    <AlertDialogFooter>
-                      <AlertDialogCancel onClick={() => setSelectedVideos(new Set())}>Cancel</AlertDialogCancel>
-                      <AlertDialogAction onClick={handleBulkDelete}>Continue</AlertDialogAction>
-                    </AlertDialogFooter>
-                  </AlertDialogContent>
-                </AlertDialog>
+                <div className="flex items-center gap-2">
+                  <Button variant="outline" size="sm" onClick={handleBulkDownload}>
+                    <Download className="h-4 w-4 mr-2" />
+                    Download ({selectedVideos.size})
+                  </Button>
+                  <AlertDialog>
+                    <AlertDialogTrigger asChild>
+                      <Button variant="destructive" size="sm"><Trash2 className="h-4 w-4 mr-2" />Delete ({selectedVideos.size})</Button>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent>
+                      <AlertDialogHeader>
+                        <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+                        <AlertDialogDescription>This will permanently delete {selectedVideos.size} selected videos.</AlertDialogDescription>
+                      </AlertDialogHeader>
+                      <AlertDialogFooter>
+                        <AlertDialogCancel onClick={() => setSelectedVideos(new Set())}>Cancel</AlertDialogCancel>
+                        <AlertDialogAction onClick={handleBulkDelete}>Continue</AlertDialogAction>
+                      </AlertDialogFooter>
+                    </AlertDialogContent>
+                  </AlertDialog>
+                </div>
               )}
             </div>
           </CardHeader>
@@ -350,6 +463,60 @@ const ManageVideos = () => {
           </CardContent>
         </Card>
       </div>
+      <Dialog open={isUpdateDialogVisible} onOpenChange={setIsUpdateDialogVisible}>
+        <DialogContent className="max-w-md">
+            <DialogHeader>
+                <DialogTitle>Confirm Updates</DialogTitle>
+                <DialogDescription>
+                    The following videos already exist (based on YouTube ID). Select the ones you want to update with the data from your CSV.
+                </DialogDescription>
+            </DialogHeader>
+            <div className="flex items-center space-x-2 border-b pb-2">
+                <Checkbox
+                    id="select-all-updates-videos"
+                    checked={videosToUpdate.length > 0 && selectedUpdates.size === videosToUpdate.length}
+                    onCheckedChange={(checked) => {
+                        if (checked) {
+                            setSelectedUpdates(new Set(videosToUpdate.map(v => v.existingId)));
+                        } else {
+                            setSelectedUpdates(new Set());
+                        }
+                    }}
+                />
+                <label htmlFor="select-all-updates-videos" className="text-sm font-medium leading-none">
+                    Select All
+                </label>
+            </div>
+            <div className="max-h-60 overflow-y-auto space-y-2 p-1">
+                {videosToUpdate.map(item => (
+                    <div key={item.existingId} className="flex items-center space-x-2 p-2 border rounded-md">
+                        <Checkbox
+                            id={`update-${item.existingId}`}
+                            checked={selectedUpdates.has(item.existingId)}
+                            onCheckedChange={(checked) => {
+                                const newSelection = new Set(selectedUpdates);
+                                if (checked) {
+                                    newSelection.add(item.existingId);
+                                } else {
+                                    newSelection.delete(item.existingId);
+                                }
+                                setSelectedUpdates(newSelection);
+                            }}
+                        />
+                        <label htmlFor={`update-${item.existingId}`} className="text-sm font-medium leading-none">
+                            Update "{item.existingTitle}"
+                        </label>
+                    </div>
+                ))}
+            </div>
+            <DialogFooter>
+                <Button variant="outline" onClick={() => setIsUpdateDialogVisible(false)}>Cancel</Button>
+                <Button onClick={handleConfirmAndProcessUploads}>
+                    Import ({videosToInsert.length}) & Update ({selectedUpdates.size})
+                </Button>
+            </DialogFooter>
+        </DialogContent>
+    </Dialog>
     </div>
   );
 };
