@@ -4,12 +4,12 @@ import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { supabase } from "@/integrations/supabase/client";
 import { showError } from "@/utils/toast";
 import { Bot, User, Send } from "lucide-react";
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { usePortfolioContext } from "@/hooks/usePortfolioContext";
+import { sendMessageToGemini } from "@/integrations/gemini/client";
 
 interface Message {
   role: 'user' | 'model';
@@ -20,6 +20,7 @@ const Chat = () => {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [isClientError, setIsClientError] = useState(false);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
   const { context, loading: contextLoading } = usePortfolioContext();
 
@@ -81,7 +82,7 @@ User's question:
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!input.trim() || isLoading || contextLoading) return;
+    if (!input.trim() || isLoading || contextLoading || isClientError) return;
 
     const userMessage: Message = { role: 'user', text: input };
     setMessages(prev => [...prev, userMessage]);
@@ -93,18 +94,18 @@ User's question:
       const systemPrompt = formatContext();
       const fullPrompt = `${systemPrompt} ${currentInput}`;
       
-      const { data, error } = await supabase.functions.invoke('gemini-chat', {
-        body: { prompt: fullPrompt },
-      });
+      const responseText = await sendMessageToGemini(fullPrompt);
 
-      if (error) throw error;
-      if (data.error) throw new Error(data.error);
-
-      const modelMessage: Message = { role: 'model', text: data.response };
+      const modelMessage: Message = { role: 'model', text: responseText };
       setMessages(prev => [...prev, modelMessage]);
     } catch (error: any) {
       console.error("Chat error:", error);
-      showError(error.message || "An error occurred while chatting.");
+      if (error.message.includes("VITE_GEMINI_API_KEY")) {
+        showError("Chatbot is not configured. An API key is missing.");
+        setIsClientError(true);
+      } else {
+        showError(error.message || "An error occurred while chatting.");
+      }
       setMessages(prev => prev.slice(0, -1)); // Remove user message on failure
     } finally {
       setIsLoading(false);
@@ -157,11 +158,14 @@ User's question:
           <Input
             value={input}
             onChange={(e) => setInput(e.target.value)}
-            placeholder={contextLoading ? "Learning about the portfolio..." : "Type your message..."}
-            disabled={isLoading || contextLoading}
+            placeholder={
+              isClientError ? "Chatbot not configured." :
+              contextLoading ? "Learning about the portfolio..." : "Type your message..."
+            }
+            disabled={isLoading || contextLoading || isClientError}
             autoComplete="off"
           />
-          <Button type="submit" disabled={isLoading || !input.trim() || contextLoading}>
+          <Button type="submit" disabled={isLoading || !input.trim() || contextLoading || isClientError}>
             <Send className="h-4 w-4" />
           </Button>
         </form>
