@@ -289,6 +289,52 @@ const ManageVideos = () => {
     }
   };
 
+  const handleBulkDownload = async () => {
+    const toastId = showLoading(`Preparing ${selectedVideos.size} video(s) for download...`);
+    try {
+        const videosToDownload = videos.filter(video => selectedVideos.has(video.id));
+
+        const headers = ["title", "youtube_id"];
+        
+        const escapeCsv = (val: any) => {
+            const str = String(val ?? '');
+            if (str.includes('"') || str.includes(';') || str.includes('\n') || str.includes(',')) {
+                return `"${str.replace(/"/g, '""')}"`;
+            }
+            return `"${str}"`;
+        };
+
+        const csvRows = videosToDownload.map(video => {
+            const rowData = [
+                video.title,
+                video.youtube_id,
+            ];
+            return rowData.map(escapeCsv).join(';');
+        });
+
+        const csvHeader = headers.map(h => `"${h}"`).join(';');
+        const csvContent = [csvHeader, ...csvRows].join('\r\n');
+
+        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+        const link = document.createElement("a");
+        const url = URL.createObjectURL(blob);
+        link.setAttribute("href", url);
+        link.setAttribute("download", "videos_export.csv");
+        link.style.visibility = 'hidden';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+
+        dismissToast(toastId);
+        showSuccess(`${videosToDownload.length} video(s) downloaded.`);
+
+    } catch (error: any) {
+        dismissToast(toastId);
+        showError(`Download failed: ${error.message}`);
+    }
+  };
+
   const handleSelectVideo = (id: string) => {
     const newSelection = new Set(selectedVideos);
     if (newSelection.has(id)) {
@@ -370,21 +416,27 @@ const ManageVideos = () => {
                 <CardDescription>Your current list of videos.</CardDescription>
               </div>
               {selectedVideos.size > 0 && (
-                <AlertDialog>
-                  <AlertDialogTrigger asChild>
-                    <Button variant="destructive" size="sm"><Trash2 className="h-4 w-4 mr-2" />Delete ({selectedVideos.size})</Button>
-                  </AlertDialogTrigger>
-                  <AlertDialogContent>
-                    <AlertDialogHeader>
-                      <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
-                      <AlertDialogDescription>This will permanently delete {selectedVideos.size} selected videos.</AlertDialogDescription>
-                    </AlertDialogHeader>
-                    <AlertDialogFooter>
-                      <AlertDialogCancel onClick={() => setSelectedVideos(new Set())}>Cancel</AlertDialogCancel>
-                      <AlertDialogAction onClick={handleBulkDelete}>Continue</AlertDialogAction>
-                    </AlertDialogFooter>
-                  </AlertDialogContent>
-                </AlertDialog>
+                <div className="flex items-center gap-2">
+                  <Button variant="outline" size="sm" onClick={handleBulkDownload}>
+                    <Download className="h-4 w-4 mr-2" />
+                    Download ({selectedVideos.size})
+                  </Button>
+                  <AlertDialog>
+                    <AlertDialogTrigger asChild>
+                      <Button variant="destructive" size="sm"><Trash2 className="h-4 w-4 mr-2" />Delete ({selectedVideos.size})</Button>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent>
+                      <AlertDialogHeader>
+                        <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+                        <AlertDialogDescription>This will permanently delete {selectedVideos.size} selected videos.</AlertDialogDescription>
+                      </AlertDialogHeader>
+                      <AlertDialogFooter>
+                        <AlertDialogCancel onClick={() => setSelectedVideos(new Set())}>Cancel</AlertDialogCancel>
+                        <AlertDialogAction onClick={handleBulkDelete}>Continue</AlertDialogAction>
+                      </AlertDialogFooter>
+                    </AlertDialogContent>
+                  </AlertDialog>
+                </div>
               )}
             </div>
           </CardHeader>
