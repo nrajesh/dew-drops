@@ -34,6 +34,21 @@ const editSchema = z.object({
   alt_text: z.string().min(3, "Alt text must be at least 3 characters.").max(200, "Alt text cannot exceed 200 characters."),
 });
 
+// Helper to automatically retry a function call on failure, useful for cold starts.
+const invokeWithRetry = async (functionName: string, options: any, retries = 2, delay = 1500) => {
+  for (let i = 0; i < retries; i++) {
+    try {
+      const result = await supabase.functions.invoke(functionName, options);
+      if (result.error) throw result.error;
+      return result;
+    } catch (error) {
+      if (i === retries - 1) throw error; // Rethrow last error
+      console.warn(`Attempt ${i + 1} failed for ${functionName}. Retrying in ${delay}ms...`);
+      await new Promise(res => setTimeout(res, delay));
+    }
+  }
+};
+
 const ManageGallery = () => {
   const { user } = useAuth();
   const [images, setImages] = useState<GalleryImage[]>([]);
@@ -152,10 +167,9 @@ const ManageGallery = () => {
 
       if (newImageData) {
         try {
-          const { data: embeddingData, error: embeddingError } = await supabase.functions.invoke('vector-search', {
+          const { data: embeddingData } = await invokeWithRetry('vector-search', {
             body: { type: 'image', content: publicUrl },
           });
-          if (embeddingError) throw embeddingError;
           const { error: updateError } = await supabase.from('gallery_images').update({ embedding: embeddingData.embedding }).eq('id', newImageData.id);
           if (updateError) throw updateError;
         } catch (error) {
@@ -282,11 +296,9 @@ const ManageGallery = () => {
 
     for (const [index, image] of imagesToProcess.entries()) {
       try {
-        const { data: embeddingData, error: embeddingError } = await supabase.functions.invoke('vector-search', {
+        const { data: embeddingData } = await invokeWithRetry('vector-search', {
           body: { type: 'image', content: image.image_url },
         });
-        if (embeddingError) throw embeddingError;
-
         const { error: updateError } = await supabase.from('gallery_images').update({ embedding: embeddingData.embedding }).eq('id', image.id);
         if (updateError) throw updateError;
         

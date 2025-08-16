@@ -15,6 +15,21 @@ import { showError } from "@/utils/toast";
 
 const IMAGES_PER_PAGE = 9;
 
+// Helper to automatically retry a function call on failure, useful for cold starts.
+const invokeWithRetry = async (functionName: string, options: any, retries = 2, delay = 1500) => {
+  for (let i = 0; i < retries; i++) {
+    try {
+      const result = await supabase.functions.invoke(functionName, options);
+      if (result.error) throw result.error;
+      return result;
+    } catch (error) {
+      if (i === retries - 1) throw error; // Rethrow last error
+      console.warn(`Attempt ${i + 1} failed for ${functionName}. Retrying in ${delay}ms...`);
+      await new Promise(res => setTimeout(res, delay));
+    }
+  }
+};
+
 const Gallery = () => {
   const [allImages, setAllImages] = useState<GalleryImage[]>([]);
   const [initialLoading, setInitialLoading] = useState(true);
@@ -51,10 +66,9 @@ const Gallery = () => {
       }
       setIsSearching(true);
       try {
-        const { data: embeddingData, error: embeddingError } = await supabase.functions.invoke('vector-search', {
+        const { data: embeddingData } = await invokeWithRetry('vector-search', {
           body: { type: 'text', content: debouncedSearchTerm }
         });
-        if (embeddingError) throw embeddingError;
 
         const { data: searchData, error: rpcError } = await supabase.rpc('search_gallery_images', {
           query_embedding: embeddingData.embedding,
