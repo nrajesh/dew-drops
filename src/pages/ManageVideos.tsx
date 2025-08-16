@@ -12,7 +12,7 @@ import {
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { showSuccess, showError, showLoading, dismissToast } from "@/utils/toast";
+import { showSuccess, showError, showLoading, dismissToast, updateToastSuccess, updateToastError } from "@/utils/toast";
 import { useState, useEffect, useRef } from "react";
 import { Trash2, Edit, Upload, Download } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
@@ -326,12 +326,10 @@ const ManageVideos = () => {
         document.body.removeChild(link);
         URL.revokeObjectURL(url);
 
-        dismissToast(toastId);
-        showSuccess(`${videosToDownload.length} video(s) downloaded.`);
+        updateToastSuccess(toastId, `${videosToDownload.length} video(s) downloaded.`);
 
     } catch (error: any) {
-        dismissToast(toastId);
-        showError(`Download failed: ${error.message}`);
+        updateToastError(toastId, `Download failed: ${error.message}`);
     }
   };
 

@@ -13,7 +13,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { showSuccess, showError, showLoading, dismissToast } from "@/utils/toast";
+import { showSuccess, showError, showLoading, dismissToast, updateToastSuccess, updateToastError } from "@/utils/toast";
 import { useState, useEffect, useRef } from "react";
 import { Trash2, Edit, Upload, Download } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
@@ -434,12 +434,10 @@ published_at: ${post.published_at ? new Date(post.published_at).toISOString().sp
         document.body.removeChild(link);
         URL.revokeObjectURL(link.href);
 
-        dismissToast(toastId);
-        showSuccess(`${postsToDownload.length} post(s) downloaded.`);
+        updateToastSuccess(toastId, `${postsToDownload.length} post(s) downloaded.`);
 
     } catch (error: any) {
-        dismissToast(toastId);
-        showError(`Download failed: ${error.message}`);
+        updateToastError(toastId, `Download failed: ${error.message}`);
     }
   };
 
