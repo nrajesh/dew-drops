@@ -388,6 +388,23 @@ published_at: ${post.published_at ? new Date(post.published_at).toISOString().sp
     setSelectedPosts(checked ? new Set(posts.map(p => p.id)) : new Set());
   };
 
+  const handleBulkTagUpdate = async (tags: string[]) => {
+    const toastId = showLoading(`Updating tags for ${selectedPosts.size} posts...`);
+    const { error } = await supabase
+      .from("posts")
+      .update({ tags })
+      .in("id", Array.from(selectedPosts));
+    
+    dismissToast(toastId);
+    if (error) {
+      showError(`Failed to update tags: ${error.message}`);
+    } else {
+      showSuccess("Tags updated successfully.");
+      fetchPosts();
+      setSelectedPosts(new Set());
+    }
+  };
+
   return (
     <div className="space-y-8">
       <BulkImport 
@@ -412,6 +429,8 @@ published_at: ${post.published_at ? new Date(post.published_at).toISOString().sp
           onEdit={setEditingPost}
           onDelete={handleBulkDelete}
           onDownload={handleBulkDownload}
+          onBulkTagUpdate={handleBulkTagUpdate}
+          uniqueTags={uniqueTags}
         />
       </div>
       <UpdatePostsDialog 
