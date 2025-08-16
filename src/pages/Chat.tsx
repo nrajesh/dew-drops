@@ -42,6 +42,13 @@ const Chat = () => {
 "Welcome to My Creative Space. A curated collection of professional work, personal projects and travels of Rajesh Narayanan. Explore my blog, watch my videos, and get in touch."
     `.trim();
 
+    const websiteFeaturesContext = `
+**General Website Features:**
+- The main pages (Blog, Gallery, Travel, Videos) have powerful search bars to easily find content.
+- The video search is especially smart, as it can find videos based on their actual YouTube titles and descriptions.
+- The site is designed for easy navigation. You can use keyboard arrow keys or swipe gestures on touch screens to browse through pages of content.
+    `.trim();
+
     const postsContext = context.posts.length > 0 ? `
 **Recent Blog Posts:**
 ${context.posts.map(p => `- Title: ${p.title}${p.description ? `, Description: ${p.description}` : ''}`).join('\n')}
@@ -66,6 +73,8 @@ ${context.images.map(i => `- ${i.alt_text}`).join('\n')}
 Here is some context about this portfolio website and its owner, Rajesh Narayanan. Please use this information to answer user questions conversationally, as if you are a helpful assistant for this website.
 
 ${homePageContext}
+
+${websiteFeaturesContext}
 
 ${postsContext}
 

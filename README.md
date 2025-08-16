@@ -7,12 +7,13 @@ This README provides a comprehensive guide to understanding, customizing, and ma
 ## ✨ Key Features
 
 -   **Dynamic Blog:** A full-featured blog powered by a Supabase database, with Markdown support for writing posts.
--   **Video Showcase:** A dedicated page to embed and display your YouTube videos, managed via Supabase.
+-   **Video Showcase:** A dedicated page for your YouTube videos, featuring a powerful search that looks up titles and descriptions directly from YouTube.
 -   **Photo Gallery:** A dynamic gallery with automatic EXIF data extraction, managed via Supabase Storage.
--   **Interactive Travel Map:** Pin your travel destinations on a world map, complete with descriptions, links, and custom marker icons.
+-   **Interactive Travel Map:** Pin your travel destinations on a world map. The list is searchable by title, location, and description.
 -   **Contact Form:** A secure, serverless contact form that sends emails directly to you.
 -   **AI Chatbot:** An integrated chatbot powered by Google Gemini that uses your portfolio's content to provide intelligent answers.
 -   **Streamlined Content Management:** Dedicated pages for creating, editing, and deleting your content.
+-   **Enhanced Navigation:** All content pages are paginated and can be navigated using keyboard arrows or swipe gestures on mobile.
 -   **Light & Dark Mode:** A sleek theme toggle for user preference.
 -   **Fully Responsive:** Designed to look great on all devices, from desktops to mobile phones.
 
@@ -29,7 +30,7 @@ This portfolio is built with a selection of modern tools chosen for their perfor
 | **Backend**       | [Supabase](https://supabase.com/)                                       | The open-source Firebase alternative. Used for:                                                    |
 |                   | &nbsp;&nbsp;&nbsp;**Database**                                          | A PostgreSQL database for storing blog posts, videos, and travel locations.                        |
 |                   | &nbsp;&nbsp;&nbsp;**Storage**                                           | For hosting user-uploaded images for the gallery and map markers.                                  |
-|                   | &nbsp;&nbsp;&nbsp;**Edge Functions**                                    | Serverless functions for backend logic, like the contact form.                                     |
+|                   | &nbsp;&nbsp;&nbsp;**Edge Functions**                                    | Serverless functions for backend logic, like the contact form and video search.                    |
 | **AI**            | [Google Gemini](https://ai.google.dev/)                                 | Powers the conversational AI chatbot feature.                                                      |
 | **Routing**       | [React Router](https://reactrouter.com/)                                | The standard for declarative routing in React applications.                                        |
 | **Forms**         | [React Hook Form](https://react-hook-form.com/) & [Zod](https://zod.dev/) | A powerful combination for building performant, type-safe, and validated forms.                    |
@@ -81,6 +82,9 @@ Your videos are stored in the Supabase database for persistent management.
 1.  **Navigate:** Go to the **Manage Videos** page.
 2.  **How it Works:** Use the form to add a new video. You only need to provide a title and the 11-character YouTube Video ID (e.g., `dQw4w9WgXcQ`).
 3.  **Manage:** You can edit the title or YouTube ID of existing videos, or delete them from the list.
+
+**Configuration Requirements:**
+*   **YouTube API Key:** For the enhanced video search to function, you must provide a `YOUTUBE_API_KEY` as a secret in your Supabase project. This allows the application to search video titles and descriptions directly from YouTube.
 
 ### 🤖 Tuning the AI Chatbot
 
