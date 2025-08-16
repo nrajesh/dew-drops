@@ -15,19 +15,21 @@ class FeatureExtractionPipeline {
 
   static async getInstance(progress_callback = null) {
     if (this.instance === null) {
-      this.instance = pipeline(this.task, this.model, { progress_callback });
+      // The pipeline function returns a promise, so we need to await it.
+      this.instance = await pipeline(this.task, this.model, { progress_callback });
     }
     return this.instance;
   }
 }
 
 serve(async (req) => {
+  // Immediately handle OPTIONS request to prevent downstream errors during preflight.
   if (req.method === 'OPTIONS') {
-    return new Response(null, { headers: corsHeaders })
+    return new Response('ok', { headers: corsHeaders, status: 200 });
   }
 
   try {
-    const { type, content } = await req.json()
+    const { type, content } = await req.json();
 
     if (!type || !content) {
       throw new Error('Missing "type" or "content" in request body.');
@@ -37,12 +39,10 @@ serve(async (req) => {
     let embedding;
 
     if (type === 'image') {
-      // Image embedding from URL
       const image = await RawImage.fromURL(content);
       const output = await extractor(image, { pooling: 'mean', normalize: true });
       embedding = Array.from(output.data);
     } else if (type === 'text') {
-      // Text embedding from string
       const output = await extractor(content, { pooling: 'mean', normalize: true });
       embedding = Array.from(output.data);
     } else {
@@ -52,12 +52,12 @@ serve(async (req) => {
     return new Response(JSON.stringify({ embedding }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       status: 200,
-    })
+    });
   } catch (error) {
-    console.error('Function Error:', error)
+    console.error('Function Error:', error);
     return new Response(JSON.stringify({ error: error.message }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       status: 500,
-    })
+    });
   }
-})
+});
