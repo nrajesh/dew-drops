@@ -84,7 +84,8 @@ Your videos are stored in the Supabase database for persistent management.
 3.  **Manage:** You can edit the title or YouTube ID of existing videos, or delete them from the list.
 
 **Configuration Requirements:**
-*   **YouTube API Key:** For the enhanced video search to function, you must provide a `YOUTUBE_API_KEY` as a secret in your Supabase project. This allows the application to search video titles and descriptions directly from YouTube.
+*   **YouTube API Key:** A `YOUTUBE_API_KEY` secret is required in your Supabase project for the video search to work.
+*   **Toggle YouTube Search:** To improve performance, you can disable the external search of YouTube titles and descriptions. To do this, create a new secret in your Supabase project called `YOUTUBE_SEARCH_ENABLED` and set its value to `false`. If this secret is not present or is set to `true`, the enhanced search will be active.
 
 ### 🤖 Tuning the AI Chatbot
 
