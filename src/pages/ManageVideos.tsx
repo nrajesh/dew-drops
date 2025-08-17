@@ -39,6 +39,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { ManagementPagination } from "@/components/ManagementPagination";
+import { usePaginationNavigation } from "@/hooks/usePaginationNavigation";
 
 const videoSchema = z.object({
   title: z.string().min(3, { message: "Title must be at least 3 characters." }),
@@ -53,6 +54,7 @@ const ManageVideos = () => {
   const [isUploading, setIsUploading] = useState(false);
   const [selectedVideos, setSelectedVideos] = useState<Set<string>>(new Set());
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
 
   const [currentPage, setCurrentPage] = useState(1);
   const [videosPerPage, setVideosPerPage] = useState(10);
@@ -73,6 +75,14 @@ const ManageVideos = () => {
   }, [videos, currentPage, videosPerPage]);
 
   const totalPages = Math.ceil(videos.length / videosPerPage);
+
+  usePaginationNavigation({
+    currentPage,
+    totalPages,
+    onPageChange: setCurrentPage,
+    targetRef: containerRef,
+    enabled: !isUpdateDialogVisible,
+  });
 
   const handleItemsPerPageChange = (value: number) => {
     setVideosPerPage(value);
@@ -375,7 +385,7 @@ const ManageVideos = () => {
   const allOnPageSelected = paginatedVideos.length > 0 && paginatedVideos.every(v => selectedVideos.has(v.id));
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-8" ref={containerRef}>
       <Card>
         <CardHeader>
           <CardTitle>Bulk Upload Videos</CardTitle>

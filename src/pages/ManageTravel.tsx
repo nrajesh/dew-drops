@@ -43,6 +43,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { cn } from "@/lib/utils";
 import { ManagementPagination } from "@/components/ManagementPagination";
+import { usePaginationNavigation } from "@/hooks/usePaginationNavigation";
 
 const MAPBOX_ACCESS_TOKEN = import.meta.env.VITE_MAPBOX_ACCESS_TOKEN;
 
@@ -66,6 +67,7 @@ const ManageTravel = () => {
   const [selectedLocations, setSelectedLocations] = useState<Set<string>>(new Set());
   const [blogPopoverOpen, setBlogPopoverOpen] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
 
   const [currentPage, setCurrentPage] = useState(1);
   const [locationsPerPage, setLocationsPerPage] = useState(10);
@@ -87,6 +89,14 @@ const ManageTravel = () => {
   }, [locations, currentPage, locationsPerPage]);
 
   const totalPages = Math.ceil(locations.length / locationsPerPage);
+
+  usePaginationNavigation({
+    currentPage,
+    totalPages,
+    onPageChange: setCurrentPage,
+    targetRef: containerRef,
+    enabled: !isUpdateDialogVisible,
+  });
 
   const handleItemsPerPageChange = (value: number) => {
     setLocationsPerPage(value);
@@ -561,7 +571,7 @@ const ManageTravel = () => {
   const allOnPageSelected = paginatedLocations.length > 0 && paginatedLocations.every(l => selectedLocations.has(l.id));
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-8" ref={containerRef}>
       <Card>
         <CardHeader>
           <CardTitle>Bulk Upload Locations</CardTitle>

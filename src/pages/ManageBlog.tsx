@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import type { Post, GalleryImage } from "@/types";
 import { showSuccess, showError, showLoading, dismissToast, updateToastSuccess, updateToastError } from "@/utils/toast";
@@ -10,6 +10,7 @@ import { BlogForm, PostFormData } from "../components/blog/BlogForm";
 import { PostList } from "../components/blog/PostList";
 import { BulkImport } from "../components/blog/BulkImport";
 import { UpdatePostsDialog } from "../components/blog/UpdatePostsDialog";
+import { usePaginationNavigation } from "@/hooks/usePaginationNavigation";
 
 type NewPost = Omit<Post, 'id' | 'created_at' | 'user_id'>;
 
@@ -23,6 +24,7 @@ const ManageBlog = () => {
   const [isUploading, setIsUploading] = useState(false);
   const [selectedPosts, setSelectedPosts] = useState<Set<string>>(new Set());
   const turndownService = new TurndownService();
+  const containerRef = useRef<HTMLDivElement>(null);
 
   const [currentPage, setCurrentPage] = useState(1);
   const [postsPerPage, setPostsPerPage] = useState(10);
@@ -44,6 +46,14 @@ const ManageBlog = () => {
   }, [posts, currentPage, postsPerPage]);
 
   const totalPages = Math.ceil(posts.length / postsPerPage);
+
+  usePaginationNavigation({
+    currentPage,
+    totalPages,
+    onPageChange: setCurrentPage,
+    targetRef: containerRef,
+    enabled: !isUpdateDialogVisible,
+  });
 
   const handleItemsPerPageChange = (value: number) => {
     setPostsPerPage(value);
@@ -488,7 +498,7 @@ published: ${post.published}${tagsString}${coverImageIdString}${youtubeVideoIdSt
   };
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-8" ref={containerRef}>
       <BulkImport 
         onFileChange={setSelectedFiles}
         onUpload={handleUpload}

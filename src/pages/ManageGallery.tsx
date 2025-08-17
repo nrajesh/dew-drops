@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -29,6 +29,7 @@ import { sanitizeFileName } from "@/lib/utils";
 import ExifReader from 'exifreader';
 import { Checkbox } from "@/components/ui/checkbox";
 import { ManagementPagination } from "@/components/ManagementPagination";
+import { usePaginationNavigation } from "@/hooks/usePaginationNavigation";
 
 const editSchema = z.object({
   alt_text: z.string().min(3, "Alt text must be at least 3 characters.").max(200, "Alt text cannot exceed 200 characters."),
@@ -42,6 +43,7 @@ const ManageGallery = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [selectedImages, setSelectedImages] = useState<Set<string>>(new Set());
   const [editingImage, setEditingImage] = useState<GalleryImage | null>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
 
   const [currentPage, setCurrentPage] = useState(1);
   const [imagesPerPage, setImagesPerPage] = useState(10);
@@ -66,6 +68,14 @@ const ManageGallery = () => {
   }, [images, currentPage, imagesPerPage]);
 
   const totalPages = Math.ceil(images.length / imagesPerPage);
+
+  usePaginationNavigation({
+    currentPage,
+    totalPages,
+    onPageChange: setCurrentPage,
+    targetRef: containerRef,
+    enabled: !editingImage,
+  });
 
   const handleItemsPerPageChange = (value: number) => {
     setImagesPerPage(value);
@@ -279,7 +289,7 @@ const ManageGallery = () => {
 
   return (
     <>
-      <div className="space-y-8">
+      <div className="space-y-8" ref={containerRef}>
         <Card>
           <CardHeader>
             <CardTitle>Upload to Gallery</CardTitle>
