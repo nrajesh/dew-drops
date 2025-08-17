@@ -55,12 +55,21 @@ const FeatureToggles = () => {
                     {featureDescriptions[key]?.description || "Manage this feature's visibility."}
                   </p>
                 </div>
-                <Switch
-                  id={key}
-                  checked={toggles[key] ?? true}
-                  onCheckedChange={(checked) => updateToggle(key, checked)}
-                  aria-label={`Toggle ${featureDescriptions[key]?.title}`}
-                />
+                {key === navFeatures.FEATURE_TOGGLES ? (
+                  <Switch
+                    id={key}
+                    checked={true}
+                    disabled={true}
+                    aria-label={`Toggle ${featureDescriptions[key]?.title}`}
+                  />
+                ) : (
+                  <Switch
+                    id={key}
+                    checked={toggles[key] ?? true}
+                    onCheckedChange={(checked) => updateToggle(key, checked)}
+                    aria-label={`Toggle ${featureDescriptions[key]?.title}`}
+                  />
+                )}
               </div>
             ))
           )}
