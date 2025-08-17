@@ -2,17 +2,13 @@ import { Bot } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import Chat from "@/pages/Chat";
-
-const getVisibility = (envVar: string | undefined, defaultValue: boolean): boolean => {
-  if (envVar === undefined) {
-    return defaultValue;
-  }
-  return envVar.toLowerCase() === 'true';
-};
-
-const isChatVisible = getVisibility(import.meta.env.VITE_NAV_CHATBOT_VISIBLE, true);
+import { useFeatureToggles } from "@/contexts/FeatureToggleContext";
+import { navFeatures } from "@/config/navigation";
 
 const FloatingChatbot = () => {
+  const { toggles } = useFeatureToggles();
+  const isChatVisible = toggles[navFeatures.CHATBOT];
+
   if (!isChatVisible) {
     return null;
   }
