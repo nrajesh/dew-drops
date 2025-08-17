@@ -22,14 +22,16 @@ const featureDescriptions: Record<string, { title: string; description: string }
 const FeatureToggles = () => {
   const { toggles, loading, updateToggle } = useFeatureToggles();
 
-  const orderedFeatures = Object.values(navFeatures).filter(key => key !== navFeatures.HOME);
+  const orderedFeatures = Object.values(navFeatures).filter(
+    key => key !== navFeatures.HOME && key !== navFeatures.FEATURE_TOGGLES
+  );
 
   return (
     <Card className="max-w-3xl mx-auto">
       <CardHeader>
         <CardTitle>Feature Toggles</CardTitle>
         <CardDescription>
-          Enable or disable modules across your portfolio. Changes are saved automatically. The Home page is a core feature and cannot be disabled.
+          Enable or disable modules across your portfolio. Changes are saved automatically. The Home page and this page are core features and cannot be disabled.
         </CardDescription>
       </CardHeader>
       <CardContent>
