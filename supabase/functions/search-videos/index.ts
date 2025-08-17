@@ -3,7 +3,9 @@ import { serve } from "https://deno.land/std@0.190.0/http/server.ts"
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.0'
 
 const YOUTUBE_API_KEY = Deno.env.get('YOUTUBE_API_KEY')
-const YOUTUBE_SEARCH_ENABLED = Deno.env.get('YOUTUBE_SEARCH_ENABLED') !== 'false'
+// Check for the feature flag. It's enabled by default.
+// It's only disabled if the secret is explicitly the string 'false' (case-insensitive, trimmed).
+const YOUTUBE_SEARCH_ENABLED = (Deno.env.get('YOUTUBE_SEARCH_ENABLED') || '').trim().toLowerCase() !== 'false'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
