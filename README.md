@@ -6,6 +6,7 @@ This README provides a comprehensive guide to understanding, customizing, and ma
 
 ## ✨ Key Features
 
+-   **Core Home Page:** A permanent landing page that always remains active as the main entry point to your site.
 -   **Dynamic Blog:** A full-featured blog powered by a Supabase database, with Markdown support for writing posts.
 -   **Video Showcase:** A dedicated page for your YouTube videos, featuring a powerful search that looks up titles and descriptions directly from YouTube.
 -   **Photo Gallery:** A dynamic gallery with automatic EXIF data extraction, managed via Supabase Storage.

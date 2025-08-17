@@ -12,7 +12,8 @@ interface FeatureToggleContextType {
 
 const FeatureToggleContext = createContext<FeatureToggleContextType | undefined>(undefined);
 
-const ALL_FEATURES = Object.values(navFeatures);
+// All features that are actually toggleable
+const ALL_FEATURES = Object.values(navFeatures).filter(key => key !== navFeatures.HOME);
 
 export const FeatureToggleProvider = ({ children }: { children: ReactNode }) => {
   const { user } = useAuth();
@@ -46,7 +47,9 @@ export const FeatureToggleProvider = ({ children }: { children: ReactNode }) => 
       }
     }
     
-    return Object.fromEntries(existingToggles);
+    const finalToggles = Object.fromEntries(existingToggles);
+    finalToggles[navFeatures.HOME] = true; // Always ensure Home is enabled
+    return finalToggles;
   }, []);
 
   useEffect(() => {
@@ -59,6 +62,7 @@ export const FeatureToggleProvider = ({ children }: { children: ReactNode }) => 
     } else {
       // For logged-out users, show public features by default
       const defaultPublicToggles = Object.fromEntries(ALL_FEATURES.map(key => [key, true]));
+      defaultPublicToggles[navFeatures.HOME] = true; // Always ensure Home is enabled
       setToggles(defaultPublicToggles);
       setLoading(false);
     }
