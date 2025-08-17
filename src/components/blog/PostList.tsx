@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Trash2, Edit, Download, Tag, MoreHorizontal } from "lucide-react";
 import type { Post } from "@/types";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -19,6 +19,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { MultiSelectPopover } from "@/components/MultiSelectPopover";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
+import { ManagementPagination } from "../ManagementPagination";
 
 interface PostListProps {
   posts: Post[];
@@ -31,9 +32,32 @@ interface PostListProps {
   onBulkTagUpdate: (tags: string[]) => void;
   onBulkStatusChange: (published: boolean) => void;
   uniqueTags: string[];
+  currentPage: number;
+  totalPages: number;
+  onPageChange: (page: number) => void;
+  itemsPerPage: number;
+  onItemsPerPageChange: (value: number) => void;
+  totalItems: number;
 }
 
-export const PostList = ({ posts, selectedPosts, onSelectPost, onSelectAll, onEdit, onDelete, onDownload, onBulkTagUpdate, onBulkStatusChange, uniqueTags }: PostListProps) => {
+export const PostList = ({ 
+  posts, 
+  selectedPosts, 
+  onSelectPost, 
+  onSelectAll, 
+  onEdit, 
+  onDelete, 
+  onDownload, 
+  onBulkTagUpdate, 
+  onBulkStatusChange, 
+  uniqueTags,
+  currentPage,
+  totalPages,
+  onPageChange,
+  itemsPerPage,
+  onItemsPerPageChange,
+  totalItems
+}: PostListProps) => {
   const [isTagDialogOpen, setIsTagDialogOpen] = useState(false);
   const [bulkEditTags, setBulkEditTags] = useState<string[]>([]);
 
@@ -47,6 +71,8 @@ export const PostList = ({ posts, selectedPosts, onSelectPost, onSelectAll, onEd
     setIsTagDialogOpen(false);
     setBulkEditTags([]);
   };
+
+  const allOnPageSelected = posts.length > 0 && posts.every(post => selectedPosts.has(post.id));
 
   return (
     <>
@@ -97,7 +123,7 @@ export const PostList = ({ posts, selectedPosts, onSelectPost, onSelectAll, onEd
         </CardHeader>
         <CardContent>
           <div className="flex items-center border-b pb-2 mb-2 space-x-3">
-            <Checkbox id="select-all" onCheckedChange={(checked) => onSelectAll(Boolean(checked))} checked={posts.length > 0 && selectedPosts.size === posts.length} disabled={posts.length === 0} />
+            <Checkbox id="select-all" onCheckedChange={(checked) => onSelectAll(Boolean(checked))} checked={allOnPageSelected} disabled={posts.length === 0} />
             <label htmlFor="select-all" className="text-sm font-medium">Select All</label>
           </div>
           <div className="space-y-2 mt-4">
@@ -122,6 +148,16 @@ export const PostList = ({ posts, selectedPosts, onSelectPost, onSelectAll, onEd
             )}
           </div>
         </CardContent>
+        <CardFooter>
+          <ManagementPagination
+            currentPage={currentPage}
+            totalPages={totalPages}
+            onPageChange={onPageChange}
+            itemsPerPage={itemsPerPage}
+            onItemsPerPageChange={onItemsPerPageChange}
+            totalItems={totalItems}
+          />
+        </CardFooter>
       </Card>
       <Dialog open={isTagDialogOpen} onOpenChange={setIsTagDialogOpen}>
         <DialogContent>

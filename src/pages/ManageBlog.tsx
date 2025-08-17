@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import type { Post, GalleryImage } from "@/types";
 import { showSuccess, showError, showLoading, dismissToast, updateToastSuccess, updateToastError } from "@/utils/toast";
@@ -24,6 +24,9 @@ const ManageBlog = () => {
   const [selectedPosts, setSelectedPosts] = useState<Set<string>>(new Set());
   const turndownService = new TurndownService();
 
+  const [currentPage, setCurrentPage] = useState(1);
+  const [postsPerPage, setPostsPerPage] = useState(10);
+
   // State for the update confirmation dialog
   const [isUpdateDialogVisible, setIsUpdateDialogVisible] = useState(false);
   const [postsToInsert, setPostsToInsert] = useState<NewPost[]>([]);
@@ -34,6 +37,18 @@ const ManageBlog = () => {
     fetchPosts();
     fetchGalleryImages();
   }, []);
+
+  const paginatedPosts = useMemo(() => {
+    const startIndex = (currentPage - 1) * postsPerPage;
+    return posts.slice(startIndex, startIndex + postsPerPage);
+  }, [posts, currentPage, postsPerPage]);
+
+  const totalPages = Math.ceil(posts.length / postsPerPage);
+
+  const handleItemsPerPageChange = (value: number) => {
+    setPostsPerPage(value);
+    setCurrentPage(1);
+  };
 
   const fetchPosts = async () => {
     const { data, error } = await supabase.from("posts").select("*").order("published_at", { ascending: false });
@@ -425,7 +440,16 @@ published: ${post.published}${tagsString}${coverImageIdString}${youtubeVideoIdSt
   };
 
   const handleSelectAll = (checked: boolean) => {
-    setSelectedPosts(checked ? new Set(posts.map(p => p.id)) : new Set());
+    const pageIds = new Set(paginatedPosts.map(p => p.id));
+    if (checked) {
+      setSelectedPosts(prev => new Set([...prev, ...pageIds]));
+    } else {
+      setSelectedPosts(prev => {
+        const newSet = new Set(prev);
+        pageIds.forEach(id => newSet.delete(id));
+        return newSet;
+      });
+    }
   };
 
   const handleBulkTagUpdate = async (tags: string[]) => {
@@ -480,7 +504,7 @@ published: ${post.published}${tagsString}${coverImageIdString}${youtubeVideoIdSt
           onCancel={cancelEdit}
         />
         <PostList 
-          posts={posts}
+          posts={paginatedPosts}
           selectedPosts={selectedPosts}
           onSelectPost={handleSelectPost}
           onSelectAll={handleSelectAll}
@@ -490,6 +514,12 @@ published: ${post.published}${tagsString}${coverImageIdString}${youtubeVideoIdSt
           onBulkTagUpdate={handleBulkTagUpdate}
           onBulkStatusChange={handleBulkStatusChange}
           uniqueTags={uniqueTags}
+          currentPage={currentPage}
+          totalPages={totalPages}
+          onPageChange={setCurrentPage}
+          itemsPerPage={postsPerPage}
+          onItemsPerPageChange={handleItemsPerPageChange}
+          totalItems={posts.length}
         />
       </div>
       <UpdatePostsDialog 
