@@ -11,9 +11,9 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { showSuccess, showError, showLoading, dismissToast, updateToastSuccess, updateToastError } from "@/utils/toast";
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import { Trash2, Edit, Upload, Download } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import type { Video } from "@/types";
@@ -38,6 +38,8 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { ManagementPagination } from "@/components/ManagementPagination";
+import { usePaginationNavigation } from "@/hooks/usePaginationNavigation";
 
 const videoSchema = z.object({
   title: z.string().min(3, { message: "Title must be at least 3 characters." }),
@@ -52,6 +54,10 @@ const ManageVideos = () => {
   const [isUploading, setIsUploading] = useState(false);
   const [selectedVideos, setSelectedVideos] = useState<Set<string>>(new Set());
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  const [currentPage, setCurrentPage] = useState(1);
+  const [videosPerPage, setVideosPerPage] = useState(10);
 
   // State for the update confirmation dialog
   const [isUpdateDialogVisible, setIsUpdateDialogVisible] = useState(false);
@@ -62,6 +68,26 @@ const ManageVideos = () => {
   useEffect(() => {
     fetchVideos();
   }, []);
+
+  const paginatedVideos = useMemo(() => {
+    const startIndex = (currentPage - 1) * videosPerPage;
+    return videos.slice(startIndex, startIndex + videosPerPage);
+  }, [videos, currentPage, videosPerPage]);
+
+  const totalPages = Math.ceil(videos.length / videosPerPage);
+
+  usePaginationNavigation({
+    currentPage,
+    totalPages,
+    onPageChange: setCurrentPage,
+    targetRef: containerRef,
+    enabled: !isUpdateDialogVisible,
+  });
+
+  const handleItemsPerPageChange = (value: number) => {
+    setVideosPerPage(value);
+    setCurrentPage(1);
+  };
 
   const fetchVideos = async () => {
     const { data, error } = await supabase.from("videos").select("*").order("created_at", { ascending: false });
@@ -344,11 +370,22 @@ const ManageVideos = () => {
   };
 
   const handleSelectAll = (checked: boolean) => {
-    setSelectedVideos(checked ? new Set(videos.map(v => v.id)) : new Set());
+    const pageIds = new Set(paginatedVideos.map(v => v.id));
+    if (checked) {
+      setSelectedVideos(prev => new Set([...prev, ...pageIds]));
+    } else {
+      setSelectedVideos(prev => {
+        const newSet = new Set(prev);
+        pageIds.forEach(id => newSet.delete(id));
+        return newSet;
+      });
+    }
   };
 
+  const allOnPageSelected = paginatedVideos.length > 0 && paginatedVideos.every(v => selectedVideos.has(v.id));
+
   return (
-    <div className="space-y-8">
+    <div className="space-y-8" ref={containerRef}>
       <Card>
         <CardHeader>
           <CardTitle>Bulk Upload Videos</CardTitle>
@@ -440,12 +477,12 @@ const ManageVideos = () => {
           </CardHeader>
           <CardContent>
             <div className="flex items-center border-b pb-2 mb-2 space-x-3">
-              <Checkbox id="select-all" onCheckedChange={(checked) => handleSelectAll(Boolean(checked))} checked={videos.length > 0 && selectedVideos.size === videos.length} disabled={videos.length === 0} />
+              <Checkbox id="select-all" onCheckedChange={(checked) => handleSelectAll(Boolean(checked))} checked={allOnPageSelected} disabled={paginatedVideos.length === 0} />
               <label htmlFor="select-all" className="text-sm font-medium">Select All</label>
             </div>
             <div className="space-y-2 mt-4">
               {videos.length > 0 ? (
-                videos.map((video) => (
+                paginatedVideos.map((video) => (
                   <div key={video.id} className="flex items-center justify-between p-2 rounded-lg border">
                     <div className="flex items-center gap-3">
                       <Checkbox id={`select-${video.id}`} checked={selectedVideos.has(video.id)} onCheckedChange={() => handleSelectVideo(video.id)} />
@@ -461,6 +498,16 @@ const ManageVideos = () => {
               )}
             </div>
           </CardContent>
+          <CardFooter>
+            <ManagementPagination
+              currentPage={currentPage}
+              totalPages={totalPages}
+              onPageChange={setCurrentPage}
+              itemsPerPage={videosPerPage}
+              onItemsPerPageChange={handleItemsPerPageChange}
+              totalItems={videos.length}
+            />
+          </CardFooter>
         </Card>
       </div>
       <Dialog open={isUpdateDialogVisible} onOpenChange={setIsUpdateDialogVisible}>

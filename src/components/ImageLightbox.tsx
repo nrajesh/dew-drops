@@ -67,6 +67,8 @@ const ExifDisplay = ({ data }: { data: Record<string, any> }) => {
 
 export const ImageLightbox = ({ image, onClose, onNavigate, hasNext, hasPrev }: ImageLightboxProps) => {
   const [showExif, setShowExif] = useState(false);
+  const [touchStart, setTouchStart] = useState<number | null>(null);
+  const [touchEnd, setTouchEnd] = useState<number | null>(null);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -98,6 +100,29 @@ export const ImageLightbox = ({ image, onClose, onNavigate, hasNext, hasPrev }: 
   const captionText = image?.alt_text;
   const showCaption = captionText && !/\.(jpe?g|png|tiff|gif)$/i.test(captionText);
 
+  const minSwipeDistance = 50;
+  const onTouchStart = (e: React.TouchEvent) => {
+    setTouchEnd(null);
+    setTouchStart(e.targetTouches[0].clientX);
+  };
+  const onTouchMove = (e: React.TouchEvent) => {
+    setTouchEnd(e.targetTouches[0].clientX);
+  };
+  const onTouchEnd = () => {
+    if (!touchStart || !touchEnd) return;
+    const distance = touchStart - touchEnd;
+    const isLeftSwipe = distance > minSwipeDistance;
+    const isRightSwipe = distance < -minSwipeDistance;
+    if (isLeftSwipe && hasNext) {
+      onNavigate('next');
+    }
+    if (isRightSwipe && hasPrev) {
+      onNavigate('prev');
+    }
+    setTouchStart(null);
+    setTouchEnd(null);
+  };
+
   return (
     <AnimatePresence>
       {image && (
@@ -109,6 +134,9 @@ export const ImageLightbox = ({ image, onClose, onNavigate, hasNext, hasPrev }: 
           exit="hidden"
           variants={backdropVariants}
           transition={{ duration: 0.3 }}
+          onTouchStart={onTouchStart}
+          onTouchMove={onTouchMove}
+          onTouchEnd={onTouchEnd}
         >
           {/* Navigation and Close Buttons */}
           {hasPrev && (

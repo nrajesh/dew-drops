@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import type { Post, GalleryImage } from "@/types";
 import { showSuccess, showError, showLoading, dismissToast, updateToastSuccess, updateToastError } from "@/utils/toast";
@@ -10,6 +10,7 @@ import { BlogForm, PostFormData } from "../components/blog/BlogForm";
 import { PostList } from "../components/blog/PostList";
 import { BulkImport } from "../components/blog/BulkImport";
 import { UpdatePostsDialog } from "../components/blog/UpdatePostsDialog";
+import { usePaginationNavigation } from "@/hooks/usePaginationNavigation";
 
 type NewPost = Omit<Post, 'id' | 'created_at' | 'user_id'>;
 
@@ -23,6 +24,10 @@ const ManageBlog = () => {
   const [isUploading, setIsUploading] = useState(false);
   const [selectedPosts, setSelectedPosts] = useState<Set<string>>(new Set());
   const turndownService = new TurndownService();
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  const [currentPage, setCurrentPage] = useState(1);
+  const [postsPerPage, setPostsPerPage] = useState(10);
 
   // State for the update confirmation dialog
   const [isUpdateDialogVisible, setIsUpdateDialogVisible] = useState(false);
@@ -34,6 +39,26 @@ const ManageBlog = () => {
     fetchPosts();
     fetchGalleryImages();
   }, []);
+
+  const paginatedPosts = useMemo(() => {
+    const startIndex = (currentPage - 1) * postsPerPage;
+    return posts.slice(startIndex, startIndex + postsPerPage);
+  }, [posts, currentPage, postsPerPage]);
+
+  const totalPages = Math.ceil(posts.length / postsPerPage);
+
+  usePaginationNavigation({
+    currentPage,
+    totalPages,
+    onPageChange: setCurrentPage,
+    targetRef: containerRef,
+    enabled: !isUpdateDialogVisible,
+  });
+
+  const handleItemsPerPageChange = (value: number) => {
+    setPostsPerPage(value);
+    setCurrentPage(1);
+  };
 
   const fetchPosts = async () => {
     const { data, error } = await supabase.from("posts").select("*").order("published_at", { ascending: false });
@@ -425,7 +450,16 @@ published: ${post.published}${tagsString}${coverImageIdString}${youtubeVideoIdSt
   };
 
   const handleSelectAll = (checked: boolean) => {
-    setSelectedPosts(checked ? new Set(posts.map(p => p.id)) : new Set());
+    const pageIds = new Set(paginatedPosts.map(p => p.id));
+    if (checked) {
+      setSelectedPosts(prev => new Set([...prev, ...pageIds]));
+    } else {
+      setSelectedPosts(prev => {
+        const newSet = new Set(prev);
+        pageIds.forEach(id => newSet.delete(id));
+        return newSet;
+      });
+    }
   };
 
   const handleBulkTagUpdate = async (tags: string[]) => {
@@ -464,7 +498,7 @@ published: ${post.published}${tagsString}${coverImageIdString}${youtubeVideoIdSt
   };
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-8" ref={containerRef}>
       <BulkImport 
         onFileChange={setSelectedFiles}
         onUpload={handleUpload}
@@ -480,7 +514,7 @@ published: ${post.published}${tagsString}${coverImageIdString}${youtubeVideoIdSt
           onCancel={cancelEdit}
         />
         <PostList 
-          posts={posts}
+          posts={paginatedPosts}
           selectedPosts={selectedPosts}
           onSelectPost={handleSelectPost}
           onSelectAll={handleSelectAll}
@@ -490,6 +524,12 @@ published: ${post.published}${tagsString}${coverImageIdString}${youtubeVideoIdSt
           onBulkTagUpdate={handleBulkTagUpdate}
           onBulkStatusChange={handleBulkStatusChange}
           uniqueTags={uniqueTags}
+          currentPage={currentPage}
+          totalPages={totalPages}
+          onPageChange={setCurrentPage}
+          itemsPerPage={postsPerPage}
+          onItemsPerPageChange={handleItemsPerPageChange}
+          totalItems={posts.length}
         />
       </div>
       <UpdatePostsDialog 

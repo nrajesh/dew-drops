@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -28,6 +28,8 @@ import { useAuth } from "@/contexts/AuthContext";
 import { sanitizeFileName } from "@/lib/utils";
 import ExifReader from 'exifreader';
 import { Checkbox } from "@/components/ui/checkbox";
+import { ManagementPagination } from "@/components/ManagementPagination";
+import { usePaginationNavigation } from "@/hooks/usePaginationNavigation";
 
 const editSchema = z.object({
   alt_text: z.string().min(3, "Alt text must be at least 3 characters.").max(200, "Alt text cannot exceed 200 characters."),
@@ -41,6 +43,10 @@ const ManageGallery = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [selectedImages, setSelectedImages] = useState<Set<string>>(new Set());
   const [editingImage, setEditingImage] = useState<GalleryImage | null>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  const [currentPage, setCurrentPage] = useState(1);
+  const [imagesPerPage, setImagesPerPage] = useState(10);
 
   const form = useForm<z.infer<typeof editSchema>>({
     resolver: zodResolver(editSchema),
@@ -55,6 +61,26 @@ const ManageGallery = () => {
   useEffect(() => {
     fetchImages();
   }, []);
+
+  const paginatedImages = useMemo(() => {
+    const startIndex = (currentPage - 1) * imagesPerPage;
+    return images.slice(startIndex, startIndex + imagesPerPage);
+  }, [images, currentPage, imagesPerPage]);
+
+  const totalPages = Math.ceil(images.length / imagesPerPage);
+
+  usePaginationNavigation({
+    currentPage,
+    totalPages,
+    onPageChange: setCurrentPage,
+    targetRef: containerRef,
+    enabled: !editingImage,
+  });
+
+  const handleItemsPerPageChange = (value: number) => {
+    setImagesPerPage(value);
+    setCurrentPage(1);
+  };
 
   const fetchImages = async () => {
     setIsLoading(true);
@@ -247,16 +273,23 @@ const ManageGallery = () => {
   };
 
   const handleSelectAll = (checked: boolean) => {
+    const pageIds = new Set(paginatedImages.map(i => i.id));
     if (checked) {
-      setSelectedImages(new Set(images.map(img => img.id)));
+      setSelectedImages(prev => new Set([...prev, ...pageIds]));
     } else {
-      setSelectedImages(new Set());
+      setSelectedImages(prev => {
+        const newSet = new Set(prev);
+        pageIds.forEach(id => newSet.delete(id));
+        return newSet;
+      });
     }
   };
 
+  const allOnPageSelected = paginatedImages.length > 0 && paginatedImages.every(i => selectedImages.has(i.id));
+
   return (
     <>
-      <div className="space-y-8">
+      <div className="space-y-8" ref={containerRef}>
         <Card>
           <CardHeader>
             <CardTitle>Upload to Gallery</CardTitle>
@@ -323,15 +356,16 @@ const ManageGallery = () => {
                 <div className="flex items-center space-x-2 mb-4 pb-4 border-b">
                   <Checkbox
                     id="select-all"
-                    checked={selectedImages.size === images.length && images.length > 0}
+                    checked={allOnPageSelected}
                     onCheckedChange={(checked) => handleSelectAll(Boolean(checked))}
+                    disabled={paginatedImages.length === 0}
                   />
                   <label htmlFor="select-all" className="text-sm font-medium leading-none">
                     Select All
                   </label>
                 </div>
                 <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
-                  {images.map((image) => (
+                  {paginatedImages.map((image) => (
                     <Card key={image.id} className="flex flex-col">
                       <CardContent className="p-0">
                         <AspectRatio ratio={1}>
@@ -367,6 +401,16 @@ const ManageGallery = () => {
               </p>
             )}
           </CardContent>
+          <CardFooter>
+            <ManagementPagination
+              currentPage={currentPage}
+              totalPages={totalPages}
+              onPageChange={setCurrentPage}
+              itemsPerPage={imagesPerPage}
+              onItemsPerPageChange={handleItemsPerPageChange}
+              totalItems={images.length}
+            />
+          </CardFooter>
         </Card>
       </div>
 

@@ -12,9 +12,9 @@ import {
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { showSuccess, showError, showLoading, dismissToast, updateToastSuccess, updateToastError } from "@/utils/toast";
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import { Trash2, Edit, Upload, Download, Check, ChevronsUpDown } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import type { TravelLocation, Post } from "@/types";
@@ -42,6 +42,8 @@ import { sanitizeFileName } from "@/lib/utils";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { cn } from "@/lib/utils";
+import { ManagementPagination } from "@/components/ManagementPagination";
+import { usePaginationNavigation } from "@/hooks/usePaginationNavigation";
 
 const MAPBOX_ACCESS_TOKEN = import.meta.env.VITE_MAPBOX_ACCESS_TOKEN;
 
@@ -65,6 +67,10 @@ const ManageTravel = () => {
   const [selectedLocations, setSelectedLocations] = useState<Set<string>>(new Set());
   const [blogPopoverOpen, setBlogPopoverOpen] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  const [currentPage, setCurrentPage] = useState(1);
+  const [locationsPerPage, setLocationsPerPage] = useState(10);
 
   // State for the update confirmation dialog
   const [isUpdateDialogVisible, setIsUpdateDialogVisible] = useState(false);
@@ -76,6 +82,26 @@ const ManageTravel = () => {
     fetchLocations();
     fetchBlogPosts();
   }, []);
+
+  const paginatedLocations = useMemo(() => {
+    const startIndex = (currentPage - 1) * locationsPerPage;
+    return locations.slice(startIndex, startIndex + locationsPerPage);
+  }, [locations, currentPage, locationsPerPage]);
+
+  const totalPages = Math.ceil(locations.length / locationsPerPage);
+
+  usePaginationNavigation({
+    currentPage,
+    totalPages,
+    onPageChange: setCurrentPage,
+    targetRef: containerRef,
+    enabled: !isUpdateDialogVisible,
+  });
+
+  const handleItemsPerPageChange = (value: number) => {
+    setLocationsPerPage(value);
+    setCurrentPage(1);
+  };
 
   const fetchLocations = async () => {
     const { data, error } = await supabase.from("travel_locations").select("*").order("created_at", { ascending: false });
@@ -529,8 +555,23 @@ const ManageTravel = () => {
     }
   };
 
+  const handleSelectAll = (checked: boolean) => {
+    const pageIds = new Set(paginatedLocations.map(l => l.id));
+    if (checked) {
+      setSelectedLocations(prev => new Set([...prev, ...pageIds]));
+    } else {
+      setSelectedLocations(prev => {
+        const newSet = new Set(prev);
+        pageIds.forEach(id => newSet.delete(id));
+        return newSet;
+      });
+    }
+  };
+
+  const allOnPageSelected = paginatedLocations.length > 0 && paginatedLocations.every(l => selectedLocations.has(l.id));
+
   return (
-    <div className="space-y-8">
+    <div className="space-y-8" ref={containerRef}>
       <Card>
         <CardHeader>
           <CardTitle>Bulk Upload Locations</CardTitle>
@@ -689,12 +730,12 @@ const ManageTravel = () => {
           </CardHeader>
           <CardContent>
             <div className="flex items-center border-b pb-2 mb-2 space-x-3">
-              <Checkbox id="select-all" onCheckedChange={(checked) => { const newSelected = new Set<string>(); if (checked) { locations.forEach(loc => newSelected.add(loc.id)); } setSelectedLocations(newSelected); }} checked={locations.length > 0 && selectedLocations.size === locations.length} disabled={locations.length === 0}/>
+              <Checkbox id="select-all" onCheckedChange={(checked) => handleSelectAll(Boolean(checked))} checked={allOnPageSelected} disabled={paginatedLocations.length === 0}/>
               <label htmlFor="select-all" className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">Select All</label>
             </div>
             <div className="space-y-2 mt-4">
               {locations.length > 0 ? (
-                locations.map((location) => (
+                paginatedLocations.map((location) => (
                   <div key={location.id} className="flex items-center justify-between p-2 rounded-lg border">
                     <div className="flex items-center gap-3">
                       <Checkbox id={`select-${location.id}`} checked={selectedLocations.has(location.id)} onCheckedChange={() => { const newSelected = new Set(selectedLocations); if (newSelected.has(location.id)) { newSelected.delete(location.id); } else { newSelected.add(location.id); } setSelectedLocations(newSelected); }}/>
@@ -708,6 +749,16 @@ const ManageTravel = () => {
               )}
             </div>
           </CardContent>
+          <CardFooter>
+            <ManagementPagination
+              currentPage={currentPage}
+              totalPages={totalPages}
+              onPageChange={setCurrentPage}
+              itemsPerPage={locationsPerPage}
+              onItemsPerPageChange={handleItemsPerPageChange}
+              totalItems={locations.length}
+            />
+          </CardFooter>
         </Card>
       </div>
       <Dialog open={isUpdateDialogVisible} onOpenChange={setIsUpdateDialogVisible}>

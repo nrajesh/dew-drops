@@ -3,6 +3,9 @@ import { serve } from "https://deno.land/std@0.190.0/http/server.ts"
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.0'
 
 const YOUTUBE_API_KEY = Deno.env.get('YOUTUBE_API_KEY')
+// Check for the feature flag. It's enabled by default.
+// It's only disabled if the secret is explicitly the string 'false' (case-insensitive, trimmed).
+const YOUTUBE_SEARCH_ENABLED = (Deno.env.get('YOUTUBE_SEARCH_ENABLED') || '').trim().toLowerCase() !== 'false'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -12,14 +15,6 @@ const corsHeaders = {
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders })
-  }
-
-  if (!YOUTUBE_API_KEY) {
-    console.error('Missing YOUTUBE_API_KEY secret in Supabase project');
-    return new Response(JSON.stringify({ error: 'YouTube API key is not configured.' }), {
-      status: 500,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-    });
   }
 
   try {
@@ -48,26 +43,29 @@ serve(async (req) => {
     if (dbError) throw dbError;
     const dbMatchingIds = dbTitleMatches.map(v => v.id);
 
-    // 2. Search the YouTube API
-    const youtubeApiUrl = `https://www.googleapis.com/youtube/v3/search?part=snippet&q=${encodeURIComponent(searchTerm)}&key=${YOUTUBE_API_KEY}&type=video&maxResults=50`;
-    const youtubeResponse = await fetch(youtubeApiUrl);
-    if (!youtubeResponse.ok) {
-      const errorBody = await youtubeResponse.json();
-      console.error('YouTube API Error:', errorBody);
-      throw new Error('Failed to fetch data from YouTube.');
-    }
-    const youtubeData = await youtubeResponse.json();
-    const youtubeVideoIds = youtubeData.items.map((item: any) => item.id.videoId);
-
     let youtubeMatchingIds: string[] = [];
-    if (youtubeVideoIds.length > 0) {
-      // 3. Find which of the YouTube results are in our database
-      const { data: youtubeMatchesInDb, error: youtubeDbError } = await supabase
-        .from('videos')
-        .select('id')
-        .in('youtube_id', youtubeVideoIds);
-      if (youtubeDbError) throw youtubeDbError;
-      youtubeMatchingIds = youtubeMatchesInDb.map(v => v.id);
+
+    // Conditionally search YouTube API if the feature is enabled and the key exists
+    if (YOUTUBE_SEARCH_ENABLED && YOUTUBE_API_KEY) {
+      const youtubeApiUrl = `https://www.googleapis.com/youtube/v3/search?part=snippet&q=${encodeURIComponent(searchTerm)}&key=${YOUTUBE_API_KEY}&type=video&maxResults=50`;
+      const youtubeResponse = await fetch(youtubeApiUrl);
+      if (!youtubeResponse.ok) {
+        const errorBody = await youtubeResponse.json();
+        console.error('YouTube API Error:', errorBody);
+        // Don't throw an error, just log it and continue with DB results
+      } else {
+        const youtubeData = await youtubeResponse.json();
+        const youtubeVideoIds = youtubeData.items.map((item: any) => item.id.videoId);
+
+        if (youtubeVideoIds.length > 0) {
+          const { data: youtubeMatchesInDb, error: youtubeDbError } = await supabase
+            .from('videos')
+            .select('id')
+            .in('youtube_id', youtubeVideoIds);
+          if (youtubeDbError) throw youtubeDbError;
+          youtubeMatchingIds = youtubeMatchesInDb.map(v => v.id);
+        }
+      }
     }
 
     // 4. Combine and deduplicate IDs

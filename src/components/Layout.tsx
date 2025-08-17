@@ -11,19 +11,25 @@ import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { showError, showSuccess } from "@/utils/toast";
 import FloatingChatbot from "./FloatingChatbot";
+import { useFeatureToggles } from "@/contexts/FeatureToggleContext";
 
 const NavContent = ({ onLinkClick }: { onLinkClick?: () => void }) => {
+  const { toggles } = useFeatureToggles();
+
+  const visibleMainNavItems = mainNavItems.filter(item => toggles[item.featureKey]);
+  const visibleManagementNavItems = managementNavItems.filter(item => toggles[item.featureKey]);
+
   const navLinkClassName = ({ isActive }: { isActive: boolean }) =>
     `flex items-center gap-3 rounded-lg px-3 py-2 transition-all hover:bg-sidebar-accent hover:text-sidebar-accent-foreground ${
       isActive ? "bg-sidebar-primary text-sidebar-primary-foreground" : "text-sidebar-foreground"
     }`;
 
-  const areManagementItemsVisible = managementNavItems.some(item => item.visible);
+  const areManagementItemsVisible = visibleManagementNavItems.length > 0;
 
   return (
     <>
       <nav className="grid items-start px-2 text-sm font-medium lg:px-4">
-        {mainNavItems.filter(item => item.visible).map((item) => (
+        {visibleMainNavItems.map((item) => (
           <NavLink
             key={item.to}
             to={item.to}
@@ -45,7 +51,7 @@ const NavContent = ({ onLinkClick }: { onLinkClick?: () => void }) => {
             </h3>
           </div>
           <nav className="grid items-start px-2 text-sm font-medium lg:px-4">
-            {managementNavItems.filter(item => item.visible).map((item) => (
+            {visibleManagementNavItems.map((item) => (
               <NavLink
                 key={item.to}
                 to={item.to}
@@ -70,14 +76,11 @@ const Layout = () => {
   const handleLogout = async () => {
     const { error } = await supabase.auth.signOut();
     
-    // If the error is AuthSessionMissingError, it means the user was already logged out.
-    // We can treat this as a successful logout.
     if (error && error.name !== 'AuthSessionMissingError') {
       showError("Logout failed. Please try again.");
       console.error("Logout error:", error);
     } else {
       showSuccess("You have been logged out.");
-      // Use a full page reload to ensure state is cleared, which is more reliable on some browsers like Safari.
       window.location.href = "/";
     }
   };
