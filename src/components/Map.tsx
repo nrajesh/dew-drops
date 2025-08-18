@@ -68,19 +68,9 @@ const MapComponent = forwardRef<MapRef, MapProps>(({ locations }, ref) => {
     // Add new markers
     locations.forEach(location => {
       if (location.latitude && location.longitude) {
-        const blogLink = location.blog_url && location.blog_title
-          ? `<a href="${location.blog_url}" target="_blank" rel="noopener noreferrer" style="font-size: 0.75rem; color: inherit; text-decoration: underline;">${location.blog_title}</a>`
-          : '';
-
-        const popupHtml = `
-          <div style="text-align: center; display: flex; flex-direction: column; gap: 4px;">
-            <h3 style="font-weight: bold; font-size: 0.875rem; margin: 0;">${location.title}</h3>
-            <p style="font-size: 0.75rem; margin: 0;">${location.name}</p>
-            ${blogLink}
-          </div>
-        `;
-
-        const popup = new mapboxgl.Popup({ offset: 25, className: 'custom-popup' }).setHTML(popupHtml);
+        const popup = new mapboxgl.Popup({ offset: 25, className: 'custom-popup' }).setHTML(
+          `<div style="text-align: center;"><h3 style="font-weight: bold; font-size: 0.875rem; margin: 0 0 4px;">${location.title}</h3><p style="font-size: 0.75rem; margin: 0;">${location.name}</p></div>`
+        );
 
         let marker;
 

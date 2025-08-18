@@ -12,67 +12,50 @@ import ManageBlog from "./pages/ManageBlog";
 import ManageVideos from "./pages/ManageVideos";
 import ManageTravel from "./pages/ManageTravel";
 import ManageGallery from "./pages/ManageGallery";
-import FeatureToggles from "./pages/FeatureToggles";
 import PrivacyPolicy from "./pages/PrivacyPolicy";
+import Chat from "./pages/Chat";
 import Login from "./pages/Login";
 import ProtectedRoute from "./components/ProtectedRoute";
 import { mainNavItems, managementNavItems } from "./config/navigation";
-import { useFeatureToggles } from "./contexts/FeatureToggleContext";
-import { Skeleton } from "./components/ui/skeleton";
 
-const App = () => {
-  const { toggles, loading } = useFeatureToggles();
+const App = () => (
+  <Routes>
+    <Route element={<Layout />}>
+      {/* Public Routes */}
+      {mainNavItems
+        .filter((item) => item.visible)
+        .map((item) => {
+          const Component = item.to === "/" ? Index :
+                            item.to === "/blog" ? Blog :
+                            item.to === "/videos" ? Videos :
+                            item.to === "/gallery" ? Gallery :
+                            item.to === "/travel" ? Travel :
+                            item.to === "/chat" ? Chat : null;
+          if (!Component) return null;
+          return <Route key={item.to} path={item.to} element={<Component />} />;
+        })}
+      
+      <Route path="/blog/:id" element={<Post />} />
+      <Route path="/contact" element={<Contact />} />
+      <Route path="/privacy" element={<PrivacyPolicy />} />
+      <Route path="/login" element={<Login />} />
 
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center h-screen">
-        <div className="space-y-4">
-          <Skeleton className="h-12 w-64" />
-          <Skeleton className="h-8 w-48" />
-        </div>
-      </div>
-    );
-  }
-
-  return (
-    <Routes>
-      <Route element={<Layout />}>
-        {/* Public Routes */}
-        {mainNavItems
-          .filter((item) => toggles[item.featureKey])
+      {/* Protected Management Routes */}
+      <Route element={<ProtectedRoute />}>
+        {managementNavItems
+          .filter((item) => item.visible)
           .map((item) => {
-            const Component = item.to === "/" ? Index :
-                              item.to === "/blog" ? Blog :
-                              item.to === "/videos" ? Videos :
-                              item.to === "/gallery" ? Gallery :
-                              item.to === "/travel" ? Travel : null;
+            const Component = item.to === "/manage-blog" ? ManageBlog :
+                              item.to === "/manage-videos" ? ManageVideos :
+                              item.to === "/manage-travel" ? ManageTravel :
+                              item.to === "/manage-gallery" ? ManageGallery : null;
             if (!Component) return null;
             return <Route key={item.to} path={item.to} element={<Component />} />;
           })}
-        
-        <Route path="/blog/:id" element={<Post />} />
-        <Route path="/contact" element={<Contact />} />
-        <Route path="/privacy" element={<PrivacyPolicy />} />
-        <Route path="/login" element={<Login />} />
-
-        {/* Protected Management Routes */}
-        <Route element={<ProtectedRoute />}>
-          {managementNavItems
-            .filter((item) => toggles[item.featureKey])
-            .map((item) => {
-              const Component = item.to === "/manage-blog" ? ManageBlog :
-                                item.to === "/manage-videos" ? ManageVideos :
-                                item.to === "/manage-travel" ? ManageTravel :
-                                item.to === "/manage-gallery" ? ManageGallery :
-                                item.to === "/feature-toggles" ? FeatureToggles : null;
-              if (!Component) return null;
-              return <Route key={item.to} path={item.to} element={<Component />} />;
-            })}
-        </Route>
       </Route>
-      <Route path="*" element={<NotFound />} />
-    </Routes>
-  );
-};
+    </Route>
+    <Route path="*" element={<NotFound />} />
+  </Routes>
+);
 
 export default App;

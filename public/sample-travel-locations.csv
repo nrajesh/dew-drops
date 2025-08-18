@@ -1,3 +1,4 @@
-"title";"name";"description";"latitude";"longitude";"marker_image_url";"blog_title"
-"Eiffel Tower Visit";"Paris, France";"A wonderful trip to see the iconic tower.";"48.8584";"2.2945";"";"My First Blog Post"
-"Statue of Liberty";"New York, USA";"Visited the famous landmark.";"40.6892";"-74.0445";"";""
+"title";"name";"description";"latitude";"longitude";"blog_url";"marker_image_url"
+"Eiffel Tower Visit";"Paris, France";"Visited the iconic tower on a sunny afternoon.";"48.8584";"2.2945";"";""
+"Grand Canyon Adventure";"Grand Canyon National Park, AZ, USA";"Hiked the South Kaibab trail. The views were breathtaking.";"";"";"/blog/grand-canyon-hike";""
+"Tokyo Exploration";"Tokyo, Japan";"Ate some amazing ramen in Shinjuku.";"35.6895";"139.6917";"/blog/tokyo-trip";"https://images.unsplash.com/photo-1542051841857-5f90071e7989?w=100"

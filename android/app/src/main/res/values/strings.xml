@@ -1,7 +1,0 @@
-<?xml version='1.0' encoding='utf-8'?>
-<resources>
-    <string name="app_name">elegant-falcon-drift</string>
-    <string name="title_activity_main">elegant-falcon-drift</string>
-    <string name="package_name">com.example.elegantfalcondrift</string>
-    <string name="custom_url_scheme">com.example.elegantfalcondrift</string>
-</resources>

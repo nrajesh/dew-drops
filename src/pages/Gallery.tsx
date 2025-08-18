@@ -1,29 +1,17 @@
 import { Card, CardContent } from "@/components/ui/card";
 import { AspectRatio } from "@/components/ui/aspect-ratio";
-import { useEffect, useState, useMemo, useRef } from "react";
+import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import type { GalleryImage } from "@/types";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ImageLightbox } from "@/components/ImageLightbox";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Search } from "lucide-react";
-import { useDebounce } from "@/hooks/useDebounce";
-import { PaginationControls } from "@/components/PaginationControls";
-import { usePaginationNavigation } from "@/hooks/usePaginationNavigation";
-
-const IMAGES_PER_PAGE = 9;
 
 const Gallery = () => {
-  const [allImages, setAllImages] = useState<GalleryImage[]>([]);
+  const [images, setImages] = useState<GalleryImage[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedImageIndex, setSelectedImageIndex] = useState<number | null>(null);
   const [activeMake, setActiveMake] = useState<string | 'all'>('all');
-  const [searchTerm, setSearchTerm] = useState("");
-  const [currentPage, setCurrentPage] = useState(1);
-  const containerRef = useRef<HTMLDivElement>(null);
-
-  const debouncedSearchTerm = useDebounce(searchTerm, 300);
 
   useEffect(() => {
     const fetchImages = async () => {
@@ -36,7 +24,7 @@ const Gallery = () => {
       if (error) {
         console.error("Error fetching gallery images:", error);
       } else {
-        setAllImages(data as GalleryImage[]);
+        setImages(data as GalleryImage[]);
       }
       setLoading(false);
     };
@@ -44,45 +32,18 @@ const Gallery = () => {
     fetchImages();
   }, []);
 
-  const deviceMakes = useMemo(() => Array.from(
-    new Set(allImages.map(img => img.exif_data?.Make).filter(Boolean) as string[])
-  ).sort(), [allImages]);
+  const deviceMakes = Array.from(
+    new Set(images.map(img => img.exif_data?.Make).filter(Boolean) as string[])
+  ).sort();
 
-  const filteredImages = useMemo(() => {
-    return allImages.filter(image => {
-      const makeFilter = activeMake === 'all' || image.exif_data?.Make === activeMake;
-      const searchFilter = !debouncedSearchTerm || (image.alt_text && image.alt_text.toLowerCase().includes(debouncedSearchTerm.toLowerCase()));
-      return makeFilter && searchFilter;
-    });
-  }, [allImages, activeMake, debouncedSearchTerm]);
-
-  const totalPages = Math.ceil(filteredImages.length / IMAGES_PER_PAGE);
-  const paginatedImages = filteredImages.slice(
-    (currentPage - 1) * IMAGES_PER_PAGE,
-    currentPage * IMAGES_PER_PAGE
-  );
-
-  usePaginationNavigation({
-    currentPage,
-    totalPages,
-    onPageChange: setCurrentPage,
-    targetRef: containerRef,
-    enabled: selectedImageIndex === null,
+  const filteredImages = images.filter(image => {
+    if (activeMake === 'all') return true;
+    return image.exif_data?.Make === activeMake;
   });
-
-  useEffect(() => {
-    setCurrentPage(1);
-  }, [activeMake, debouncedSearchTerm]);
-
-  const getThumbnailUrl = (fileName: string) => {
-    const { data } = supabase.storage.from('gallery').getPublicUrl(fileName, {
-      transform: { width: 400, height: 300, resize: 'cover' },
-    });
-    return data.publicUrl;
-  };
 
   const handleNavigate = (direction: 'prev' | 'next') => {
     if (selectedImageIndex === null || filteredImages.length < 2) return;
+
     if (direction === 'next') {
       setSelectedImageIndex((prevIndex) => (prevIndex! + 1) % filteredImages.length);
     } else {
@@ -90,36 +51,28 @@ const Gallery = () => {
     }
   };
 
+  const handleFilterClick = (make: string | 'all') => {
+    setActiveMake(make);
+    setSelectedImageIndex(null); // Reset lightbox when filter changes
+  };
+
   const selectedImage = selectedImageIndex !== null ? filteredImages[selectedImageIndex] : null;
 
   return (
     <>
-      <div className="space-y-6" ref={containerRef}>
+      <div className="space-y-6">
         <div className="text-center">
           <h1 className="text-3xl font-bold">Gallery</h1>
           <p className="text-muted-foreground">A few snapshots from my life.</p>
         </div>
 
-        <div className="flex flex-col sm:flex-row gap-4 justify-center">
-          <div className="relative sm:w-full sm:max-w-xs">
-            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-            <Input
-              type="search"
-              placeholder="Search descriptions..."
-              className="pl-8 w-full"
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-            />
-          </div>
-        </div>
-
         {deviceMakes.length > 0 && (
           <div className="flex flex-wrap gap-2 justify-center">
-            <Button variant={activeMake === 'all' ? 'default' : 'outline'} onClick={() => setActiveMake('all')}>
+            <Button variant={activeMake === 'all' ? 'default' : 'outline'} onClick={() => handleFilterClick('all')}>
               All
             </Button>
             {deviceMakes.map(make => (
-              <Button key={make} variant={activeMake === make ? 'default' : 'outline'} onClick={() => setActiveMake(make)}>
+              <Button key={make} variant={activeMake === make ? 'default' : 'outline'} onClick={() => handleFilterClick(make)}>
                 {make}
               </Button>
             ))}
@@ -128,27 +81,29 @@ const Gallery = () => {
 
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
           {loading ? (
-            Array.from({ length: IMAGES_PER_PAGE }).map((_, index) => (
+            Array.from({ length: 6 }).map((_, index) => (
               <Card key={index} className="overflow-hidden">
                 <CardContent className="p-0">
-                  <AspectRatio ratio={4 / 3}><Skeleton className="h-full w-full" /></AspectRatio>
+                  <AspectRatio ratio={4 / 3}>
+                    <Skeleton className="h-full w-full" />
+                  </AspectRatio>
                 </CardContent>
               </Card>
             ))
-          ) : paginatedImages.length > 0 ? (
-            paginatedImages.map((image) => (
+          ) : filteredImages.length > 0 ? (
+            filteredImages.map((image) => (
               <Card 
                 key={image.id} 
                 className="overflow-hidden group cursor-pointer"
                 onClick={() => {
-                  const globalIndex = filteredImages.findIndex(img => img.id === image.id);
-                  setSelectedImageIndex(globalIndex);
+                  const filteredIndex = filteredImages.findIndex(img => img.id === image.id);
+                  setSelectedImageIndex(filteredIndex);
                 }}
               >
                 <CardContent className="p-0">
                   <AspectRatio ratio={4 / 3}>
                     <img
-                      src={getThumbnailUrl(image.file_name)}
+                      src={image.image_url}
                       alt={image.alt_text || "Gallery image"}
                       className="h-full w-full object-cover bg-background transition-transform duration-300 group-hover:scale-105"
                     />
@@ -158,11 +113,15 @@ const Gallery = () => {
             ))
           ) : (
             <div className="col-span-full text-center py-10 border-dashed border-2 rounded-lg bg-muted">
-              <p className="text-muted-foreground">No images found. Try adjusting your search or filters.</p>
+              <p className="text-muted-foreground">
+                {images.length > 0 ? `No images found for filter "${activeMake}".` : "The gallery is currently empty."}
+              </p>
+              {images.length === 0 && (
+                <p className="text-sm text-muted-foreground mt-2">Go to "Manage Gallery" to add your first photo!</p>
+              )}
             </div>
           )}
         </div>
-        <PaginationControls currentPage={currentPage} totalPages={totalPages} onPageChange={setCurrentPage} />
       </div>
       <ImageLightbox 
         image={selectedImage} 

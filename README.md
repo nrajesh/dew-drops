@@ -6,15 +6,13 @@ This README provides a comprehensive guide to understanding, customizing, and ma
 
 ## ✨ Key Features
 
--   **Core Home Page:** A permanent landing page that always remains active as the main entry point to your site.
 -   **Dynamic Blog:** A full-featured blog powered by a Supabase database, with Markdown support for writing posts.
--   **Video Showcase:** A dedicated page for your YouTube videos, featuring a powerful search that looks up titles and descriptions directly from YouTube.
--   **Photo Gallery:** A dynamic gallery with automatic EXIF data extraction, managed via Supabase Storage.
--   **Interactive Travel Map:** Pin your travel destinations on a world map. The list is searchable by title, location, and description.
+-   **Video Showcase:** A dedicated page to embed and display your YouTube videos.
+-   **Photo Gallery:** A simple, clean gallery to show off your photography.
+-   **Interactive Travel Map:** Pin your travel destinations on a world map, complete with descriptions, links, and custom marker icons.
 -   **Contact Form:** A secure, serverless contact form that sends emails directly to you.
--   **AI Chatbot:** An integrated chatbot powered by Google Gemini that uses your portfolio's content to provide intelligent answers.
+-   **AI Chatbot:** An integrated chatbot powered by Google Gemini for interactive conversations.
 -   **Streamlined Content Management:** Dedicated pages for creating, editing, and deleting your content.
--   **Enhanced Navigation:** All content pages are paginated and can be navigated using keyboard arrows or swipe gestures on mobile.
 -   **Light & Dark Mode:** A sleek theme toggle for user preference.
 -   **Fully Responsive:** Designed to look great on all devices, from desktops to mobile phones.
 
@@ -29,9 +27,9 @@ This portfolio is built with a selection of modern tools chosen for their perfor
 | **Styling**       | [Tailwind CSS](https://tailwindcss.com/)                                | A utility-first CSS framework for rapid, responsive UI development without leaving your HTML.      |
 | **UI Components** | [shadcn/ui](https://ui.shadcn.com/)                                     | A collection of beautifully designed, accessible, and unstyled components that you can own and customize. |
 | **Backend**       | [Supabase](https://supabase.com/)                                       | The open-source Firebase alternative. Used for:                                                    |
-|                   | &nbsp;&nbsp;&nbsp;**Database**                                          | A PostgreSQL database for storing blog posts, videos, and travel locations.                        |
-|                   | &nbsp;&nbsp;&nbsp;**Storage**                                           | For hosting user-uploaded images for the gallery and map markers.                                  |
-|                   | &nbsp;&nbsp;&nbsp;**Edge Functions**                                    | Serverless functions for backend logic, like the contact form and video search.                    |
+|                   | &nbsp;&nbsp;&nbsp;**Database**                                          | A PostgreSQL database for storing blog posts and travel locations.                                 |
+|                   | &nbsp;&nbsp;&nbsp;**Storage**                                           | For hosting user-uploaded images like custom map markers.                                          |
+|                   | &nbsp;&nbsp;&nbsp;**Edge Functions**                                    | Serverless functions for backend logic, like the contact form.                                     |
 | **AI**            | [Google Gemini](https://ai.google.dev/)                                 | Powers the conversational AI chatbot feature.                                                      |
 | **Routing**       | [React Router](https://reactrouter.com/)                                | The standard for declarative routing in React applications.                                        |
 | **Forms**         | [React Hook Form](https://react-hook-form.com/) & [Zod](https://zod.dev/) | A powerful combination for building performant, type-safe, and validated forms.                    |
@@ -54,16 +52,6 @@ Your blog posts are stored in the Supabase database, allowing for persistent sto
 
 **File Location:** `src/pages/ManageBlog.tsx`
 
-### 🖼️ Managing the Photo Gallery
-
-The gallery is fully dynamic, with images stored in Supabase Storage and metadata in the database.
-
-1.  **Navigate:** Go to the **Manage Gallery** page.
-2.  **Upload:** Use the upload form to add new images. The system will automatically attempt to extract EXIF data (camera model, date taken, etc.) from your photos.
-3.  **Manage:** You can edit the "alt text" for each image (important for accessibility) or delete images.
-
-**Note on Caching:** To ensure fast loading times, gallery images are aggressively cached on the CDN and in the user's browser for one year. If you replace an image with a new version that has the same file name, you may need to clear your browser cache to see the change.
-
 ### 🗺️ Managing the Travel Map
 
 Your travel locations are stored in the Supabase database, making them persistent and easy to manage.
@@ -78,27 +66,35 @@ Your travel locations are stored in the Supabase database, making them persisten
 
 ### 🎬 Managing Videos
 
-Your videos are stored in the Supabase database for persistent management.
+Your videos are currently managed via a static list within the application code.
 
 1.  **Navigate:** Go to the **Manage Videos** page.
-2.  **How it Works:** Use the form to add a new video. You only need to provide a title and the 11-character YouTube Video ID (e.g., `dQw4w9WgXcQ`).
-3.  **Manage:** You can edit the title or YouTube ID of existing videos, or delete them from the list.
+2.  **How it Works:** This page uses local React state (`useState`). **Changes made here will not be saved** after you refresh the page. It's a demonstration of the UI.
+3.  **To Permanently Add/Remove Videos:**
+    *   Open the file: `src/pages/ManageVideos.tsx`.
+    *   Find the `initialVideos` array.
+    *   Modify this array to add, edit, or remove video objects. Each object needs a `title` and a `youtubeId`.
 
-**Configuration Requirements:**
-*   **YouTube API Key:** A `YOUTUBE_API_KEY` secret is required in your Supabase project for the video search to work.
-*   **Toggle YouTube Search:** To improve performance, you can disable the external search of YouTube titles and descriptions. To do this, create a new secret in your Supabase project called `YOUTUBE_SEARCH_ENABLED` and set its value to `false`. If this secret is not present or is set to `true`, the enhanced search will be active.
+**Future Enhancement:** This could be migrated to use the Supabase database, similar to the blog, for persistent storage.
 
-### 🤖 Tuning the AI Chatbot
+### 🖼️ Managing the Photo Gallery
 
-The chatbot uses a **Retrieval-Augmented Generation (RAG)** approach. It's not intelligent on its own; instead, it's given a "cheat sheet" of your portfolio's content with every question you ask. You can customize its knowledge and personality by editing two key files:
+The gallery pulls images directly from the `public/gallery` folder.
 
-1.  **To change *what* the chatbot knows:**
-    *   **File:** `src/hooks/usePortfolioContext.ts`
-    *   **How:** This file fetches the data that forms the chatbot's context. You can change the `.limit()` on the Supabase queries to give it more (or less) information about your posts, travels, etc. You could also add new queries to other tables to expand its knowledge base.
+1.  **Add Images:** Place your `.jpg`, `.png`, or other image files inside the `public/gallery` directory in your project's codebase.
+2.  **Update the List:**
+    *   Open the file: `src/pages/Gallery.tsx`.
+    *   Find the `images` array.
+    *   Add a new object for each photo you added, specifying the `src` path (e.g., `/gallery/my-photo.jpg`) and an `alt` description.
 
-2.  **To change *how* the chatbot behaves:**
-    *   **File:** `src/pages/Chat.tsx`
-    *   **How:** Find the `formatContext` function. The text inside this function is the "system prompt" that gives the AI its instructions and personality. You can edit this prompt to make it more formal, more creative, or to change how it formats its answers.
+```javascript
+// Example in src/pages/Gallery.tsx
+const images = [
+  { src: "/gallery/alps-sunset.jpg", alt: "A beautiful sunset over the Swiss Alps" },
+  { src: "/gallery/tokyo-streets.png", alt: "Neon-lit streets of Tokyo at night" },
+  // ... add more images here
+];
+```
 
 ### 📧 Configuring the Contact Form
 
@@ -120,10 +116,9 @@ A brief overview of the most important files and directories.
 ```
 /
 ├── public/
-│   └── gallery/      # (Legacy) No longer used for dynamic gallery
+│   └── gallery/      # Add your gallery images here
 ├── src/
 │   ├── components/   # Reusable React components (e.g., Layout, Map)
-│   ├── hooks/        # Custom React hooks (e.g., usePortfolioContext)
 │   ├── integrations/ # Supabase & Gemini client setup
 │   ├── pages/        # Page components for each route (e.g., Blog, Travel, ManageTravel)
 │   ├── types/        # TypeScript type definitions
