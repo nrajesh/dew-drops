@@ -1,4 +1,4 @@
-import { NavLink, Outlet, Link, useNavigate } from "react-router-dom";
+import { NavLink, Outlet, Link } from "react-router-dom";
 import { Menu, LogIn, LogOut } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
@@ -9,20 +9,27 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { mainNavItems, managementNavItems } from "@/config/navigation";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
-import { showSuccess } from "@/utils/toast";
+import { showError, showSuccess } from "@/utils/toast";
+import FloatingChatbot from "./FloatingChatbot";
+import { useFeatureToggles } from "@/contexts/FeatureToggleContext";
 
 const NavContent = ({ onLinkClick }: { onLinkClick?: () => void }) => {
+  const { toggles } = useFeatureToggles();
+
+  const visibleMainNavItems = mainNavItems.filter(item => toggles[item.featureKey]);
+  const visibleManagementNavItems = managementNavItems.filter(item => toggles[item.featureKey]);
+
   const navLinkClassName = ({ isActive }: { isActive: boolean }) =>
     `flex items-center gap-3 rounded-lg px-3 py-2 transition-all hover:bg-sidebar-accent hover:text-sidebar-accent-foreground ${
       isActive ? "bg-sidebar-primary text-sidebar-primary-foreground" : "text-sidebar-foreground"
     }`;
 
-  const areManagementItemsVisible = managementNavItems.some(item => item.visible);
+  const areManagementItemsVisible = visibleManagementNavItems.length > 0;
 
   return (
     <>
       <nav className="grid items-start px-2 text-sm font-medium lg:px-4">
-        {mainNavItems.filter(item => item.visible).map((item) => (
+        {visibleMainNavItems.map((item) => (
           <NavLink
             key={item.to}
             to={item.to}
@@ -44,7 +51,7 @@ const NavContent = ({ onLinkClick }: { onLinkClick?: () => void }) => {
             </h3>
           </div>
           <nav className="grid items-start px-2 text-sm font-medium lg:px-4">
-            {managementNavItems.filter(item => item.visible).map((item) => (
+            {visibleManagementNavItems.map((item) => (
               <NavLink
                 key={item.to}
                 to={item.to}
@@ -65,12 +72,17 @@ const NavContent = ({ onLinkClick }: { onLinkClick?: () => void }) => {
 const Layout = () => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const { session } = useAuth();
-  const navigate = useNavigate();
 
   const handleLogout = async () => {
-    await supabase.auth.signOut();
-    showSuccess("You have been logged out.");
-    navigate("/");
+    const { error } = await supabase.auth.signOut();
+    
+    if (error && error.name !== 'AuthSessionMissingError') {
+      showError("Logout failed. Please try again.");
+      console.error("Logout error:", error);
+    } else {
+      showSuccess("You have been logged out.");
+      window.location.href = "/";
+    }
   };
 
   return (
@@ -148,6 +160,7 @@ const Layout = () => {
           </footer>
         </div>
       </div>
+      <FloatingChatbot />
       <Toaster />
       <Sonner />
     </>

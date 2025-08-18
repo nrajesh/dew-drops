@@ -12,12 +12,12 @@ import {
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { showSuccess, showError, showLoading, dismissToast } from "@/utils/toast";
-import { useState, useEffect, useRef } from "react";
-import { Trash2, Edit, Upload, Download } from "lucide-react";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
+import { showSuccess, showError, showLoading, dismissToast, updateToastSuccess, updateToastError } from "@/utils/toast";
+import { useState, useEffect, useRef, useMemo } from "react";
+import { Trash2, Edit, Upload, Download, Check, ChevronsUpDown } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
-import type { TravelLocation } from "@/types";
+import type { TravelLocation, Post } from "@/types";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
   AlertDialog,
@@ -30,7 +30,20 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from "@/components/ui/dialog";
 import { sanitizeFileName } from "@/lib/utils";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
+import { cn } from "@/lib/utils";
+import { ManagementPagination } from "@/components/ManagementPagination";
+import { usePaginationNavigation } from "@/hooks/usePaginationNavigation";
 
 const MAPBOX_ACCESS_TOKEN = import.meta.env.VITE_MAPBOX_ACCESS_TOKEN;
 
@@ -40,22 +53,55 @@ const locationSchema = z.object({
   name: z.string().min(3, { message: "Place name must be at least 3 characters." }),
   latitude: z.coerce.number().min(-90).max(90).optional().or(z.literal('')),
   longitude: z.coerce.number().min(-180).max(180).optional().or(z.literal('')),
-  blog_url: z.string().url({ message: "Please enter a valid URL." }).optional().or(z.literal('')),
+  blog_url: z.string().optional().nullable(),
   image: z.instanceof(FileList).optional(),
 });
 
 const ManageTravel = () => {
   const [locations, setLocations] = useState<TravelLocation[]>([]);
+  const [blogPosts, setBlogPosts] = useState<Pick<Post, 'id' | 'title'>[]>([]);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editingImageUrl, setEditingImageUrl] = useState<string | null>(null);
   const [uploadFile, setUploadFile] = useState<File | null>(null);
   const [isUploading, setIsUploading] = useState(false);
   const [selectedLocations, setSelectedLocations] = useState<Set<string>>(new Set());
+  const [blogPopoverOpen, setBlogPopoverOpen] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  const [currentPage, setCurrentPage] = useState(1);
+  const [locationsPerPage, setLocationsPerPage] = useState(10);
+
+  // State for the update confirmation dialog
+  const [isUpdateDialogVisible, setIsUpdateDialogVisible] = useState(false);
+  const [locationsToInsert, setLocationsToInsert] = useState<any[]>([]);
+  const [locationsToUpdate, setLocationsToUpdate] = useState<{ existingId: string; existingTitle: string; newData: any }[]>([]);
+  const [selectedUpdates, setSelectedUpdates] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     fetchLocations();
+    fetchBlogPosts();
   }, []);
+
+  const paginatedLocations = useMemo(() => {
+    const startIndex = (currentPage - 1) * locationsPerPage;
+    return locations.slice(startIndex, startIndex + locationsPerPage);
+  }, [locations, currentPage, locationsPerPage]);
+
+  const totalPages = Math.ceil(locations.length / locationsPerPage);
+
+  usePaginationNavigation({
+    currentPage,
+    totalPages,
+    onPageChange: setCurrentPage,
+    targetRef: containerRef,
+    enabled: !isUpdateDialogVisible,
+  });
+
+  const handleItemsPerPageChange = (value: number) => {
+    setLocationsPerPage(value);
+    setCurrentPage(1);
+  };
 
   const fetchLocations = async () => {
     const { data, error } = await supabase.from("travel_locations").select("*").order("created_at", { ascending: false });
@@ -67,6 +113,15 @@ const ManageTravel = () => {
     }
   };
 
+  const fetchBlogPosts = async () => {
+    const { data, error } = await supabase.from("posts").select("id, title").order("published_at", { ascending: false });
+    if (error) {
+      showError("Failed to fetch blog posts for linking.");
+    } else {
+      setBlogPosts(data as Pick<Post, 'id' | 'title'>[]);
+    }
+  };
+
   const form = useForm<z.infer<typeof locationSchema>>({
     resolver: zodResolver(locationSchema),
     defaultValues: {
@@ -75,7 +130,7 @@ const ManageTravel = () => {
       name: "",
       latitude: "",
       longitude: "",
-      blog_url: "",
+      blog_url: null,
     },
   });
 
@@ -183,17 +238,19 @@ const ManageTravel = () => {
       dismissToast(toastId);
       showError(`Operation failed: ${error.message}`);
     }
-  }
+  };
 
   const handleEdit = (location: TravelLocation) => {
     setEditingId(location.id);
     setEditingImageUrl(location.marker_image_url || null);
-    form.setValue("title", location.title);
-    form.setValue("description", location.description || "");
-    form.setValue("name", location.name);
-    form.setValue("latitude", location.latitude);
-    form.setValue("longitude", location.longitude);
-    form.setValue("blog_url", location.blog_url || "");
+    form.reset({
+      title: location.title,
+      description: location.description || "",
+      name: location.name,
+      latitude: location.latitude,
+      longitude: location.longitude,
+      blog_url: location.blog_url || null,
+    });
   };
 
   const handleRemoveImage = async () => {
@@ -217,27 +274,6 @@ const ManageTravel = () => {
       showError(error.message);
     }
   };
-
-  const handleDelete = async (id: string) => {
-    const toastId = showLoading("Deleting location...");
-    try {
-      const locationToDelete = locations.find(l => l.id === id);
-      if (locationToDelete?.marker_image_url) {
-        const fileName = locationToDelete.marker_image_url.substring(locationToDelete.marker_image_url.lastIndexOf('/') + 1);
-        await supabase.storage.from('mapmarkers').remove([fileName]);
-      }
-
-      const { error } = await supabase.from("travel_locations").delete().eq("id", id);
-      if (error) throw error;
-
-      dismissToast(toastId);
-      showError("Location removed.");
-      fetchLocations();
-    } catch (error: any) {
-      dismissToast(toastId);
-      showError(error.message);
-    }
-  };
   
   const cancelEdit = () => {
     setEditingId(null);
@@ -248,9 +284,9 @@ const ManageTravel = () => {
       name: "",
       latitude: "",
       longitude: "",
-      blog_url: "",
+      blog_url: null,
     });
-  }
+  };
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files.length > 0) {
@@ -290,109 +326,138 @@ const ManageTravel = () => {
     return data;
   };
 
+  const processUploads = async (inserts: any[], updates: {existingId: string, newData: any}[]) => {
+    const toastId = showLoading(`Processing import...`);
+    try {
+        const insertPromises = [];
+        if (inserts.length > 0) {
+            insertPromises.push(supabase.from("travel_locations").insert(inserts));
+        }
+
+        const updatePromises = updates.map(u => 
+            supabase.from("travel_locations").update(u.newData).eq('id', u.existingId)
+        );
+
+        const results = await Promise.all([...insertPromises, ...updatePromises]);
+
+        for (const result of results) {
+            if (result.error) {
+                throw new Error(result.error.message);
+            }
+        }
+        
+        dismissToast(toastId);
+        if (inserts.length > 0 || updates.length > 0) {
+          showSuccess(`${inserts.length} new locations added, ${updates.length} locations updated.`);
+        }
+        fetchLocations();
+
+    } catch (error: any) {
+        dismissToast(toastId);
+        showError(`Import failed: ${error.message}`);
+    }
+  };
+
+  const handleConfirmAndProcessUploads = async () => {
+    setIsUpdateDialogVisible(false);
+    
+    const updatesToPerform = locationsToUpdate.filter(u => selectedUpdates.has(u.existingId)).map(u => ({
+        existingId: u.existingId,
+        newData: u.newData
+    }));
+
+    const skippedCount = locationsToUpdate.length - updatesToPerform.length;
+
+    await processUploads(locationsToInsert, updatesToPerform);
+
+    if (skippedCount > 0) {
+        showError(`${skippedCount} potential updates were skipped.`);
+    }
+    
+    setLocationsToInsert([]);
+    setLocationsToUpdate([]);
+    setSelectedUpdates(new Set());
+  };
+
   const handleBulkUpload = async () => {
     if (!uploadFile) return;
 
     setIsUploading(true);
-    const toastId = showLoading("Reading CSV file...");
+    const toastId = showLoading("Processing CSV file...");
 
     try {
       const fileContent = await uploadFile.text();
       const parsedData = parseCsv(fileContent);
 
-      if (parsedData.length === 0) {
-        throw new Error("No data rows found in the CSV file.");
-      }
+      if (parsedData.length === 0) throw new Error("No data rows found in CSV.");
 
-      dismissToast(toastId);
-      const progressToastId = showLoading(`Processing ${parsedData.length} rows...`);
-
-      const existingNames = new Set(locations.map(loc => loc.name.toLowerCase()));
-      const existingCoords = new Set(locations.map(loc => `${loc.latitude},${loc.longitude}`));
+      const blogTitleMap = new Map(blogPosts.map(p => [p.title.toLowerCase(), p.id]));
       
-      const locationsToInsert = [];
+      const newLocations: any[] = [];
+      const potentialUpdates: { existingId: string; existingTitle: string; newData: any }[] = [];
       const failedRows = [];
-      let skippedCount = 0;
 
       for (const [index, row] of parsedData.entries()) {
         try {
-          if (!row.title || !row.name) {
-            throw new Error("Missing required 'title' or 'name'.");
-          }
+          if (!row.title || !row.name) throw new Error("Missing required 'title' or 'name'.");
 
           let { latitude, longitude } = row;
-
           if ((!latitude || !longitude) && row.name) {
             const coords = await geocodeLocation(row.name);
             latitude = coords.latitude;
             longitude = coords.longitude;
           }
+          if (!latitude || !longitude) throw new Error(`Could not determine coordinates for "${row.name}".`);
 
-          if (!latitude || !longitude) {
-            throw new Error(`Could not determine coordinates for "${row.name}".`);
+          let blog_url = null;
+          if (row.blog_title) {
+            const postId = blogTitleMap.get(row.blog_title.toLowerCase());
+            if (postId) blog_url = `/blog/${postId}`;
           }
 
-          const finalName = row.name;
-          const finalLat = parseFloat(latitude);
-          const finalLng = parseFloat(longitude);
-
-          if (existingNames.has(finalName.toLowerCase()) || existingCoords.has(`${finalLat},${finalLng}`)) {
-            skippedCount++;
-            continue;
-          }
-
-          locationsToInsert.push({
+          const locationData = {
             title: row.title,
-            name: finalName,
+            name: row.name,
             description: row.description || null,
-            latitude: finalLat,
-            longitude: finalLng,
-            blog_url: row.blog_url || null,
+            latitude: parseFloat(latitude),
+            longitude: parseFloat(longitude),
+            blog_url: blog_url,
             marker_image_url: row.marker_image_url || null,
-          });
+          };
 
-          existingNames.add(finalName.toLowerCase());
-          existingCoords.add(`${finalLat},${finalLng}`);
+          const existingLocation = locations.find(loc => loc.name.toLowerCase() === locationData.name.toLowerCase());
 
+          if (existingLocation) {
+            potentialUpdates.push({
+              existingId: existingLocation.id,
+              existingTitle: existingLocation.title,
+              newData: locationData
+            });
+          } else {
+            newLocations.push(locationData);
+          }
         } catch (error: any) {
           failedRows.push({ row: index + 2, error: error.message });
         }
       }
 
-      dismissToast(progressToastId);
-
-      if (locationsToInsert.length > 0) {
-        const insertToastId = showLoading(`Uploading ${locationsToInsert.length} valid locations...`);
-        const { error } = await supabase.from("travel_locations").insert(locationsToInsert);
-        dismissToast(insertToastId);
-
-        if (error) {
-          throw new Error(`Database insert failed: ${error.message}`);
-        }
-        fetchLocations();
-      }
-
-      let summaryMessage = "";
-      if (locationsToInsert.length > 0) {
-        summaryMessage += `${locationsToInsert.length} locations uploaded successfully. `;
-      }
-      if (skippedCount > 0) {
-        summaryMessage += `${skippedCount} duplicate locations were skipped.`;
-      }
-      if (summaryMessage) {
-        showSuccess(summaryMessage.trim());
-      }
+      dismissToast(toastId);
 
       if (failedRows.length > 0) {
-        const errorMessage = `${failedRows.length} rows failed to upload. See console for details.`;
-        showError(errorMessage);
+        showError(`${failedRows.length} rows failed to process. See console for details.`);
         console.error("Bulk upload failures:", failedRows);
       }
 
-      if (locationsToInsert.length === 0 && failedRows.length === 0 && skippedCount > 0) {
-        showSuccess(`All ${skippedCount} locations in the file were already present and have been skipped.`);
-      } else if (locationsToInsert.length === 0 && failedRows.length > 0) {
-        throw new Error("Upload failed. No valid locations found in the file.");
+      setLocationsToInsert(newLocations);
+      setLocationsToUpdate(potentialUpdates);
+
+      if (potentialUpdates.length > 0) {
+        setSelectedUpdates(new Set());
+        setIsUpdateDialogVisible(true);
+      } else if (newLocations.length > 0) {
+        await processUploads(newLocations, []);
+      } else if (failedRows.length === 0) {
+        showSuccess("No new locations to import.");
       }
 
     } catch (error: any) {
@@ -401,9 +466,7 @@ const ManageTravel = () => {
     } finally {
       setIsUploading(false);
       setUploadFile(null);
-      if (fileInputRef.current) {
-        fileInputRef.current.value = "";
-      }
+      if (fileInputRef.current) fileInputRef.current.value = "";
     }
   };
 
@@ -439,8 +502,76 @@ const ManageTravel = () => {
     }
   };
 
+  const handleBulkDownload = async () => {
+    const toastId = showLoading(`Preparing ${selectedLocations.size} location(s) for download...`);
+    try {
+        const blogTitleMap = new Map(blogPosts.map(p => [p.id, p.title]));
+        const locationsToDownload = locations.filter(loc => selectedLocations.has(loc.id));
+
+        const headers = ["title", "name", "description", "latitude", "longitude", "marker_image_url", "blog_title"];
+        
+        const escapeCsv = (val: any) => {
+            const str = String(val);
+            if (str.includes('"') || str.includes(';') || str.includes('\n') || str.includes(',')) {
+                return `"${str.replace(/"/g, '""')}"`;
+            }
+            return `"${str}"`;
+        };
+
+        const csvRows = locationsToDownload.map(loc => {
+            const postId = loc.blog_url ? loc.blog_url.split('/').pop() : null;
+            const blogTitle = postId ? blogTitleMap.get(postId) || '' : '';
+
+            const rowData = [
+                loc.title,
+                loc.name,
+                loc.description || '',
+                loc.latitude,
+                loc.longitude,
+                loc.marker_image_url || '',
+                blogTitle,
+            ];
+            return rowData.map(escapeCsv).join(';');
+        });
+
+        const csvHeader = headers.map(h => `"${h}"`).join(';');
+        const csvContent = [csvHeader, ...csvRows].join('\r\n');
+
+        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+        const link = document.createElement("a");
+        const url = URL.createObjectURL(blob);
+        link.setAttribute("href", url);
+        link.setAttribute("download", "travel_locations_export.csv");
+        link.style.visibility = 'hidden';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+
+        updateToastSuccess(toastId, `${locationsToDownload.length} location(s) downloaded.`);
+
+    } catch (error: any) {
+        updateToastError(toastId, `Download failed: ${error.message}`);
+    }
+  };
+
+  const handleSelectAll = (checked: boolean) => {
+    const pageIds = new Set(paginatedLocations.map(l => l.id));
+    if (checked) {
+      setSelectedLocations(prev => new Set([...prev, ...pageIds]));
+    } else {
+      setSelectedLocations(prev => {
+        const newSet = new Set(prev);
+        pageIds.forEach(id => newSet.delete(id));
+        return newSet;
+      });
+    }
+  };
+
+  const allOnPageSelected = paginatedLocations.length > 0 && paginatedLocations.every(l => selectedLocations.has(l.id));
+
   return (
-    <div className="space-y-8">
+    <div className="space-y-8" ref={containerRef}>
       <Card>
         <CardHeader>
           <CardTitle>Bulk Upload Locations</CardTitle>
@@ -450,7 +581,7 @@ const ManageTravel = () => {
           <div className="space-y-4">
             <div className="flex items-center justify-between p-3 bg-muted rounded-md">
                 <p className="text-sm text-muted-foreground">
-                  Headers: <code>"title";"name";"description";...</code>
+                  Headers: <code>"title";"name";"blog_title";...</code>
                 </p>
                 <Button asChild variant="secondary" size="sm">
                     <a href="/sample-travel-locations.csv" download>
@@ -486,86 +617,67 @@ const ManageTravel = () => {
           <CardContent>
             <Form {...form}>
               <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-                <FormField
-                  control={form.control}
-                  name="title"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Title</FormLabel>
-                      <FormControl>
-                        <Input placeholder="e.g., Eiffel Tower Trip" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={form.control}
-                  name="description"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Description (Optional)</FormLabel>
-                      <FormControl>
-                        <Textarea placeholder="A short description of your visit." {...field} value={field.value ?? ''} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={form.control}
-                  name="name"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Place Name</FormLabel>
-                      <FormControl>
-                        <Input placeholder="e.g., Paris, France" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+                <FormField control={form.control} name="title" render={({ field }) => (
+                  <FormItem><FormLabel>Title</FormLabel><FormControl><Input placeholder="e.g., Eiffel Tower Trip" {...field} /></FormControl><FormMessage /></FormItem>
+                )}/>
+                <FormField control={form.control} name="description" render={({ field }) => (
+                  <FormItem><FormLabel>Description (Optional)</FormLabel><FormControl><Textarea placeholder="A short description of your visit." {...field} value={field.value ?? ''} /></FormControl><FormMessage /></FormItem>
+                )}/>
+                <FormField control={form.control} name="name" render={({ field }) => (
+                  <FormItem><FormLabel>Place Name</FormLabel><FormControl><Input placeholder="e.g., Paris, France" {...field} /></FormControl><FormMessage /></FormItem>
+                )}/>
                 <div className="grid grid-cols-2 gap-4">
-                  <FormField
-                    control={form.control}
-                    name="latitude"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Latitude (Optional)</FormLabel>
-                        <FormControl>
-                          <Input type="number" step="any" placeholder="Auto-detected" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={form.control}
-                    name="longitude"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Longitude (Optional)</FormLabel>
-                        <FormControl>
-                          <Input type="number" step="any" placeholder="Auto-detected" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
+                  <FormField control={form.control} name="latitude" render={({ field }) => (
+                    <FormItem><FormLabel>Latitude (Optional)</FormLabel><FormControl><Input type="number" step="any" placeholder="Auto-detected" {...field} /></FormControl><FormMessage /></FormItem>
+                  )}/>
+                  <FormField control={form.control} name="longitude" render={({ field }) => (
+                    <FormItem><FormLabel>Longitude (Optional)</FormLabel><FormControl><Input type="number" step="any" placeholder="Auto-detected" {...field} /></FormControl><FormMessage /></FormItem>
+                  )}/>
                 </div>
-                <FormField
-                  control={form.control}
-                  name="blog_url"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Blog Post URL (Optional)</FormLabel>
-                      <FormControl>
-                        <Input placeholder="/blog/my-awesome-trip" {...field} value={field.value ?? ''} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+                <FormField control={form.control} name="blog_url" render={({ field }) => (
+                  <FormItem className="flex flex-col">
+                    <FormLabel>Linked Blog Post (Optional)</FormLabel>
+                    <Popover open={blogPopoverOpen} onOpenChange={setBlogPopoverOpen}>
+                      <PopoverTrigger asChild>
+                        <FormControl>
+                          <Button variant="outline" role="combobox" className={cn("w-full justify-between", !field.value && "text-muted-foreground")}>
+                            <span className="truncate">
+                              {field.value ? blogPosts.find(post => `/blog/${post.id}` === field.value)?.title : "Select a blog post"}
+                            </span>
+                            <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                          </Button>
+                        </FormControl>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-[--radix-popover-trigger-width] max-h-[--radix-popover-content-available-height] p-0">
+                        <Command>
+                          <CommandInput placeholder="Search posts..." />
+                          <CommandList>
+                            <CommandEmpty>No posts found.</CommandEmpty>
+                            <CommandGroup>
+                              <CommandItem value="--none--" onSelect={() => {
+                                field.onChange(null);
+                                setBlogPopoverOpen(false);
+                              }}>
+                                <Check className={cn("mr-2 h-4 w-4", field.value === null ? "opacity-100" : "opacity-0")} />
+                                None
+                              </CommandItem>
+                              {blogPosts.map((post) => (
+                                <CommandItem value={post.title} key={post.id} onSelect={() => {
+                                  field.onChange(`/blog/${post.id}`);
+                                  setBlogPopoverOpen(false);
+                                }}>
+                                  <Check className={cn("mr-2 h-4 w-4", `/blog/${post.id}` === field.value ? "opacity-100" : "opacity-0")}/>
+                                  {post.title}
+                                </CommandItem>
+                              ))}
+                            </CommandGroup>
+                          </CommandList>
+                        </Command>
+                      </PopoverContent>
+                    </Popover>
+                    <FormMessage />
+                  </FormItem>
+                )}/>
                 
                 {editingId && editingImageUrl && (
                   <div className="space-y-2">
@@ -577,23 +689,13 @@ const ManageTravel = () => {
                   </div>
                 )}
 
-                <FormField
-                  control={form.control}
-                  name="image"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>{editingImageUrl ? 'Replace Marker Image (Optional)' : 'Custom Marker Image (Optional)'}</FormLabel>
-                      <FormControl>
-                        <Input 
-                          type="file" 
-                          accept="image/*"
-                          onChange={(e) => field.onChange(e.target.files)}
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+                <FormField control={form.control} name="image" render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>{editingImageUrl ? 'Replace Marker Image (Optional)' : 'Custom Marker Image (Optional)'}</FormLabel>
+                    <FormControl><Input type="file" accept="image/*" onChange={(e) => field.onChange(e.target.files)}/></FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}/>
                 <div className="flex gap-2">
                   <Button type="submit">{editingId ? "Update Location" : "Add Location"}</Button>
                   {editingId && <Button type="button" variant="outline" onClick={cancelEdit}>Cancel</Button>}
@@ -610,72 +712,36 @@ const ManageTravel = () => {
                 <CardDescription>Your current list of visited places.</CardDescription>
               </div>
               {selectedLocations.size > 0 && (
-                <AlertDialog>
-                  <AlertDialogTrigger asChild>
-                    <Button variant="destructive" size="sm">
-                      <Trash2 className="h-4 w-4 mr-2" />
-                      Delete ({selectedLocations.size})
-                    </Button>
-                  </AlertDialogTrigger>
-                  <AlertDialogContent>
-                    <AlertDialogHeader>
-                      <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
-                      <AlertDialogDescription>
-                        This action cannot be undone. This will permanently delete {selectedLocations.size} selected locations and any associated images.
-                      </AlertDialogDescription>
-                    </AlertDialogHeader>
-                    <AlertDialogFooter>
-                      <AlertDialogCancel onClick={() => setSelectedLocations(new Set())}>Cancel</AlertDialogCancel>
-                      <AlertDialogAction onClick={handleBulkDelete}>Continue</AlertDialogAction>
-                    </AlertDialogFooter>
-                  </AlertDialogContent>
-                </AlertDialog>
+                <div className="flex items-center gap-2">
+                  <Button variant="outline" size="sm" onClick={handleBulkDownload}>
+                    <Download className="h-4 w-4 mr-2" />
+                    Download ({selectedLocations.size})
+                  </Button>
+                  <AlertDialog>
+                    <AlertDialogTrigger asChild><Button variant="destructive" size="sm"><Trash2 className="h-4 w-4 mr-2" />Delete ({selectedLocations.size})</Button></AlertDialogTrigger>
+                    <AlertDialogContent>
+                      <AlertDialogHeader><AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle><AlertDialogDescription>This action cannot be undone. This will permanently delete {selectedLocations.size} selected locations and any associated images.</AlertDialogDescription></AlertDialogHeader>
+                      <AlertDialogFooter><AlertDialogCancel onClick={() => setSelectedLocations(new Set())}>Cancel</AlertDialogCancel><AlertDialogAction onClick={handleBulkDelete}>Continue</AlertDialogAction></AlertDialogFooter>
+                    </AlertDialogContent>
+                  </AlertDialog>
+                </div>
               )}
             </div>
           </CardHeader>
           <CardContent>
             <div className="flex items-center border-b pb-2 mb-2 space-x-3">
-              <Checkbox
-                  id="select-all"
-                  onCheckedChange={(checked) => {
-                      const newSelected = new Set<string>();
-                      if (checked) {
-                          locations.forEach(loc => newSelected.add(loc.id));
-                      }
-                      setSelectedLocations(newSelected);
-                  }}
-                  checked={locations.length > 0 && selectedLocations.size === locations.length}
-                  disabled={locations.length === 0}
-              />
-              <label htmlFor="select-all" className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
-                Select All
-              </label>
+              <Checkbox id="select-all" onCheckedChange={(checked) => handleSelectAll(Boolean(checked))} checked={allOnPageSelected} disabled={paginatedLocations.length === 0}/>
+              <label htmlFor="select-all" className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">Select All</label>
             </div>
             <div className="space-y-2 mt-4">
               {locations.length > 0 ? (
-                locations.map((location) => (
+                paginatedLocations.map((location) => (
                   <div key={location.id} className="flex items-center justify-between p-2 rounded-lg border">
                     <div className="flex items-center gap-3">
-                      <Checkbox
-                        id={`select-${location.id}`}
-                        checked={selectedLocations.has(location.id)}
-                        onCheckedChange={() => {
-                            const newSelected = new Set(selectedLocations);
-                            if (newSelected.has(location.id)) {
-                                newSelected.delete(location.id);
-                            } else {
-                                newSelected.add(location.id);
-                            }
-                            setSelectedLocations(newSelected);
-                        }}
-                      />
+                      <Checkbox id={`select-${location.id}`} checked={selectedLocations.has(location.id)} onCheckedChange={() => { const newSelected = new Set(selectedLocations); if (newSelected.has(location.id)) { newSelected.delete(location.id); } else { newSelected.add(location.id); } setSelectedLocations(newSelected); }}/>
                       <label htmlFor={`select-${location.id}`} className="font-medium truncate pr-2 cursor-pointer">{location.title}</label>
                     </div>
-                    <div className="flex items-center gap-2 shrink-0">
-                      <Button variant="ghost" size="icon" onClick={() => handleEdit(location)}>
-                        <Edit className="h-4 w-4" />
-                      </Button>
-                    </div>
+                    <div className="flex items-center gap-2 shrink-0"><Button variant="ghost" size="icon" onClick={() => handleEdit(location)}><Edit className="h-4 w-4" /></Button></div>
                   </div>
                 ))
               ) : (
@@ -683,8 +749,72 @@ const ManageTravel = () => {
               )}
             </div>
           </CardContent>
+          <CardFooter>
+            <ManagementPagination
+              currentPage={currentPage}
+              totalPages={totalPages}
+              onPageChange={setCurrentPage}
+              itemsPerPage={locationsPerPage}
+              onItemsPerPageChange={handleItemsPerPageChange}
+              totalItems={locations.length}
+            />
+          </CardFooter>
         </Card>
       </div>
+      <Dialog open={isUpdateDialogVisible} onOpenChange={setIsUpdateDialogVisible}>
+        <DialogContent className="max-w-md">
+            <DialogHeader>
+                <DialogTitle>Confirm Updates</DialogTitle>
+                <DialogDescription>
+                    The following locations already exist. Select the ones you want to update with the data from your CSV file. Unselected locations will be skipped.
+                </DialogDescription>
+            </DialogHeader>
+            <div className="flex items-center space-x-2 border-b pb-2">
+                <Checkbox
+                    id="select-all-updates-travel"
+                    checked={locationsToUpdate.length > 0 && selectedUpdates.size === locationsToUpdate.length}
+                    onCheckedChange={(checked) => {
+                        if (checked) {
+                            setSelectedUpdates(new Set(locationsToUpdate.map(l => l.existingId)));
+                        } else {
+                            setSelectedUpdates(new Set());
+                        }
+                    }}
+                />
+                <label htmlFor="select-all-updates-travel" className="text-sm font-medium leading-none">
+                    Select All
+                </label>
+            </div>
+            <div className="max-h-60 overflow-y-auto space-y-2 p-1">
+                {locationsToUpdate.map(item => (
+                    <div key={item.existingId} className="flex items-center space-x-2 p-2 border rounded-md">
+                        <Checkbox
+                            id={`update-${item.existingId}`}
+                            checked={selectedUpdates.has(item.existingId)}
+                            onCheckedChange={(checked) => {
+                                const newSelection = new Set(selectedUpdates);
+                                if (checked) {
+                                    newSelection.add(item.existingId);
+                                } else {
+                                    newSelection.delete(item.existingId);
+                                }
+                                setSelectedUpdates(newSelection);
+                            }}
+                        />
+                        <label htmlFor={`update-${item.existingId}`} className="text-sm font-medium leading-none">
+                            Update "{item.existingTitle}"
+                        </label>
+                    </div>
+                ))}
+            </div>
+            <DialogFooter>
+                <Button variant="outline" onClick={() => setIsUpdateDialogVisible(false)}>Cancel</Button>
+                <Button onClick={handleConfirmAndProcessUploads}>
+                    Import ({locationsToInsert.length}) & Update ({selectedUpdates.size})
+                </Button>
+            </DialogFooter>
+        </DialogContent>
+    </Dialog>
     </div>
   );
 };
