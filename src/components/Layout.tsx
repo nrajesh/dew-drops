@@ -10,7 +10,7 @@ import { mainNavItems, managementNavItems } from "@/config/navigation";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { showError, showSuccess } from "@/utils/toast";
-import FloatingActions from "./FloatingActions"; // Updated import
+import FloatingChatbot from "./FloatingChatbot";
 import { useFeatureToggles } from "@/contexts/FeatureToggleContext";
 
 const NavContent = ({ onLinkClick }: { onLinkClick?: () => void }) => {
@@ -160,7 +160,7 @@ const Layout = () => {
           </footer>
         </div>
       </div>
-      <FloatingActions /> {/* Updated component name */}
+      <FloatingChatbot />
       <Toaster />
       <Sonner />
     </>

@@ -24,6 +24,7 @@
     --border: 214.3 31.8% 91.4%;
     --input: 214.3 31.8% 91.4%;
     --ring: 217 91% 60%;
+    --radius: 0.5rem;
 
     /* Sidebar variables for light theme */
     --sidebar-background: 210 40% 100%;
@@ -104,63 +105,4 @@
 
 .mapboxgl-popup.custom-popup .mapboxgl-popup-close-button:hover {
   background-color: hsla(var(--primary-foreground), 0.1);
-}
-
-/* React Quill specific styles for dark mode */
-.dark .ql-toolbar.ql-snow {
-  border-color: hsl(var(--border));
-  background-color: hsl(var(--input));
-}
-
-.dark .ql-container.ql-snow {
-  border-color: hsl(var(--border));
-  background-color: hsl(var(--background));
-  color: hsl(var(--foreground));
-}
-
-.dark .ql-editor {
-  color: hsl(var(--foreground));
-}
-
-.dark .ql-stroke {
-  stroke: hsl(var(--foreground));
-}
-
-.dark .ql-fill {
-  fill: hsl(var(--foreground));
-}
-
-.dark .ql-picker-label {
-  color: hsl(var(--foreground));
-}
-
-.dark .ql-picker-options {
-  background-color: hsl(var(--popover));
-  border-color: hsl(var(--border));
-}
-
-.dark .ql-picker-item {
-  color: hsl(var(--foreground));
-}
-
-.dark .ql-picker-item.ql-selected,
-.dark .ql-picker-item:hover {
-  background-color: hsl(var(--accent));
-  color: hsl(var(--accent-foreground));
-}
-
-.dark .ql-tooltip {
-  background-color: hsl(var(--popover));
-  border-color: hsl(var(--border));
-  color: hsl(var(--foreground));
-}
-
-.dark .ql-tooltip a {
-  color: hsl(var(--primary));
-}
-
-.dark .ql-tooltip input {
-  background-color: hsl(var(--input));
-  border-color: hsl(var(--border));
-  color: hsl(var(--foreground));
 }
