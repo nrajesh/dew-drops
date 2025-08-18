@@ -1,5 +1,5 @@
 import { BlockNoteView, useBlockNote } from "@blocknote/react";
-import { BlockNoteEditor } from "@blocknote/core";
+import { BlockNoteEditor, markdownToBlocks, blocksToMarkdown } from "@blocknote/core";
 import { useEffect } from "react";
 import { useTheme } from "next-themes";
 
@@ -13,9 +13,8 @@ export const PostEditor = ({ initialContent, onChange, editable = true }: PostEd
   const { theme } = useTheme();
 
   const editor: BlockNoteEditor | null = useBlockNote({
-    editable,
     onEditorContentChange: async (editor) => {
-      const markdown = await editor.blocksToMarkdown();
+      const markdown = await blocksToMarkdown(editor.topLevelBlocks);
       onChange(markdown);
     },
   });
@@ -23,7 +22,7 @@ export const PostEditor = ({ initialContent, onChange, editable = true }: PostEd
   useEffect(() => {
     const setupContent = async () => {
       if (editor) {
-        const blocks = await editor.markdownToBlocks(initialContent);
+        const blocks = await markdownToBlocks(initialContent);
         editor.replaceBlocks(editor.topLevelBlocks, blocks);
       }
     };
@@ -34,5 +33,5 @@ export const PostEditor = ({ initialContent, onChange, editable = true }: PostEd
     return <div>Loading Editor...</div>;
   }
 
-  return <BlockNoteView editor={editor} theme={theme === "dark" ? "dark" : "light"} />;
+  return <BlockNoteView editor={editor} theme={theme === "dark" ? "dark" : "light"} editable={editable} />;
 };
