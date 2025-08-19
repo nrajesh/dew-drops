@@ -103,16 +103,8 @@ export const BlogForm = ({ editingPost, galleryImages, uniqueTags, onSubmit, onC
   };
 
   const handleSaveAndCloseEditor = () => {
-    // const markdownContent = turndownService.turndown(editorContent);
+    const markdownContent = turndownService.turndown(editorContent);
     
-        // Pre-process the HTML to handle empty paragraphs which represent newlines.
-        // Replace empty paragraphs or paragraphs with only a <br> tag with a non-breaking space
-        // to prevent Turndown from collapsing them into nothing.
-        const processedHtml = editorContent
-          .replace(/<p><br><\/p>/g, '<p>&nbsp;</p>') 
-          .replace(/<p><\/p>/g, '<p>&nbsp;</p>');
-
-        const markdownContent = turndownService.turndown(processedHtml);
     form.setValue('content', markdownContent, { shouldValidate: true, shouldDirty: true });
     setIsEditorOpen(false);
   };
