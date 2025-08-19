@@ -114,9 +114,14 @@ export const BlogForm = ({ editingPost, galleryImages, uniqueTags, onSubmit, onC
     setIsEditorOpen(false);
   };
 
-  useEffect(() => {
-    turndownService.options.br = 'newline'
-  }, [])
+  const handleSaveAndCloseEditor = () => {
+      let markdownContent = turndownService.turndown(editorContent);
+      // Replace HTML newline representations with Markdown newlines
+      markdownContent = markdownContent.replace(/<br\s*\/?\s*>/gi, '\n');
+        markdownContent = markdownContent.replace(/<p><\/p>/gi, '\n');
+      form.setValue('content', markdownContent, { shouldValidate: true, shouldDirty: true });
+      setIsEditorOpen(false);
+    };
 
   return (
     <Card>
