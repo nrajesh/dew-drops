@@ -104,7 +104,6 @@ export const BlogForm = ({ editingPost, galleryImages, uniqueTags, onSubmit, onC
 
   const handleSaveAndCloseEditor = () => {
     const markdownContent = turndownService.turndown(editorContent);
-    
     form.setValue('content', markdownContent, { shouldValidate: true, shouldDirty: true });
     setIsEditorOpen(false);
   };
