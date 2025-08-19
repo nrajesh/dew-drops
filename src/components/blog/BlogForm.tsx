@@ -114,6 +114,10 @@ export const BlogForm = ({ editingPost, galleryImages, uniqueTags, onSubmit, onC
     setIsEditorOpen(false);
   };
 
+  useEffect(() => {
+    turndownService.options.br = 'newline'
+  }, [])
+
   return (
     <Card>
       <CardHeader>
