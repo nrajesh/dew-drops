@@ -103,13 +103,10 @@ export const BlogForm = ({ editingPost, galleryImages, uniqueTags, onSubmit, onC
   };
 
   const handleSaveAndCloseEditor = () => {
-      let markdownContent = turndownService.turndown(editorContent);
-      // Replace HTML newline representations with Markdown newlines
-      markdownContent = markdownContent.replace(/<br\s*\/?\s*>/gi, '\n');
-        markdownContent = markdownContent.replace(/<p><\/p>/gi, '\n');
-      form.setValue('content', markdownContent, { shouldValidate: true, shouldDirty: true });
-      setIsEditorOpen(false);
-    };
+    const markdownContent = turndownService.turndown(editorContent);
+    form.setValue('content', markdownContent, { shouldValidate: true, shouldDirty: true });
+    setIsEditorOpen(false);
+  };
 
   return (
     <Card>
