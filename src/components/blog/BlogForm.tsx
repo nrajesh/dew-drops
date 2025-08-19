@@ -103,18 +103,6 @@ export const BlogForm = ({ editingPost, galleryImages, uniqueTags, onSubmit, onC
   };
 
   const handleSaveAndCloseEditor = () => {
-    //const markdownContent = turndownService.turndown(editorContent);
-
-    let markdownContent = turndownService.turndown(editorContent);
-
-    // Replace HTML newline representations with Markdown newlines
-    markdownContent = markdownContent.replace(/<br\s*\/?\s*>/gi, '\n');
-    
-    form.setValue('content', markdownContent, { shouldValidate: true, shouldDirty: true });
-    setIsEditorOpen(false);
-  };
-
-  const handleSaveAndCloseEditor = () => {
       let markdownContent = turndownService.turndown(editorContent);
       // Replace HTML newline representations with Markdown newlines
       markdownContent = markdownContent.replace(/<br\s*\/?\s*>/gi, '\n');
