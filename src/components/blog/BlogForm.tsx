@@ -103,7 +103,7 @@ export const BlogForm = ({ editingPost, galleryImages, uniqueTags, onSubmit, onC
   };
 
   const handleSaveAndCloseEditor = () => {
-    const markdownContent = turndownService.turndown(editorContent);
+    //const markdownContent = turndownService.turndown(editorContent);
 
     let markdownContent = turndownService.turndown(editorContent);
 
