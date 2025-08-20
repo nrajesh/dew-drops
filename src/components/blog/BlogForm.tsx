@@ -52,7 +52,16 @@ export const BlogForm = ({ editingPost, galleryImages, uniqueTags, onSubmit, onC
   const [isEditorOpen, setIsEditorOpen] = useState(false);
   const [editorContent, setEditorContent] = useState(''); // Internal HTML state for the editor
 
-  const turndownService = useMemo(() => new TurndownService(), []);
+  const turndownService = useMemo(() => {
+    const service = new TurndownService({
+      // This rule ensures that blank HTML elements (like an empty <p>) are
+      // converted into a double newline, preserving paragraph breaks.
+      blankReplacement: (content, node) => {
+        return (node as any).isBlock ? '\n\n' : ''
+      },
+    });
+    return service;
+  }, []);
   const showdownConverter = useMemo(() => new showdown.Converter(), []);
 
   const form = useForm<PostFormData>({
