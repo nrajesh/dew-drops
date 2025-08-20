@@ -1,7 +1,7 @@
 import { NavLink, Outlet, Link } from "react-router-dom";
 import { Menu, LogIn, LogOut } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger, SheetDescription } from "@/components/ui/sheet";
 import { ThemeToggle } from "./ThemeToggle";
 import { useState } from "react";
 import { Toaster } from "@/components/ui/toaster";
@@ -10,7 +10,7 @@ import { mainNavItems, managementNavItems } from "@/config/navigation";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { showError, showSuccess } from "@/utils/toast";
-import FloatingActions from "./FloatingActions"; // Updated import
+import FloatingChatbot from "./FloatingChatbot";
 import { useFeatureToggles } from "@/contexts/FeatureToggleContext";
 
 const NavContent = ({ onLinkClick }: { onLinkClick?: () => void }) => {
@@ -110,6 +110,12 @@ const Layout = () => {
                 </Button>
               </SheetTrigger>
               <SheetContent side="left" className="flex flex-col bg-sidebar p-0">
+                <SheetHeader className="sr-only">
+                  <SheetTitle>Main Menu</SheetTitle>
+                  <SheetDescription>
+                    A list of navigation links to browse the site.
+                  </SheetDescription>
+                </SheetHeader>
                 <div className="flex h-14 items-center border-b border-sidebar-border px-4">
                   <NavLink
                     to="/"
@@ -160,7 +166,7 @@ const Layout = () => {
           </footer>
         </div>
       </div>
-      <FloatingActions /> {/* Updated component name */}
+      <FloatingChatbot />
       <Toaster />
       <Sonner />
     </>
