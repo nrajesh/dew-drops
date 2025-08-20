@@ -1,5 +1,5 @@
 import { NavLink, Outlet, Link } from "react-router-dom";
-import { Menu, LogIn, LogOut, Plus } from "lucide-react";
+import { Menu, LogIn, LogOut, Plus, Bot } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger, SheetDescription } from "@/components/ui/sheet";
 import { ThemeToggle } from "./ThemeToggle";
@@ -10,11 +10,11 @@ import { mainNavItems, managementNavItems } from "@/config/navigation";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { showError, showSuccess } from "@/utils/toast";
-import FloatingChatbot from "./FloatingChatbot";
 import { useFeatureToggles } from "@/contexts/FeatureToggleContext";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { BlogForm, PostFormData } from "@/components/blog/BlogForm";
 import { useNavigate } from "react-router-dom";
+import Chat from "@/pages/Chat";
 
 const NavContent = ({ onLinkClick }: { onLinkClick?: () => void }) => {
   const { toggles } = useFeatureToggles();
@@ -76,6 +76,7 @@ const Layout = () => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const { session } = useAuth();
   const [isAddBlogDialogOpen, setIsAddBlogDialogOpen] = useState(false);
+  const [isChatOpen, setIsChatOpen] = useState(false);
   const navigate = useNavigate();
 
   const handleLogout = async () => {
@@ -145,12 +146,6 @@ const Layout = () => {
               {/* Future content like breadcrumbs can go here */}
             </div>
             <ThemeToggle />
-            {session && (
-              <Button variant="ghost" size="icon" onClick={() => setIsAddBlogDialogOpen(true)}>
-                <Plus className="h-5 w-5" />
-                <span className="sr-only">Add Blog</span>
-              </Button>
-            )}
             {session ? (
               <Button variant="ghost" size="icon" onClick={handleLogout}>
                 <LogOut className="h-5 w-5" />
@@ -183,7 +178,31 @@ const Layout = () => {
           </footer>
         </div>
       </div>
-      <FloatingChatbot />
+
+      {/* Floating Action Buttons */}
+      <div className="fixed bottom-6 left-6 flex flex-col gap-4 z-40">
+        {session && (
+          <Button
+            variant="default"
+            size="icon"
+            className="h-14 w-14 rounded-full shadow-lg"
+            onClick={() => setIsAddBlogDialogOpen(true)}
+            aria-label="Add New Blog Post"
+          >
+            <Plus className="h-7 w-7" />
+          </Button>
+        )}
+        <Button
+          variant="default"
+          size="icon"
+          className="h-14 w-14 rounded-full shadow-lg"
+          onClick={() => setIsChatOpen(true)}
+          aria-label="Open Chatbot"
+        >
+          <Bot className="h-7 w-7" />
+        </Button>
+      </div>
+
       <Toaster />
       <Sonner />
 
@@ -203,6 +222,18 @@ const Layout = () => {
             onCancel={() => setIsAddBlogDialogOpen(false)}
             isPopup={true}
           />
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={isChatOpen} onOpenChange={setIsChatOpen}>
+        <DialogContent className="w-full sm:max-w-lg p-0 flex flex-col h-[80vh]">
+          <DialogHeader className="sr-only">
+            <DialogTitle>Chatbot</DialogTitle>
+            <DialogDescription>
+              A chat interface to ask questions about the portfolio.
+            </DialogDescription>
+          </DialogHeader>
+          <Chat />
         </DialogContent>
       </Dialog>
     </>
