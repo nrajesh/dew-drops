@@ -1,5 +1,5 @@
 import { NavLink, Outlet, Link } from "react-router-dom";
-import { Menu, LogIn, LogOut } from "lucide-react";
+import { Menu, LogIn, LogOut, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger, SheetDescription } from "@/components/ui/sheet";
 import { ThemeToggle } from "./ThemeToggle";
@@ -12,6 +12,9 @@ import { supabase } from "@/integrations/supabase/client";
 import { showError, showSuccess } from "@/utils/toast";
 import FloatingChatbot from "./FloatingChatbot";
 import { useFeatureToggles } from "@/contexts/FeatureToggleContext";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import { BlogForm, PostFormData } from "@/components/blog/BlogForm";
+import { useNavigate } from "react-router-dom";
 
 const NavContent = ({ onLinkClick }: { onLinkClick?: () => void }) => {
   const { toggles } = useFeatureToggles();
@@ -42,7 +45,7 @@ const NavContent = ({ onLinkClick }: { onLinkClick?: () => void }) => {
           </NavLink>
         ))}
       </nav>
-      
+
       {areManagementItemsVisible && (
         <>
           <div className="mt-4 px-4 lg:px-6">
@@ -72,10 +75,12 @@ const NavContent = ({ onLinkClick }: { onLinkClick?: () => void }) => {
 const Layout = () => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const { session } = useAuth();
+  const [isAddBlogDialogOpen, setIsAddBlogDialogOpen] = useState(false);
+  const navigate = useNavigate();
 
   const handleLogout = async () => {
     const { error } = await supabase.auth.signOut();
-    
+
     if (error && error.name !== 'AuthSessionMissingError') {
       showError("Logout failed. Please try again.");
       console.error("Logout error:", error);
@@ -83,6 +88,12 @@ const Layout = () => {
       showSuccess("You have been logged out.");
       window.location.href = "/";
     }
+  };
+
+  const handleFormSubmit = (values: PostFormData) => {
+    // This will be handled by the ManageBlog component
+    setIsAddBlogDialogOpen(false);
+    navigate('/manage-blog', { state: { newPostData: values } });
   };
 
   return (
@@ -135,10 +146,16 @@ const Layout = () => {
             </div>
             <ThemeToggle />
             {session ? (
-              <Button variant="ghost" size="icon" onClick={handleLogout}>
-                <LogOut className="h-5 w-5" />
-                <span className="sr-only">Logout</span>
-              </Button>
+              <>
+                <Button variant="default" size="sm" onClick={() => setIsAddBlogDialogOpen(true)}>
+                  <Plus className="h-4 w-4 mr-2" />
+                  Add Blog
+                </Button>
+                <Button variant="ghost" size="icon" onClick={handleLogout}>
+                  <LogOut className="h-5 w-5" />
+                  <span className="sr-only">Logout</span>
+                </Button>
+              </>
             ) : (
               <Button variant="ghost" size="icon" asChild>
                 <Link to="/login">
@@ -169,6 +186,25 @@ const Layout = () => {
       <FloatingChatbot />
       <Toaster />
       <Sonner />
+
+      <Dialog open={isAddBlogDialogOpen} onOpenChange={setIsAddBlogDialogOpen}>
+        <DialogContent className="max-w-4xl">
+          <DialogHeader>
+            <DialogTitle>Add New Post</DialogTitle>
+            <DialogDescription>
+              Create a new blog post. You can use Markdown for the content.
+            </DialogDescription>
+          </DialogHeader>
+          <BlogForm
+            editingPost={null}
+            galleryImages={[]}
+            uniqueTags={[]}
+            onSubmit={handleFormSubmit}
+            onCancel={() => setIsAddBlogDialogOpen(false)}
+            isPopup={true}
+          />
+        </DialogContent>
+      </Dialog>
     </>
   );
 };

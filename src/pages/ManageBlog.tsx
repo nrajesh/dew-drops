@@ -11,6 +11,7 @@ import { PostList } from "../components/blog/PostList";
 import { BulkImport } from "../components/blog/BulkImport";
 import { UpdatePostsDialog } from "../components/blog/UpdatePostsDialog";
 import { usePaginationNavigation } from "@/hooks/usePaginationNavigation";
+import { useLocation } from "react-router-dom";
 
 type NewPost = Omit<Post, 'id' | 'created_at' | 'user_id'>;
 
@@ -25,6 +26,7 @@ const ManageBlog = () => {
   const [selectedPosts, setSelectedPosts] = useState<Set<string>>(new Set());
   const turndownService = new TurndownService();
   const containerRef = useRef<HTMLDivElement>(null);
+  const location = useLocation();
 
   const [currentPage, setCurrentPage] = useState(1);
   const [postsPerPage, setPostsPerPage] = useState(10);
@@ -40,6 +42,15 @@ const ManageBlog = () => {
     fetchPosts();
     fetchGalleryImages();
   }, []);
+
+  // Handle new post creation from the layout
+  useEffect(() => {
+    if (location.state?.newPostData) {
+      handleFormSubmit(location.state.newPostData);
+      // Clear the state
+      window.history.replaceState({}, document.title);
+    }
+  }, [location.state]);
 
   // Pagination
   const paginatedPosts = useMemo(() => {
@@ -537,14 +548,7 @@ published: ${post.published}${tagsString}${coverImageIdString}${youtubeVideoIdSt
         isUploading={isUploading}
         selectedFiles={selectedFiles}
       />
-      <div className="grid gap-8 md:grid-cols-2">
-        <BlogForm
-          editingPost={editingPost}
-          galleryImages={galleryImages}
-          uniqueTags={uniqueTags}
-          onSubmit={handleFormSubmit}
-          onCancel={cancelEdit}
-        />
+      <div className="w-full">
         <PostList
           posts={paginatedPosts}
           selectedPosts={selectedPosts}

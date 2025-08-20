@@ -41,9 +41,10 @@ interface BlogFormProps {
   uniqueTags: string[];
   onSubmit: (values: PostFormData) => void;
   onCancel: () => void;
+  isPopup?: boolean;
 }
 
-export const BlogForm = ({ editingPost, galleryImages, uniqueTags, onSubmit, onCancel }: BlogFormProps) => {
+export const BlogForm = ({ editingPost, galleryImages, uniqueTags, onSubmit, onCancel, isPopup = false }: BlogFormProps) => {
   const form = useForm<PostFormData>({
     resolver: zodResolver(postSchema),
     defaultValues: {
