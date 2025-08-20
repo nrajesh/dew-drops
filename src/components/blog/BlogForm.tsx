@@ -93,7 +93,7 @@ export const BlogForm = ({ editingPost, galleryImages, uniqueTags, onSubmit, onC
       filter: (element) => {
         return element.nodeName === 'P' && !element.textContent.trim();
       },
-      replacement: () => '\\n\\n'
+      replacement: () => '\n\n'
     });
 
     return td;
