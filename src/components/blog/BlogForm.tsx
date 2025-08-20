@@ -123,7 +123,7 @@ export const BlogForm = ({ editingPost, galleryImages, uniqueTags, onSubmit, onC
               <FormItem><FormLabel>Description (Optional)</FormLabel><FormControl><Textarea placeholder="A short description of your post..." {...field} value={field.value ?? ''} /></FormControl><FormMessage /></FormItem>
             )} />
             <FormField control={form.control} name="content" render={({ field }) => (
-              <FormItem><FormLabel>Content (Markdown supported)</FormLabel><FormControl><Textarea placeholder="Write your full article here..." className="min-h-[200px]" {...field} /></FormControl><FormMessage /></FormItem>
+              <FormItem><FormLabel>Content (Markdown supported)</FormLabel><FormControl><Textarea placeholder="Write your full article here..." className="min-h-[300px]" {...field} /></FormControl><FormMessage /></FormItem>
             )} />
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <FormField control={form.control} name="published_at" render={({ field }) => (
@@ -144,24 +144,26 @@ export const BlogForm = ({ editingPost, galleryImages, uniqueTags, onSubmit, onC
                 </FormItem>
               )} />
             </div>
-            <FormField control={form.control} name="cover_image_id" render={({ field }) => (
-              <FormItem><FormLabel>Cover Image (Optional)</FormLabel><FormControl>
-                <Select onValueChange={field.onChange} value={field.value || ""}>
-                  <SelectTrigger><SelectValue placeholder="Select a cover image" /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="--none--">None</SelectItem>
-                    {galleryImages.map((image) => (
-                      <SelectItem key={image.id} value={image.id}>
-                        {image.alt_text || "Untitled Image"}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </FormControl><FormMessage /></FormItem>
-            )} />
-            <FormField control={form.control} name="youtube_video_id" render={({ field }) => (
-              <FormItem><FormLabel>YouTube Video ID (Optional)</FormLabel><FormControl><Input placeholder="e.g., dQw4w9WgXcQ" {...field} /></FormControl><FormMessage /></FormItem>
-            )} />
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <FormField control={form.control} name="cover_image_id" render={({ field }) => (
+                <FormItem><FormLabel>Cover Image (Optional)</FormLabel><FormControl>
+                  <Select onValueChange={field.onChange} value={field.value || ""}>
+                    <SelectTrigger><SelectValue placeholder="Select a cover image" /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="--none--">None</SelectItem>
+                      {galleryImages.map((image) => (
+                        <SelectItem key={image.id} value={image.id}>
+                          {image.alt_text || "Untitled Image"}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </FormControl><FormMessage /></FormItem>
+              )} />
+              <FormField control={form.control} name="youtube_video_id" render={({ field }) => (
+                <FormItem><FormLabel>YouTube Video ID (Optional)</FormLabel><FormControl><Input placeholder="e.g., dQw4w9WgXcQ" {...field} /></FormControl><FormMessage /></FormItem>
+              )} />
+            </div>
             <div className="flex gap-2">
               <Button type="submit">{editingPost ? "Update Post" : "Add Post"}</Button>
               {editingPost && <Button variant="outline" type="button" onClick={onCancel}>Cancel</Button>}
