@@ -125,9 +125,12 @@ export const BlogForm = ({ editingPost, galleryImages, uniqueTags, onSubmit, onC
             <FormField control={form.control} name="content" render={({ field }) => (
               <FormItem><FormLabel>Content (Markdown supported)</FormLabel><FormControl><Textarea placeholder="Write your full article here..." className="min-h-[200px]" {...field} /></FormControl><FormMessage /></FormItem>
             )} />
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <FormField control={form.control} name="published_at" render={({ field }) => (
                 <FormItem><FormLabel>Publish Date</FormLabel><FormControl><Input type="date" {...field} /></FormControl><FormMessage /></FormItem>
+              )} />
+              <FormField control={form.control} name="tags" render={({ field }) => (
+                <FormItem><FormLabel>Tags</FormLabel><FormControl><MultiSelectPopover suggestions={uniqueTags} value={field.value || []} onChange={field.onChange} /></FormControl><FormMessage /></FormItem>
               )} />
               <FormField control={form.control} name="published" render={({ field }) => (
                 <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md border p-4">
@@ -141,9 +144,6 @@ export const BlogForm = ({ editingPost, galleryImages, uniqueTags, onSubmit, onC
                 </FormItem>
               )} />
             </div>
-            <FormField control={form.control} name="tags" render={({ field }) => (
-              <FormItem><FormLabel>Tags</FormLabel><FormControl><MultiSelectPopover suggestions={uniqueTags} value={field.value || []} onChange={field.onChange} /></FormControl><FormMessage /></FormItem>
-            )} />
             <FormField control={form.control} name="cover_image_id" render={({ field }) => (
               <FormItem><FormLabel>Cover Image (Optional)</FormLabel><FormControl>
                 <Select onValueChange={field.onChange} value={field.value || ""}>
