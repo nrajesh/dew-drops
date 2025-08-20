@@ -1,17 +1,20 @@
 import { NavLink, Outlet, Link } from "react-router-dom";
-import { Menu, LogIn, LogOut } from "lucide-react";
+import { Menu, LogIn, LogOut, Plus, Bot } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger, SheetDescription } from "@/components/ui/sheet";
 import { ThemeToggle } from "./ThemeToggle";
 import { useState } from "react";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
-import { mainNavItems, managementNavItems } from "@/config/navigation";
+import { mainNavItems, managementNavItems, navFeatures } from "@/config/navigation";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { showError, showSuccess } from "@/utils/toast";
-import FloatingChatbot from "./FloatingChatbot";
 import { useFeatureToggles } from "@/contexts/FeatureToggleContext";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import { BlogForm, PostFormData } from "@/components/blog/BlogForm";
+import { useNavigate } from "react-router-dom";
+import Chat from "@/pages/Chat";
 
 const NavContent = ({ onLinkClick }: { onLinkClick?: () => void }) => {
   const { toggles } = useFeatureToggles();
@@ -42,7 +45,7 @@ const NavContent = ({ onLinkClick }: { onLinkClick?: () => void }) => {
           </NavLink>
         ))}
       </nav>
-      
+
       {areManagementItemsVisible && (
         <>
           <div className="mt-4 px-4 lg:px-6">
@@ -72,10 +75,14 @@ const NavContent = ({ onLinkClick }: { onLinkClick?: () => void }) => {
 const Layout = () => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const { session } = useAuth();
+  const [isAddBlogDialogOpen, setIsAddBlogDialogOpen] = useState(false);
+  const [isChatOpen, setIsChatOpen] = useState(false);
+  const navigate = useNavigate();
+  const { toggles } = useFeatureToggles();
 
   const handleLogout = async () => {
     const { error } = await supabase.auth.signOut();
-    
+
     if (error && error.name !== 'AuthSessionMissingError') {
       showError("Logout failed. Please try again.");
       console.error("Logout error:", error);
@@ -83,6 +90,12 @@ const Layout = () => {
       showSuccess("You have been logged out.");
       window.location.href = "/";
     }
+  };
+
+  const handleFormSubmit = (values: PostFormData) => {
+    // This will be handled by the ManageBlog component
+    setIsAddBlogDialogOpen(false);
+    navigate('/manage-blog', { state: { newPostData: values } });
   };
 
   return (
@@ -166,9 +179,66 @@ const Layout = () => {
           </footer>
         </div>
       </div>
-      <FloatingChatbot />
+
+      {/* Floating Action Buttons */}
+      <div className="fixed bottom-6 left-6 flex flex-col gap-4 z-40">
+        {session && (
+          <Button
+            variant="default"
+            size="icon"
+            className="h-14 w-14 rounded-full shadow-lg"
+            onClick={() => setIsAddBlogDialogOpen(true)}
+            aria-label="Add New Blog Post"
+          >
+            <Plus className="h-7 w-7" />
+          </Button>
+        )}
+        {toggles[navFeatures.CHATBOT] && (
+          <Button
+            variant="default"
+            size="icon"
+            className="h-14 w-14 rounded-full shadow-lg"
+            onClick={() => setIsChatOpen(true)}
+            aria-label="Open Chatbot"
+          >
+            <Bot className="h-7 w-7" />
+          </Button>
+        )}
+      </div>
+
       <Toaster />
       <Sonner />
+
+      <Dialog open={isAddBlogDialogOpen} onOpenChange={setIsAddBlogDialogOpen}>
+        <DialogContent className="max-w-4xl">
+          <DialogHeader>
+            <DialogTitle>Add New Post</DialogTitle>
+            <DialogDescription>
+              Create a new blog post. You can use Markdown for the content.
+            </DialogDescription>
+          </DialogHeader>
+          <BlogForm
+            editingPost={null}
+            galleryImages={[]}
+            uniqueTags={[]}
+            onSubmit={handleFormSubmit}
+            onCancel={() => setIsAddBlogDialogOpen(false)}
+            isPopup={true}
+          />
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={isChatOpen} onOpenChange={setIsChatOpen}>
+        <DialogContent className="w-full sm:max-w-lg p-0 flex flex-col h-[80vh]">
+          <DialogHeader className="sr-only">
+            <DialogTitle>Chatbot</DialogTitle>
+            <DialogDescription>
+              A chat interface to ask questions about the portfolio.
+            </DialogDescription>
+          </DialogHeader>
+          <Chat />
+        </DialogContent>
+      </Dialog>
     </>
   );
 };
