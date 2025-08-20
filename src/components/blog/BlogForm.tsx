@@ -88,6 +88,13 @@ export const BlogForm = ({ editingPost, galleryImages, uniqueTags, onSubmit, onC
         }
       }
     });
+    
+    td.addRule('blankParagraphs', {
+      filter: (element) => {
+        return element.nodeName === 'P' && !element.textContent.trim();
+      },
+      replacement: () => '\\n\\n'
+    });
 
     return td;
   }, []);
