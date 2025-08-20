@@ -99,7 +99,7 @@ const Travel = () => {
 
   return (
     <div className="flex flex-col min-h-[calc(100vh-112px)]" ref={containerRef}>
-      <div className="flex-grow space-y-8">
+      <div className="flex-grow space-y-8 pb-8">
         <div className="text-center">
           <h1 className="text-3xl font-bold">Travel Map</h1>
           <p className="text-muted-foreground">
@@ -141,7 +141,7 @@ const Travel = () => {
                   <CardDescription>{location.name}</CardDescription>
                 </CardHeader>
                 {location.description && (
-                  <CardContent><p className="text-sm text-muted-foreground">{location.description}</p></CardContent>
+                  <CardContent className="flex-grow"><p className="text-sm text-muted-foreground">{location.description}</p></CardContent>
                 )}
               </Card>
             ))}

@@ -95,7 +95,7 @@ const Gallery = () => {
   return (
     <>
       <div className="flex flex-col min-h-[calc(100vh-112px)]" ref={containerRef}>
-        <div className="flex-grow space-y-6">
+        <div className="flex-grow space-y-6 pb-8">
           <div className="text-center">
             <h1 className="text-3xl font-bold">Gallery</h1>
             <p className="text-muted-foreground">A few snapshots from my life.</p>

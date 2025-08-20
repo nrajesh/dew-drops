@@ -87,7 +87,7 @@ const Blog = () => {
 
   return (
     <div className="flex flex-col min-h-[calc(100vh-112px)]" ref={containerRef}>
-      <div className="flex-grow space-y-6">
+      <div className="flex-grow space-y-6 pb-8">
         <div className="text-center">
           <h1 className="text-3xl font-bold">Blog</h1>
           <p className="text-muted-foreground">My thoughts on design, development, and more.</p>
@@ -133,13 +133,13 @@ const Blog = () => {
             ))
           ) : paginatedPosts.length > 0 ? (
             paginatedPosts.map((post) => (
-              <Card key={post.id}>
+              <Card key={post.id} className="flex flex-col h-full">
                 <CardHeader>
                   <CardTitle>{post.title}</CardTitle>
                   <CardDescription>{formatDate(post.published_at)}</CardDescription>
                 </CardHeader>
-                <CardContent>
-                  <p>{post.description}</p>
+                <CardContent className="flex-grow">
+                  <p className="text-sm">{post.description}</p>
                   {post.tags && post.tags.length > 0 && (
                     <div className="flex flex-wrap gap-1 mt-2">
                       {post.tags.map(tag => (
@@ -150,7 +150,7 @@ const Blog = () => {
                     </div>
                   )}
                 </CardContent>
-                <CardFooter>
+                <CardFooter className="mt-auto">
                   <Button asChild variant="link" className="p-0">
                     <Link to={`/blog/${post.id}`}>Read More</Link>
                   </Button>

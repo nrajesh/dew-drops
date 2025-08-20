@@ -70,7 +70,7 @@ const Videos = () => {
 
   return (
     <div className="flex flex-col min-h-[calc(100vh-112px)]" ref={containerRef}>
-      <div className="flex-grow space-y-6">
+      <div className="flex-grow space-y-6 pb-8">
         <div className="text-center">
           <h1 className="text-3xl font-bold">Videos</h1>
           <p className="text-muted-foreground">A collection of my favorite videos.</p>
@@ -97,9 +97,9 @@ const Videos = () => {
             ))
           ) : paginatedVideos.length > 0 ? (
             paginatedVideos.map((video) => (
-              <Card key={video.id}>
+              <Card key={video.id} className="flex flex-col h-full">
                 <CardHeader><CardTitle>{video.title}</CardTitle></CardHeader>
-                <CardContent>
+                <CardContent className="flex-grow">
                   <AspectRatio ratio={16 / 9}>
                     <iframe
                       className="rounded-lg"
