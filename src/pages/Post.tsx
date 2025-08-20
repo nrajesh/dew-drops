@@ -229,26 +229,26 @@ const Post = () => {
               <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent"></div>
             </div>
           )}
-          <CardHeader>
-            <CardTitle className="text-4xl font-bold">{post.title}</CardTitle>
-            <CardDescription className="flex items-center gap-2 pt-2">
-              <Calendar className="h-4 w-4" />
-              <span>Published on {formatDate(post.published_at)}</span>
-            </CardDescription>
+          <CardHeader className="flex flex-row items-center justify-between">
+            <div>
+              <CardTitle className="text-4xl font-bold">{post.title}</CardTitle>
+              <CardDescription className="flex items-center gap-2 pt-2">
+                <Calendar className="h-4 w-4" />
+                <span>Published on {formatDate(post.published_at)}</span>
+              </CardDescription>
+            </div>
+            {session && (
+              <Button
+                variant="secondary"
+                size="icon"
+                onClick={handleOpenEditor}
+                aria-label="Edit post content"
+              >
+                <Edit className="h-4 w-4" />
+              </Button>
+            )}
           </CardHeader>
           <CardContent>
-            {session && (
-              <div className="absolute top-4 right-4 z-10">
-                <Button
-                  variant="secondary"
-                  size="icon"
-                  onClick={handleOpenEditor}
-                  aria-label="Edit post content"
-                >
-                  <Edit className="h-4 w-4" />
-                </Button>
-              </div>
-            )}
             {post.youtube_video_id && (
               <div className="mb-6">
                 <AspectRatio ratio={16 / 9}>
