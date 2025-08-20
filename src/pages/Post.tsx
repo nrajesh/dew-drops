@@ -200,7 +200,7 @@ const Post = () => {
                 </AspectRatio>
               </div>
             )}
-            <div className="prose dark:prose-invert max-w-none whitespace-pre-wrap">
+            <div className="prose dark:prose-invert max-w-none">
               <ReactMarkdown remarkPlugins={[remarkGfm]}>
                 {post.content || ''}
               </ReactMarkdown>

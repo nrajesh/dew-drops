@@ -88,18 +88,10 @@ export const BlogForm = ({ editingPost, galleryImages, uniqueTags, onSubmit, onC
         }
       }
     });
-    
-    td.addRule('blankParagraphs', {
-      filter: (element) => {
-        return element.nodeName === 'P' && !element.textContent.trim();
-      },
-      replacement: () => '\n\n'
-    });
 
     return td;
   }, []);
-  const showdownConverter = useMemo(() => new showdown.Converter({ simpleLineBreaks: true }), []);
-
+  const showdownConverter = useMemo(() => new showdown.Converter(), []);
 
   const form = useForm<PostFormData>({
     resolver: zodResolver(postSchema),
