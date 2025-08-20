@@ -12,7 +12,6 @@ import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import WysiwygEditor from "@/components/blog/WysiwygEditor";
 import TurndownService from "turndown";
-import showdown from 'showdown';
 import { useAuth } from "@/contexts/AuthContext";
 import { showSuccess, showError, showLoading, dismissToast } from "@/utils/toast";
 
@@ -71,7 +70,6 @@ const Post = () => {
       return (node as any).isBlock ? '\n\n' : ''
     },
   });
-  const showdownConverter = new showdown.Converter();
 
   useEffect(() => {
     const fetchPostAndNav = async () => {
@@ -160,7 +158,7 @@ const Post = () => {
 
   const handleOpenEditor = () => {
     if (!post) return;
-    const htmlContent = showdownConverter.makeHtml(post.content || '');
+    const htmlContent = turndownService.turndown(post.content || '');
     setEditorContent(htmlContent);
     setIsEditorOpen(true);
   };
@@ -170,7 +168,7 @@ const Post = () => {
 
     const toastId = showLoading("Updating post content...");
     try {
-      let markdownContent = turndownService.turndown(editorContent);
+      let markdownContent = editorContent;
 
       // Add triple backticks if they don't already exist
       if (!markdownContent.startsWith('```') || !markdownContent.endsWith('```')) {
