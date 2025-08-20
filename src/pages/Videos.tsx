@@ -31,7 +31,7 @@ const Videos = () => {
         });
 
         if (error) throw error;
-        
+
         if (data.error) throw new Error(data.error);
 
         setVideos(data as Video[]);
@@ -69,53 +69,55 @@ const Videos = () => {
   }, [debouncedSearchTerm]);
 
   return (
-    <div className="space-y-6" ref={containerRef}>
-      <div className="text-center">
-        <h1 className="text-3xl font-bold">Videos</h1>
-        <p className="text-muted-foreground">A collection of my favorite videos.</p>
-      </div>
+    <div className="flex flex-col min-h-[calc(100vh-112px)]" ref={containerRef}>
+      <div className="flex-grow space-y-6">
+        <div className="text-center">
+          <h1 className="text-3xl font-bold">Videos</h1>
+          <p className="text-muted-foreground">A collection of my favorite videos.</p>
+        </div>
 
-      <div className="relative sm:w-full sm:max-w-xs mx-auto">
-        <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-        <Input
-          type="search"
-          placeholder="Search videos..."
-          className="pl-8 w-full"
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-        />
-      </div>
+        <div className="relative sm:w-full sm:max-w-xs mx-auto">
+          <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+          <Input
+            type="search"
+            placeholder="Search videos..."
+            className="pl-8 w-full"
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+          />
+        </div>
 
-      <div className="grid gap-6 md:grid-cols-2">
-        {loading ? (
-          Array.from({ length: VIDEOS_PER_PAGE }).map((_, index) => (
-            <Card key={index}>
-              <CardHeader><Skeleton className="h-6 w-3/4" /></CardHeader>
-              <CardContent><AspectRatio ratio={16 / 9}><Skeleton className="h-full w-full rounded-lg" /></AspectRatio></CardContent>
-            </Card>
-          ))
-        ) : paginatedVideos.length > 0 ? (
-          paginatedVideos.map((video) => (
-            <Card key={video.id}>
-              <CardHeader><CardTitle>{video.title}</CardTitle></CardHeader>
-              <CardContent>
-                <AspectRatio ratio={16 / 9}>
-                  <iframe
-                    className="rounded-lg"
-                    width="100%"
-                    height="100%"
-                    src={`https://www.youtube.com/embed/${video.youtube_id}`}
-                    title={video.title}
-                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                    allowFullScreen
-                  ></iframe>
-                </AspectRatio>
-              </CardContent>
-            </Card>
-          ))
-        ) : (
-          <p className="text-muted-foreground text-center md:col-span-2">No videos found for your search.</p>
-        )}
+        <div className="grid gap-6 md:grid-cols-2">
+          {loading ? (
+            Array.from({ length: VIDEOS_PER_PAGE }).map((_, index) => (
+              <Card key={index}>
+                <CardHeader><Skeleton className="h-6 w-3/4" /></CardHeader>
+                <CardContent><AspectRatio ratio={16 / 9}><Skeleton className="h-full w-full rounded-lg" /></AspectRatio></CardContent>
+              </Card>
+            ))
+          ) : paginatedVideos.length > 0 ? (
+            paginatedVideos.map((video) => (
+              <Card key={video.id}>
+                <CardHeader><CardTitle>{video.title}</CardTitle></CardHeader>
+                <CardContent>
+                  <AspectRatio ratio={16 / 9}>
+                    <iframe
+                      className="rounded-lg"
+                      width="100%"
+                      height="100%"
+                      src={`https://www.youtube.com/embed/${video.youtube_id}`}
+                      title={video.title}
+                      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                      allowFullScreen
+                    ></iframe>
+                  </AspectRatio>
+                </CardContent>
+              </Card>
+            ))
+          ) : (
+            <p className="text-muted-foreground text-center md:col-span-2">No videos found for your search.</p>
+          )}
+        </div>
       </div>
       <PaginationControls currentPage={currentPage} totalPages={totalPages} onPageChange={setCurrentPage} />
     </div>

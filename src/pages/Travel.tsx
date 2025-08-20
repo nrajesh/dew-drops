@@ -48,7 +48,7 @@ const Travel = () => {
           .from('posts')
           .select('id, title')
           .in('id', postIds);
-        
+
         if (postsError) {
           console.error("Could not fetch linked blog posts:", postsError);
           setAllLocations(locationsData as TravelLocation[]);
@@ -63,7 +63,7 @@ const Travel = () => {
       } else {
         setAllLocations(locationsData as TravelLocation[]);
       }
-      
+
       setLoading(false);
     };
 
@@ -72,8 +72,8 @@ const Travel = () => {
 
   const filteredLocations = useMemo(() => {
     const lowercasedTerm = debouncedSearchTerm.toLowerCase();
-    return allLocations.filter(loc => 
-      !lowercasedTerm || 
+    return allLocations.filter(loc =>
+      !lowercasedTerm ||
       loc.title.toLowerCase().includes(lowercasedTerm) ||
       loc.name.toLowerCase().includes(lowercasedTerm) ||
       (loc.description && loc.description.toLowerCase().includes(lowercasedTerm))
@@ -98,58 +98,60 @@ const Travel = () => {
   }, [debouncedSearchTerm]);
 
   return (
-    <div className="space-y-8" ref={containerRef}>
-      <div className="text-center">
-        <h1 className="text-3xl font-bold">Travel Map</h1>
-        <p className="text-muted-foreground">
-          Explore my travels on the map below, or click a card to learn more.
-        </p>
+    <div className="flex flex-col min-h-[calc(100vh-112px)]" ref={containerRef}>
+      <div className="flex-grow space-y-8">
+        <div className="text-center">
+          <h1 className="text-3xl font-bold">Travel Map</h1>
+          <p className="text-muted-foreground">
+            Explore my travels on the map below, or click a card to learn more.
+          </p>
+        </div>
+
+        <Suspense fallback={<Skeleton className="h-[450px] w-full rounded-lg" />}>
+          <MapComponent ref={mapRef} locations={allLocations} />
+        </Suspense>
+
+        <div className="relative sm:w-full sm:max-w-xs mx-auto">
+          <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+          <Input
+            type="search"
+            placeholder="Search locations..."
+            className="pl-8 w-full"
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+          />
+        </div>
+
+        {loading ? (
+          <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+            {Array.from({ length: 3 }).map((_, i) => (
+              <Card key={i}><CardHeader><Skeleton className="h-6 w-3/4" /><Skeleton className="h-4 w-1/2 mt-2" /></CardHeader><CardContent><Skeleton className="h-10 w-full" /></CardContent></Card>
+            ))}
+          </div>
+        ) : paginatedLocations.length > 0 ? (
+          <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+            {paginatedLocations.map((location) => (
+              <Card
+                key={location.id}
+                className="h-full transition-all hover:shadow-md hover:border-primary/50 cursor-pointer flex flex-col"
+                onClick={() => mapRef.current?.triggerPopup(location.id)}
+              >
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2"><MapPin className="h-5 w-5 text-primary" />{location.title}</CardTitle>
+                  <CardDescription>{location.name}</CardDescription>
+                </CardHeader>
+                {location.description && (
+                  <CardContent><p className="text-sm text-muted-foreground">{location.description}</p></CardContent>
+                )}
+              </Card>
+            ))}
+          </div>
+        ) : (
+          <div className="text-center py-10 border rounded-lg bg-muted">
+            <p className="text-muted-foreground">No locations found for your search.</p>
+          </div>
+        )}
       </div>
-
-      <Suspense fallback={<Skeleton className="h-[450px] w-full rounded-lg" />}>
-        <MapComponent ref={mapRef} locations={allLocations} />
-      </Suspense>
-
-      <div className="relative sm:w-full sm:max-w-xs mx-auto">
-        <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-        <Input
-          type="search"
-          placeholder="Search locations..."
-          className="pl-8 w-full"
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-        />
-      </div>
-
-      {loading ? (
-        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-          {Array.from({ length: 3 }).map((_, i) => (
-            <Card key={i}><CardHeader><Skeleton className="h-6 w-3/4" /><Skeleton className="h-4 w-1/2 mt-2" /></CardHeader><CardContent><Skeleton className="h-10 w-full" /></CardContent></Card>
-          ))}
-        </div>
-      ) : paginatedLocations.length > 0 ? (
-        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-          {paginatedLocations.map((location) => (
-            <Card 
-              key={location.id} 
-              className="h-full transition-all hover:shadow-md hover:border-primary/50 cursor-pointer flex flex-col"
-              onClick={() => mapRef.current?.triggerPopup(location.id)}
-            >
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2"><MapPin className="h-5 w-5 text-primary" />{location.title}</CardTitle>
-                <CardDescription>{location.name}</CardDescription>
-              </CardHeader>
-              {location.description && (
-                <CardContent><p className="text-sm text-muted-foreground">{location.description}</p></CardContent>
-              )}
-            </Card>
-          ))}
-        </div>
-      ) : (
-        <div className="text-center py-10 border rounded-lg bg-muted">
-          <p className="text-muted-foreground">No locations found for your search.</p>
-        </div>
-      )}
       <PaginationControls currentPage={currentPage} totalPages={totalPages} onPageChange={setCurrentPage} />
     </div>
   );
