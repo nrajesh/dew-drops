@@ -145,17 +145,17 @@ const Layout = () => {
               {/* Future content like breadcrumbs can go here */}
             </div>
             <ThemeToggle />
+            {session && (
+              <Button variant="ghost" size="icon" onClick={() => setIsAddBlogDialogOpen(true)}>
+                <Plus className="h-5 w-5" />
+                <span className="sr-only">Add Blog</span>
+              </Button>
+            )}
             {session ? (
-              <>
-                <Button variant="default" size="sm" onClick={() => setIsAddBlogDialogOpen(true)}>
-                  <Plus className="h-4 w-4 mr-2" />
-                  Add Blog
-                </Button>
-                <Button variant="ghost" size="icon" onClick={handleLogout}>
-                  <LogOut className="h-5 w-5" />
-                  <span className="sr-only">Logout</span>
-                </Button>
-              </>
+              <Button variant="ghost" size="icon" onClick={handleLogout}>
+                <LogOut className="h-5 w-5" />
+                <span className="sr-only">Logout</span>
+              </Button>
             ) : (
               <Button variant="ghost" size="icon" asChild>
                 <Link to="/login">
