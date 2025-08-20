@@ -6,7 +6,7 @@ import { ThemeToggle } from "./ThemeToggle";
 import { useState } from "react";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
-import { mainNavItems, managementNavItems } from "@/config/navigation";
+import { mainNavItems, managementNavItems, navFeatures } from "@/config/navigation";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { showError, showSuccess } from "@/utils/toast";
@@ -78,6 +78,7 @@ const Layout = () => {
   const [isAddBlogDialogOpen, setIsAddBlogDialogOpen] = useState(false);
   const [isChatOpen, setIsChatOpen] = useState(false);
   const navigate = useNavigate();
+  const { toggles } = useFeatureToggles();
 
   const handleLogout = async () => {
     const { error } = await supabase.auth.signOut();
@@ -192,15 +193,17 @@ const Layout = () => {
             <Plus className="h-7 w-7" />
           </Button>
         )}
-        <Button
-          variant="default"
-          size="icon"
-          className="h-14 w-14 rounded-full shadow-lg"
-          onClick={() => setIsChatOpen(true)}
-          aria-label="Open Chatbot"
-        >
-          <Bot className="h-7 w-7" />
-        </Button>
+        {toggles[navFeatures.CHATBOT] && (
+          <Button
+            variant="default"
+            size="icon"
+            className="h-14 w-14 rounded-full shadow-lg"
+            onClick={() => setIsChatOpen(true)}
+            aria-label="Open Chatbot"
+          >
+            <Bot className="h-7 w-7" />
+          </Button>
+        )}
       </div>
 
       <Toaster />
