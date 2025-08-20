@@ -6,10 +6,13 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Skeleton } from '@/components/ui/skeleton';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
-import { Calendar, ArrowLeft, ArrowRight, Edit } from 'lucide-react';
+import { Calendar, ArrowLeft, ArrowRight, Edit, X } from 'lucide-react';
 import { AspectRatio } from "@/components/ui/aspect-ratio";
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/contexts/AuthContext';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
+import { Textarea } from '@/components/ui/textarea';
+import { showSuccess, showError, showLoading, dismissToast } from '@/utils/toast';
 
 const PLACEHOLDER_IMAGE_URL = "/gallery/placeholder.svg";
 
@@ -56,6 +59,8 @@ const Post = () => {
   const [coverImageUrl, setCoverImageUrl] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [postNav, setPostNav] = useState<{ prev: NavPost | null; next: NavPost | null }>({ prev: null, next: null });
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [editContent, setEditContent] = useState('');
 
   const [touchStart, setTouchStart] = useState<number | null>(null);
   const [touchEnd, setTouchEnd] = useState<number | null>(null);
@@ -147,7 +152,28 @@ const Post = () => {
 
   const handleEdit = () => {
     if (post) {
-      navigate('/manage-blog', { state: { editingPost: post } });
+      setEditContent(post.content || '');
+      setIsEditDialogOpen(true);
+    }
+  };
+
+  const handleSaveEdit = async () => {
+    if (!post) return;
+
+    const toastId = showLoading("Updating post content...");
+    const { error } = await supabase
+      .from('posts')
+      .update({ content: editContent })
+      .eq('id', post.id);
+
+    dismissToast(toastId);
+    if (error) {
+      showError("Failed to update post content.");
+      console.error(error);
+    } else {
+      showSuccess("Post content updated successfully!");
+      setPost({ ...post, content: editContent });
+      setIsEditDialogOpen(false);
     }
   };
 
@@ -173,59 +199,83 @@ const Post = () => {
   const finalCoverImageUrl = coverImageUrl || PLACEHOLDER_IMAGE_URL;
 
   return (
-    <div onTouchStart={onTouchStart} onTouchMove={onTouchMove} onTouchEnd={onTouchEnd} className="max-w-4xl mx-auto">
-      <article>
-        <Card>
-          {finalCoverImageUrl && (
-            <div className="relative w-full h-64 overflow-hidden rounded-t-lg">
-              <img
-                src={finalCoverImageUrl}
-                alt={post.title || "Blog post cover image"}
-                className="w-full h-full object-cover"
-              />
-              <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent"></div>
-            </div>
-          )}
-          <CardHeader className="flex flex-row items-start justify-between">
-            <div>
-              <CardTitle className="text-4xl font-bold">{post.title}</CardTitle>
-              <CardDescription className="flex items-center gap-2 pt-2">
-                <Calendar className="h-4 w-4" />
-                <span>Published on {formatDate(post.published_at)}</span>
-              </CardDescription>
-            </div>
-            {session && (
-              <Button variant="ghost" size="icon" onClick={handleEdit} aria-label="Edit post">
-                <Edit className="h-5 w-5" />
-              </Button>
-            )}
-          </CardHeader>
-          <CardContent>
-            {post.youtube_video_id && (
-              <div className="mb-6">
-                <AspectRatio ratio={16 / 9}>
-                  <iframe
-                    className="rounded-lg"
-                    width="100%"
-                    height="100%"
-                    src={`https://www.youtube.com/embed/${post.youtube_video_id}`}
-                    title="YouTube video player"
-                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                    allowFullScreen
-                  ></iframe>
-                </AspectRatio>
+    <>
+      <div onTouchStart={onTouchStart} onTouchMove={onTouchMove} onTouchEnd={onTouchEnd} className="max-w-4xl mx-auto">
+        <article>
+          <Card>
+            {finalCoverImageUrl && (
+              <div className="relative w-full h-64 overflow-hidden rounded-t-lg">
+                <img
+                  src={finalCoverImageUrl}
+                  alt={post.title || "Blog post cover image"}
+                  className="w-full h-full object-cover"
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent"></div>
               </div>
             )}
-            <div className="prose dark:prose-invert max-w-none">
-              <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                {post.content || ''}
-              </ReactMarkdown>
-            </div>
-          </CardContent>
-        </Card>
-      </article>
-      <PostNavigation prev={postNav.prev} next={postNav.next} />
-    </div>
+            <CardHeader className="flex flex-row items-start justify-between">
+              <div>
+                <CardTitle className="text-4xl font-bold">{post.title}</CardTitle>
+                <CardDescription className="flex items-center gap-2 pt-2">
+                  <Calendar className="h-4 w-4" />
+                  <span>Published on {formatDate(post.published_at)}</span>
+                </CardDescription>
+              </div>
+              {session && (
+                <Button variant="ghost" size="icon" onClick={handleEdit} aria-label="Edit post">
+                  <Edit className="h-5 w-5" />
+                </Button>
+              )}
+            </CardHeader>
+            <CardContent>
+              {post.youtube_video_id && (
+                <div className="mb-6">
+                  <AspectRatio ratio={16 / 9}>
+                    <iframe
+                      className="rounded-lg"
+                      width="100%"
+                      height="100%"
+                      src={`https://www.youtube.com/embed/${post.youtube_video_id}`}
+                      title="YouTube video player"
+                      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                      allowFullScreen
+                    ></iframe>
+                  </AspectRatio>
+                </div>
+              )}
+              <div className="prose dark:prose-invert max-w-none">
+                <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                  {post.content || ''}
+                </ReactMarkdown>
+              </div>
+            </CardContent>
+          </Card>
+        </article>
+        <PostNavigation prev={postNav.prev} next={postNav.next} />
+      </div>
+
+      <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+        <DialogContent className="max-w-4xl max-h-[90vh] flex flex-col">
+          <DialogHeader>
+            <DialogTitle>Edit Post Content</DialogTitle>
+            <DialogDescription>
+              Make changes to the post content below. You can use Markdown formatting.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex-1 overflow-hidden">
+            <Textarea
+              value={editContent}
+              onChange={(e) => setEditContent(e.target.value)}
+              className="h-full min-h-[300px] font-mono text-sm resize-none"
+            />
+          </div>
+          <DialogFooter className="flex justify-end gap-2">
+            <Button variant="outline" onClick={() => setIsEditDialogOpen(false)}>Cancel</Button>
+            <Button onClick={handleSaveEdit}>Save Changes</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
   );
 };
 
