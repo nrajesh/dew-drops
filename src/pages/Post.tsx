@@ -262,11 +262,21 @@ const Post = () => {
               Make changes to the post content below. You can use Markdown formatting.
             </DialogDescription>
           </DialogHeader>
-          <div className="flex-1 overflow-hidden">
-            <div className="prose dark:prose-invert max-w-none h-full overflow-auto p-4 border rounded-md">
-              <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                {editContent}
-              </ReactMarkdown>
+          <div className="flex-1 overflow-hidden flex flex-col">
+            <div className="flex-1 overflow-auto">
+              <div className="prose dark:prose-invert max-w-none p-4 border rounded-md min-h-[300px]">
+                <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                  {editContent}
+                </ReactMarkdown>
+              </div>
+            </div>
+            <div className="mt-4">
+              <Textarea
+                value={editContent}
+                onChange={(e) => setEditContent(e.target.value)}
+                className="w-full min-h-[150px] font-mono text-sm"
+                placeholder="Edit your content here..."
+              />
             </div>
           </div>
           <DialogFooter className="flex justify-end gap-2">
