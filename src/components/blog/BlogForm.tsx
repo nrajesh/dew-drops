@@ -16,13 +16,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { MultiSelectPopover } from "@/components/MultiSelectPopover";
 import type { GalleryImage, Post } from "@/types";
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useMemo } from "react";
 import { Checkbox } from "../ui/checkbox";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
-import WysiwygEditor from "./WysiwygEditor";
-import { Eye } from "lucide-react";
-import TurndownService from "turndown";
-import showdown from 'showdown';
 
 const postSchema = z.object({
   title: z.string().min(3, { message: "Title must be at least 3 characters." }),
@@ -49,36 +44,6 @@ interface BlogFormProps {
 }
 
 export const BlogForm = ({ editingPost, galleryImages, uniqueTags, onSubmit, onCancel }: BlogFormProps) => {
-  const [isEditorOpen, setIsEditorOpen] = useState(false);
-  const [editorContent, setEditorContent] = useState(''); // Internal HTML state for the editor
-
-  const turndownService = useMemo(() => {
-    const service = new TurndownService({
-      // This rule ensures that blank HTML elements (like an empty <p>) are
-      // converted into a double newline, preserving paragraph breaks.
-      blankReplacement: (content, node) => {
-        return (node as any).isBlock ? '\n\n' : ''
-      },
-    });
-    return service;
-  }, []);
-  // Add a custom rule to handle empty paragraphs
-turndownService.addRule('emptyParagraph', {
-  // Define a filter to target only empty <p> elements
-  filter: function (node, options) {
-    // This rule applies to 'p' nodes that are empty
-    // or contain only a non-breaking space.
-    return node.nodeName === 'P' && (node.innerHTML.trim() === '' || node.innerHTML.trim() === '&nbsp;');
-  },
-  // Define the replacement for these matched nodes
-  replacement: function (content, node, options) {
-    // Replace the empty paragraph with a non-breaking space
-    // followed by two newlines to ensure a clear paragraph break.
-    return '&nbsp;\n\n';
-  }
-});
-  const showdownConverter = useMemo(() => new showdown.Converter(), []);
-
   const form = useForm<PostFormData>({
     resolver: zodResolver(postSchema),
     defaultValues: {
@@ -118,19 +83,6 @@ turndownService.addRule('emptyParagraph', {
       });
     }
   }, [editingPost, form]);
-
-  const handleOpenEditor = () => {
-    const markdownContent = form.getValues('content') || '';
-    const htmlContent = showdownConverter.makeHtml(markdownContent);
-    setEditorContent(htmlContent);
-    setIsEditorOpen(true);
-  };
-
-  const handleSaveAndCloseEditor = () => {
-    const markdownContent = turndownService.turndown(editorContent);
-    form.setValue('content', markdownContent, { shouldValidate: true, shouldDirty: true });
-    setIsEditorOpen(false);
-  };
 
   return (
     <Card>
@@ -236,33 +188,15 @@ turndownService.addRule('emptyParagraph', {
             <FormField
               control={form.control}
               name="content"
-              render={() => (
+              render={({ field }) => (
                 <FormItem>
                   <FormLabel>Content</FormLabel>
                   <FormControl>
-                    <Dialog open={isEditorOpen} onOpenChange={setIsEditorOpen}>
-                      <DialogTrigger asChild>
-                        <Button type="button" variant="outline" className="w-full justify-start font-normal" onClick={handleOpenEditor}>
-                          <Eye className="mr-2 h-4 w-4" />
-                          Open Content Editor
-                        </Button>
-                      </DialogTrigger>
-                      <DialogContent className="max-w-4xl h-[80vh] flex flex-col p-0">
-                        <DialogHeader className="p-6 pb-0">
-                          <DialogTitle>Content Editor</DialogTitle>
-                        </DialogHeader>
-                        <div className="flex-grow min-h-0 px-6 pb-2">
-                          <WysiwygEditor
-                            value={editorContent}
-                            onChange={setEditorContent}
-                          />
-                        </div>
-                        <DialogFooter className="p-6 pt-0">
-                          <Button type="button" variant="outline" onClick={() => setIsEditorOpen(false)}>Cancel</Button>
-                          <Button type="button" onClick={handleSaveAndCloseEditor}>Save and Close</Button>
-                        </DialogFooter>
-                      </DialogContent>
-                    </Dialog>
+                    <Textarea
+                      placeholder="Write your blog post content here. Markdown is supported."
+                      className="min-h-[200px] lg:min-h-[300px]"
+                      {...field}
+                    />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
