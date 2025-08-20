@@ -84,6 +84,26 @@ export const BlogForm = ({ editingPost, galleryImages, uniqueTags, onSubmit, onC
     }
   }, [editingPost, form]);
 
+  const handleSubmit = (values: PostFormData) => {
+    // Auto-fill description if it's blank
+    let description = values.description;
+    if (!description || description.trim() === '') {
+      // Extract the first paragraph from the content
+      const firstParagraphMatch = values.content.match(/^([^#\n]+)/);
+      if (firstParagraphMatch) {
+        description = firstParagraphMatch[0].trim();
+        if (description.length > 500) {
+          description = description.substring(0, 497) + '...';
+        }
+      }
+    }
+
+    onSubmit({
+      ...values,
+      description: description
+    });
+  };
+
   return (
     <Card>
       <CardHeader>
@@ -94,7 +114,7 @@ export const BlogForm = ({ editingPost, galleryImages, uniqueTags, onSubmit, onC
       </CardHeader>
       <CardContent>
         <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+          <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-6">
             <FormField control={form.control} name="title" render={({ field }) => (
               <FormItem><FormLabel>Title</FormLabel><FormControl><Input placeholder="Your Post Title" {...field} /></FormControl><FormMessage /></FormItem>
             )} />
