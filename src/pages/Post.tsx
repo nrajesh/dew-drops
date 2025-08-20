@@ -6,9 +6,15 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Skeleton } from '@/components/ui/skeleton';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
-import { Calendar, ArrowLeft, ArrowRight } from 'lucide-react';
+import { Calendar, ArrowLeft, ArrowRight, Edit } from 'lucide-react';
 import { AspectRatio } from "@/components/ui/aspect-ratio";
 import { Button } from '@/components/ui/button';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import WysiwygEditor from "@/components/blog/WysiwygEditor";
+import TurndownService from "turndown";
+import showdown from 'showdown';
+import { useAuth } from "@/contexts/AuthContext";
+import { showSuccess, showError, showLoading, dismissToast } from "@/utils/toast";
 
 const PLACEHOLDER_IMAGE_URL = "/gallery/placeholder.svg";
 
@@ -49,13 +55,23 @@ const PostNavigation = ({ prev, next }: { prev: NavPost | null; next: NavPost | 
 const Post = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const { session } = useAuth();
   const [post, setPost] = useState<PostType | null>(null);
   const [coverImageUrl, setCoverImageUrl] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [postNav, setPostNav] = useState<{ prev: NavPost | null; next: NavPost | null }>({ prev: null, next: null });
-  
+  const [isEditorOpen, setIsEditorOpen] = useState(false);
+  const [editorContent, setEditorContent] = useState('');
+
   const [touchStart, setTouchStart] = useState<number | null>(null);
   const [touchEnd, setTouchEnd] = useState<number | null>(null);
+
+  const turndownService = new TurndownService({
+    blankReplacement: (content, node) => {
+      return (node as any).isBlock ? '\n\n' : ''
+    },
+  });
+  const showdownConverter = new showdown.Converter();
 
   useEffect(() => {
     const fetchPostAndNav = async () => {
@@ -142,6 +158,42 @@ const Post = () => {
     });
   };
 
+  const handleOpenEditor = () => {
+    if (!post) return;
+    const htmlContent = showdownConverter.makeHtml(post.content || '');
+    setEditorContent(htmlContent);
+    setIsEditorOpen(true);
+  };
+
+  const handleSaveAndCloseEditor = async () => {
+    if (!post) return;
+
+    const toastId = showLoading("Updating post content...");
+    try {
+      let markdownContent = turndownService.turndown(editorContent);
+
+      // Add triple backticks if they don't already exist
+      if (!markdownContent.startsWith('```') || !markdownContent.endsWith('```')) {
+        markdownContent = `\`\`\`\n${markdownContent}\n\`\`\``;
+      }
+
+      const { error } = await supabase
+        .from('posts')
+        .update({ content: markdownContent })
+        .eq('id', post.id);
+
+      if (error) throw error;
+
+      dismissToast(toastId);
+      showSuccess("Post updated successfully!");
+      setPost({ ...post, content: markdownContent });
+      setIsEditorOpen(false);
+    } catch (error: any) {
+      dismissToast(toastId);
+      showError(`Failed to update post: ${error.message}`);
+    }
+  };
+
   if (loading) {
     return (
       <div className="max-w-4xl mx-auto">
@@ -177,12 +229,24 @@ const Post = () => {
               <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent"></div>
             </div>
           )}
-          <CardHeader>
-            <CardTitle className="text-4xl font-bold">{post.title}</CardTitle>
-            <CardDescription className="flex items-center gap-2 pt-2">
-              <Calendar className="h-4 w-4" />
-              <span>Published on {formatDate(post.published_at)}</span>
-            </CardDescription>
+          <CardHeader className="flex flex-row items-center justify-between">
+            <div>
+              <CardTitle className="text-4xl font-bold">{post.title}</CardTitle>
+              <CardDescription className="flex items-center gap-2 pt-2">
+                <Calendar className="h-4 w-4" />
+                <span>Published on {formatDate(post.published_at)}</span>
+              </CardDescription>
+            </div>
+            {session && (
+              <Button
+                variant="secondary"
+                size="icon"
+                onClick={handleOpenEditor}
+                aria-label="Edit post content"
+              >
+                <Edit className="h-4 w-4" />
+              </Button>
+            )}
           </CardHeader>
           <CardContent>
             {post.youtube_video_id && (
@@ -209,6 +273,24 @@ const Post = () => {
         </Card>
       </article>
       <PostNavigation prev={postNav.prev} next={postNav.next} />
+
+      <Dialog open={isEditorOpen} onOpenChange={setIsEditorOpen}>
+        <DialogContent className="max-w-4xl h-[80vh] flex flex-col p-0">
+          <DialogHeader className="p-6 pb-0">
+            <DialogTitle>Edit Post Content</DialogTitle>
+          </DialogHeader>
+          <div className="flex-grow min-h-0 px-6 pb-2">
+            <WysiwygEditor
+              value={editorContent}
+              onChange={setEditorContent}
+            />
+          </div>
+          <DialogFooter className="p-6 pt-0">
+            <Button type="button" variant="outline" onClick={() => setIsEditorOpen(false)}>Cancel</Button>
+            <Button type="button" onClick={handleSaveAndCloseEditor}>Save Changes</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
