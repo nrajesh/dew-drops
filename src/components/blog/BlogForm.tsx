@@ -18,6 +18,7 @@ import { MultiSelectPopover } from "@/components/MultiSelectPopover";
 import type { GalleryImage, Post } from "@/types";
 import { useEffect, useMemo } from "react";
 import { Checkbox } from "../ui/checkbox";
+import WysiwygEditor from "./WysiwygEditor";
 
 const postSchema = z.object({
   title: z.string().min(3, { message: "Title must be at least 3 characters." }),
@@ -168,9 +169,9 @@ export const BlogForm = ({ editingPost, galleryImages, uniqueTags, onSubmit, onC
                   <FormMessage />
                   {field.value && field.value !== '--none--' && (
                     <div className="mt-2">
-                      <img 
-                        src={galleryImages.find(img => img.id === field.value)?.image_url || ""} 
-                        alt="Selected cover preview" 
+                      <img
+                        src={galleryImages.find(img => img.id === field.value)?.image_url || ""}
+                        alt="Selected cover preview"
                         className="w-32 h-auto rounded-md border"
                       />
                     </div>
@@ -192,11 +193,12 @@ export const BlogForm = ({ editingPost, galleryImages, uniqueTags, onSubmit, onC
                 <FormItem>
                   <FormLabel>Content</FormLabel>
                   <FormControl>
-                    <Textarea
-                      placeholder="Write your blog post content here. Markdown is supported."
-                      className="min-h-[200px] lg:min-h-[300px]"
-                      {...field}
-                    />
+                    <div className="h-[300px]">
+                      <WysiwygEditor
+                        value={field.value}
+                        onChange={field.onChange}
+                      />
+                    </div>
                   </FormControl>
                   <FormMessage />
                 </FormItem>
