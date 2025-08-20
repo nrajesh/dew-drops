@@ -125,7 +125,7 @@ export const BlogForm = ({ editingPost, galleryImages, uniqueTags, onSubmit, onC
             <FormField control={form.control} name="content" render={({ field }) => (
               <FormItem><FormLabel>Content (Markdown supported)</FormLabel><FormControl><Textarea placeholder="Write your full article here..." className="min-h-[200px]" {...field} /></FormControl><FormMessage /></FormItem>
             )} />
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <FormField control={form.control} name="published_at" render={({ field }) => (
                 <FormItem><FormLabel>Publish Date</FormLabel><FormControl><Input type="date" {...field} /></FormControl><FormMessage /></FormItem>
               )} />
