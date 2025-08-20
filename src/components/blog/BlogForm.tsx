@@ -52,45 +52,7 @@ export const BlogForm = ({ editingPost, galleryImages, uniqueTags, onSubmit, onC
   const [isEditorOpen, setIsEditorOpen] = useState(false);
   const [editorContent, setEditorContent] = useState(''); // Internal HTML state for the editor
 
-  const turndownService = useMemo(() => {
-    const td = new TurndownService({
-      headingStyle: 'atx',
-      hr: '---',
-      bulletListMarker: '-',
-      codeBlockStyle: 'fenced',
-      emDelimiter: '*',
-    });
-
-    // Rule to convert <br> tags to two newlines, forcing a paragraph break in Markdown
-    td.addRule('brToParagraph', {
-      filter: 'br',
-      replacement: function () {
-        return '\n\n';
-      }
-    });
-
-    // Rule to ensure <div> elements are treated as block elements with proper newlines
-    td.addRule('divToBlock', {
-      filter: 'div',
-      replacement: function (content, node) {
-        // If the div contains other block-level elements, let turndown's default handling apply.
-        // Otherwise, if it contains text or is empty, treat it as a paragraph break.
-        const hasBlockChildren = Array.from(node.children).some(child =>
-          ['P', 'DIV', 'UL', 'OL', 'H1', 'H2', 'H3', 'H4', 'H5', 'H6', 'BLOCKQUOTE', 'PRE', 'TABLE'].includes(child.tagName.toUpperCase())
-        );
-
-        if (hasBlockChildren) {
-          return content; // Let turndown handle the inner block elements
-        } else if (content.trim() === '') {
-          return '\n\n'; // Empty div, treat as a paragraph break
-        } else {
-          return '\n\n' + content + '\n\n'; // Div with text, treat as a paragraph
-        }
-      }
-    });
-
-    return td;
-  }, []);
+  const turndownService = useMemo(() => new TurndownService(), []);
   const showdownConverter = useMemo(() => new showdown.Converter(), []);
 
   const form = useForm<PostFormData>({
