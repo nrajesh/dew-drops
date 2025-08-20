@@ -10,6 +10,8 @@ import { useDebounce } from "@/hooks/useDebounce";
 import { PaginationControls } from "@/components/PaginationControls";
 import { usePaginationNavigation } from "@/hooks/usePaginationNavigation";
 import { showError } from "@/utils/toast";
+import { useFeatureToggles } from "@/contexts/FeatureToggleContext";
+import { navFeatures } from "@/config/navigation";
 
 const VIDEOS_PER_PAGE = 4;
 
@@ -19,11 +21,14 @@ const Videos = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const containerRef = useRef<HTMLDivElement>(null);
+  const { toggles, loading: togglesLoading } = useFeatureToggles();
 
   const debouncedSearchTerm = useDebounce(searchTerm, 500);
 
   useEffect(() => {
     const fetchVideos = async () => {
+      if (togglesLoading) return; // Wait for toggles to load
+
       setLoading(true);
       try {
         const { data, error } = await supabase.functions.invoke('search-videos', {
@@ -37,11 +42,13 @@ const Videos = () => {
         setVideos(data as Video[]);
       } catch (err: any) {
         console.error("Error searching videos:", err);
+        let errorMessage = "Failed to search for videos.";
         if (err.message.includes('YouTube API key')) {
-            showError("Video search is not configured. An administrator needs to add a YouTube API key.");
-        } else {
-            showError("Failed to search for videos.");
+            errorMessage = "YouTube API key is missing. Please configure it in your Supabase project secrets.";
+        } else if (err.message.includes('feature_toggles')) {
+            errorMessage = "Video search functionality is currently disabled. Please enable it in Feature Toggles.";
         }
+        showError(errorMessage);
         setVideos([]);
       } finally {
         setLoading(false);
@@ -49,7 +56,7 @@ const Videos = () => {
     };
 
     fetchVideos();
-  }, [debouncedSearchTerm]);
+  }, [debouncedSearchTerm, togglesLoading, toggles]); // Re-fetch when toggles change
 
   const totalPages = Math.ceil(videos.length / VIDEOS_PER_PAGE);
   const paginatedVideos = videos.slice(
@@ -88,7 +95,7 @@ const Videos = () => {
         </div>
 
         <div className="grid gap-6 md:grid-cols-2">
-          {loading ? (
+          {loading || togglesLoading ? (
             Array.from({ length: VIDEOS_PER_PAGE }).map((_, index) => (
               <Card key={index}>
                 <CardHeader><Skeleton className="h-6 w-3/4" /></CardHeader>

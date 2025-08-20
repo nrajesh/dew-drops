@@ -12,6 +12,7 @@ const featureDescriptions: Record<string, { title: string; description: string }
   [navFeatures.TRAVEL]: { title: "Travel Map", description: "The interactive map of your travels." },
   [navFeatures.VIDEOS]: { title: "Videos", description: "Your public videos page." },
   [navFeatures.CHATBOT]: { title: "AI Chatbot", description: "The floating chatbot widget." },
+  [navFeatures.YOUTUBE_SEARCH]: { title: "YouTube Search", description: "Enable/disable searching YouTube for video titles and descriptions." },
   [navFeatures.MANAGE_BLOG]: { title: "Manage Blog", description: "The management page for blog posts." },
   [navFeatures.MANAGE_GALLERY]: { title: "Manage Gallery", description: "The management page for the photo gallery." },
   [navFeatures.MANAGE_TRAVEL]: { title: "Manage Travel", description: "The management page for the travel map." },

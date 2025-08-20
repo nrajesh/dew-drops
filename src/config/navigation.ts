@@ -1,4 +1,4 @@
-import { Home, Newspaper, Youtube, Image, Map, Edit, Settings, MapPin, GalleryThumbnails, ToggleRight } from "lucide-react";
+import { Home, Newspaper, Youtube, Image, Map, Edit, Settings, MapPin, GalleryThumbnails, ToggleRight, MessageSquare } from "lucide-react";
 
 // These keys must match the `feature_key` column in the `feature_toggles` table.
 export const navFeatures = {
@@ -8,6 +8,7 @@ export const navFeatures = {
   TRAVEL: 'nav_travel',
   VIDEOS: 'nav_videos',
   CHATBOT: 'nav_chatbot',
+  YOUTUBE_SEARCH: 'youtube_search', // New feature toggle for YouTube search
   MANAGE_BLOG: 'manage_blog',
   MANAGE_GALLERY: 'manage_gallery',
   MANAGE_TRAVEL: 'manage_travel',
