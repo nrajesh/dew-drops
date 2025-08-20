@@ -24,7 +24,6 @@
     --border: 214.3 31.8% 91.4%;
     --input: 214.3 31.8% 91.4%;
     --ring: 217 91% 60%;
-    --radius: 0.5rem;
 
     /* Sidebar variables for light theme */
     --sidebar-background: 210 40% 100%;
@@ -107,51 +106,61 @@
   background-color: hsla(var(--primary-foreground), 0.1);
 }
 
-/* React Quill WYSIWYG Editor Theme */
-.ql-toolbar {
-  @apply rounded-t-md border-border bg-card;
+/* React Quill specific styles for dark mode */
+.dark .ql-toolbar.ql-snow {
+  border-color: hsl(var(--border));
+  background-color: hsl(var(--input));
 }
 
-.ql-container {
-  @apply rounded-b-md border-border text-foreground;
-  font-size: 1rem;
+.dark .ql-container.ql-snow {
+  border-color: hsl(var(--border));
+  background-color: hsl(var(--background));
+  color: hsl(var(--foreground));
 }
 
-.ql-editor {
-  @apply min-h-[150px] lg:min-h-[200px];
-  height: 100%;
+.dark .ql-editor {
+  color: hsl(var(--foreground));
 }
 
-/* Dark theme overrides */
-.dark .ql-toolbar {
-  @apply bg-card;
+.dark .ql-stroke {
+  stroke: hsl(var(--foreground));
 }
 
-.dark .ql-snow .ql-stroke {
-  @apply stroke-current text-muted-foreground;
+.dark .ql-fill {
+  fill: hsl(var(--foreground));
 }
 
-.dark .ql-snow .ql-picker-label {
-  @apply text-muted-foreground;
+.dark .ql-picker-label {
+  color: hsl(var(--foreground));
 }
 
-.dark .ql-snow .ql-picker-options {
-  @apply bg-popover text-popover-foreground border-border;
+.dark .ql-picker-options {
+  background-color: hsl(var(--popover));
+  border-color: hsl(var(--border));
 }
 
-.dark .ql-snow .ql-picker-item:hover,
-.dark .ql-snow .ql-picker-item.ql-selected {
-  @apply text-accent-foreground;
+.dark .ql-picker-item {
+  color: hsl(var(--foreground));
 }
 
-.dark .ql-snow .ql-tooltip {
-  @apply bg-popover text-popover-foreground border-border shadow-lg;
+.dark .ql-picker-item.ql-selected,
+.dark .ql-picker-item:hover {
+  background-color: hsl(var(--accent));
+  color: hsl(var(--accent-foreground));
 }
 
-.dark .ql-snow .ql-tooltip input[type=text] {
-  @apply bg-input border-border text-foreground;
+.dark .ql-tooltip {
+  background-color: hsl(var(--popover));
+  border-color: hsl(var(--border));
+  color: hsl(var(--foreground));
 }
 
-.dark .ql-snow .ql-tooltip a.ql-action::before {
-  @apply text-primary;
+.dark .ql-tooltip a {
+  color: hsl(var(--primary));
+}
+
+.dark .ql-tooltip input {
+  background-color: hsl(var(--input));
+  border-color: hsl(var(--border));
+  color: hsl(var(--foreground));
 }

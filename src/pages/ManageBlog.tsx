@@ -106,9 +106,19 @@ const ManageBlog = () => {
         }
     }
 
+    // Ensure content is wrapped with triple backticks
+    let content = values.content;
+    if (!content.startsWith('```')) {
+      content = '```\n' + content;
+    }
+    if (!content.endsWith('```')) {
+      content = content + '\n```';
+    }
+
     const postData = {
       ...values,
       description: description,
+      content: content,
       user_id: user.id,
     };
 
@@ -275,6 +285,14 @@ const ManageBlog = () => {
             }
             description = extractedDescription;
         }
+    }
+
+    // Ensure content is wrapped with triple backticks
+    if (!content.startsWith('```')) {
+      content = '```\n' + content;
+    }
+    if (!content.endsWith('```')) {
+      content = content + '\n```';
     }
 
     return { title, description, content, published_at, published, tags, cover_image_id, youtube_video_id };
