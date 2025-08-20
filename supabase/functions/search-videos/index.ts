@@ -5,7 +5,7 @@ import { verify } from 'https://deno.land/x/djwt@v2.8/mod.ts';
 const YOUTUBE_API_KEY = Deno.env.get('YOUTUBE_API_KEY')
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL') ?? '';
 const SUPABASE_ANON_KEY = Deno.env.get('SUPABASE_ANON_KEY') ?? '';
-const SUPABASE_JWT_SECRET = Deno.env.get('SUPABASE_JWT_SECRET') ?? ''; // Assuming this secret is available for JWT verification
+const SUPABASE_JWT_SECRET = Deno.env.get('SUPABASE_JWT_SECRET') ?? '';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -33,7 +33,6 @@ serve(async (req) => {
         userId = payload.sub as string;
       } catch (jwtError) {
         console.warn('JWT verification failed:', jwtError.message);
-        // Continue without user ID if JWT is invalid
       }
     }
 
@@ -41,41 +40,45 @@ serve(async (req) => {
     if (userId) {
       const { data: toggleData, error: toggleError } = await supabase
         .from('feature_toggles')
-        .select('is_enabled')
+        .select('is_enabled, feature_key')
         .eq('user_id', userId)
         .eq('feature_key', 'youtube_search')
         .single();
 
-      if (toggleError && toggleError.code !== 'PGRST116') { // PGRST116 means no rows found
+      if (toggleError) {
         console.error('Error fetching feature toggle:', toggleError);
+        console.log('Available feature keys:', (await supabase.from('feature_toggles').select('feature_key')).data?.map(f => f.feature_key));
       } else if (toggleData) {
         youtubeSearchEnabled = toggleData.is_enabled;
+        console.log(`Feature toggle found: ${toggleData.feature_key} = ${toggleData.is_enabled}`);
       } else {
-        // If no specific toggle setting for the user, default to true
+        console.log('No specific toggle setting for user, defaulting to true');
         youtubeSearchEnabled = true;
       }
     } else {
-      // If no user is logged in, default to true for public access
+      console.log('No user logged in, defaulting to true');
       youtubeSearchEnabled = true;
     }
+
+    console.log(`YouTube search enabled: ${youtubeSearchEnabled}`);
 
     // 1. Search the local database by title
     const { data: dbTitleMatches, error: dbError } = await supabase
       .from('videos')
-      .select('id, title, youtube_id, created_at, user_id') // Select all columns needed for Video type
+      .select('id, title, youtube_id, created_at, user_id')
       .ilike('title', `%${searchTerm}%`);
     if (dbError) throw dbError;
-    
+
     let finalVideos = dbTitleMatches;
 
     // Conditionally search YouTube API if the feature is enabled and the key exists
     if (youtubeSearchEnabled && YOUTUBE_API_KEY) {
+      console.log('Performing YouTube search');
       const youtubeApiUrl = `https://www.googleapis.com/youtube/v3/search?part=snippet&q=${encodeURIComponent(searchTerm)}&key=${YOUTUBE_API_KEY}&type=video&maxResults=50`;
       const youtubeResponse = await fetch(youtubeApiUrl);
       if (!youtubeResponse.ok) {
         const errorBody = await youtubeResponse.json();
         console.error('YouTube API Error:', errorBody);
-        // Don't throw an error, just log it and continue with DB results
       } else {
         const youtubeData = await youtubeResponse.json();
         const youtubeVideoIds = youtubeData.items.map((item: any) => item.id.videoId);
@@ -83,11 +86,10 @@ serve(async (req) => {
         if (youtubeVideoIds.length > 0) {
           const { data: youtubeMatchesInDb, error: youtubeDbError } = await supabase
             .from('videos')
-            .select('id, title, youtube_id, created_at, user_id') // Select all columns needed for Video type
+            .select('id, title, youtube_id, created_at, user_id')
             .in('youtube_id', youtubeVideoIds);
           if (youtubeDbError) throw youtubeDbError;
-          
-          // Combine and deduplicate videos based on ID
+
           const existingVideoIds = new Set(finalVideos.map(v => v.id));
           youtubeMatchesInDb.forEach(video => {
             if (!existingVideoIds.has(video.id)) {
@@ -96,9 +98,10 @@ serve(async (req) => {
           });
         }
       }
+    } else {
+      console.log('Skipping YouTube search due to disabled feature or missing API key');
     }
 
-    // Sort the final combined list
     finalVideos.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
 
     return new Response(JSON.stringify(finalVideos), {
