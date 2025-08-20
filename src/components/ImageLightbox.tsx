@@ -3,6 +3,11 @@ import { X, ChevronLeft, ChevronRight, Info } from "lucide-react";
 import { useEffect, useState } from "react";
 import type { GalleryImage } from "@/types";
 import { CardDescription, CardHeader, CardTitle } from "./ui/card";
+import { Textarea } from "./ui/textarea";
+import { Button } from "./ui/button";
+import { useAuth } from "@/contexts/AuthContext";
+import { showSuccess, showError, showLoading, dismissToast } from "@/utils/toast";
+import { supabase } from "@/integrations/supabase/client";
 
 interface ImageLightboxProps {
   image: GalleryImage | null;
@@ -44,7 +49,7 @@ const ExifDisplay = ({ data }: { data: Record<string, any> }) => {
 
     const entries = Object.entries(relevantTags)
         .map(([key, label]) => {
-            const value = data[key]; // Data is now the direct string value
+            const value = data[key];
             return value ? { label, value } : null;
         })
         .filter((item): item is { label: string; value: any } => item !== null);
@@ -69,6 +74,8 @@ export const ImageLightbox = ({ image, onClose, onNavigate, hasNext, hasPrev }: 
   const [showExif, setShowExif] = useState(false);
   const [touchStart, setTouchStart] = useState<number | null>(null);
   const [touchEnd, setTouchEnd] = useState<number | null>(null);
+  const [altText, setAltText] = useState(image?.alt_text || "");
+  const { session } = useAuth();
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -94,6 +101,7 @@ export const ImageLightbox = ({ image, onClose, onNavigate, hasNext, hasPrev }: 
   // Reset EXIF view when image changes
   useEffect(() => {
     setShowExif(false);
+    setAltText(image?.alt_text || "");
   }, [image]);
 
   const exifData = image?.exif_data;
@@ -121,6 +129,23 @@ export const ImageLightbox = ({ image, onClose, onNavigate, hasNext, hasPrev }: 
     }
     setTouchStart(null);
     setTouchEnd(null);
+  };
+
+  const handleAltTextUpdate = async () => {
+    if (!image || !session) return;
+
+    const toastId = showLoading("Updating alt text...");
+    const { error } = await supabase
+      .from("gallery_images")
+      .update({ alt_text: altText })
+      .eq("id", image.id);
+
+    dismissToast(toastId);
+    if (error) {
+      showError(`Update failed: ${error.message}`);
+    } else {
+      showSuccess("Alt text updated successfully!");
+    }
   };
 
   return (
@@ -188,10 +213,20 @@ export const ImageLightbox = ({ image, onClose, onNavigate, hasNext, hasPrev }: 
               alt={image.alt_text || "Enlarged gallery image"}
               className="w-full h-auto object-contain max-h-[85vh] rounded-lg shadow-2xl"
             />
-            {showCaption && (
-              <figcaption className="text-center text-white/90 text-base p-2 bg-black/30 rounded-md max-w-full">
-                {captionText}
-              </figcaption>
+            {session && (
+              <div className="w-full mt-4 p-4 bg-background/80 rounded-lg">
+                <div className="flex flex-col gap-2">
+                  <Textarea
+                    value={altText}
+                    onChange={(e) => setAltText(e.target.value)}
+                    placeholder="Enter alt text for this image"
+                    className="w-full"
+                  />
+                  <Button onClick={handleAltTextUpdate} className="self-end">
+                    Update Alt Text
+                  </Button>
+                </div>
+              </div>
             )}
           </motion.div>
 
