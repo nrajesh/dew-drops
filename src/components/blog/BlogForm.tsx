@@ -52,7 +52,25 @@ export const BlogForm = ({ editingPost, galleryImages, uniqueTags, onSubmit, onC
   const [isEditorOpen, setIsEditorOpen] = useState(false);
   const [editorContent, setEditorContent] = useState(''); // Internal HTML state for the editor
 
-  const turndownService = useMemo(() => new TurndownService(), []);
+  const turndownService = useMemo(() => {
+    const td = new TurndownService({
+      headingStyle: 'atx',
+      hr: '---',
+      bulletListMarker: '-',
+      codeBlockStyle: 'fenced',
+      emDelimiter: '*',
+    });
+
+    // Add a rule to convert <br> tags to two newlines, forcing a paragraph break in Markdown
+    td.addRule('brToParagraph', {
+      filter: 'br',
+      replacement: function () {
+        return '\n\n';
+      }
+    });
+
+    return td;
+  }, []);
   const showdownConverter = useMemo(() => new showdown.Converter(), []);
 
   const form = useForm<PostFormData>({
