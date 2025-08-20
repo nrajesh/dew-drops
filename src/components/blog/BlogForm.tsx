@@ -16,8 +16,13 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { MultiSelectPopover } from "@/components/MultiSelectPopover";
 import type { GalleryImage, Post } from "@/types";
-import { useEffect } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { Checkbox } from "../ui/checkbox";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
+import WysiwygEditor from "./WysiwygEditor";
+import { Eye } from "lucide-react";
+import TurndownService from "turndown";
+import showdown from 'showdown';
 
 const postSchema = z.object({
   title: z.string().min(3, { message: "Title must be at least 3 characters." }),
@@ -44,6 +49,50 @@ interface BlogFormProps {
 }
 
 export const BlogForm = ({ editingPost, galleryImages, uniqueTags, onSubmit, onCancel }: BlogFormProps) => {
+  const [isEditorOpen, setIsEditorOpen] = useState(false);
+  const [editorContent, setEditorContent] = useState(''); // Internal HTML state for the editor
+
+  const turndownService = useMemo(() => {
+    const td = new TurndownService({
+      headingStyle: 'atx',
+      hr: '---',
+      bulletListMarker: '-',
+      codeBlockStyle: 'fenced',
+      emDelimiter: '*',
+    });
+
+    // Rule to convert <br> tags to two newlines, forcing a paragraph break in Markdown
+    td.addRule('brToParagraph', {
+      filter: 'br',
+      replacement: function () {
+        return '\n\n';
+      }
+    });
+
+    // Rule to ensure <div> elements are treated as block elements with proper newlines
+    td.addRule('divToBlock', {
+      filter: 'div',
+      replacement: function (content, node) {
+        // If the div contains other block-level elements, let turndown's default handling apply.
+        // Otherwise, if it contains text or is empty, treat it as a paragraph break.
+        const hasBlockChildren = Array.from(node.children).some(child =>
+          ['P', 'DIV', 'UL', 'OL', 'H1', 'H2', 'H3', 'H4', 'H5', 'H6', 'BLOCKQUOTE', 'PRE', 'TABLE'].includes(child.tagName.toUpperCase())
+        );
+
+        if (hasBlockChildren) {
+          return content; // Let turndown handle the inner block elements
+        } else if (content.trim() === '') {
+          return '\n\n'; // Empty div, treat as a paragraph break
+        } else {
+          return '\n\n' + content + '\n\n'; // Div with text, treat as a paragraph
+        }
+      }
+    });
+
+    return td;
+  }, []);
+  const showdownConverter = useMemo(() => new showdown.Converter(), []);
+
   const form = useForm<PostFormData>({
     resolver: zodResolver(postSchema),
     defaultValues: {
@@ -83,6 +132,19 @@ export const BlogForm = ({ editingPost, galleryImages, uniqueTags, onSubmit, onC
       });
     }
   }, [editingPost, form]);
+
+  const handleOpenEditor = () => {
+    const markdownContent = form.getValues('content') || '';
+    const htmlContent = showdownConverter.makeHtml(markdownContent);
+    setEditorContent(htmlContent);
+    setIsEditorOpen(true);
+  };
+
+  const handleSaveAndCloseEditor = () => {
+    const markdownContent = turndownService.turndown(editorContent);
+    form.setValue('content', markdownContent, { shouldValidate: true, shouldDirty: true });
+    setIsEditorOpen(false);
+  };
 
   return (
     <Card>
@@ -185,9 +247,41 @@ export const BlogForm = ({ editingPost, galleryImages, uniqueTags, onSubmit, onC
                 <FormMessage />
               </FormItem>
             )} />
-            <FormField control={form.control} name="content" render={({ field }) => (
-              <FormItem><FormLabel>Content (Markdown supported)</FormLabel><FormControl><Textarea placeholder="Write your full article here..." className="min-h-[200px]" {...field} /></FormControl><FormMessage /></FormItem>
-            )} />
+            <FormField
+              control={form.control}
+              name="content"
+              render={() => (
+                <FormItem>
+                  <FormLabel>Content</FormLabel>
+                  <FormControl>
+                    <Dialog open={isEditorOpen} onOpenChange={setIsEditorOpen}>
+                      <DialogTrigger asChild>
+                        <Button type="button" variant="outline" className="w-full justify-start font-normal" onClick={handleOpenEditor}>
+                          <Eye className="mr-2 h-4 w-4" />
+                          Open Content Editor
+                        </Button>
+                      </DialogTrigger>
+                      <DialogContent className="max-w-4xl h-[80vh] flex flex-col p-0">
+                        <DialogHeader className="p-6 pb-0">
+                          <DialogTitle>Content Editor</DialogTitle>
+                        </DialogHeader>
+                        <div className="flex-grow min-h-0 px-6 pb-2">
+                          <WysiwygEditor
+                            value={editorContent}
+                            onChange={setEditorContent}
+                          />
+                        </div>
+                        <DialogFooter className="p-6 pt-0">
+                          <Button type="button" variant="outline" onClick={() => setIsEditorOpen(false)}>Cancel</Button>
+                          <Button type="button" onClick={handleSaveAndCloseEditor}>Save and Close</Button>
+                        </DialogFooter>
+                      </DialogContent>
+                    </Dialog>
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
             <div className="flex gap-2">
               <Button type="submit">{editingPost ? "Update Post" : "Add Post"}</Button>
               {editingPost && <Button variant="outline" type="button" onClick={onCancel}>Cancel</Button>}
