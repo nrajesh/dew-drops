@@ -35,11 +35,13 @@ const ManageBlog = () => {
   const [postsToUpdate, setPostsToUpdate] = useState<{ existingId: string; existingTitle: string; newData: NewPost }[]>([]);
   const [selectedUpdates, setSelectedUpdates] = useState<Set<string>>(new Set());
 
+  // Fetch data
   useEffect(() => {
     fetchPosts();
     fetchGalleryImages();
   }, []);
 
+  // Pagination
   const paginatedPosts = useMemo(() => {
     const startIndex = (currentPage - 1) * postsPerPage;
     return posts.slice(startIndex, startIndex + postsPerPage);
@@ -60,6 +62,7 @@ const ManageBlog = () => {
     setCurrentPage(1);
   };
 
+  // Data fetching functions
   const fetchPosts = async () => {
     const { data, error } = await supabase.from("posts").select("*").order("published_at", { ascending: false });
     if (error) {
@@ -84,6 +87,7 @@ const ManageBlog = () => {
     }
   };
 
+  // Form handling
   async function handleFormSubmit(values: PostFormData) {
     if (!user) {
       showError("You must be logged in to manage blog posts.");
@@ -91,7 +95,7 @@ const ManageBlog = () => {
     }
 
     const toastId = showLoading(editingPost ? "Updating post..." : "Adding new post...");
-    
+
     let description = values.description;
     if (!description || description.trim() === '') {
         const content = values.content;
@@ -106,9 +110,16 @@ const ManageBlog = () => {
         }
     }
 
-    const postData = { 
+    // Ensure content has triple backticks
+    let content = values.content;
+    if (!content.startsWith('```') || !content.endsWith('```')) {
+      content = '```\n' + content + '\n```';
+    }
+
+    const postData = {
       ...values,
       description: description,
+      content: content,
       user_id: user.id,
     };
 
@@ -126,6 +137,11 @@ const ManageBlog = () => {
     }
   }
 
+  const cancelEdit = () => {
+    setEditingPost(null);
+  };
+
+  // Bulk operations
   const handleBulkDelete = async () => {
     const toastId = showLoading(`Deleting ${selectedPosts.size} posts...`);
     const { error } = await supabase.from("posts").delete().in("id", Array.from(selectedPosts));
@@ -138,11 +154,43 @@ const ManageBlog = () => {
       setSelectedPosts(new Set());
     }
   };
-  
-  const cancelEdit = () => {
-    setEditingPost(null);
+
+  const handleBulkTagUpdate = async (tags: string[]) => {
+    const toastId = showLoading(`Updating tags for ${selectedPosts.size} posts...`);
+    const { error } = await supabase
+      .from("posts")
+      .update({ tags })
+      .in("id", Array.from(selectedPosts));
+
+    dismissToast(toastId);
+    if (error) {
+      showError(`Failed to update tags: ${error.message}`);
+    } else {
+      showSuccess("Tags updated successfully.");
+      fetchPosts();
+      setSelectedPosts(new Set());
+    }
   };
 
+  const handleBulkStatusChange = async (published: boolean) => {
+    const status = published ? "published" : "unpublished";
+    const toastId = showLoading(`Setting ${selectedPosts.size} posts to ${status}...`);
+    const { error } = await supabase
+      .from("posts")
+      .update({ published })
+      .in("id", Array.from(selectedPosts));
+
+    dismissToast(toastId);
+    if (error) {
+      showError(`Failed to update status: ${error.message}`);
+    } else {
+      showSuccess(`Posts marked as ${status}.`);
+      fetchPosts();
+      setSelectedPosts(new Set());
+    }
+  };
+
+  // File parsing and processing
   const parseWordPressXml = async (xmlString: string): Promise<NewPost[]> => {
     const parser = new DOMParser();
     const xmlDoc = parser.parseFromString(xmlString, "text/xml");
@@ -155,7 +203,7 @@ const ManageBlog = () => {
       let description = item.querySelector("description")?.textContent || "";
       let contentHtml = item.getElementsByTagNameNS("*", "encoded")[0]?.textContent || "";
       const status = item.querySelector("status, \\:status")?.textContent || 'draft';
-      
+
       contentHtml = contentHtml.replace(/<!--\s*(more|nextpage)\s*-->/gi, '');
 
       const content = turndownService.turndown(contentHtml);
@@ -175,11 +223,17 @@ const ManageBlog = () => {
         }
       }
 
-      if (title && content) {
+      // Ensure content has triple backticks
+      let finalContent = content;
+      if (!finalContent.startsWith('```') || !finalContent.endsWith('```')) {
+        finalContent = '```\n' + finalContent + '\n```';
+      }
+
+      if (title && finalContent) {
         newPosts.push({
           title,
           description,
-          content,
+          content: finalContent,
           published_at: new Date(pubDate).toISOString(),
           published: status === 'publish',
           tags,
@@ -214,7 +268,7 @@ const ManageBlog = () => {
         if (colonIndex > -1) {
           const key = line.slice(0, colonIndex).trim();
           let value = line.slice(colonIndex + 1).trim();
-          
+
           if ((value.startsWith('"') && value.endsWith('"')) || (value.startsWith("'") && value.endsWith("'"))) {
             value = value.slice(1, -1);
           }
@@ -262,7 +316,7 @@ const ManageBlog = () => {
         }
       });
     }
-    
+
     content = content.trim().replace(/<!--\s*(more|nextpage)\s*-->/gi, '');
 
     if (!description || description.trim() === '') {
@@ -277,7 +331,13 @@ const ManageBlog = () => {
         }
     }
 
-    return { title, description, content, published_at, published, tags, cover_image_id, youtube_video_id };
+    // Ensure content has triple backticks
+    let finalContent = content;
+    if (!finalContent.startsWith('```') || !finalContent.endsWith('```')) {
+      finalContent = '```\n' + finalContent + '\n```';
+    }
+
+    return { title, description, content: finalContent, published_at, published, tags, cover_image_id, youtube_video_id };
   };
 
   const processUploads = async (inserts: NewPost[], updates: { existingId: string; newData: NewPost }[]) => {
@@ -420,14 +480,20 @@ published: ${post.published}${tagsString}${coverImageIdString}${youtubeVideoIdSt
 ---
 
 `;
-            const markdownContent = frontmatter + (post.content || '');
+            // Ensure content has triple backticks
+            let content = post.content || '';
+            if (!content.startsWith('```') || !content.endsWith('```')) {
+              content = '```\n' + content + '\n```';
+            }
+
+            const markdownContent = frontmatter + content;
             const sanitizedTitle = sanitizeFileName(post.title).replace(/\.[^/.]+$/, "");
             const fileName = (sanitizedTitle.trim().length > 0 ? sanitizedTitle : post.id) + ".md";
             zip.file(fileName, markdownContent);
         });
 
         const zipBlob = await zip.generateAsync({ type: "blob" });
-        
+
         const link = document.createElement("a");
         link.href = URL.createObjectURL(zipBlob);
         link.download = "blog_export.zip";
@@ -443,6 +509,7 @@ published: ${post.published}${tagsString}${coverImageIdString}${youtubeVideoIdSt
     }
   };
 
+  // Selection handling
   const handleSelectPost = (id: string) => {
     const newSelection = new Set(selectedPosts);
     newSelection.has(id) ? newSelection.delete(id) : newSelection.add(id);
@@ -462,58 +529,23 @@ published: ${post.published}${tagsString}${coverImageIdString}${youtubeVideoIdSt
     }
   };
 
-  const handleBulkTagUpdate = async (tags: string[]) => {
-    const toastId = showLoading(`Updating tags for ${selectedPosts.size} posts...`);
-    const { error } = await supabase
-      .from("posts")
-      .update({ tags })
-      .in("id", Array.from(selectedPosts));
-    
-    dismissToast(toastId);
-    if (error) {
-      showError(`Failed to update tags: ${error.message}`);
-    } else {
-      showSuccess("Tags updated successfully.");
-      fetchPosts();
-      setSelectedPosts(new Set());
-    }
-  };
-
-  const handleBulkStatusChange = async (published: boolean) => {
-    const status = published ? "published" : "unpublished";
-    const toastId = showLoading(`Setting ${selectedPosts.size} posts to ${status}...`);
-    const { error } = await supabase
-      .from("posts")
-      .update({ published })
-      .in("id", Array.from(selectedPosts));
-
-    dismissToast(toastId);
-    if (error) {
-      showError(`Failed to update status: ${error.message}`);
-    } else {
-      showSuccess(`Posts marked as ${status}.`);
-      fetchPosts();
-      setSelectedPosts(new Set());
-    }
-  };
-
   return (
     <div className="space-y-8" ref={containerRef}>
-      <BulkImport 
+      <BulkImport
         onFileChange={setSelectedFiles}
         onUpload={handleUpload}
         isUploading={isUploading}
         selectedFiles={selectedFiles}
       />
       <div className="grid gap-8 md:grid-cols-2">
-        <BlogForm 
+        <BlogForm
           editingPost={editingPost}
           galleryImages={galleryImages}
           uniqueTags={uniqueTags}
           onSubmit={handleFormSubmit}
           onCancel={cancelEdit}
         />
-        <PostList 
+        <PostList
           posts={paginatedPosts}
           selectedPosts={selectedPosts}
           onSelectPost={handleSelectPost}
@@ -532,7 +564,7 @@ published: ${post.published}${tagsString}${coverImageIdString}${youtubeVideoIdSt
           totalItems={posts.length}
         />
       </div>
-      <UpdatePostsDialog 
+      <UpdatePostsDialog
         isOpen={isUpdateDialogVisible}
         onOpenChange={setIsUpdateDialogVisible}
         postsToInsert={postsToInsert}

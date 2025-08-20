@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
-import { Trash2, Edit, Download, Tag, MoreHorizontal } from "lucide-react";
+import { Trash2, Edit, Download, Tag, MoreHorizontal, Pencil } from "lucide-react";
 import type { Post } from "@/types";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
@@ -20,6 +20,7 @@ import { MultiSelectPopover } from "@/components/MultiSelectPopover";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
 import { ManagementPagination } from "../ManagementPagination";
+import { useAuth } from "@/contexts/AuthContext";
 
 interface PostListProps {
   posts: Post[];
@@ -40,16 +41,16 @@ interface PostListProps {
   totalItems: number;
 }
 
-export const PostList = ({ 
-  posts, 
-  selectedPosts, 
-  onSelectPost, 
-  onSelectAll, 
-  onEdit, 
-  onDelete, 
-  onDownload, 
-  onBulkTagUpdate, 
-  onBulkStatusChange, 
+export const PostList = ({
+  posts,
+  selectedPosts,
+  onSelectPost,
+  onSelectAll,
+  onEdit,
+  onDelete,
+  onDownload,
+  onBulkTagUpdate,
+  onBulkStatusChange,
   uniqueTags,
   currentPage,
   totalPages,
@@ -60,6 +61,7 @@ export const PostList = ({
 }: PostListProps) => {
   const [isTagDialogOpen, setIsTagDialogOpen] = useState(false);
   const [bulkEditTags, setBulkEditTags] = useState<string[]>([]);
+  const { session } = useAuth();
 
   const handleSaveTags = () => {
     onBulkTagUpdate(bulkEditTags);
@@ -139,7 +141,11 @@ export const PostList = ({
                     <label htmlFor={`select-${post.id}`} className="font-medium truncate pr-2 cursor-pointer">{post.title}</label>
                   </div>
                   <div className="flex items-center gap-2 shrink-0">
-                    <Button variant="ghost" size="icon" onClick={() => onEdit(post)}><Edit className="h-4 w-4" /></Button>
+                    {session && (
+                      <Button variant="ghost" size="icon" onClick={() => onEdit(post)}>
+                        <Pencil className="h-4 w-4" />
+                      </Button>
+                    )}
                   </div>
                 </div>
               ))

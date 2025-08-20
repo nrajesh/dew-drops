@@ -6,9 +6,13 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Skeleton } from '@/components/ui/skeleton';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
-import { Calendar, ArrowLeft, ArrowRight } from 'lucide-react';
+import { Calendar, ArrowLeft, ArrowRight, Edit } from 'lucide-react';
 import { AspectRatio } from "@/components/ui/aspect-ratio";
 import { Button } from '@/components/ui/button';
+import { useAuth } from '@/contexts/AuthContext';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
+import { BlogForm, PostFormData } from '@/components/blog/BlogForm';
+import { showSuccess, showError, showLoading, dismissToast } from '@/utils/toast';
 
 const PLACEHOLDER_IMAGE_URL = "/gallery/placeholder.svg";
 
@@ -30,7 +34,7 @@ const PostNavigation = ({ prev, next }: { prev: NavPost | null; next: NavPost | 
           </Link>
         </Button>
       ) : <div />}
-      
+
       {next ? (
         <Button asChild variant="outline" className="h-auto text-right justify-end">
           <Link to={`/blog/${next.id}`} className="flex items-center gap-3 p-4">
@@ -53,7 +57,11 @@ const Post = () => {
   const [coverImageUrl, setCoverImageUrl] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [postNav, setPostNav] = useState<{ prev: NavPost | null; next: NavPost | null }>({ prev: null, next: null });
-  
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [galleryImages, setGalleryImages] = useState<GalleryImage[]>([]);
+  const [uniqueTags, setUniqueTags] = useState<string[]>([]);
+  const { session } = useAuth();
+
   const [touchStart, setTouchStart] = useState<number | null>(null);
   const [touchEnd, setTouchEnd] = useState<number | null>(null);
 
@@ -103,7 +111,31 @@ const Post = () => {
       setLoading(false);
     };
 
+    const fetchGalleryImages = async () => {
+      const { data, error } = await supabase.from("gallery_images").select("id, image_url, alt_text").order("created_at", { ascending: false });
+      if (error) {
+        console.error("Error fetching gallery images:", error);
+      } else {
+        setGalleryImages(data as GalleryImage[]);
+      }
+    };
+
+    const fetchUniqueTags = async () => {
+      const { data, error } = await supabase.from("posts").select("tags");
+      if (error) {
+        console.error("Error fetching tags:", error);
+      } else {
+        const allTags = new Set<string>();
+        (data as { tags: string[] | null }[]).forEach(post => {
+          post.tags?.forEach(tag => allTags.add(tag));
+        });
+        setUniqueTags(Array.from(allTags).sort());
+      }
+    };
+
     fetchPostAndNav();
+    fetchGalleryImages();
+    fetchUniqueTags();
   }, [id]);
 
   useEffect(() => {
@@ -142,6 +174,66 @@ const Post = () => {
     });
   };
 
+  const handleFormSubmit = async (values: PostFormData) => {
+    if (!post) return;
+
+    const toastId = showLoading("Updating post...");
+
+    let description = values.description;
+    if (!description || description.trim() === '') {
+        const content = values.content;
+        const codeBlockRegex = /```([\s\S]*?)```/;
+        const match = content.match(codeBlockRegex);
+        if (match && match[1]) {
+            let extractedDescription = match[1].trim();
+            if (extractedDescription.length > 500) {
+                extractedDescription = extractedDescription.substring(0, 497) + '...';
+            }
+            description = extractedDescription;
+        }
+    }
+
+    // Ensure content has triple backticks
+    let content = values.content;
+    if (!content.startsWith('```') || !content.endsWith('```')) {
+      content = '```\n' + content + '\n```';
+    }
+
+    const postData = {
+      ...values,
+      description: description,
+      content: content,
+    };
+
+    const { error } = await supabase.from("posts").update(postData).eq("id", post.id);
+
+    dismissToast(toastId);
+    if (error) {
+      showError(error.message);
+    } else {
+      showSuccess("Post updated successfully!");
+      setIsEditDialogOpen(false);
+      // Refresh the post data
+      const { data: updatedPostData, error: updatedPostError } = await supabase
+        .from('posts')
+        .select('*, gallery_images(image_url)')
+        .eq('id', post.id)
+        .single();
+
+      if (updatedPostError) {
+        console.error('Error fetching updated post:', updatedPostError);
+      } else {
+        const updatedPost = updatedPostData as PostType & { gallery_images?: GalleryImage };
+        setPost(updatedPost);
+        if (updatedPost.cover_image_id && updatedPost.gallery_images) {
+          setCoverImageUrl(updatedPost.gallery_images.image_url);
+        } else {
+          setCoverImageUrl(null);
+        }
+      }
+    }
+  };
+
   if (loading) {
     return (
       <div className="max-w-4xl mx-auto">
@@ -178,11 +270,21 @@ const Post = () => {
             </div>
           )}
           <CardHeader>
-            <CardTitle className="text-4xl font-bold">{post.title}</CardTitle>
-            <CardDescription className="flex items-center gap-2 pt-2">
-              <Calendar className="h-4 w-4" />
-              <span>Published on {formatDate(post.published_at)}</span>
-            </CardDescription>
+            <div className="flex items-center justify-between">
+              <div>
+                <CardTitle className="text-4xl font-bold">{post.title}</CardTitle>
+                <CardDescription className="flex items-center gap-2 pt-2">
+                  <Calendar className="h-4 w-4" />
+                  <span>Published on {formatDate(post.published_at)}</span>
+                </CardDescription>
+              </div>
+              {session && (
+                <Button variant="ghost" size="icon" onClick={() => setIsEditDialogOpen(true)}>
+                  <Edit className="h-5 w-5" />
+                  <span className="sr-only">Edit Post</span>
+                </Button>
+              )}
+            </div>
           </CardHeader>
           <CardContent>
             {post.youtube_video_id && (
@@ -209,6 +311,24 @@ const Post = () => {
         </Card>
       </article>
       <PostNavigation prev={postNav.prev} next={postNav.next} />
+
+      <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+        <DialogContent className="max-w-4xl">
+          <DialogHeader>
+            <DialogTitle>Edit Post</DialogTitle>
+            <DialogDescription>
+              Make changes to your post here. Click save when you're done.
+            </DialogDescription>
+          </DialogHeader>
+          <BlogForm
+            editingPost={post}
+            galleryImages={galleryImages}
+            uniqueTags={uniqueTags}
+            onSubmit={handleFormSubmit}
+            onCancel={() => setIsEditDialogOpen(false)}
+          />
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
