@@ -87,7 +87,7 @@ const Blog = () => {
 
   return (
     <div className="flex flex-col min-h-[calc(100vh-112px)]" ref={containerRef}>
-      <div className="flex-grow space-y-6 pb-8">
+      <div className="flex-grow space-y-6">
         <div className="text-center">
           <h1 className="text-3xl font-bold">Blog</h1>
           <p className="text-muted-foreground">My thoughts on design, development, and more.</p>
@@ -164,11 +164,13 @@ const Blog = () => {
           )}
         </div>
       </div>
-      <PaginationControls
-        currentPage={currentPage}
-        totalPages={totalPages}
-        onPageChange={setCurrentPage}
-      />
+      <div className="mt-8">
+        <PaginationControls
+          currentPage={currentPage}
+          totalPages={totalPages}
+          onPageChange={setCurrentPage}
+        />
+      </div>
     </div>
   );
 };
