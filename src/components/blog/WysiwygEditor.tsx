@@ -6,8 +6,19 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
 import { Bold, Italic, List, ListOrdered, Link, Image, Code, Undo, Redo } from 'lucide-react';
 
-// Dynamically import ReactQuill as it's a client-side only library
-const ReactQuill = React.lazy(() => import('react-quill'));
+// Properly type the dynamic import
+const ReactQuill = React.lazy(() => import('react-quill').then(module => ({ default: module.default })));
+
+// Define the type for the Quill component
+type QuillComponent = React.ComponentType<{
+  theme: string;
+  value: string;
+  onChange: (value: string) => void;
+  modules: any;
+  formats: string[];
+  className: string;
+  ref: React.Ref<any>;
+}>;
 
 interface WysiwygEditorProps {
   value: string; // Expects HTML
