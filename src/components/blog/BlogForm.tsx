@@ -98,7 +98,8 @@ export const BlogForm = ({ editingPost, galleryImages, uniqueTags, onSubmit, onC
 
     return td;
   }, []);
-  const showdownConverter = useMemo(() => new showdown.Converter(), []);
+  const showdownConverter = useMemo(() => new showdown.Converter({ simpleLineBreaks: true }), []);
+
 
   const form = useForm<PostFormData>({
     resolver: zodResolver(postSchema),
