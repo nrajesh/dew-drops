@@ -140,8 +140,7 @@ export const BlogForm = ({ editingPost, galleryImages, uniqueTags, onSubmit, onC
                     <Checkbox checked={field.value} onCheckedChange={field.onChange} />
                   </FormControl>
                   <div className="space-y-1 leading-none">
-                    <FormLabel>Published</FormLabel>
-                    <CardDescription>Toggle to publish or unpublish this post.</CardDescription>
+                    <FormLabel>Publish</FormLabel>
                   </div>
                 </FormItem>
               )} />
