@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import type { Post, GalleryImage } from "@/types";
-import { showSuccess, showError, showLoading, dismissToast, updateToastSuccess, updateToastError } from "@/utils/toast";
+import { showSuccess, showError, showLoading, dismissToast } from "@/utils/toast";
 import TurndownService from "turndown";
 import JSZip from 'jszip';
 import { sanitizeFileName } from "@/lib/utils";
@@ -12,6 +12,7 @@ import { BulkImport } from "../components/blog/BulkImport";
 import { UpdatePostsDialog } from "../components/blog/UpdatePostsDialog";
 import { usePaginationNavigation } from "@/hooks/usePaginationNavigation";
 import { useLocation } from "react-router-dom";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 
 type NewPost = Omit<Post, 'id' | 'created_at' | 'user_id'>;
 
@@ -577,6 +578,23 @@ published: ${post.published}${tagsString}${coverImageIdString}${youtubeVideoIdSt
         onSelectedUpdatesChange={setSelectedUpdates}
         onConfirm={handleConfirmAndProcessUploads}
       />
+      <Dialog open={!!editingPost} onOpenChange={() => setEditingPost(null)}>
+        <DialogContent className="max-w-4xl">
+          <DialogHeader>
+            <DialogTitle>Edit Post</DialogTitle>
+            <DialogDescription>
+              Make changes to your post here. Click save when you're done.
+            </DialogDescription>
+          </DialogHeader>
+          <BlogForm
+            editingPost={editingPost}
+            galleryImages={galleryImages}
+            uniqueTags={uniqueTags}
+            onSubmit={handleFormSubmit}
+            onCancel={() => setEditingPost(null)}
+          />
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
