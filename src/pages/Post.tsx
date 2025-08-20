@@ -152,7 +152,14 @@ const Post = () => {
 
   const handleEdit = () => {
     if (post) {
-      setEditContent(post.content || '');
+      let content = post.content || '';
+      if (!content.startsWith('```')) {
+        content = '```\n' + content;
+      }
+      if (!content.endsWith('```')) {
+        content = content + '\n```';
+      }
+      setEditContent(content);
       setIsEditDialogOpen(true);
     }
   };
@@ -160,10 +167,18 @@ const Post = () => {
   const handleSaveEdit = async () => {
     if (!post) return;
 
+    let contentToSave = editContent;
+    if (contentToSave.startsWith('```')) {
+      contentToSave = contentToSave.substring(3).trimStart();
+    }
+    if (contentToSave.endsWith('```')) {
+      contentToSave = contentToSave.substring(0, contentToSave.length - 3).trimEnd();
+    }
+
     const toastId = showLoading("Updating post content...");
     const { error } = await supabase
       .from('posts')
-      .update({ content: editContent })
+      .update({ content: contentToSave })
       .eq('id', post.id);
 
     dismissToast(toastId);
@@ -172,7 +187,7 @@ const Post = () => {
       console.error(error);
     } else {
       showSuccess("Post content updated successfully!");
-      setPost({ ...post, content: editContent });
+      setPost({ ...post, content: contentToSave });
       setIsEditDialogOpen(false);
     }
   };
@@ -197,6 +212,14 @@ const Post = () => {
   }
 
   const finalCoverImageUrl = coverImageUrl || PLACEHOLDER_IMAGE_URL;
+
+  let displayContent = post.content || '';
+  if (!displayContent.startsWith('```')) {
+    displayContent = '```\n' + displayContent;
+  }
+  if (!displayContent.endsWith('```')) {
+    displayContent = displayContent + '\n```';
+  }
 
   return (
     <>
@@ -245,7 +268,7 @@ const Post = () => {
               )}
               <div className="prose dark:prose-invert max-w-none">
                 <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                  {post.content || ''}
+                  {displayContent}
                 </ReactMarkdown>
               </div>
             </CardContent>
