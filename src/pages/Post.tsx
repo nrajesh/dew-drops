@@ -1,14 +1,15 @@
 import { useEffect, useState } from 'react';
-import { useParams, useNavigate, Link } from 'react-router-dom';
+import { useParams, useNavigate, Link, useLocation } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import type { Post as PostType, GalleryImage } from '@/types';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
-import { Calendar, ArrowLeft, ArrowRight } from 'lucide-react';
+import { Calendar, ArrowLeft, ArrowRight, Edit } from 'lucide-react';
 import { AspectRatio } from "@/components/ui/aspect-ratio";
 import { Button } from '@/components/ui/button';
+import { useAuth } from '@/contexts/AuthContext';
 
 const PLACEHOLDER_IMAGE_URL = "/gallery/placeholder.svg";
 
@@ -49,11 +50,13 @@ const PostNavigation = ({ prev, next }: { prev: NavPost | null; next: NavPost | 
 const Post = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const location = useLocation();
+  const { session } = useAuth();
   const [post, setPost] = useState<PostType | null>(null);
   const [coverImageUrl, setCoverImageUrl] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [postNav, setPostNav] = useState<{ prev: NavPost | null; next: NavPost | null }>({ prev: null, next: null });
-  
+
   const [touchStart, setTouchStart] = useState<number | null>(null);
   const [touchEnd, setTouchEnd] = useState<number | null>(null);
 
@@ -142,6 +145,12 @@ const Post = () => {
     });
   };
 
+  const handleEdit = () => {
+    if (post) {
+      navigate('/manage-blog', { state: { editingPost: post } });
+    }
+  };
+
   if (loading) {
     return (
       <div className="max-w-4xl mx-auto">
@@ -177,12 +186,19 @@ const Post = () => {
               <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent"></div>
             </div>
           )}
-          <CardHeader>
-            <CardTitle className="text-4xl font-bold">{post.title}</CardTitle>
-            <CardDescription className="flex items-center gap-2 pt-2">
-              <Calendar className="h-4 w-4" />
-              <span>Published on {formatDate(post.published_at)}</span>
-            </CardDescription>
+          <CardHeader className="flex flex-row items-start justify-between">
+            <div>
+              <CardTitle className="text-4xl font-bold">{post.title}</CardTitle>
+              <CardDescription className="flex items-center gap-2 pt-2">
+                <Calendar className="h-4 w-4" />
+                <span>Published on {formatDate(post.published_at)}</span>
+              </CardDescription>
+            </div>
+            {session && (
+              <Button variant="ghost" size="icon" onClick={handleEdit} aria-label="Edit post">
+                <Edit className="h-5 w-5" />
+              </Button>
+            )}
           </CardHeader>
           <CardContent>
             {post.youtube_video_id && (
