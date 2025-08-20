@@ -1,6 +1,6 @@
 import { Bot } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger, SheetDescription } from "@/components/ui/sheet";
+import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import Chat from "@/pages/Chat";
 import { useFeatureToggles } from "@/contexts/FeatureToggleContext";
 import { navFeatures } from "@/config/navigation";
@@ -26,12 +26,6 @@ const FloatingChatbot = () => {
         </Button>
       </SheetTrigger>
       <SheetContent side="left" className="w-full sm:max-w-lg p-0 flex flex-col">
-        <SheetHeader className="sr-only">
-          <SheetTitle>Chatbot</SheetTitle>
-          <SheetDescription>
-            A chat interface to ask questions about the portfolio.
-          </SheetDescription>
-        </SheetHeader>
         <Chat />
       </SheetContent>
     </Sheet>

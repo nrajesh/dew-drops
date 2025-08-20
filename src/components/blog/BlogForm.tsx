@@ -16,9 +16,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { MultiSelectPopover } from "@/components/MultiSelectPopover";
 import type { GalleryImage, Post } from "@/types";
-import { useEffect, useMemo } from "react";
+import { useEffect } from "react";
 import { Checkbox } from "../ui/checkbox";
-import WysiwygEditor from "./WysiwygEditor";
 
 const postSchema = z.object({
   title: z.string().min(3, { message: "Title must be at least 3 characters." }),
@@ -169,9 +168,9 @@ export const BlogForm = ({ editingPost, galleryImages, uniqueTags, onSubmit, onC
                   <FormMessage />
                   {field.value && field.value !== '--none--' && (
                     <div className="mt-2">
-                      <img
-                        src={galleryImages.find(img => img.id === field.value)?.image_url || ""}
-                        alt="Selected cover preview"
+                      <img 
+                        src={galleryImages.find(img => img.id === field.value)?.image_url || ""} 
+                        alt="Selected cover preview" 
                         className="w-32 h-auto rounded-md border"
                       />
                     </div>
@@ -186,24 +185,9 @@ export const BlogForm = ({ editingPost, galleryImages, uniqueTags, onSubmit, onC
                 <FormMessage />
               </FormItem>
             )} />
-            <FormField
-              control={form.control}
-              name="content"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Content</FormLabel>
-                  <FormControl>
-                    <div className="h-[300px]">
-                      <WysiwygEditor
-                        value={field.value}
-                        onChange={field.onChange}
-                      />
-                    </div>
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+            <FormField control={form.control} name="content" render={({ field }) => (
+              <FormItem><FormLabel>Content (Markdown supported)</FormLabel><FormControl><Textarea placeholder="Write your full article here..." className="min-h-[200px]" {...field} /></FormControl><FormMessage /></FormItem>
+            )} />
             <div className="flex gap-2">
               <Button type="submit">{editingPost ? "Update Post" : "Add Post"}</Button>
               {editingPost && <Button variant="outline" type="button" onClick={onCancel}>Cancel</Button>}
