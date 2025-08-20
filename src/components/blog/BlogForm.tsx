@@ -117,11 +117,23 @@ export const BlogForm = ({ editingPost, galleryImages, uniqueTags, onSubmit, onC
         <Form {...form}>
           <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <FormField control={form.control} name="title" render={({ field }) => (
-                <FormItem><FormLabel>Title</FormLabel><FormControl><Input placeholder="Your Post Title" {...field} /></FormControl><FormMessage /></FormItem>
-              )} />
+              <div className="space-y-4">
+                <FormField control={form.control} name="title" render={({ field }) => (
+                  <FormItem><FormLabel>Title</FormLabel><FormControl><Input placeholder="Your Post Title" {...field} /></FormControl><FormMessage /></FormItem>
+                )} />
+                <FormField control={form.control} name="published" render={({ field }) => (
+                  <FormItem className="flex flex-row items-center space-x-3 space-y-0 rounded-md border p-4">
+                    <FormControl>
+                      <Checkbox checked={field.value} onCheckedChange={field.onChange} />
+                    </FormControl>
+                    <div className="space-y-1 leading-none">
+                      <FormLabel>Publish</FormLabel>
+                    </div>
+                  </FormItem>
+                )} />
+              </div>
               <FormField control={form.control} name="description" render={({ field }) => (
-                <FormItem><FormLabel>Description (Optional)</FormLabel><FormControl><Textarea placeholder="A short description of your post..." {...field} value={field.value ?? ''} /></FormControl><FormMessage /></FormItem>
+                <FormItem><FormLabel>Description (Optional)</FormLabel><FormControl><Textarea placeholder="A short description of your post..." className="h-full" {...field} value={field.value ?? ''} /></FormControl><FormMessage /></FormItem>
               )} />
             </div>
             <FormField control={form.control} name="content" render={({ field }) => (
@@ -133,16 +145,6 @@ export const BlogForm = ({ editingPost, galleryImages, uniqueTags, onSubmit, onC
               )} />
               <FormField control={form.control} name="tags" render={({ field }) => (
                 <FormItem><FormLabel>Tags</FormLabel><FormControl><MultiSelectPopover suggestions={uniqueTags} value={field.value || []} onChange={field.onChange} /></FormControl><FormMessage /></FormItem>
-              )} />
-              <FormField control={form.control} name="published" render={({ field }) => (
-                <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md border p-4">
-                  <FormControl>
-                    <Checkbox checked={field.value} onCheckedChange={field.onChange} />
-                  </FormControl>
-                  <div className="space-y-1 leading-none">
-                    <FormLabel>Publish</FormLabel>
-                  </div>
-                </FormItem>
               )} />
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
