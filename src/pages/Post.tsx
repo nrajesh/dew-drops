@@ -201,7 +201,7 @@ const Post = () => {
               </div>
             )}
             <div className="prose dark:prose-invert max-w-none whitespace-pre-wrap">
-              <ReactMarkdown remarkPlugins={[remarkGfm]} breaks={true}>
+              <ReactMarkdown remarkPlugins={[remarkGfm]}>
                 {post.content || ''}
               </ReactMarkdown>
             </div>
