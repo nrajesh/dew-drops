@@ -13,6 +13,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { Textarea } from '@/components/ui/textarea';
 import { showSuccess, showError, showLoading, dismissToast } from '@/utils/toast';
+import WysiwygEditor from '@/components/blog/WysiwygEditor';
 
 const PLACEHOLDER_IMAGE_URL = "/gallery/placeholder.svg";
 
@@ -152,14 +153,7 @@ const Post = () => {
 
   const handleEdit = () => {
     if (post) {
-      let content = post.content || '';
-      if (!content.startsWith('```')) {
-        content = '```\n' + content;
-      }
-      if (!content.endsWith('```')) {
-        content = content + '\n```';
-      }
-      setEditContent(content);
+      setEditContent(post.content || '');
       setIsEditDialogOpen(true);
     }
   };
@@ -167,18 +161,10 @@ const Post = () => {
   const handleSaveEdit = async () => {
     if (!post) return;
 
-    let contentToSave = editContent;
-    if (contentToSave.startsWith('```')) {
-      contentToSave = contentToSave.substring(3).trimStart();
-    }
-    if (contentToSave.endsWith('```')) {
-      contentToSave = contentToSave.substring(0, contentToSave.length - 3).trimEnd();
-    }
-
     const toastId = showLoading("Updating post content...");
     const { error } = await supabase
       .from('posts')
-      .update({ content: contentToSave })
+      .update({ content: editContent })
       .eq('id', post.id);
 
     dismissToast(toastId);
@@ -187,7 +173,7 @@ const Post = () => {
       console.error(error);
     } else {
       showSuccess("Post content updated successfully!");
-      setPost({ ...post, content: contentToSave });
+      setPost({ ...post, content: editContent });
       setIsEditDialogOpen(false);
     }
   };
@@ -212,14 +198,6 @@ const Post = () => {
   }
 
   const finalCoverImageUrl = coverImageUrl || PLACEHOLDER_IMAGE_URL;
-
-  let displayContent = post.content || '';
-  if (!displayContent.startsWith('```')) {
-    displayContent = '```\n' + displayContent;
-  }
-  if (!displayContent.endsWith('```')) {
-    displayContent = displayContent + '\n```';
-  }
 
   return (
     <>
@@ -268,7 +246,7 @@ const Post = () => {
               )}
               <div className="prose dark:prose-invert max-w-none">
                 <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                  {displayContent}
+                  {post.content || ''}
                 </ReactMarkdown>
               </div>
             </CardContent>
@@ -294,11 +272,9 @@ const Post = () => {
               </div>
             </div>
             <div className="mt-4">
-              <Textarea
+              <WysiwygEditor
                 value={editContent}
-                onChange={(e) => setEditContent(e.target.value)}
-                className="w-full min-h-[150px] font-mono text-sm"
-                placeholder="Edit your content here..."
+                onChange={setEditContent}
               />
             </div>
           </div>
