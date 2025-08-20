@@ -54,8 +54,6 @@ export const BlogForm = ({ editingPost, galleryImages, uniqueTags, onSubmit, onC
 
   const turndownService = useMemo(() => {
     const service = new TurndownService({
-      // This rule ensures that blank HTML elements (like an empty <p>) are
-      // converted into a double newline, preserving paragraph breaks.
       blankReplacement: (content, node) => {
         return (node as any).isBlock ? '\n\n' : ''
       },
@@ -112,7 +110,13 @@ export const BlogForm = ({ editingPost, galleryImages, uniqueTags, onSubmit, onC
   };
 
   const handleSaveAndCloseEditor = () => {
-    const markdownContent = turndownService.turndown(editorContent);
+    let markdownContent = turndownService.turndown(editorContent);
+
+    // Add triple backticks if they don't already exist
+    if (!markdownContent.startsWith('```') || !markdownContent.endsWith('```')) {
+      markdownContent = `\`\`\`\n${markdownContent}\n\`\`\``;
+    }
+
     form.setValue('content', markdownContent, { shouldValidate: true, shouldDirty: true });
     setIsEditorOpen(false);
   };
@@ -201,9 +205,9 @@ export const BlogForm = ({ editingPost, galleryImages, uniqueTags, onSubmit, onC
                   <FormMessage />
                   {field.value && field.value !== '--none--' && (
                     <div className="mt-2">
-                      <img 
-                        src={galleryImages.find(img => img.id === field.value)?.image_url || ""} 
-                        alt="Selected cover preview" 
+                      <img
+                        src={galleryImages.find(img => img.id === field.value)?.image_url || ""}
+                        alt="Selected cover preview"
                         className="w-32 h-auto rounded-md border"
                       />
                     </div>
