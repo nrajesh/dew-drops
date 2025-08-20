@@ -62,6 +62,21 @@ export const BlogForm = ({ editingPost, galleryImages, uniqueTags, onSubmit, onC
     });
     return service;
   }, []);
+  // Add a custom rule to handle empty paragraphs
+turndownService.addRule('emptyParagraph', {
+  // Define a filter to target only empty <p> elements
+  filter: function (node, options) {
+    // This rule applies to 'p' nodes that are empty
+    // or contain only a non-breaking space.
+    return node.nodeName === 'P' && (node.innerHTML.trim() === '' || node.innerHTML.trim() === '&nbsp;');
+  },
+  // Define the replacement for these matched nodes
+  replacement: function (content, node, options) {
+    // Replace the empty paragraph with a non-breaking space
+    // followed by two newlines to ensure a clear paragraph break.
+    return '&nbsp;\n\n';
+  }
+});
   const showdownConverter = useMemo(() => new showdown.Converter(), []);
 
   const form = useForm<PostFormData>({
