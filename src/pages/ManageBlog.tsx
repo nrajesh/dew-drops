@@ -35,11 +35,13 @@ const ManageBlog = () => {
   const [postsToUpdate, setPostsToUpdate] = useState<{ existingId: string; existingTitle: string; newData: NewPost }[]>([]);
   const [selectedUpdates, setSelectedUpdates] = useState<Set<string>>(new Set());
 
+  // Fetch data
   useEffect(() => {
     fetchPosts();
     fetchGalleryImages();
   }, []);
 
+  // Pagination
   const paginatedPosts = useMemo(() => {
     const startIndex = (currentPage - 1) * postsPerPage;
     return posts.slice(startIndex, startIndex + postsPerPage);
@@ -60,6 +62,7 @@ const ManageBlog = () => {
     setCurrentPage(1);
   };
 
+  // Data fetching functions
   const fetchPosts = async () => {
     const { data, error } = await supabase.from("posts").select("*").order("published_at", { ascending: false });
     if (error) {
@@ -84,6 +87,7 @@ const ManageBlog = () => {
     }
   };
 
+  // Form handling
   async function handleFormSubmit(values: PostFormData) {
     if (!user) {
       showError("You must be logged in to manage blog posts.");
@@ -133,6 +137,11 @@ const ManageBlog = () => {
     }
   }
 
+  const cancelEdit = () => {
+    setEditingPost(null);
+  };
+
+  // Bulk operations
   const handleBulkDelete = async () => {
     const toastId = showLoading(`Deleting ${selectedPosts.size} posts...`);
     const { error } = await supabase.from("posts").delete().in("id", Array.from(selectedPosts));
@@ -146,10 +155,42 @@ const ManageBlog = () => {
     }
   };
 
-  const cancelEdit = () => {
-    setEditingPost(null);
+  const handleBulkTagUpdate = async (tags: string[]) => {
+    const toastId = showLoading(`Updating tags for ${selectedPosts.size} posts...`);
+    const { error } = await supabase
+      .from("posts")
+      .update({ tags })
+      .in("id", Array.from(selectedPosts));
+
+    dismissToast(toastId);
+    if (error) {
+      showError(`Failed to update tags: ${error.message}`);
+    } else {
+      showSuccess("Tags updated successfully.");
+      fetchPosts();
+      setSelectedPosts(new Set());
+    }
   };
 
+  const handleBulkStatusChange = async (published: boolean) => {
+    const status = published ? "published" : "unpublished";
+    const toastId = showLoading(`Setting ${selectedPosts.size} posts to ${status}...`);
+    const { error } = await supabase
+      .from("posts")
+      .update({ published })
+      .in("id", Array.from(selectedPosts));
+
+    dismissToast(toastId);
+    if (error) {
+      showError(`Failed to update status: ${error.message}`);
+    } else {
+      showSuccess(`Posts marked as ${status}.`);
+      fetchPosts();
+      setSelectedPosts(new Set());
+    }
+  };
+
+  // File parsing and processing
   const parseWordPressXml = async (xmlString: string): Promise<NewPost[]> => {
     const parser = new DOMParser();
     const xmlDoc = parser.parseFromString(xmlString, "text/xml");
@@ -468,6 +509,7 @@ published: ${post.published}${tagsString}${coverImageIdString}${youtubeVideoIdSt
     }
   };
 
+  // Selection handling
   const handleSelectPost = (id: string) => {
     const newSelection = new Set(selectedPosts);
     newSelection.has(id) ? newSelection.delete(id) : newSelection.add(id);
@@ -484,41 +526,6 @@ published: ${post.published}${tagsString}${coverImageIdString}${youtubeVideoIdSt
         pageIds.forEach(id => newSet.delete(id));
         return newSet;
       });
-    }
-  };
-
-  const handleBulkTagUpdate = async (tags: string[]) => {
-    const toastId = showLoading(`Updating tags for ${selectedPosts.size} posts...`);
-    const { error } = await supabase
-      .from("posts")
-      .update({ tags })
-      .in("id", Array.from(selectedPosts));
-
-    dismissToast(toastId);
-    if (error) {
-      showError(`Failed to update tags: ${error.message}`);
-    } else {
-      showSuccess("Tags updated successfully.");
-      fetchPosts();
-      setSelectedPosts(new Set());
-    }
-  };
-
-  const handleBulkStatusChange = async (published: boolean) => {
-    const status = published ? "published" : "unpublished";
-    const toastId = showLoading(`Setting ${selectedPosts.size} posts to ${status}...`);
-    const { error } = await supabase
-      .from("posts")
-      .update({ published })
-      .in("id", Array.from(selectedPosts));
-
-    dismissToast(toastId);
-    if (error) {
-      showError(`Failed to update status: ${error.message}`);
-    } else {
-      showSuccess(`Posts marked as ${status}.`);
-      fetchPosts();
-      setSelectedPosts(new Set());
     }
   };
 
