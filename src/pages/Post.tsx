@@ -263,11 +263,11 @@ const Post = () => {
             </DialogDescription>
           </DialogHeader>
           <div className="flex-1 overflow-hidden">
-            <Textarea
-              value={editContent}
-              onChange={(e) => setEditContent(e.target.value)}
-              className="h-full min-h-[300px] font-mono text-sm resize-none"
-            />
+            <div className="prose dark:prose-invert max-w-none h-full overflow-auto p-4 border rounded-md">
+              <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                {editContent}
+              </ReactMarkdown>
+            </div>
           </div>
           <DialogFooter className="flex justify-end gap-2">
             <Button variant="outline" onClick={() => setIsEditDialogOpen(false)}>Cancel</Button>
