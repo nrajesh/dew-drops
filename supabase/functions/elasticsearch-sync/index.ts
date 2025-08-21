@@ -2,7 +2,6 @@ import { serve } from "https://deno.land/std@0.190.0/http/server.ts"
 import { Client } from "npm:@elastic/elasticsearch@8.15.0";
 import { createClient } from 'npm:@supabase/supabase-js@2';
 
-// Elasticsearch and Supabase credentials from environment variables
 const ELASTICSEARCH_URL = Deno.env.get('ELASTICSEARCH_URL')
 const ELASTICSEARCH_API_KEY = Deno.env.get('ELASTICSEARCH_API_KEY')
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')
@@ -13,12 +12,10 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
-// This mock embedding generation matches the client-side implementation.
-// For production use, you would replace this with a real image embedding model.
 const generateMockEmbedding = (): number[] => {
   const embedding: number[] = [];
   for (let i = 0; i < 512; i++) {
-    embedding.push(Math.random() * 2 - 1); // Random values between -1 and 1
+    embedding.push(Math.random() * 2 - 1);
   }
   return embedding;
 };
@@ -45,7 +42,6 @@ serve(async (req) => {
 
     const indexName = 'gallery_images';
 
-    // 1. Check if index exists, create if not
     const { exists } = await esClient.indices.exists({ index: indexName });
     if (!exists) {
       console.log('Creating new index...');
@@ -68,7 +64,6 @@ serve(async (req) => {
       });
     } else {
       console.log('Index already exists, checking mapping...');
-      // Verify existing mapping
       const { body: mapping } = await esClient.indices.getMapping({ index: indexName });
       const currentDims = mapping[indexName].mappings.properties.embedding.dims;
 
@@ -86,7 +81,6 @@ serve(async (req) => {
       }
     }
 
-    // 2. Fetch all images from Supabase DB
     console.log('Fetching images from Supabase...');
     const { data: images, error: dbError } = await supabaseAdmin
       .from('gallery_images')
@@ -102,11 +96,10 @@ serve(async (req) => {
 
     console.log(`Found ${images.length} images to sync`);
 
-    // 3. Prepare bulk operations for Elasticsearch
     console.log('Preparing bulk operations...');
     const operations = images.flatMap(doc => {
       const embedding = generateMockEmbedding();
-      console.log('Generated embedding:', embedding.slice(0, 5), '...'); // Log first 5 values
+      console.log('Generated embedding:', embedding.slice(0, 5), '...');
       return [
         { index: { _index: indexName, _id: doc.id } },
         {
@@ -121,7 +114,6 @@ serve(async (req) => {
       ];
     });
 
-    // 4. Execute bulk operation
     console.log('Executing bulk operation...');
     const bulkResponse = await esClient.bulk({ refresh: true, operations });
 

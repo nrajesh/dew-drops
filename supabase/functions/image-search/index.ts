@@ -41,14 +41,13 @@ serve(async (req) => {
       })
     }
 
-    console.log('Query embedding:', queryEmbedding.slice(0, 5), '...'); // Log first 5 values
+    console.log('Query embedding:', queryEmbedding.slice(0, 5), '...');
 
     const client = new Client({
       node: ELASTICSEARCH_URL,
       auth: { apiKey: ELASTICSEARCH_API_KEY }
     })
 
-    // Check if index exists
     const { exists } = await client.indices.exists({ index: 'gallery_images' });
 
     if (!exists) {
@@ -59,7 +58,6 @@ serve(async (req) => {
       });
     }
 
-    // Get index mapping to verify embedding dimensions
     const { body: mapping } = await client.indices.getMapping({ index: 'gallery_images' });
     const embeddingDims = mapping.gallery_images.mappings.properties.embedding.dims;
     console.log('Index embedding dimensions:', embeddingDims);
