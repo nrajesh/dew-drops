@@ -44,8 +44,7 @@ const Chat = () => {
 
     const websiteFeaturesContext = `
 **General Website Features:**
-- The main pages (Blog, Gallery, Travel, Videos) have powerful search bars to easily find content.
-- The video search is especially smart, as it can find videos based on their actual YouTube titles and descriptions.
+- The main pages (Blog, Gallery, Travel) have powerful search bars to easily find content.
 - The site is designed for easy navigation. You can use keyboard arrow keys or swipe gestures on touch screens to browse through pages of content.
     `.trim();
 
@@ -57,11 +56,6 @@ ${context.posts.map(p => `- Title: ${p.title}${p.description ? `, Description: $
     const locationsContext = context.locations.length > 0 ? `
 **Recent Travel Locations:**
 ${context.locations.map(l => `- Location: ${l.title} in ${l.name}${l.description ? `. Notes: ${l.description}` : ''}`).join('\n')}
-    `.trim() : '';
-
-    const videosContext = context.videos.length > 0 ? `
-**Featured Videos:**
-${context.videos.map(v => `- ${v.title}`).join('\n')}
     `.trim() : '';
 
     const imagesContext = context.images.length > 0 ? `
@@ -79,8 +73,6 @@ ${websiteFeaturesContext}
 ${postsContext}
 
 ${locationsContext}
-
-${videosContext}
 
 ${imagesContext}
 
