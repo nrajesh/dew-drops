@@ -20,5 +20,8 @@ export function sanitizeFileName(fileName: string): string {
   // Trim leading/trailing underscores or dots that might result from sanitization
   const trimmed = sanitized.replace(/^[_.]+|[_.]+$/g, '');
 
-  return trimmed;
+  // Convert to NFC form to handle combining characters
+  const normalized = trimmed.normalize('NFC');
+
+  return normalized;
 }
