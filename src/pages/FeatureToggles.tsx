@@ -15,7 +15,6 @@ const featureDescriptions: Record<string, { title: string; description: string }
   [navFeatures.MANAGE_GALLERY]: { title: "Manage Gallery", description: "The management page for the photo gallery." },
   [navFeatures.MANAGE_TRAVEL]: { title: "Manage Travel", description: "The management page for the travel map." },
   [navFeatures.FEATURE_TOGGLES]: { title: "Feature Toggles", description: "This management page itself." },
-  [navFeatures.YOUTUBE_SEARCH]: { title: "YouTube Search", description: "Enable enhanced video search using YouTube API." },
 };
 
 const FeatureToggles = () => {

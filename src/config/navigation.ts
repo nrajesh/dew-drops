@@ -11,7 +11,6 @@ export const navFeatures = {
   MANAGE_GALLERY: 'manage_gallery',
   MANAGE_TRAVEL: 'manage_travel',
   FEATURE_TOGGLES: 'manage_feature_toggles',
-  YOUTUBE_SEARCH: 'youtube_search',
 };
 
 export const mainNavItems = [
