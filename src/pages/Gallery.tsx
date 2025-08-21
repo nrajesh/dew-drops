@@ -10,6 +10,8 @@ import { useDebounce } from "@/hooks/useDebounce";
 import { PaginationControls } from "@/components/PaginationControls";
 import { usePaginationNavigation } from "@/hooks/usePaginationNavigation";
 import { Button } from "@/components/ui/button";
+import { sendMessageToGemini } from "@/integrations/gemini/client";
+import { showError } from "@/utils/toast";
 
 const LazyImageLightbox = lazy(() => import("@/components/ImageLightbox").then(module => ({ default: module.ImageLightbox })));
 
@@ -22,6 +24,7 @@ const Gallery = () => {
   const [activeMake, setActiveMake] = useState<string | 'all'>('all');
   const [searchTerm, setSearchTerm] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
+  const [isSearching, setIsSearching] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
 
   const debouncedSearchTerm = useDebounce(searchTerm, 300);
@@ -92,6 +95,60 @@ const Gallery = () => {
   };
 
   const selectedImage = selectedImageIndex !== null ? filteredImages[selectedImageIndex] : null;
+
+  const generateEmbedding = async (text: string): Promise<number[]> => {
+    try {
+      const response = await sendMessageToGemini(`Generate a vector embedding for this text: "${text}"`);
+      // Parse the response to extract the embedding array
+      const embeddingMatch = response.match(/\[([\d.,\s-]+)\]/);
+      if (embeddingMatch) {
+        return embeddingMatch[1].split(',').map(Number);
+      }
+      throw new Error("Could not extract embedding from response");
+    } catch (error) {
+      console.error("Error generating embedding:", error);
+      throw error;
+    }
+  };
+
+  const handleVectorSearch = async () => {
+    if (!debouncedSearchTerm.trim()) return;
+
+    setIsSearching(true);
+    try {
+      // Generate embedding for the search term
+      const embedding = await generateEmbedding(debouncedSearchTerm);
+
+      // Call the edge function to perform the vector search
+      const response = await supabase.functions.invoke('vector-search', {
+        body: {
+          query_embedding: embedding,
+          similarity_threshold: 0.7, // Adjust this threshold as needed
+          match_count: 20 // Number of results to return
+        }
+      });
+
+      if (response.error) {
+        throw new Error(response.error.message);
+      }
+
+      // Update the filtered images with the search results
+      const searchResults = response.data.results as GalleryImage[];
+      setAllImages(searchResults);
+      setCurrentPage(1);
+    } catch (error) {
+      console.error("Error performing vector search:", error);
+      showError("Failed to perform semantic search. Falling back to text search.");
+    } finally {
+      setIsSearching(false);
+    }
+  };
+
+  useEffect(() => {
+    if (debouncedSearchTerm) {
+      handleVectorSearch();
+    }
+  }, [debouncedSearchTerm]);
 
   return (
     <>
