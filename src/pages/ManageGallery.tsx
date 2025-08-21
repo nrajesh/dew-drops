@@ -129,13 +129,13 @@ const ManageGallery = () => {
     const uploadPromises = Array.from(selectedFiles).map(async (file) => {
       const sanitizedName = sanitizeFileName(file.name);
       const fileName = `${user.id}/${Date.now()}_${sanitizedName}`;
-      
+
       const fileBuffer = await file.arrayBuffer();
       let exifData: Record<string, any> | null = null;
       try {
         const tags = ExifReader.load(fileBuffer);
         const cleanExif: Record<string, any> = {};
-        
+
         for (const key in tags) {
           if (Object.prototype.hasOwnProperty.call(tags, key)) {
             if (key === 'MakerNote' || key === 'UserComment' || key === 'thumbnail') {

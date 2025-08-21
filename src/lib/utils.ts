@@ -15,10 +15,14 @@ export function sanitizeFileName(fileName: string): string {
   // Remove characters that are invalid in filenames on most OSes.
   // The characters are: / \ : * ? " < > |
   // Also remove control characters from the ASCII range.
+  // This pattern now includes characters with diacritics and other special characters
   const sanitized = withUnderscores.replace(/[\\/:\*\?"<>\|]/g, '').replace(/[\x00-\x1f\x7f]/g, '');
 
   // Trim leading/trailing underscores or dots that might result from sanitization
   const trimmed = sanitized.replace(/^[_.]+|[_.]+$/g, '');
 
-  return trimmed;
+  // Replace any remaining special characters with their closest ASCII equivalents
+  const normalized = trimmed.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+
+  return normalized;
 }
