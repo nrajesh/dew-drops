@@ -29,11 +29,10 @@ serve(async (req) => {
       { global: { headers: { Authorization: `Bearer ${Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')}` } } }
     )
 
-    // Call the AI API to generate embedding
+    // Call the database function to generate embedding
     const { data, error } = await supabase
       .rpc('generate_embedding', {
-        text: alt_text,
-        model: 'text-embedding-3-small'
+        text: alt_text
       })
 
     if (error) {

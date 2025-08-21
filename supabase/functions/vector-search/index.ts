@@ -32,8 +32,7 @@ serve(async (req) => {
     // Generate embedding for the search query
     const embeddingResponse = await supabase
       .rpc('generate_embedding', {
-        text: query,
-        model: 'text-embedding-3-small'
+        text: query
       })
 
     if (embeddingResponse.error) {
