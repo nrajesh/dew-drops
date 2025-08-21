@@ -78,7 +78,9 @@ const Gallery = () => {
   }, [activeMake, debouncedSearchTerm]);
 
   const getThumbnailUrl = (fileName: string) => {
-    const { data } = supabase.storage.from('gallery').getPublicUrl(fileName, {
+    // Encode the file name to handle special characters
+    const encodedFileName = encodeURIComponent(fileName);
+    const { data } = supabase.storage.from('gallery').getPublicUrl(encodedFileName, {
       transform: { width: 400, height: 300, resize: 'cover' },
     });
     return data.publicUrl;
