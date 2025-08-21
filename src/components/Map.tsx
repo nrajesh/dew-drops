@@ -5,7 +5,7 @@ import type { TravelLocation } from '@/types';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Terminal } from "lucide-react";
 
-const MAPBOX_ACCESS_TOKEN = import.meta.env.VITE_MAPBOX_ACCESS_TOKEN;
+const VITE_MAPBOX_ACCESS_TOKEN = import.meta.env.VITE_MAPBOX_ACCESS_TOKEN;
 
 interface MapProps {
   locations: TravelLocation[];
@@ -52,14 +52,14 @@ const MapComponent = forwardRef<MapRef, MapProps>(({ locations }, ref) => {
   }));
 
   useEffect(() => {
-    if (!MAPBOX_ACCESS_TOKEN) {
+    if (!VITE_MAPBOX_ACCESS_TOKEN) {
       console.error("Mapbox access token is not set.");
       return;
     }
 
     if (map.current || !mapContainer.current) return;
 
-    mapboxgl.accessToken = MAPBOX_ACCESS_TOKEN;
+    mapboxgl.accessToken = VITE_MAPBOX_ACCESS_TOKEN;
     map.current = new mapboxgl.Map({
       container: mapContainer.current,
       style: 'mapbox://styles/mapbox/streets-v12',
@@ -127,7 +127,7 @@ const MapComponent = forwardRef<MapRef, MapProps>(({ locations }, ref) => {
 
   }, [locations]);
 
-  if (!MAPBOX_ACCESS_TOKEN) {
+  if (!VITE_MAPBOX_ACCESS_TOKEN) {
     return (
       <Alert variant="destructive">
         <Terminal className="h-4 w-4" />
