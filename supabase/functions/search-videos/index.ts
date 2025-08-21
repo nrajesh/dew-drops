@@ -3,9 +3,6 @@ import { serve } from "https://deno.land/std@0.190.0/http/server.ts"
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.0'
 
 const YOUTUBE_API_KEY = Deno.env.get('YOUTUBE_API_KEY')
-// Check for the feature flag. It's enabled by default.
-// It's only disabled if the secret is explicitly the string 'false' (case-insensitive, trimmed).
-const YOUTUBE_SEARCH_ENABLED = (Deno.env.get('YOUTUBE_SEARCH_ENABLED') || '').trim().toLowerCase() !== 'false'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -24,6 +21,29 @@ serve(async (req) => {
       Deno.env.get('SUPABASE_ANON_KEY') ?? '',
       { global: { headers: { Authorization: req.headers.get('Authorization')! } } }
     )
+
+    // Get the user ID from the auth header
+    const authHeader = req.headers.get('Authorization');
+    if (!authHeader) {
+      throw new Error('Authorization header is missing');
+    }
+
+    const token = authHeader.replace('Bearer ', '');
+    const { data: { user }, error: userError } = await supabase.auth.getUser(token);
+    if (userError) throw userError;
+    if (!user) throw new Error('User not authenticated');
+
+    // Check if YouTube search is enabled for this user
+    const { data: featureToggle, error: toggleError } = await supabase
+      .from('feature_toggles')
+      .select('is_enabled')
+      .eq('user_id', user.id)
+      .eq('feature_key', 'youtube_search')
+      .single();
+
+    if (toggleError) throw toggleError;
+
+    const YOUTUBE_SEARCH_ENABLED = featureToggle?.is_enabled || false;
 
     // If no search term, return all videos
     if (!searchTerm) {
