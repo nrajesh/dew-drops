@@ -181,16 +181,29 @@ const Post = () => {
 
     let description = values.description;
     if (!description || description.trim() === '') {
-        const content = values.content;
-        const codeBlockRegex = /```([\s\S]*?)```/;
-        const match = content.match(codeBlockRegex);
-        if (match && match[1]) {
-            let extractedDescription = match[1].trim();
-            if (extractedDescription.length > 500) {
-                extractedDescription = extractedDescription.substring(0, 497) + '...';
-            }
-            description = extractedDescription;
-        }
+      // Extract the first 5 lines from the content
+      const contentLines = values.content.split('\n');
+      let extractedDescription = '';
+
+      // Find the first code block
+      const codeBlockRegex = /```([\s\S]*?)```/;
+      const match = values.content.match(codeBlockRegex);
+
+      if (match && match[1]) {
+        // If there's a code block, use the first 5 lines of the code block
+        const codeBlockLines = match[1].split('\n');
+        extractedDescription = codeBlockLines.slice(0, 5).join('\n').trim();
+      } else {
+        // If no code block, use the first 5 lines of the content
+        extractedDescription = contentLines.slice(0, 5).join('\n').trim();
+      }
+
+      // Trim to 500 characters max
+      if (extractedDescription.length > 500) {
+        extractedDescription = extractedDescription.substring(0, 497) + '...';
+      }
+
+      description = extractedDescription;
     }
 
     // Ensure content has triple backticks
