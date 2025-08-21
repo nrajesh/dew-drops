@@ -1,6 +1,6 @@
 import { AspectRatio } from "@/components/ui/aspect-ratio";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { useEffect, useState, useRef, lazy, Suspense } from "react";
+import { useEffect, useState, useRef, lazy, Suspense, ComponentType } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import type { Video } from "@/types";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -11,7 +11,7 @@ import { PaginationControls } from "@/components/PaginationControls";
 import { usePaginationNavigation } from "@/hooks/usePaginationNavigation";
 import { showError } from "@/utils/toast";
 
-const LazyPaginationControls = lazy(() => import("@/components/PaginationControls"));
+const LazyPaginationControls = lazy(() => import("@/components/PaginationControls").then(module => ({ default: module.PaginationControls })));
 
 const VIDEOS_PER_PAGE = 4;
 

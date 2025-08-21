@@ -1,4 +1,4 @@
-import { useEffect, useState, lazy, Suspense } from 'react';
+import { useEffect, useState, lazy, Suspense, ComponentType } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import type { Post as PostType, GalleryImage } from '@/types';
@@ -11,9 +11,8 @@ import { useAuth } from '@/contexts/AuthContext';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { BlogForm, PostFormData } from '@/components/blog/BlogForm';
 import { showSuccess, showError, showLoading, dismissToast } from '@/utils/toast';
-
-const LazyReactMarkdown = lazy(() => import('react-markdown'));
-const LazyRemarkGfm = lazy(() => import('remark-gfm'));
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 
 const PLACEHOLDER_IMAGE_URL = "/gallery/placeholder.svg";
 
@@ -304,11 +303,9 @@ const Post = () => {
               </div>
             )}
             <div className="prose dark:prose-invert max-w-none">
-              <Suspense fallback={<Skeleton className="h-48 w-full" />}>
-                <LazyReactMarkdown remarkPlugins={[LazyRemarkGfm]}>
-                  {post.content || ''}
-                </LazyReactMarkdown>
-              </Suspense>
+              <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                {post.content || ''}
+              </ReactMarkdown>
             </div>
           </CardContent>
         </Card>
