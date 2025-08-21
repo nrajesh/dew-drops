@@ -16,6 +16,8 @@ export const generateEmbedding = async (imageUrl: string): Promise<number[]> => 
 // This function now calls our secure Edge Function instead of Elasticsearch directly.
 export const searchSimilarImages = async (queryEmbedding: number[], limit: number = 10): Promise<GalleryImage[]> => {
   try {
+    console.log('Searching with embedding:', queryEmbedding.slice(0, 5), '...'); // Log first 5 values
+
     const { data, error } = await supabase.functions.invoke('image-search', {
       body: { queryEmbedding, limit },
     });
@@ -26,12 +28,13 @@ export const searchSimilarImages = async (queryEmbedding: number[], limit: numbe
       const errorBody = await error.context.json();
       throw new Error(errorBody.error || error.message);
     }
-    
+
     if (data.error) {
       // The function returned 2xx but with an error payload.
       throw new Error(data.error);
     }
 
+    console.log('Search results:', data);
     return data as GalleryImage[];
   } catch (error) {
     console.error('Error searching similar images:', error);

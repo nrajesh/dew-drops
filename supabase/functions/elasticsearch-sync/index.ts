@@ -18,7 +18,7 @@ const corsHeaders = {
 const generateMockEmbedding = (): number[] => {
   const embedding: number[] = [];
   for (let i = 0; i < 512; i++) {
-    embedding.push(Math.random() * 2 - 1);
+    embedding.push(Math.random() * 2 - 1); // Random values between -1 and 1
   }
   return embedding;
 };
@@ -48,6 +48,7 @@ serve(async (req) => {
     // 1. Check if index exists, create if not
     const { exists } = await esClient.indices.exists({ index: indexName });
     if (!exists) {
+      console.log('Creating new index...');
       await esClient.indices.create({
         index: indexName,
         mappings: {
@@ -65,9 +66,28 @@ serve(async (req) => {
           }
         }
       });
+    } else {
+      console.log('Index already exists, checking mapping...');
+      // Verify existing mapping
+      const { body: mapping } = await esClient.indices.getMapping({ index: indexName });
+      const currentDims = mapping[indexName].mappings.properties.embedding.dims;
+
+      if (currentDims !== 512) {
+        console.log('Updating index mapping to ensure correct dimensions...');
+        await esClient.indices.putMapping({
+          index: indexName,
+          properties: {
+            embedding: {
+              type: 'dense_vector',
+              dims: 512
+            }
+          }
+        });
+      }
     }
 
     // 2. Fetch all images from Supabase DB
+    console.log('Fetching images from Supabase...');
     const { data: images, error: dbError } = await supabaseAdmin
       .from('gallery_images')
       .select('id, image_url, alt_text, file_name, user_id, created_at');
@@ -80,9 +100,13 @@ serve(async (req) => {
       });
     }
 
+    console.log(`Found ${images.length} images to sync`);
+
     // 3. Prepare bulk operations for Elasticsearch
+    console.log('Preparing bulk operations...');
     const operations = images.flatMap(doc => {
       const embedding = generateMockEmbedding();
+      console.log('Generated embedding:', embedding.slice(0, 5), '...'); // Log first 5 values
       return [
         { index: { _index: indexName, _id: doc.id } },
         {
@@ -98,11 +122,13 @@ serve(async (req) => {
     });
 
     // 4. Execute bulk operation
+    console.log('Executing bulk operation...');
     const bulkResponse = await esClient.bulk({ refresh: true, operations });
 
     if (bulkResponse.errors) {
-      // Log errors but don't block the success message for partial successes
-      console.error('Some documents failed to index in bulk operation.');
+      console.error('Some documents failed to index in bulk operation:', bulkResponse.errors);
+    } else {
+      console.log('Bulk operation completed successfully');
     }
 
     return new Response(JSON.stringify({ message: `Successfully created index and synced ${images.length} images.` }), {

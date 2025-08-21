@@ -41,6 +41,8 @@ serve(async (req) => {
       })
     }
 
+    console.log('Query embedding:', queryEmbedding.slice(0, 5), '...'); // Log first 5 values
+
     const client = new Client({
       node: ELASTICSEARCH_URL,
       auth: { apiKey: ELASTICSEARCH_API_KEY }
@@ -50,13 +52,27 @@ serve(async (req) => {
     const { exists } = await client.indices.exists({ index: 'gallery_images' });
 
     if (!exists) {
-      // Return empty results if index doesn't exist
+      console.log('Index does not exist');
       return new Response(JSON.stringify([]), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         status: 200,
       });
     }
 
+    // Get index mapping to verify embedding dimensions
+    const { body: mapping } = await client.indices.getMapping({ index: 'gallery_images' });
+    const embeddingDims = mapping.gallery_images.mappings.properties.embedding.dims;
+    console.log('Index embedding dimensions:', embeddingDims);
+
+    if (queryEmbedding.length !== embeddingDims) {
+      console.error(`Query embedding dimension (${queryEmbedding.length}) does not match index dimension (${embeddingDims})`);
+      return new Response(JSON.stringify({ error: `Query embedding dimension (${queryEmbedding.length}) does not match index dimension (${embeddingDims})` }), {
+        status: 400,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      })
+    }
+
+    console.log('Executing search query...');
     const response = await client.search<GalleryImageDocument>({
       index: 'gallery_images',
       body: {
@@ -73,6 +89,11 @@ serve(async (req) => {
       }
     })
 
+    console.log('Search response:', {
+      totalHits: response.hits.total,
+      hits: response.hits.hits.length
+    });
+
     const results = response.hits.hits.map(hit => ({
       id: hit._source!.image_id,
       image_url: hit._source!.image_url,
@@ -80,8 +101,11 @@ serve(async (req) => {
       file_name: hit._source!.file_name,
       user_id: hit._source!.user_id,
       created_at: hit._source!.created_at,
-      exif_data: null
+      exif_data: null,
+      score: hit._score
     }))
+
+    console.log('Returning results:', results.length);
 
     return new Response(JSON.stringify(results), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
