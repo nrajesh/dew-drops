@@ -1,4 +1,4 @@
-import React, { Suspense, useEffect, useState, useMemo, useRef } from "react";
+import React, { Suspense, useEffect, useState, useMemo, useRef, lazy } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { MapPin, Search } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -11,7 +11,7 @@ import { useDebounce } from "@/hooks/useDebounce";
 import { PaginationControls } from "@/components/PaginationControls";
 import { usePaginationNavigation } from "@/hooks/usePaginationNavigation";
 
-const MapComponent = React.lazy(() => import('@/components/Map'));
+const LazyMapComponent = lazy(() => import('@/components/Map'));
 const LOCATIONS_PER_PAGE = 6;
 
 const Travel = () => {
@@ -108,7 +108,7 @@ const Travel = () => {
         </div>
 
         <Suspense fallback={<Skeleton className="h-[450px] w-full rounded-lg" />}>
-          <MapComponent ref={mapRef} locations={allLocations} />
+          <LazyMapComponent ref={mapRef} locations={allLocations} />
         </Suspense>
 
         <div className="relative sm:w-full sm:max-w-xs mx-auto">

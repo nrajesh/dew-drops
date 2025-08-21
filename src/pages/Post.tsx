@@ -1,11 +1,9 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, lazy, Suspense } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import type { Post as PostType, GalleryImage } from '@/types';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
-import ReactMarkdown from 'react-markdown';
-import remarkGfm from 'remark-gfm';
 import { Calendar, ArrowLeft, ArrowRight, Edit } from 'lucide-react';
 import { AspectRatio } from "@/components/ui/aspect-ratio";
 import { Button } from '@/components/ui/button';
@@ -13,6 +11,9 @@ import { useAuth } from '@/contexts/AuthContext';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { BlogForm, PostFormData } from '@/components/blog/BlogForm';
 import { showSuccess, showError, showLoading, dismissToast } from '@/utils/toast';
+
+const LazyReactMarkdown = lazy(() => import('react-markdown'));
+const LazyRemarkGfm = lazy(() => import('remark-gfm'));
 
 const PLACEHOLDER_IMAGE_URL = "/gallery/placeholder.svg";
 
@@ -303,9 +304,11 @@ const Post = () => {
               </div>
             )}
             <div className="prose dark:prose-invert max-w-none">
-              <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                {post.content || ''}
-              </ReactMarkdown>
+              <Suspense fallback={<Skeleton className="h-48 w-full" />}>
+                <LazyReactMarkdown remarkPlugins={[LazyRemarkGfm]}>
+                  {post.content || ''}
+                </LazyReactMarkdown>
+              </Suspense>
             </div>
           </CardContent>
         </Card>

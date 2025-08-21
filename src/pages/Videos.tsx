@@ -1,6 +1,6 @@
 import { AspectRatio } from "@/components/ui/aspect-ratio";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef, lazy, Suspense } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import type { Video } from "@/types";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -10,6 +10,8 @@ import { useDebounce } from "@/hooks/useDebounce";
 import { PaginationControls } from "@/components/PaginationControls";
 import { usePaginationNavigation } from "@/hooks/usePaginationNavigation";
 import { showError } from "@/utils/toast";
+
+const LazyPaginationControls = lazy(() => import("@/components/PaginationControls"));
 
 const VIDEOS_PER_PAGE = 4;
 
@@ -119,7 +121,13 @@ const Videos = () => {
           )}
         </div>
       </div>
-      <PaginationControls currentPage={currentPage} totalPages={totalPages} onPageChange={setCurrentPage} />
+      <Suspense fallback={<Skeleton className="h-12 w-full" />}>
+        <LazyPaginationControls
+          currentPage={currentPage}
+          totalPages={totalPages}
+          onPageChange={setCurrentPage}
+        />
+      </Suspense>
     </div>
   );
 };
