@@ -1,6 +1,6 @@
 import { AspectRatio } from "@/components/ui/aspect-ratio";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { useEffect, useState, useRef, lazy, Suspense, ComponentType } from "react";
+import { useEffect, useState, useRef, lazy, Suspense } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import type { Video } from "@/types";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -11,7 +11,6 @@ import { PaginationControls } from "@/components/PaginationControls";
 import { usePaginationNavigation } from "@/hooks/usePaginationNavigation";
 import { showError } from "@/utils/toast";
 import { useFeatureToggles } from "@/contexts/FeatureToggleContext";
-import { navFeatures } from "@/config/navigation";
 
 const LazyPaginationControls = lazy(() => import("@/components/PaginationControls").then(module => ({ default: module.PaginationControls })));
 
@@ -31,7 +30,7 @@ const Videos = () => {
     const fetchVideos = async () => {
       setLoading(true);
       try {
-        if (toggles[navFeatures.VIDEOS]) {
+        if (toggles['youtube_search']) {
           const { data, error } = await supabase.functions.invoke('search-videos', {
             body: { searchTerm: debouncedSearchTerm },
           });
@@ -42,11 +41,14 @@ const Videos = () => {
 
           setVideos(data as Video[]);
         } else {
-          // Fallback to direct database query if feature is disabled
-          const { data, error } = await supabase
-            .from('videos')
-            .select('*')
-            .order('created_at', { ascending: false });
+          // Fallback to a direct, simple database search if the feature toggle is off
+          let query = supabase.from('videos').select('*');
+          
+          if (debouncedSearchTerm) {
+            query = query.ilike('title', `%${debouncedSearchTerm}%`);
+          }
+          
+          const { data, error } = await query.order('created_at', { ascending: false });
 
           if (error) throw error;
 
