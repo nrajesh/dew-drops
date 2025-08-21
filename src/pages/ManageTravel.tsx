@@ -44,7 +44,6 @@ import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, Command
 import { cn } from "@/lib/utils";
 import { ManagementPagination } from "@/components/ManagementPagination";
 import { usePaginationNavigation } from "@/hooks/usePaginationNavigation";
-import { useAuth } from "@/contexts/AuthContext";
 
 const MAPBOX_ACCESS_TOKEN = import.meta.env.VITE_MAPBOX_ACCESS_TOKEN;
 
@@ -59,7 +58,6 @@ const locationSchema = z.object({
 });
 
 const ManageTravel = () => {
-  const { user } = useAuth();
   const [locations, setLocations] = useState<TravelLocation[]>([]);
   const [blogPosts, setBlogPosts] = useState<Pick<Post, 'id' | 'title'>[]>([]);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -155,10 +153,6 @@ const ManageTravel = () => {
   }
 
   async function onSubmit(values: z.infer<typeof locationSchema>) {
-    if (!user) {
-      showError("You must be logged in to add or update locations.");
-      return;
-    }
     const toastId = showLoading(editingId ? "Updating location..." : "Adding new location...");
     
     try {
@@ -197,7 +191,7 @@ const ManageTravel = () => {
       if (values.image && values.image.length > 0) {
         const file = values.image[0];
         const sanitizedName = sanitizeFileName(file.name);
-        const fileName = `${user.id}/${Date.now()}_${sanitizedName}`;
+        const fileName = `${Date.now()}_${sanitizedName}`;
 
         if (editingId && imageUrl) {
           const oldFileName = imageUrl.substring(imageUrl.lastIndexOf('/') + 1);
@@ -223,7 +217,6 @@ const ManageTravel = () => {
         longitude,
         blog_url: values.blog_url,
         marker_image_url: imageUrl,
-        user_id: user.id,
       };
 
       let error;
@@ -334,20 +327,15 @@ const ManageTravel = () => {
   };
 
   const processUploads = async (inserts: any[], updates: {existingId: string, newData: any}[]) => {
-    if (!user) {
-      showError("You must be logged in to process uploads.");
-      return;
-    }
     const toastId = showLoading(`Processing import...`);
     try {
         const insertPromises = [];
         if (inserts.length > 0) {
-            const insertsWithUserId = inserts.map(item => ({ ...item, user_id: user.id }));
-            insertPromises.push(supabase.from("travel_locations").insert(insertsWithUserId));
+            insertPromises.push(supabase.from("travel_locations").insert(inserts));
         }
 
         const updatePromises = updates.map(u => 
-            supabase.from("travel_locations").update({ ...u.newData, user_id: user.id }).eq('id', u.existingId)
+            supabase.from("travel_locations").update(u.newData).eq('id', u.existingId)
         );
 
         const results = await Promise.all([...insertPromises, ...updatePromises]);
@@ -393,10 +381,6 @@ const ManageTravel = () => {
 
   const handleBulkUpload = async () => {
     if (!uploadFile) return;
-    if (!user) {
-      showError("You must be logged in to upload files.");
-      return;
-    }
 
     setIsUploading(true);
     const toastId = showLoading("Processing CSV file...");

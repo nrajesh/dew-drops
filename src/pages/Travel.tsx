@@ -1,4 +1,4 @@
-import React, { Suspense, useEffect, useState, useMemo, useRef, lazy } from "react";
+import React, { Suspense, useEffect, useState, useMemo, useRef } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { MapPin, Search } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -11,8 +11,8 @@ import { useDebounce } from "@/hooks/useDebounce";
 import { PaginationControls } from "@/components/PaginationControls";
 import { usePaginationNavigation } from "@/hooks/usePaginationNavigation";
 
-const LazyMapComponent = lazy(() => import('@/components/Map'));
-const LOCATIONS_PER_PAGE = 3;
+const MapComponent = React.lazy(() => import('@/components/Map'));
+const LOCATIONS_PER_PAGE = 6;
 
 const Travel = () => {
   const [allLocations, setAllLocations] = useState<TravelLocation[]>([]);
@@ -99,7 +99,7 @@ const Travel = () => {
 
   return (
     <div className="flex flex-col min-h-[calc(100vh-112px)]" ref={containerRef}>
-      <div className="flex-grow space-y-8">
+      <div className="flex-grow space-y-8 pb-8">
         <div className="text-center">
           <h1 className="text-3xl font-bold">Travel Map</h1>
           <p className="text-muted-foreground">
@@ -107,7 +107,11 @@ const Travel = () => {
           </p>
         </div>
 
-        <div className="relative sm:max-w-xs mx-auto">
+        <Suspense fallback={<Skeleton className="h-[450px] w-full rounded-lg" />}>
+          <MapComponent ref={mapRef} locations={allLocations} />
+        </Suspense>
+
+        <div className="relative sm:w-full sm:max-w-xs mx-auto">
           <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
           <Input
             type="search"
@@ -119,59 +123,36 @@ const Travel = () => {
         </div>
 
         {loading ? (
-          <div className="flex flex-col lg:flex-row gap-8">
-            <Skeleton className="lg:w-2/3 h-[550px] rounded-lg" />
-            <div className="lg:w-1/3 space-y-4">
-              {Array.from({ length: 3 }).map((_, i) => (
-                <Card key={i}>
-                  <CardHeader><Skeleton className="h-6 w-3/4" /></CardHeader>
-                  <CardContent><Skeleton className="h-10 w-full" /></CardContent>
-                </Card>
-              ))}
-            </div>
+          <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+            {Array.from({ length: 3 }).map((_, i) => (
+              <Card key={i}><CardHeader><Skeleton className="h-6 w-3/4" /><Skeleton className="h-4 w-1/2 mt-2" /></CardHeader><CardContent><Skeleton className="h-10 w-full" /></CardContent></Card>
+            ))}
           </div>
-        ) : filteredLocations.length > 0 ? (
-          <div className="flex flex-col lg:flex-row gap-8">
-            <div className="lg:w-2/3 h-[550px]">
-              <Suspense fallback={<Skeleton className="h-full w-full rounded-lg" />}>
-                <LazyMapComponent ref={mapRef} locations={allLocations} />
-              </Suspense>
-            </div>
-
-            <div className="lg:w-1/3 flex flex-col">
-              <div className="space-y-4 flex-grow">
-                {paginatedLocations.map((location) => (
-                  <Card
-                    key={location.id}
-                    className="transition-all hover:shadow-md hover:border-primary/50 cursor-pointer flex flex-col"
-                    onClick={() => mapRef.current?.triggerPopup(location.id)}
-                  >
-                    <CardHeader>
-                      <CardTitle className="flex items-center gap-2">
-                        <MapPin className="h-5 w-5 text-primary" />
-                        {location.title}
-                      </CardTitle>
-                      <CardDescription>{location.name}</CardDescription>
-                    </CardHeader>
-                    {location.description && (
-                      <CardContent className="flex-grow">
-                        <p className="text-sm text-muted-foreground">{location.description}</p>
-                      </CardContent>
-                    )}
-                  </Card>
-                ))}
-              </div>
-              <div className="pt-4">
-                <PaginationControls currentPage={currentPage} totalPages={totalPages} onPageChange={setCurrentPage} />
-              </div>
-            </div>
+        ) : paginatedLocations.length > 0 ? (
+          <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+            {paginatedLocations.map((location) => (
+              <Card
+                key={location.id}
+                className="h-full transition-all hover:shadow-md hover:border-primary/50 cursor-pointer flex flex-col"
+                onClick={() => mapRef.current?.triggerPopup(location.id)}
+              >
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2"><MapPin className="h-5 w-5 text-primary" />{location.title}</CardTitle>
+                  <CardDescription>{location.name}</CardDescription>
+                </CardHeader>
+                {location.description && (
+                  <CardContent className="flex-grow"><p className="text-sm text-muted-foreground">{location.description}</p></CardContent>
+                )}
+              </Card>
+            ))}
           </div>
         ) : (
-          <div className="text-center py-10 border-dashed border-2 rounded-lg bg-muted">
+          <div className="text-center py-10 border rounded-lg bg-muted">
             <p className="text-muted-foreground">No locations found for your search.</p>
           </div>
         )}
       </div>
+      <PaginationControls currentPage={currentPage} totalPages={totalPages} onPageChange={setCurrentPage} />
     </div>
   );
 };

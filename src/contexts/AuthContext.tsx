@@ -30,7 +30,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         setSession(session);
         setUser(session?.user ?? null);
       }
-
+      
       // This ensures we only stop loading on the very first auth event.
       if (isInitialLoad.current) {
         setLoading(false);

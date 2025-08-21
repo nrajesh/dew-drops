@@ -8,12 +8,12 @@ This README provides a comprehensive guide to understanding, customizing, and ma
 
 -   **Core Home Page:** A permanent landing page that always remains active as the main entry point to your site.
 -   **Dynamic Blog:** A full-featured blog powered by a Supabase database, with Markdown support for writing posts.
+-   **Video Showcase:** A dedicated page for your YouTube videos, featuring a powerful search that looks up titles and descriptions directly from YouTube.
 -   **Photo Gallery:** A dynamic gallery with automatic EXIF data extraction, managed via Supabase Storage.
 -   **Interactive Travel Map:** Pin your travel destinations on a world map. The list is searchable by title, location, and description.
 -   **Contact Form:** A secure, serverless contact form that sends emails directly to you.
 -   **AI Chatbot:** An integrated chatbot powered by Google Gemini that uses your portfolio's content to provide intelligent answers.
 -   **Streamlined Content Management:** Dedicated pages for creating, editing, and deleting your content.
--   **Feature Toggles:** A settings page to enable or disable entire sections of the portfolio.
 -   **Enhanced Navigation:** All content pages are paginated and can be navigated using keyboard arrows or swipe gestures on mobile.
 -   **Light & Dark Mode:** A sleek theme toggle for user preference.
 -   **Fully Responsive:** Designed to look great on all devices, from desktops to mobile phones.
@@ -76,15 +76,17 @@ Your travel locations are stored in the Supabase database, making them persisten
 *   **Mapbox API Key:** The map on the "Travel" page is powered by Mapbox. You must have a valid `VITE_MAPBOX_ACCESS_TOKEN` set in your environment variables for it to display correctly.
 *   **Supabase Storage:** To use custom marker icons, you must create a public Storage bucket named `mapmarkers` in your Supabase project.
 
-### ⚙️ Managing Feature Toggles
+### 🎬 Managing Videos
 
-You can enable or disable entire modules of your portfolio to customize what visitors see.
+Your videos are stored in the Supabase database for persistent management.
 
-1.  **Navigate:** Go to the **Feature Toggles** page from the sidebar in the "Management" section.
-2.  **Toggle:** Use the switches to turn features like the Blog, Gallery, or Travel map on or off. Changes are saved automatically.
-3.  **Effect:** Disabling a feature will remove it from the main navigation for all visitors.
+1.  **Navigate:** Go to the **Manage Videos** page.
+2.  **How it Works:** Use the form to add a new video. You only need to provide a title and the 11-character YouTube Video ID (e.g., `dQw4w9WgXcQ`).
+3.  **Manage:** You can edit the title or YouTube ID of existing videos, or delete them from the list.
 
-**File Location:** `src/pages/FeatureToggles.tsx`
+**Configuration Requirements:**
+*   **YouTube API Key:** A `YOUTUBE_API_KEY` secret is required in your Supabase project for the video search to work.
+*   **Toggle YouTube Search:** To improve performance, you can disable the external search of YouTube titles and descriptions. To do this, create a new secret in your Supabase project called `YOUTUBE_SEARCH_ENABLED` and set its value to `false`. If this secret is not present or is set to `true`, the enhanced search will be active.
 
 ### 🤖 Tuning the AI Chatbot
 

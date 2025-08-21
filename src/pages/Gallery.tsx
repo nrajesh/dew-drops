@@ -1,18 +1,16 @@
 import { Card, CardContent } from "@/components/ui/card";
 import { AspectRatio } from "@/components/ui/aspect-ratio";
-import { useEffect, useState, useMemo, useRef, lazy, Suspense, ComponentType } from "react";
+import { useEffect, useState, useMemo, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import type { GalleryImage } from "@/types";
 import { Skeleton } from "@/components/ui/skeleton";
+import { ImageLightbox } from "@/components/ImageLightbox";
+import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Search } from "lucide-react";
 import { useDebounce } from "@/hooks/useDebounce";
 import { PaginationControls } from "@/components/PaginationControls";
 import { usePaginationNavigation } from "@/hooks/usePaginationNavigation";
-import { Button } from "@/components/ui/button";
-import { showError } from "@/utils/toast";
-
-const LazyImageLightbox = lazy(() => import("@/components/ImageLightbox").then(module => ({ default: module.ImageLightbox })));
 
 const IMAGES_PER_PAGE = 9;
 
@@ -23,7 +21,6 @@ const Gallery = () => {
   const [activeMake, setActiveMake] = useState<string | 'all'>('all');
   const [searchTerm, setSearchTerm] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
-  const [isSearching, setIsSearching] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
 
   const debouncedSearchTerm = useDebounce(searchTerm, 300);
@@ -94,70 +91,6 @@ const Gallery = () => {
   };
 
   const selectedImage = selectedImageIndex !== null ? filteredImages[selectedImageIndex] : null;
-
-  const generateEmbedding = async (text: string): Promise<number[]> => {
-    try {
-      // Use the existing generate-embeddings edge function
-      const response = await supabase.functions.invoke('generate-embeddings', {
-        body: { alt_text: text }
-      });
-
-      if (response.error) {
-        throw new Error(response.error.message);
-      }
-
-      return response.data.embedding;
-    } catch (error) {
-      console.error("Error generating embedding:", error);
-      throw error;
-    }
-  };
-
-  const handleVectorSearch = async () => {
-    if (!debouncedSearchTerm.trim()) return;
-
-    setIsSearching(true);
-    try {
-      // Generate embedding for the search term
-      const embedding = await generateEmbedding(debouncedSearchTerm);
-
-      // Call the Elasticsearch search edge function
-      const response = await supabase.functions.invoke('elasticsearch-search', {
-        body: {
-          query_embedding: embedding,
-          similarity_threshold: 0.7, // Adjust this threshold as needed
-          match_count: 20 // Number of results to return
-        }
-      });
-
-      if (response.error) {
-        throw new Error(response.error.message);
-      }
-
-      // Update the filtered images with the search results
-      const searchResults = response.data.results as GalleryImage[];
-      setAllImages(searchResults);
-      setCurrentPage(1);
-    } catch (error) {
-      console.error("Error performing vector search:", error);
-      showError("Failed to perform semantic search. Falling back to text search.");
-
-      // Fallback to text search
-      const textSearchResults = allImages.filter(image =>
-        image.alt_text?.toLowerCase().includes(debouncedSearchTerm.toLowerCase())
-      );
-      setAllImages(textSearchResults);
-      setCurrentPage(1);
-    } finally {
-      setIsSearching(false);
-    }
-  };
-
-  useEffect(() => {
-    if (debouncedSearchTerm) {
-      handleVectorSearch();
-    }
-  }, [debouncedSearchTerm]);
 
   return (
     <>
@@ -231,19 +164,15 @@ const Gallery = () => {
             )}
           </div>
         </div>
-        <div className="mt-8">
-          <PaginationControls currentPage={currentPage} totalPages={totalPages} onPageChange={setCurrentPage} />
-        </div>
+        <PaginationControls currentPage={currentPage} totalPages={totalPages} onPageChange={setCurrentPage} />
       </div>
-      <Suspense fallback={null}>
-        <LazyImageLightbox
-          image={selectedImage}
-          onClose={() => setSelectedImageIndex(null)}
-          onNavigate={handleNavigate}
-          hasNext={filteredImages.length > 1}
-          hasPrev={filteredImages.length > 1}
-        />
-      </Suspense>
+      <ImageLightbox
+        image={selectedImage}
+        onClose={() => setSelectedImageIndex(null)}
+        onNavigate={handleNavigate}
+        hasNext={filteredImages.length > 1}
+        hasPrev={filteredImages.length > 1}
+      />
     </>
   );
 };

@@ -12,15 +12,6 @@ import { FeatureToggleProvider } from "./contexts/FeatureToggleContext.tsx";
 
 const queryClient = new QueryClient();
 
-// Suppress the specific YouTube embed error
-const originalConsoleError = console.error;
-console.error = function(...args) {
-  if (typeof args[0] === 'string' && args[0].includes('Blocked a frame with origin "https://www.youtube.com"')) {
-    return;
-  }
-  originalConsoleError.apply(console, args);
-};
-
 createRoot(document.getElementById("root")!).render(
   <React.StrictMode>
     <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
