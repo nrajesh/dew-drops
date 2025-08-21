@@ -167,7 +167,7 @@ const Blog = () => {
           )}
         </div>
       </div>
-      <div className="mt-4">
+      <div className="mt-8">
         <PaginationControls
           currentPage={currentPage}
           totalPages={totalPages}

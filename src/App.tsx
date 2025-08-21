@@ -3,15 +3,13 @@ import Layout from "./components/Layout";
 import Index from "./pages/Index";
 import Blog from "./pages/Blog";
 import Post from "./pages/Post";
-import Videos from "./pages/Videos";
 import Gallery from "./pages/Gallery";
 import Travel from "./pages/Travel";
 import Contact from "./pages/Contact";
 import NotFound from "./pages/NotFound";
 import ManageBlog from "./pages/ManageBlog";
-import ManageVideos from "./pages/ManageVideos";
-import ManageTravel from "./pages/ManageTravel";
 import ManageGallery from "./pages/ManageGallery";
+import ManageTravel from "./pages/ManageTravel";
 import FeatureToggles from "./pages/FeatureToggles";
 import PrivacyPolicy from "./pages/PrivacyPolicy";
 import Login from "./pages/Login";
@@ -43,13 +41,12 @@ const App = () => {
           .map((item) => {
             const Component = item.to === "/" ? Index :
                               item.to === "/blog" ? Blog :
-                              item.to === "/videos" ? Videos :
                               item.to === "/gallery" ? Gallery :
                               item.to === "/travel" ? Travel : null;
             if (!Component) return null;
             return <Route key={item.to} path={item.to} element={<Component />} />;
           })}
-        
+
         <Route path="/blog/:id" element={<Post />} />
         <Route path="/contact" element={<Contact />} />
         <Route path="/privacy" element={<PrivacyPolicy />} />
@@ -61,9 +58,8 @@ const App = () => {
             .filter((item) => toggles[item.featureKey])
             .map((item) => {
               const Component = item.to === "/manage-blog" ? ManageBlog :
-                                item.to === "/manage-videos" ? ManageVideos :
-                                item.to === "/manage-travel" ? ManageTravel :
                                 item.to === "/manage-gallery" ? ManageGallery :
+                                item.to === "/manage-travel" ? ManageTravel :
                                 item.to === "/feature-toggles" ? FeatureToggles : null;
               if (!Component) return null;
               return <Route key={item.to} path={item.to} element={<Component />} />;

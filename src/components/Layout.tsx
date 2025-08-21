@@ -18,9 +18,10 @@ import Chat from "@/pages/Chat";
 
 const NavContent = ({ onLinkClick }: { onLinkClick?: () => void }) => {
   const { toggles } = useFeatureToggles();
+  const { session } = useAuth();
 
   const visibleMainNavItems = mainNavItems.filter(item => toggles[item.featureKey]);
-  const visibleManagementNavItems = managementNavItems.filter(item => toggles[item.featureKey]);
+  const visibleManagementNavItems = session ? managementNavItems.filter(item => toggles[item.featureKey]) : [];
 
   const navLinkClassName = ({ isActive }: { isActive: boolean }) =>
     `flex items-center gap-3 rounded-lg px-3 py-2 transition-all hover:bg-sidebar-accent hover:text-sidebar-accent-foreground ${

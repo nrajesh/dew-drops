@@ -139,7 +139,7 @@ const MapComponent = forwardRef<MapRef, MapProps>(({ locations }, ref) => {
     );
   }
 
-  return <div ref={mapContainer} className="h-[450px] w-full rounded-lg border" />;
+  return <div ref={mapContainer} className="h-full w-full rounded-lg border" />;
 });
 
 MapComponent.displayName = "Map";
