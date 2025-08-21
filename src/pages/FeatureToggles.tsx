@@ -17,14 +17,14 @@ const featureDescriptions: Record<string, { title: string; description: string }
   [navFeatures.MANAGE_TRAVEL]: { title: "Manage Travel", description: "The management page for the travel map." },
   [navFeatures.MANAGE_VIDEOS]: { title: "Manage Videos", description: "The management page for videos." },
   [navFeatures.FEATURE_TOGGLES]: { title: "Feature Toggles", description: "This management page itself." },
-  'youtube_search': { title: "YouTube Search", description: "Enable enhanced video search using YouTube API." },
+  [navFeatures.YOUTUBE_SEARCH]: { title: "YouTube Search", description: "Enable enhanced video search using YouTube API." },
 };
 
 const FeatureToggles = () => {
   const { toggles, loading, updateToggle } = useFeatureToggles();
 
   const orderedFeatures = Object.values(navFeatures).filter(
-    key => key !== navFeatures.HOME && key !== navFeatures.FEATURE_TOGGLES
+    key => key !== navFeatures.HOME
   );
 
   return (
@@ -32,7 +32,7 @@ const FeatureToggles = () => {
       <CardHeader>
         <CardTitle>Feature Toggles</CardTitle>
         <CardDescription>
-          Enable or disable modules across your portfolio. Changes are saved automatically. The Home page and this page are core features and cannot be disabled.
+          Enable or disable modules across your portfolio. Changes are saved automatically. The Home page is a core feature and cannot be disabled.
         </CardDescription>
       </CardHeader>
       <CardContent>
@@ -48,7 +48,7 @@ const FeatureToggles = () => {
               </div>
             ))
           ) : (
-            [...orderedFeatures, 'youtube_search'].map(key => (
+            orderedFeatures.map(key => (
               <div key={key} className="flex items-center justify-between p-4 border rounded-lg">
                 <div>
                   <Label htmlFor={key} className="text-base font-medium">
@@ -63,6 +63,7 @@ const FeatureToggles = () => {
                   checked={toggles[key] ?? true}
                   onCheckedChange={(checked) => updateToggle(key, checked)}
                   aria-label={`Toggle ${featureDescriptions[key]?.title}`}
+                  disabled={key === navFeatures.FEATURE_TOGGLES}
                 />
               </div>
             ))

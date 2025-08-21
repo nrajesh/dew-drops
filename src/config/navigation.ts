@@ -13,6 +13,7 @@ export const navFeatures = {
   MANAGE_TRAVEL: 'manage_travel',
   MANAGE_VIDEOS: 'manage_videos',
   FEATURE_TOGGLES: 'manage_feature_toggles',
+  YOUTUBE_SEARCH: 'youtube_search',
 };
 
 export const mainNavItems = [
