@@ -105,7 +105,7 @@ const MapComponent = forwardRef<MapRef, MapProps>(({ locations }, ref) => {
             .setPopup(popup)
             .addTo(map.current!);
         }
-
+        
         markersRef.current.set(location.id, marker);
       }
     });
