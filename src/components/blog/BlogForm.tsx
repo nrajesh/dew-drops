@@ -18,6 +18,7 @@ import { MultiSelectPopover } from "@/components/MultiSelectPopover";
 import type { GalleryImage, Post } from "@/types";
 import { useEffect } from "react";
 import { Checkbox } from "../ui/checkbox";
+import { X } from "lucide-react";
 
 const postSchema = z.object({
   title: z.string().min(3, { message: "Title must be at least 3 characters." }),
@@ -107,6 +108,17 @@ export const BlogForm = ({ editingPost, galleryImages, uniqueTags, onSubmit, onC
 
   return (
     <Card>
+      {isPopup && (
+        <Button
+          variant="ghost"
+          size="icon"
+          className="absolute top-2 right-2"
+          onClick={onCancel}
+          aria-label="Close"
+        >
+          <X className="h-4 w-4" />
+        </Button>
+      )}
       <CardHeader>
         <CardTitle>{editingPost ? "Edit Post" : "Add New Post"}</CardTitle>
         <CardDescription>
