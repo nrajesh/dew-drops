@@ -10,6 +10,8 @@ import { useDebounce } from "@/hooks/useDebounce";
 import { PaginationControls } from "@/components/PaginationControls";
 import { usePaginationNavigation } from "@/hooks/usePaginationNavigation";
 import { showError } from "@/utils/toast";
+import { useFeatureToggles } from "@/contexts/FeatureToggleContext";
+import { navFeatures } from "@/config/navigation";
 
 const LazyPaginationControls = lazy(() => import("@/components/PaginationControls").then(module => ({ default: module.PaginationControls })));
 
@@ -21,6 +23,7 @@ const Videos = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const containerRef = useRef<HTMLDivElement>(null);
+  const { toggles } = useFeatureToggles();
 
   const debouncedSearchTerm = useDebounce(searchTerm, 500);
 
@@ -28,15 +31,27 @@ const Videos = () => {
     const fetchVideos = async () => {
       setLoading(true);
       try {
-        const { data, error } = await supabase.functions.invoke('search-videos', {
-          body: { searchTerm: debouncedSearchTerm },
-        });
+        if (toggles[navFeatures.VIDEOS]) {
+          const { data, error } = await supabase.functions.invoke('search-videos', {
+            body: { searchTerm: debouncedSearchTerm },
+          });
 
-        if (error) throw error;
+          if (error) throw error;
 
-        if (data.error) throw new Error(data.error);
+          if (data.error) throw new Error(data.error);
 
-        setVideos(data as Video[]);
+          setVideos(data as Video[]);
+        } else {
+          // Fallback to direct database query if feature is disabled
+          const { data, error } = await supabase
+            .from('videos')
+            .select('*')
+            .order('created_at', { ascending: false });
+
+          if (error) throw error;
+
+          setVideos(data as Video[]);
+        }
       } catch (err: any) {
         console.error("Error searching videos:", err);
         if (err.message.includes('YouTube API key')) {
@@ -51,7 +66,7 @@ const Videos = () => {
     };
 
     fetchVideos();
-  }, [debouncedSearchTerm]);
+  }, [debouncedSearchTerm, toggles]);
 
   const totalPages = Math.ceil(videos.length / VIDEOS_PER_PAGE);
   const paginatedVideos = videos.slice(
