@@ -121,9 +121,6 @@ export const BlogForm = ({ editingPost, galleryImages, uniqueTags, onSubmit, onC
       )}
       <CardHeader className="pt-8">
         <CardTitle>{editingPost ? "Edit Post" : "Add New Post"}</CardTitle>
-        <CardDescription>
-          {editingPost ? "Update the details for this blog post." : "Create a new article. You can use Markdown for the content."}
-        </CardDescription>
       </CardHeader>
       <CardContent>
         <Form {...form}>
