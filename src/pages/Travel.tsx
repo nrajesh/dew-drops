@@ -107,48 +107,92 @@ const Travel = () => {
           </p>
         </div>
 
-        <Suspense fallback={<Skeleton className="h-[450px] w-full rounded-lg" />}>
-          <LazyMapComponent ref={mapRef} locations={allLocations} />
-        </Suspense>
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+          <div className="lg:col-span-2">
+            <Suspense fallback={<Skeleton className="h-[440px] w-full rounded-lg" />}>
+              <LazyMapComponent ref={mapRef} locations={allLocations} />
+            </Suspense>
+          </div>
 
-        <div className="relative sm:w-full sm:max-w-xs mx-auto">
-          <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-          <Input
-            type="search"
-            placeholder="Search locations..."
-            className="pl-8 w-full"
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-          />
+          <div className="lg:col-span-1 space-y-4">
+            <div className="relative">
+              <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+              <Input
+                type="search"
+                placeholder="Search locations..."
+                className="pl-8 w-full"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+              />
+            </div>
+
+            {loading ? (
+              <div className="space-y-4">
+                {Array.from({ length: 3 }).map((_, i) => (
+                  <Card key={i}>
+                    <CardHeader>
+                      <Skeleton className="h-6 w-3/4" />
+                      <Skeleton className="h-4 w-1/2 mt-2" />
+                    </CardHeader>
+                    <CardContent>
+                      <Skeleton className="h-10 w-full" />
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            ) : paginatedLocations.length > 0 ? (
+              <div className="space-y-4">
+                {paginatedLocations.slice(0, 3).map((location) => (
+                  <Card
+                    key={location.id}
+                    className="transition-all hover:shadow-md hover:border-primary/50 cursor-pointer flex flex-col"
+                    onClick={() => mapRef.current?.triggerPopup(location.id)}
+                  >
+                    <CardHeader>
+                      <CardTitle className="flex items-center gap-2">
+                        <MapPin className="h-5 w-5 text-primary" />
+                        {location.title}
+                      </CardTitle>
+                      <CardDescription>{location.name}</CardDescription>
+                    </CardHeader>
+                    {location.description && (
+                      <CardContent className="flex-grow">
+                        <p className="text-sm text-muted-foreground">{location.description}</p>
+                      </CardContent>
+                    )}
+                  </Card>
+                ))}
+              </div>
+            ) : (
+              <div className="text-center py-10 border rounded-lg bg-muted">
+                <p className="text-muted-foreground">No locations found for your search.</p>
+              </div>
+            )}
+          </div>
         </div>
 
-        {loading ? (
+        {paginatedLocations.length > 3 && (
           <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-            {Array.from({ length: 3 }).map((_, i) => (
-              <Card key={i}><CardHeader><Skeleton className="h-6 w-3/4" /><Skeleton className="h-4 w-1/2 mt-2" /></CardHeader><CardContent><Skeleton className="h-10 w-full" /></CardContent></Card>
-            ))}
-          </div>
-        ) : paginatedLocations.length > 0 ? (
-          <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-            {paginatedLocations.map((location) => (
+            {paginatedLocations.slice(3).map((location) => (
               <Card
                 key={location.id}
                 className="h-full transition-all hover:shadow-md hover:border-primary/50 cursor-pointer flex flex-col"
                 onClick={() => mapRef.current?.triggerPopup(location.id)}
               >
                 <CardHeader>
-                  <CardTitle className="flex items-center gap-2"><MapPin className="h-5 w-5 text-primary" />{location.title}</CardTitle>
+                  <CardTitle className="flex items-center gap-2">
+                    <MapPin className="h-5 w-5 text-primary" />
+                    {location.title}
+                  </CardTitle>
                   <CardDescription>{location.name}</CardDescription>
                 </CardHeader>
                 {location.description && (
-                  <CardContent className="flex-grow"><p className="text-sm text-muted-foreground">{location.description}</p></CardContent>
+                  <CardContent className="flex-grow">
+                    <p className="text-sm text-muted-foreground">{location.description}</p>
+                  </CardContent>
                 )}
               </Card>
             ))}
-          </div>
-        ) : (
-          <div className="text-center py-10 border rounded-lg bg-muted">
-            <p className="text-muted-foreground">No locations found for your search.</p>
           </div>
         )}
       </div>
