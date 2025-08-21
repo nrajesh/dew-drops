@@ -12,7 +12,7 @@ import { PaginationControls } from "@/components/PaginationControls";
 import { usePaginationNavigation } from "@/hooks/usePaginationNavigation";
 
 const LazyMapComponent = lazy(() => import('@/components/Map'));
-const LOCATIONS_PER_PAGE = 9; // 3 on the right, 6 below
+const LOCATIONS_PER_PAGE = 3;
 
 const Travel = () => {
   const [allLocations, setAllLocations] = useState<TravelLocation[]>([]);
@@ -86,9 +86,6 @@ const Travel = () => {
     currentPage * LOCATIONS_PER_PAGE
   );
 
-  const rightColumnLocations = paginatedLocations.slice(0, 3);
-  const bottomGridLocations = paginatedLocations.slice(3);
-
   usePaginationNavigation({
     currentPage,
     totalPages,
@@ -102,7 +99,7 @@ const Travel = () => {
 
   return (
     <div className="flex flex-col min-h-[calc(100vh-112px)]" ref={containerRef}>
-      <div className="flex-grow space-y-8 pb-8">
+      <div className="flex-grow space-y-8">
         <div className="text-center">
           <h1 className="text-3xl font-bold">Travel Map</h1>
           <p className="text-muted-foreground">
@@ -134,16 +131,16 @@ const Travel = () => {
             </div>
           </div>
         ) : filteredLocations.length > 0 ? (
-          <>
-            <div className="flex flex-col lg:flex-row gap-8">
-              <div className="lg:w-2/3 h-[450px] lg:h-auto">
-                <Suspense fallback={<Skeleton className="h-full w-full rounded-lg" />}>
-                  <LazyMapComponent ref={mapRef} locations={allLocations} />
-                </Suspense>
-              </div>
+          <div className="flex flex-col lg:flex-row gap-8">
+            <div className="lg:w-2/3 h-[450px] lg:h-auto">
+              <Suspense fallback={<Skeleton className="h-full w-full rounded-lg" />}>
+                <LazyMapComponent ref={mapRef} locations={allLocations} />
+              </Suspense>
+            </div>
 
-              <div className="lg:w-1/3 space-y-4">
-                {rightColumnLocations.map((location) => (
+            <div className="lg:w-1/3 flex flex-col gap-4">
+              <div className="space-y-4">
+                {paginatedLocations.map((location) => (
                   <Card
                     key={location.id}
                     className="transition-all hover:shadow-md hover:border-primary/50 cursor-pointer flex flex-col"
@@ -164,40 +161,17 @@ const Travel = () => {
                   </Card>
                 ))}
               </div>
-            </div>
-
-            {bottomGridLocations.length > 0 && (
-              <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-                {bottomGridLocations.map((location) => (
-                  <Card
-                    key={location.id}
-                    className="h-full transition-all hover:shadow-md hover:border-primary/50 cursor-pointer flex flex-col"
-                    onClick={() => mapRef.current?.triggerPopup(location.id)}
-                  >
-                    <CardHeader>
-                      <CardTitle className="flex items-center gap-2">
-                        <MapPin className="h-5 w-5 text-primary" />
-                        {location.title}
-                      </CardTitle>
-                      <CardDescription>{location.name}</CardDescription>
-                    </CardHeader>
-                    {location.description && (
-                      <CardContent className="flex-grow">
-                        <p className="text-sm text-muted-foreground">{location.description}</p>
-                      </CardContent>
-                    )}
-                  </Card>
-                ))}
+              <div className="mt-auto pt-4">
+                <PaginationControls currentPage={currentPage} totalPages={totalPages} onPageChange={setCurrentPage} />
               </div>
-            )}
-          </>
+            </div>
+          </div>
         ) : (
           <div className="text-center py-10 border-dashed border-2 rounded-lg bg-muted">
             <p className="text-muted-foreground">No locations found for your search.</p>
           </div>
         )}
       </div>
-      <PaginationControls currentPage={currentPage} totalPages={totalPages} onPageChange={setCurrentPage} />
     </div>
   );
 };

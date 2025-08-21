@@ -165,7 +165,9 @@ const Gallery = () => {
             )}
           </div>
         </div>
-        <PaginationControls currentPage={currentPage} totalPages={totalPages} onPageChange={setCurrentPage} />
+        <div className="mt-8">
+          <PaginationControls currentPage={currentPage} totalPages={totalPages} onPageChange={setCurrentPage} />
+        </div>
       </div>
       <Suspense fallback={null}>
         <LazyImageLightbox
