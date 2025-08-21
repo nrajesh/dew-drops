@@ -23,19 +23,22 @@ serve(async (req) => {
     )
 
     // Check if YouTube search is enabled via feature toggle
-    const { data: featureToggle, error: toggleError } = await supabase
-      .from('feature_toggles')
-      .select('is_enabled')
-      .eq('feature_key', 'youtube_search')
-      .single();
+    let youtubeSearchEnabled = false;
 
-    if (toggleError) {
-      console.error('Error checking feature toggle:', toggleError);
+    try {
+      const { data: featureToggle, error: toggleError } = await supabase
+        .from('feature_toggles')
+        .select('is_enabled')
+        .eq('feature_key', 'youtube_search')
+        .single();
+
+      if (!toggleError && featureToggle) {
+        youtubeSearchEnabled = featureToggle.is_enabled && YOUTUBE_API_KEY;
+      }
+    } catch (error) {
+      console.error('Error checking feature toggle:', error);
       // Default to false if there's an error checking the toggle
-      throw new Error('Could not determine YouTube search availability');
     }
-
-    const youtubeSearchEnabled = featureToggle.is_enabled && YOUTUBE_API_KEY;
 
     // If no search term, return all videos
     if (!searchTerm) {
