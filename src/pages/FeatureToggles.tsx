@@ -10,12 +10,10 @@ const featureDescriptions: Record<string, { title: string; description: string }
   [navFeatures.BLOG]: { title: "Blog", description: "Your public blog section." },
   [navFeatures.GALLERY]: { title: "Gallery", description: "Your public photo gallery." },
   [navFeatures.TRAVEL]: { title: "Travel Map", description: "The interactive map of your travels." },
-  [navFeatures.VIDEOS]: { title: "Videos", description: "Your public videos page." },
   [navFeatures.CHATBOT]: { title: "AI Chatbot", description: "The floating chatbot widget." },
   [navFeatures.MANAGE_BLOG]: { title: "Manage Blog", description: "The management page for blog posts." },
   [navFeatures.MANAGE_GALLERY]: { title: "Manage Gallery", description: "The management page for the photo gallery." },
   [navFeatures.MANAGE_TRAVEL]: { title: "Manage Travel", description: "The management page for the travel map." },
-  [navFeatures.MANAGE_VIDEOS]: { title: "Manage Videos", description: "The management page for videos." },
   [navFeatures.FEATURE_TOGGLES]: { title: "Feature Toggles", description: "This management page itself." },
 };
 
@@ -31,7 +29,7 @@ const FeatureToggles = () => {
       <CardHeader>
         <CardTitle>Feature Toggles</CardTitle>
         <CardDescription>
-          Enable or disable modules across your portfolio. Changes are saved automatically. The Home page and this page are core features and cannot be disabled.
+          Enable or disable modules across your portfolio. Changes are saved automatically. The Home page is a core feature and cannot be disabled.
         </CardDescription>
       </CardHeader>
       <CardContent>

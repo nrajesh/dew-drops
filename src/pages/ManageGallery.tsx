@@ -99,9 +99,7 @@ const ManageGallery = () => {
   };
 
   const getThumbnailUrl = (fileName: string) => {
-    // Encode the file name to handle special characters
-    const encodedFileName = encodeURIComponent(fileName);
-    const { data } = supabase.storage.from('gallery').getPublicUrl(encodedFileName, {
+    const { data } = supabase.storage.from('gallery').getPublicUrl(fileName, {
       transform: {
         width: 200,
         height: 200,
@@ -129,16 +127,15 @@ const ManageGallery = () => {
     const toastId = showLoading(`Uploading ${selectedFiles.length} image(s)...`);
 
     const uploadPromises = Array.from(selectedFiles).map(async (file) => {
-      // First sanitize the filename to remove special characters
       const sanitizedName = sanitizeFileName(file.name);
       const fileName = `${user.id}/${Date.now()}_${sanitizedName}`;
-
+      
       const fileBuffer = await file.arrayBuffer();
       let exifData: Record<string, any> | null = null;
       try {
         const tags = ExifReader.load(fileBuffer);
         const cleanExif: Record<string, any> = {};
-
+        
         for (const key in tags) {
           if (Object.prototype.hasOwnProperty.call(tags, key)) {
             if (key === 'MakerNote' || key === 'UserComment' || key === 'thumbnail') {
@@ -166,12 +163,9 @@ const ManageGallery = () => {
         console.warn(`Could not read EXIF data for ${file.name}:`, error);
       }
 
-      // Encode the file name for the upload
-      const encodedFileName = encodeURIComponent(fileName);
-
       const { error: uploadError } = await supabase.storage
         .from("gallery")
-        .upload(encodedFileName, file, {
+        .upload(fileName, file, {
           cacheControl: '31536000', // Cache for 1 year
           upsert: false,
         });
@@ -180,21 +174,20 @@ const ManageGallery = () => {
         throw new Error(`Failed to upload ${file.name}: ${uploadError.message}`);
       }
 
-      // Get the public URL with the encoded file name
       const { data: { publicUrl } } = supabase.storage
         .from("gallery")
-        .getPublicUrl(encodedFileName);
+        .getPublicUrl(fileName);
 
       const { error: dbError } = await supabase.from("gallery_images").insert({
         image_url: publicUrl,
         alt_text: "",
-        file_name: fileName, // Store the original file name in the database
+        file_name: fileName,
         user_id: user.id,
         exif_data: exifData,
       });
 
       if (dbError) {
-        await supabase.storage.from("gallery").remove([encodedFileName]);
+        await supabase.storage.from("gallery").remove([fileName]);
         throw new Error(`Failed to save ${file.name} to database: ${dbError.message}`);
       }
     });
@@ -222,11 +215,9 @@ const ManageGallery = () => {
       const fileNamesToDelete = imagesToDelete.map(img => img.file_name);
 
       if (fileNamesToDelete.length > 0) {
-        // Encode each file name before deleting
-        const encodedFileNames = fileNamesToDelete.map(name => encodeURIComponent(name));
         const { error: storageError } = await supabase.storage
           .from("gallery")
-          .remove(encodedFileNames);
+          .remove(fileNamesToDelete);
 
         if (storageError && storageError.message !== 'The resource was not found') {
           throw new Error(`Storage error: ${storageError.message}`);

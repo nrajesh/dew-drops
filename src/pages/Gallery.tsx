@@ -10,7 +10,6 @@ import { useDebounce } from "@/hooks/useDebounce";
 import { PaginationControls } from "@/components/PaginationControls";
 import { usePaginationNavigation } from "@/hooks/usePaginationNavigation";
 import { Button } from "@/components/ui/button";
-import { showError } from "@/utils/toast";
 
 const LazyImageLightbox = lazy(() => import("@/components/ImageLightbox").then(module => ({ default: module.ImageLightbox })));
 
@@ -23,7 +22,6 @@ const Gallery = () => {
   const [activeMake, setActiveMake] = useState<string | 'all'>('all');
   const [searchTerm, setSearchTerm] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
-  const [isSearching, setIsSearching] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
 
   const debouncedSearchTerm = useDebounce(searchTerm, 300);
@@ -78,9 +76,7 @@ const Gallery = () => {
   }, [activeMake, debouncedSearchTerm]);
 
   const getThumbnailUrl = (fileName: string) => {
-    // Encode the file name to handle special characters
-    const encodedFileName = encodeURIComponent(fileName);
-    const { data } = supabase.storage.from('gallery').getPublicUrl(encodedFileName, {
+    const { data } = supabase.storage.from('gallery').getPublicUrl(fileName, {
       transform: { width: 400, height: 300, resize: 'cover' },
     });
     return data.publicUrl;
@@ -96,49 +92,6 @@ const Gallery = () => {
   };
 
   const selectedImage = selectedImageIndex !== null ? filteredImages[selectedImageIndex] : null;
-
-  const handleVectorSearch = async () => {
-    if (!debouncedSearchTerm.trim()) return;
-
-    setIsSearching(true);
-    try {
-      // Call the edge function to perform the vector search
-      const response = await supabase.functions.invoke('vector-search', {
-        body: {
-          query: debouncedSearchTerm,
-          similarity_threshold: 0.7, // Adjust this threshold as needed
-          match_count: 20 // Number of results to return
-        }
-      });
-
-      if (response.error) {
-        throw new Error(response.error.message);
-      }
-
-      // Update the filtered images with the search results
-      const searchResults = response.data.results as GalleryImage[];
-      setAllImages(searchResults);
-      setCurrentPage(1);
-    } catch (error) {
-      console.error("Error performing vector search:", error);
-      showError("Failed to perform semantic search. Falling back to text search.");
-
-      // Fallback to text search
-      const textSearchResults = allImages.filter(image =>
-        image.alt_text?.toLowerCase().includes(debouncedSearchTerm.toLowerCase())
-      );
-      setAllImages(textSearchResults);
-      setCurrentPage(1);
-    } finally {
-      setIsSearching(false);
-    }
-  };
-
-  useEffect(() => {
-    if (debouncedSearchTerm) {
-      handleVectorSearch();
-    }
-  }, [debouncedSearchTerm]);
 
   return (
     <>
@@ -212,7 +165,9 @@ const Gallery = () => {
             )}
           </div>
         </div>
-        <PaginationControls currentPage={currentPage} totalPages={totalPages} onPageChange={setCurrentPage} />
+        <div className="mt-8">
+          <PaginationControls currentPage={currentPage} totalPages={totalPages} onPageChange={setCurrentPage} />
+        </div>
       </div>
       <Suspense fallback={null}>
         <LazyImageLightbox

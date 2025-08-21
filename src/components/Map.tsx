@@ -5,7 +5,7 @@ import type { TravelLocation } from '@/types';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Terminal } from "lucide-react";
 
-const MAPBOX_ACCESS_TOKEN = import.meta.env.VITE_MAPBOX_ACCESS_TOKEN;
+const VITE_MAPBOX_ACCESS_TOKEN = import.meta.env.VITE_MAPBOX_ACCESS_TOKEN;
 
 interface MapProps {
   locations: TravelLocation[];
@@ -19,6 +19,21 @@ const MapComponent = forwardRef<MapRef, MapProps>(({ locations }, ref) => {
   const mapContainer = useRef<HTMLDivElement>(null);
   const map = useRef<mapboxgl.Map | null>(null);
   const markersRef = useRef<Map<string, mapboxgl.Marker>>(new Map());
+
+  // Suppress Mapbox analytics errors
+  useEffect(() => {
+    const originalConsoleError = console.error;
+    console.error = function(...args) {
+      if (typeof args[0] === 'string' && args[0].includes('events.mapbox.com')) {
+        return; // Suppress Mapbox analytics errors
+      }
+      originalConsoleError.apply(console, args);
+    };
+
+    return () => {
+      console.error = originalConsoleError; // Restore original console.error
+    };
+  }, []);
 
   useImperativeHandle(ref, () => ({
     triggerPopup: (locationId: string) => {
@@ -37,14 +52,14 @@ const MapComponent = forwardRef<MapRef, MapProps>(({ locations }, ref) => {
   }));
 
   useEffect(() => {
-    if (!MAPBOX_ACCESS_TOKEN) {
+    if (!VITE_MAPBOX_ACCESS_TOKEN) {
       console.error("Mapbox access token is not set.");
       return;
     }
 
     if (map.current || !mapContainer.current) return;
 
-    mapboxgl.accessToken = MAPBOX_ACCESS_TOKEN;
+    mapboxgl.accessToken = VITE_MAPBOX_ACCESS_TOKEN;
     map.current = new mapboxgl.Map({
       container: mapContainer.current,
       style: 'mapbox://styles/mapbox/streets-v12',
@@ -105,14 +120,14 @@ const MapComponent = forwardRef<MapRef, MapProps>(({ locations }, ref) => {
             .setPopup(popup)
             .addTo(map.current!);
         }
-        
+
         markersRef.current.set(location.id, marker);
       }
     });
 
   }, [locations]);
 
-  if (!MAPBOX_ACCESS_TOKEN) {
+  if (!VITE_MAPBOX_ACCESS_TOKEN) {
     return (
       <Alert variant="destructive">
         <Terminal className="h-4 w-4" />
@@ -124,7 +139,7 @@ const MapComponent = forwardRef<MapRef, MapProps>(({ locations }, ref) => {
     );
   }
 
-  return <div ref={mapContainer} className="h-[450px] w-full rounded-lg border" />;
+  return <div ref={mapContainer} className="h-full w-full rounded-lg border" />;
 });
 
 MapComponent.displayName = "Map";

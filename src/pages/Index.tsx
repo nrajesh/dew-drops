@@ -1,9 +1,16 @@
 import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
+import { Suspense, lazy } from "react";
+import { Skeleton } from "@/components/ui/skeleton";
+
+const LazyBackground = lazy(() => import("@/components/LazyBackground"));
 
 const Index = () => {
   return (
     <div className="flex h-full flex-col items-center justify-center text-center gap-6">
+      <Suspense fallback={<Skeleton className="h-16 w-3/4 mb-6" />}>
+        <LazyBackground />
+      </Suspense>
       <div className="space-y-4">
         <h1 className="text-4xl font-bold tracking-tighter sm:text-5xl md:text-6xl">
           Welcome to My Creative Space
