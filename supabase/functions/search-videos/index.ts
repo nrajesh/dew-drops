@@ -22,28 +22,20 @@ serve(async (req) => {
       { global: { headers: { Authorization: req.headers.get('Authorization')! } } }
     )
 
-    // Get the user ID from the auth header
-    const authHeader = req.headers.get('Authorization');
-    if (!authHeader) {
-      throw new Error('Authorization header is missing');
-    }
-
-    const token = authHeader.replace('Bearer ', '');
-    const { data: { user }, error: userError } = await supabase.auth.getUser(token);
-    if (userError) throw userError;
-    if (!user) throw new Error('User not authenticated');
-
-    // Check if YouTube search is enabled for this user
+    // Check if YouTube search is enabled via feature toggle
     const { data: featureToggle, error: toggleError } = await supabase
       .from('feature_toggles')
       .select('is_enabled')
-      .eq('user_id', user.id)
       .eq('feature_key', 'youtube_search')
       .single();
 
-    if (toggleError) throw toggleError;
+    if (toggleError) {
+      console.error('Error checking feature toggle:', toggleError);
+      // Default to false if there's an error checking the toggle
+      throw new Error('Could not determine YouTube search availability');
+    }
 
-    const YOUTUBE_SEARCH_ENABLED = featureToggle?.is_enabled || false;
+    const youtubeSearchEnabled = featureToggle.is_enabled && YOUTUBE_API_KEY;
 
     // If no search term, return all videos
     if (!searchTerm) {
@@ -66,7 +58,7 @@ serve(async (req) => {
     let youtubeMatchingIds: string[] = [];
 
     // Conditionally search YouTube API if the feature is enabled and the key exists
-    if (YOUTUBE_SEARCH_ENABLED && YOUTUBE_API_KEY) {
+    if (youtubeSearchEnabled) {
       const youtubeApiUrl = `https://www.googleapis.com/youtube/v3/search?part=snippet&q=${encodeURIComponent(searchTerm)}&key=${YOUTUBE_API_KEY}&type=video&maxResults=50`;
       const youtubeResponse = await fetch(youtubeApiUrl);
       if (!youtubeResponse.ok) {
