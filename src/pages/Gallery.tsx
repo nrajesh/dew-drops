@@ -165,7 +165,7 @@ const Gallery = () => {
             )}
           </div>
         </div>
-        <div className="mt-8">
+        <div className="mt-6">
           <PaginationControls currentPage={currentPage} totalPages={totalPages} onPageChange={setCurrentPage} />
         </div>
       </div>
