@@ -129,6 +129,7 @@ const ManageGallery = () => {
     const toastId = showLoading(`Uploading ${selectedFiles.length} image(s)...`);
 
     const uploadPromises = Array.from(selectedFiles).map(async (file) => {
+      // First sanitize the filename to remove special characters
       const sanitizedName = sanitizeFileName(file.name);
       const fileName = `${user.id}/${Date.now()}_${sanitizedName}`;
 
