@@ -9,20 +9,24 @@ export function sanitizeFileName(fileName: string): string {
   // Decode URI components to handle encoded characters like %20
   const decodedName = decodeURIComponent(fileName);
 
-  // Remove any characters that are not alphanumeric, underscore, hyphen, or dot
-  // This is a more aggressive approach that will remove most special characters
-  const sanitized = decodedName.replace(/[^a-zA-Z0-9_\-\.]/g, '_');
+  // Replace spaces and other whitespace with a single underscore
+  const withUnderscores = decodedName.replace(/\s+/g, '_');
 
-  // Replace multiple underscores with a single one
-  const singleUnderscores = sanitized.replace(/_+/g, '_');
+  // Remove characters that are invalid in filenames on most OSes.
+  // The characters are: / \ : * ? " < > |
+  // Also remove control characters from the ASCII range.
+  const sanitized = withUnderscores.replace(/[\\/:\*\?"<>\|]/g, '').replace(/[\x00-\x1f\x7f]/g, '');
 
-  // Trim leading/trailing underscores or dots
-  const trimmed = singleUnderscores.replace(/^[_.]+|[_.]+$/g, '');
+  // Trim leading/trailing underscores or dots that might result from sanitization
+  const trimmed = sanitized.replace(/^[_.]+|[_.]+$/g, '');
 
-  // If the result is empty, use a default name
-  if (!trimmed) {
-    return `file_${Date.now()}`;
-  }
+  // Convert to NFC form to handle combining characters
+  const normalized = trimmed.normalize('NFC');
 
-  return trimmed;
+  // Replace any remaining special characters with their closest ASCII equivalents
+  const asciiNormalized = normalized.replace(/[^\x00-\x7F]/g, function(char) {
+    return char.charCodeAt(0).toString(16).padStart(4, '0');
+  });
+
+  return asciiNormalized;
 }

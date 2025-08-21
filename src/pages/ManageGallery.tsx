@@ -150,10 +150,9 @@ const ManageGallery = () => {
               const description = tagValue.description;
 
               if (typeof description === 'string') {
-                // Aggressively sanitize string values
                 const sanitized = description
-                  .replace(/,/g, '.') // Normalize decimals
-                  .replace(/[^\w\s.:/-]/g, ''); // Whitelist safe characters
+                  .replace(/,/g, '.')
+                  .replace(/[^\w\s.:/-]/g, '');
                 cleanExif[key] = sanitized;
               } else if (typeof description === 'number') {
                 cleanExif[key] = description;
@@ -169,7 +168,7 @@ const ManageGallery = () => {
       const { error: uploadError } = await supabase.storage
         .from("gallery")
         .upload(fileName, file, {
-          cacheControl: '31536000', // Cache for 1 year
+          cacheControl: '31536000',
           upsert: false,
         });
 
@@ -251,13 +250,11 @@ const ManageGallery = () => {
 
     const toastId = showLoading("Updating alt text...");
     try {
-      // First, update the local state immediately for better UX
       const updatedImages = images.map(img =>
         img.id === editingImage.id ? { ...img, alt_text: values.alt_text } : img
       );
       setImages(updatedImages);
 
-      // Then perform the database update
       const { error } = await supabase
         .from("gallery_images")
         .update({ alt_text: values.alt_text })
@@ -269,7 +266,6 @@ const ManageGallery = () => {
       showSuccess("Alt text updated successfully!");
       setEditingImage(null);
     } catch (error: any) {
-      // If the update fails, revert the local state
       setImages(images);
       dismissToast(toastId);
       showError(`Update failed: ${error.message}`);
