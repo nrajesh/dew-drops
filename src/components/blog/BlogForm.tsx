@@ -107,19 +107,19 @@ export const BlogForm = ({ editingPost, galleryImages, uniqueTags, onSubmit, onC
   };
 
   return (
-    <Card>
+    <Card className="relative">
       {isPopup && (
         <Button
           variant="ghost"
           size="icon"
-          className="absolute top-2 right-2"
+          className="absolute top-2 right-2 z-10"
           onClick={onCancel}
           aria-label="Close"
         >
           <X className="h-4 w-4" />
         </Button>
       )}
-      <CardHeader>
+      <CardHeader className="pt-8">
         <CardTitle>{editingPost ? "Edit Post" : "Add New Post"}</CardTitle>
         <CardDescription>
           {editingPost ? "Update the details for this blog post." : "Create a new article. You can use Markdown for the content."}
