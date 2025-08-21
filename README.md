@@ -29,9 +29,9 @@ This portfolio is built with a selection of modern tools chosen for their perfor
 | **Styling**       | [Tailwind CSS](https://tailwindcss.com/)                                | A utility-first CSS framework for rapid, responsive UI development without leaving your HTML.      |
 | **UI Components** | [shadcn/ui](https://ui.shadcn.com/)                                     | A collection of beautifully designed, accessible, and unstyled components that you can own and customize. |
 | **Backend**       | [Supabase](https://supabase.com/)                                       | The open-source Firebase alternative. Used for:                                                    |
-|                   | &nbsp;&nbsp;&nbsp;**Database**                                          | A PostgreSQL database for storing blog posts, videos, and travel locations.                        |
+|                   | &nbsp;&nbsp;&nbsp;**Database**                                          | A PostgreSQL database for storing blog posts, and travel locations.                        |
 |                   | &nbsp;&nbsp;&nbsp;**Storage**                                           | For hosting user-uploaded images for the gallery and map markers.                                  |
-|                   | &nbsp;&nbsp;&nbsp;**Edge Functions**                                    | Serverless functions for backend logic, like the contact form and video search.                    |
+|                   | &nbsp;&nbsp;&nbsp;**Edge Functions**                                    | Serverless functions for backend logic, like the contact form and geocode location.                |
 | **AI**            | [Google Gemini](https://ai.google.dev/)                                 | Powers the conversational AI chatbot feature.                                                      |
 | **Routing**       | [React Router](https://reactrouter.com/)                                | The standard for declarative routing in React applications.                                        |
 | **Forms**         | [React Hook Form](https://react-hook-form.com/) & [Zod](https://zod.dev/) | A powerful combination for building performant, type-safe, and validated forms.                    |
