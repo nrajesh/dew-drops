@@ -1,4 +1,5 @@
 import elasticsearchClient from './client';
+import { IndicesCreateRequest } from '@elastic/elasticsearch/lib/api/types';
 
 export const setupElasticsearchIndex = async () => {
   try {
@@ -7,7 +8,7 @@ export const setupElasticsearchIndex = async () => {
 
     if (!indexExists) {
       // Create the index with vector mapping
-      await elasticsearchClient.indices.create({
+      const createRequest: IndicesCreateRequest = {
         index: 'gallery_images',
         body: {
           mappings: {
@@ -27,8 +28,9 @@ export const setupElasticsearchIndex = async () => {
             }
           }
         }
-      });
+      };
 
+      await elasticsearchClient.indices.create(createRequest);
       console.log('Elasticsearch index created successfully');
     } else {
       console.log('Elasticsearch index already exists');
