@@ -17,6 +17,7 @@ const featureDescriptions: Record<string, { title: string; description: string }
   [navFeatures.MANAGE_TRAVEL]: { title: "Manage Travel", description: "The management page for the travel map." },
   [navFeatures.MANAGE_VIDEOS]: { title: "Manage Videos", description: "The management page for videos." },
   [navFeatures.FEATURE_TOGGLES]: { title: "Feature Toggles", description: "This management page itself." },
+  'youtube_search': { title: "YouTube Search", description: "Enable enhanced video search using YouTube API." },
 };
 
 const FeatureToggles = () => {
@@ -47,7 +48,7 @@ const FeatureToggles = () => {
               </div>
             ))
           ) : (
-            orderedFeatures.map(key => (
+            [...orderedFeatures, 'youtube_search'].map(key => (
               <div key={key} className="flex items-center justify-between p-4 border rounded-lg">
                 <div>
                   <Label htmlFor={key} className="text-base font-medium">
