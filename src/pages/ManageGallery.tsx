@@ -11,7 +11,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { supabase } from "@/integrations/supabase/client";
 import { showSuccess, showError, showLoading, dismissToast } from "@/utils/toast";
-import { Upload, Trash2, Edit } from "lucide-react";
+import { Upload, Trash2, Edit, Database } from "lucide-react";
 import type { GalleryImage } from "@/types";
 import {
   AlertDialog,
@@ -43,6 +43,7 @@ const ManageGallery = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [selectedImages, setSelectedImages] = useState<Set<string>>(new Set());
   const [editingImage, setEditingImage] = useState<GalleryImage | null>(null);
+  const [isSyncing, setIsSyncing] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
 
   const [currentPage, setCurrentPage] = useState(1);
@@ -299,6 +300,30 @@ const ManageGallery = () => {
     }
   };
 
+  const handleSync = async () => {
+    setIsSyncing(true);
+    const toastId = showLoading('Syncing gallery with visual search...');
+    try {
+      const { data, error } = await supabase.functions.invoke('elasticsearch-sync');
+      
+      if (error) {
+        const errorBody = await error.context.json();
+        throw new Error(errorBody.error || error.message);
+      }
+      if (data.error) {
+        throw new Error(data.error);
+      }
+  
+      dismissToast(toastId);
+      showSuccess(data.message || 'Sync complete!');
+    } catch (error: any) {
+      dismissToast(toastId);
+      showError(`Sync failed: ${error.message}`);
+    } finally {
+      setIsSyncing(false);
+    }
+  };
+
   const allOnPageSelected = paginatedImages.length > 0 && paginatedImages.every(i => selectedImages.has(i.id));
 
   return (
@@ -326,6 +351,21 @@ const ManageGallery = () => {
                 {isUploading ? "Uploading..." : "Upload"}
               </Button>
             </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Visual Search Sync</CardTitle>
+            <CardDescription>
+              Create the search index and sync all your gallery images with the visual search engine. Run this once to set up, or again to re-sync.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Button onClick={handleSync} disabled={isSyncing}>
+              <Database className="h-4 w-4 mr-2" />
+              {isSyncing ? 'Syncing...' : 'Sync Images'}
+            </Button>
           </CardContent>
         </Card>
 
