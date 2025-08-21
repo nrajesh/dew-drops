@@ -43,11 +43,11 @@ const Videos = () => {
         } else {
           // Fallback to a direct, simple database search if the feature toggle is off
           let query = supabase.from('videos').select('*');
-          
+
           if (debouncedSearchTerm) {
             query = query.ilike('title', `%${debouncedSearchTerm}%`);
           }
-          
+
           const { data, error } = await query.order('created_at', { ascending: false });
 
           if (error) throw error;
