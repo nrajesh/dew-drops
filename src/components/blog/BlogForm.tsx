@@ -119,7 +119,7 @@ export const BlogForm = ({ editingPost, galleryImages, uniqueTags, onSubmit, onC
           <X className="h-4 w-4" />
         </Button>
       )}
-      <CardHeader className="pt-8">
+      <CardHeader>
         <CardTitle>{editingPost ? "Edit Post" : "Add New Post"}</CardTitle>
       </CardHeader>
       <CardContent>
