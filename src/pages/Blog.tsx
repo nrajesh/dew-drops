@@ -13,7 +13,7 @@ import { usePaginationNavigation } from "@/hooks/usePaginationNavigation";
 
 const LazyMultiSelectPopover = lazy(() => import("@/components/MultiSelectPopover").then(module => ({ default: module.MultiSelectPopover })));
 
-const POSTS_PER_PAGE = 3;
+const POSTS_PER_PAGE = 6;
 
 const Blog = () => {
   const [allPosts, setAllPosts] = useState<Post[]>([]);
@@ -79,7 +79,7 @@ const Blog = () => {
 
   const formatDate = (dateString: string | null) => {
     if (!dateString) return "";
-    return new Date(dateString).toLocaleString('en-US', {
+    return new Date(dateString).toLocaleDateString('en-US', {
       year: 'numeric',
       month: 'long',
       day: 'numeric',
@@ -167,7 +167,7 @@ const Blog = () => {
           )}
         </div>
       </div>
-      <div className="mt-4">
+      <div className="mt-8">
         <PaginationControls
           currentPage={currentPage}
           totalPages={totalPages}

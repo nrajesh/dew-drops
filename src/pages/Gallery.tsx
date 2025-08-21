@@ -13,7 +13,7 @@ import { Button } from "@/components/ui/button";
 
 const LazyImageLightbox = lazy(() => import("@/components/ImageLightbox").then(module => ({ default: module.ImageLightbox })));
 
-const IMAGES_PER_PAGE = 3;
+const IMAGES_PER_PAGE = 9;
 
 const Gallery = () => {
   const [allImages, setAllImages] = useState<GalleryImage[]>([]);
@@ -165,7 +165,7 @@ const Gallery = () => {
             )}
           </div>
         </div>
-        <div className="mt-4">
+        <div className="mt-8">
           <PaginationControls currentPage={currentPage} totalPages={totalPages} onPageChange={setCurrentPage} />
         </div>
       </div>
