@@ -22,7 +22,7 @@ console.error = function(...args) {
   originalConsoleError.apply(console, args);
 };
 
-// Initialize Elasticsearch index
+// Initialize Elasticsearch index with error handling
 setupElasticsearchIndex().catch(error => {
   console.error('Failed to initialize Elasticsearch index:', error);
 });

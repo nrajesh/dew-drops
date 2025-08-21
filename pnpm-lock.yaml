@@ -9,7 +9,7 @@ importers:
   .:
     dependencies:
       '@elastic/elasticsearch':
-        specifier: ^8.15.0
+        specifier: 8.15.0
         version: 8.15.0
       '@google/generative-ai':
         specifier: ^0.24.1

@@ -37,6 +37,6 @@ export const setupElasticsearchIndex = async () => {
     }
   } catch (error) {
     console.error('Error setting up Elasticsearch index:', error);
-    throw error;
+    // Don't throw the error to allow the app to function without Elasticsearch
   }
 };
