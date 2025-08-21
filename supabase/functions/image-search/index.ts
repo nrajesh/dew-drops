@@ -1,5 +1,5 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts"
-import { Client } from 'https://esm.sh/@elastic/elasticsearch@8.15.0'
+import { Client } from "npm:@elastic/elasticsearch@8.15.0";
 
 const ELASTICSEARCH_URL = Deno.env.get('ELASTICSEARCH_URL')
 const ELASTICSEARCH_API_KEY = Deno.env.get('ELASTICSEARCH_API_KEY')
