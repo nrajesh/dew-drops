@@ -52,11 +52,7 @@ serve(async (req) => {
       if (!youtubeResponse.ok) {
         const errorBody = await youtubeResponse.json();
         console.error('YouTube API Error:', errorBody);
-        const errorMessage = errorBody?.error?.message || 'Failed to fetch data from YouTube API.';
-        if (errorMessage.includes('API key not valid')) {
-          throw new Error('The YouTube API key is invalid or missing. Please configure it in the Supabase project secrets.');
-        }
-        throw new Error(`YouTube search failed: ${errorMessage}`);
+        // Don't throw an error, just log it and continue with DB results
       } else {
         const youtubeData = await youtubeResponse.json();
         const youtubeVideoIds = youtubeData.items.map((item: any) => item.id.videoId);
