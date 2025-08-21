@@ -20,6 +20,21 @@ const MapComponent = forwardRef<MapRef, MapProps>(({ locations }, ref) => {
   const map = useRef<mapboxgl.Map | null>(null);
   const markersRef = useRef<Map<string, mapboxgl.Marker>>(new Map());
 
+  // Suppress Mapbox analytics errors
+  useEffect(() => {
+    const originalConsoleError = console.error;
+    console.error = function(...args) {
+      if (typeof args[0] === 'string' && args[0].includes('events.mapbox.com')) {
+        return; // Suppress Mapbox analytics errors
+      }
+      originalConsoleError.apply(console, args);
+    };
+
+    return () => {
+      console.error = originalConsoleError; // Restore original console.error
+    };
+  }, []);
+
   useImperativeHandle(ref, () => ({
     triggerPopup: (locationId: string) => {
       const marker = markersRef.current.get(locationId);
@@ -105,7 +120,7 @@ const MapComponent = forwardRef<MapRef, MapProps>(({ locations }, ref) => {
             .setPopup(popup)
             .addTo(map.current!);
         }
-        
+
         markersRef.current.set(location.id, marker);
       }
     });
