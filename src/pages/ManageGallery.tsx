@@ -50,6 +50,9 @@ const ManageGallery = () => {
 
   const form = useForm<z.infer<typeof editSchema>>({
     resolver: zodResolver(editSchema),
+    defaultValues: {
+      alt_text: "",
+    },
   });
 
   useEffect(() => {
@@ -129,13 +132,13 @@ const ManageGallery = () => {
     const uploadPromises = Array.from(selectedFiles).map(async (file) => {
       const sanitizedName = sanitizeFileName(file.name);
       const fileName = `${user.id}/${Date.now()}_${sanitizedName}`;
-      
+
       const fileBuffer = await file.arrayBuffer();
       let exifData: Record<string, any> | null = null;
       try {
         const tags = ExifReader.load(fileBuffer);
         const cleanExif: Record<string, any> = {};
-        
+
         for (const key in tags) {
           if (Object.prototype.hasOwnProperty.call(tags, key)) {
             if (key === 'MakerNote' || key === 'UserComment' || key === 'thumbnail') {
@@ -147,10 +150,9 @@ const ManageGallery = () => {
               const description = tagValue.description;
 
               if (typeof description === 'string') {
-                // Aggressively sanitize string values
                 const sanitized = description
-                  .replace(/,/g, '.') // Normalize decimals
-                  .replace(/[^\w\s.:/-]/g, ''); // Whitelist safe characters
+                  .replace(/,/g, '.')
+                  .replace(/[^\w\s.:/-]/g, '');
                 cleanExif[key] = sanitized;
               } else if (typeof description === 'number') {
                 cleanExif[key] = description;
@@ -166,7 +168,7 @@ const ManageGallery = () => {
       const { error: uploadError } = await supabase.storage
         .from("gallery")
         .upload(fileName, file, {
-          cacheControl: '31536000', // Cache for 1 year
+          cacheControl: '31536000',
           upsert: false,
         });
 
@@ -247,18 +249,26 @@ const ManageGallery = () => {
     if (!editingImage) return;
 
     const toastId = showLoading("Updating alt text...");
-    const { error } = await supabase
-      .from("gallery_images")
-      .update({ alt_text: values.alt_text })
-      .eq("id", editingImage.id);
+    try {
+      const updatedImages = images.map(img =>
+        img.id === editingImage.id ? { ...img, alt_text: values.alt_text } : img
+      );
+      setImages(updatedImages);
 
-    dismissToast(toastId);
-    if (error) {
-      showError(`Update failed: ${error.message}`);
-    } else {
+      const { error } = await supabase
+        .from("gallery_images")
+        .update({ alt_text: values.alt_text })
+        .eq("id", editingImage.id);
+
+      if (error) throw error;
+
+      dismissToast(toastId);
       showSuccess("Alt text updated successfully!");
-      setImages(images.map(img => img.id === editingImage.id ? { ...img, alt_text: values.alt_text } : img));
       setEditingImage(null);
+    } catch (error: any) {
+      setImages(images);
+      dismissToast(toastId);
+      showError(`Update failed: ${error.message}`);
     }
   };
 
