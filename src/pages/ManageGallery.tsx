@@ -11,7 +11,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { supabase } from "@/integrations/supabase/client";
 import { showSuccess, showError, showLoading, dismissToast } from "@/utils/toast";
-import { Upload, Trash2, Edit, Database } from "lucide-react";
+import { Upload, Trash2, Edit } from "lucide-react";
 import type { GalleryImage } from "@/types";
 import {
   AlertDialog,
@@ -43,7 +43,6 @@ const ManageGallery = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [selectedImages, setSelectedImages] = useState<Set<string>>(new Set());
   const [editingImage, setEditingImage] = useState<GalleryImage | null>(null);
-  const [isSyncing, setIsSyncing] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
 
   const [currentPage, setCurrentPage] = useState(1);
@@ -51,9 +50,6 @@ const ManageGallery = () => {
 
   const form = useForm<z.infer<typeof editSchema>>({
     resolver: zodResolver(editSchema),
-    defaultValues: {
-      alt_text: "",
-    },
   });
 
   useEffect(() => {
@@ -133,13 +129,13 @@ const ManageGallery = () => {
     const uploadPromises = Array.from(selectedFiles).map(async (file) => {
       const sanitizedName = sanitizeFileName(file.name);
       const fileName = `${user.id}/${Date.now()}_${sanitizedName}`;
-
+      
       const fileBuffer = await file.arrayBuffer();
       let exifData: Record<string, any> | null = null;
       try {
         const tags = ExifReader.load(fileBuffer);
         const cleanExif: Record<string, any> = {};
-
+        
         for (const key in tags) {
           if (Object.prototype.hasOwnProperty.call(tags, key)) {
             if (key === 'MakerNote' || key === 'UserComment' || key === 'thumbnail') {
@@ -251,29 +247,18 @@ const ManageGallery = () => {
     if (!editingImage) return;
 
     const toastId = showLoading("Updating alt text...");
-    try {
-      // First, update the local state immediately for better UX
-      const updatedImages = images.map(img =>
-        img.id === editingImage.id ? { ...img, alt_text: values.alt_text } : img
-      );
-      setImages(updatedImages);
+    const { error } = await supabase
+      .from("gallery_images")
+      .update({ alt_text: values.alt_text })
+      .eq("id", editingImage.id);
 
-      // Then perform the database update
-      const { error } = await supabase
-        .from("gallery_images")
-        .update({ alt_text: values.alt_text })
-        .eq("id", editingImage.id);
-
-      if (error) throw error;
-
-      dismissToast(toastId);
-      showSuccess("Alt text updated successfully!");
-      setEditingImage(null);
-    } catch (error: any) {
-      // If the update fails, revert the local state
-      setImages(images);
-      dismissToast(toastId);
+    dismissToast(toastId);
+    if (error) {
       showError(`Update failed: ${error.message}`);
+    } else {
+      showSuccess("Alt text updated successfully!");
+      setImages(images.map(img => img.id === editingImage.id ? { ...img, alt_text: values.alt_text } : img));
+      setEditingImage(null);
     }
   };
 
@@ -297,30 +282,6 @@ const ManageGallery = () => {
         pageIds.forEach(id => newSet.delete(id));
         return newSet;
       });
-    }
-  };
-
-  const handleSync = async () => {
-    setIsSyncing(true);
-    const toastId = showLoading('Syncing gallery with visual search...');
-    try {
-      const { data, error } = await supabase.functions.invoke('elasticsearch-sync');
-
-      if (error) {
-        const errorBody = await error.context.json();
-        throw new Error(errorBody.error || error.message);
-      }
-      if (data.error) {
-        throw new Error(data.error);
-      }
-
-      dismissToast(toastId);
-      showSuccess(data.message || 'Sync complete!');
-    } catch (error: any) {
-      dismissToast(toastId);
-      showError(`Sync failed: ${error.message}`);
-    } finally {
-      setIsSyncing(false);
     }
   };
 
@@ -351,21 +312,6 @@ const ManageGallery = () => {
                 {isUploading ? "Uploading..." : "Upload"}
               </Button>
             </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle>Visual Search Sync</CardTitle>
-            <CardDescription>
-              Create the search index and sync all your gallery images with the visual search engine. Run this once to set up, or again to re-sync.
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <Button onClick={handleSync} disabled={isSyncing}>
-              <Database className="h-4 w-4 mr-2" />
-              {isSyncing ? 'Syncing...' : 'Sync Images'}
-            </Button>
           </CardContent>
         </Card>
 
