@@ -46,6 +46,17 @@ serve(async (req) => {
       auth: { apiKey: ELASTICSEARCH_API_KEY }
     })
 
+    // Check if index exists
+    const { exists } = await client.indices.exists({ index: 'gallery_images' });
+
+    if (!exists) {
+      // Return empty results if index doesn't exist
+      return new Response(JSON.stringify([]), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        status: 200,
+      });
+    }
+
     const response = await client.search<GalleryImageDocument>({
       index: 'gallery_images',
       body: {

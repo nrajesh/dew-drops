@@ -305,7 +305,7 @@ const ManageGallery = () => {
     const toastId = showLoading('Syncing gallery with visual search...');
     try {
       const { data, error } = await supabase.functions.invoke('elasticsearch-sync');
-      
+
       if (error) {
         const errorBody = await error.context.json();
         throw new Error(errorBody.error || error.message);
@@ -313,7 +313,7 @@ const ManageGallery = () => {
       if (data.error) {
         throw new Error(data.error);
       }
-  
+
       dismissToast(toastId);
       showSuccess(data.message || 'Sync complete!');
     } catch (error: any) {
