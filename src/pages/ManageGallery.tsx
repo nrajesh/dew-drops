@@ -113,6 +113,44 @@ const ManageGallery = () => {
     setSelectedFiles(e.target.files);
   };
 
+  const generateEmbedding = async (altText: string): Promise<number[]> => {
+    try {
+      const response = await supabase.functions.invoke('generate-embeddings', {
+        body: { alt_text: altText }
+      });
+
+      if (response.error) {
+        throw new Error(response.error.message);
+      }
+
+      return response.data.embedding;
+    } catch (error) {
+      console.error("Error generating embedding:", error);
+      throw error;
+    }
+  };
+
+  const indexImageInElasticsearch = async (image: GalleryImage) => {
+    try {
+      const response = await supabase.functions.invoke('index-image', {
+        body: {
+          image_id: image.id,
+          alt_text: image.alt_text || '',
+          embedding: image.embedding || []
+        }
+      });
+
+      if (response.error) {
+        throw new Error(response.error.message);
+      }
+
+      return response.data;
+    } catch (error) {
+      console.error("Error indexing image in Elasticsearch:", error);
+      throw error;
+    }
+  };
+
   const handleUpload = async () => {
     if (!selectedFiles || selectedFiles.length === 0) {
       showError("Please select files to upload.");
@@ -129,13 +167,13 @@ const ManageGallery = () => {
     const uploadPromises = Array.from(selectedFiles).map(async (file) => {
       const sanitizedName = sanitizeFileName(file.name);
       const fileName = `${user.id}/${Date.now()}_${sanitizedName}`;
-      
+
       const fileBuffer = await file.arrayBuffer();
       let exifData: Record<string, any> | null = null;
       try {
         const tags = ExifReader.load(fileBuffer);
         const cleanExif: Record<string, any> = {};
-        
+
         for (const key in tags) {
           if (Object.prototype.hasOwnProperty.call(tags, key)) {
             if (key === 'MakerNote' || key === 'UserComment' || key === 'thumbnail') {
@@ -178,17 +216,45 @@ const ManageGallery = () => {
         .from("gallery")
         .getPublicUrl(fileName);
 
-      const { error: dbError } = await supabase.from("gallery_images").insert({
+      // Create the image record first
+      const { data: imageData, error: dbError } = await supabase.from("gallery_images").insert({
         image_url: publicUrl,
         alt_text: "",
         file_name: fileName,
         user_id: user.id,
         exif_data: exifData,
-      });
+      }).select().single();
 
       if (dbError) {
         await supabase.storage.from("gallery").remove([fileName]);
         throw new Error(`Failed to save ${file.name} to database: ${dbError.message}`);
+      }
+
+      // Generate embedding for the image
+      try {
+        const altText = imageData.alt_text || `Image of ${file.name}`;
+        const embedding = await generateEmbedding(altText);
+
+        const { error: updateError } = await supabase
+          .from('gallery_images')
+          .update({ embedding })
+          .eq('id', imageData.id);
+
+        if (updateError) {
+          console.error(`Failed to update embedding for ${file.name}:`, updateError);
+        } else {
+          // Index the image in Elasticsearch
+          try {
+            await indexImageInElasticsearch({
+              ...imageData,
+              embedding: embedding
+            });
+          } catch (error) {
+            console.error(`Failed to index image in Elasticsearch for ${file.name}:`, error);
+          }
+        }
+      } catch (error) {
+        console.error(`Failed to generate embedding for ${file.name}:`, error);
       }
     });
 
@@ -222,6 +288,15 @@ const ManageGallery = () => {
         if (storageError && storageError.message !== 'The resource was not found') {
           throw new Error(`Storage error: ${storageError.message}`);
         }
+      }
+
+      // Delete from Elasticsearch first
+      try {
+        await supabase.functions.invoke('delete-images', {
+          body: { image_ids: imageIds }
+        });
+      } catch (error) {
+        console.error("Error deleting images from Elasticsearch:", error);
       }
 
       const { error: dbError } = await supabase
@@ -259,6 +334,32 @@ const ManageGallery = () => {
       showSuccess("Alt text updated successfully!");
       setImages(images.map(img => img.id === editingImage.id ? { ...img, alt_text: values.alt_text } : img));
       setEditingImage(null);
+
+      // Update the embedding with the new alt text
+      try {
+        const embedding = await generateEmbedding(values.alt_text);
+        const { error: updateError } = await supabase
+          .from('gallery_images')
+          .update({ embedding })
+          .eq('id', editingImage.id);
+
+        if (updateError) {
+          console.error("Failed to update embedding:", updateError);
+        } else {
+          // Update the index in Elasticsearch
+          try {
+            await indexImageInElasticsearch({
+              ...editingImage,
+              alt_text: values.alt_text,
+              embedding: embedding
+            });
+          } catch (error) {
+            console.error("Failed to update index in Elasticsearch:", error);
+          }
+        }
+      } catch (error) {
+        console.error("Error generating new embedding:", error);
+      }
     }
   };
 
@@ -298,7 +399,7 @@ const ManageGallery = () => {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="flex items-center gap-4">
+            <div className="flex items-center gap-2">
               <Input
                 id="file-input"
                 type="file"

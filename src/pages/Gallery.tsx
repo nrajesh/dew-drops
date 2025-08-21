@@ -10,7 +10,6 @@ import { useDebounce } from "@/hooks/useDebounce";
 import { PaginationControls } from "@/components/PaginationControls";
 import { usePaginationNavigation } from "@/hooks/usePaginationNavigation";
 import { Button } from "@/components/ui/button";
-import { sendMessageToGemini } from "@/integrations/gemini/client";
 import { showError } from "@/utils/toast";
 
 const LazyImageLightbox = lazy(() => import("@/components/ImageLightbox").then(module => ({ default: module.ImageLightbox })));
@@ -98,13 +97,16 @@ const Gallery = () => {
 
   const generateEmbedding = async (text: string): Promise<number[]> => {
     try {
-      const response = await sendMessageToGemini(`Generate a vector embedding for this text: "${text}"`);
-      // Parse the response to extract the embedding array
-      const embeddingMatch = response.match(/\[([\d.,\s-]+)\]/);
-      if (embeddingMatch) {
-        return embeddingMatch[1].split(',').map(Number);
+      // Use the existing generate-embeddings edge function
+      const response = await supabase.functions.invoke('generate-embeddings', {
+        body: { alt_text: text }
+      });
+
+      if (response.error) {
+        throw new Error(response.error.message);
       }
-      throw new Error("Could not extract embedding from response");
+
+      return response.data.embedding;
     } catch (error) {
       console.error("Error generating embedding:", error);
       throw error;
@@ -119,8 +121,8 @@ const Gallery = () => {
       // Generate embedding for the search term
       const embedding = await generateEmbedding(debouncedSearchTerm);
 
-      // Call the edge function to perform the vector search
-      const response = await supabase.functions.invoke('vector-search', {
+      // Call the Elasticsearch search edge function
+      const response = await supabase.functions.invoke('elasticsearch-search', {
         body: {
           query_embedding: embedding,
           similarity_threshold: 0.7, // Adjust this threshold as needed
@@ -139,6 +141,13 @@ const Gallery = () => {
     } catch (error) {
       console.error("Error performing vector search:", error);
       showError("Failed to perform semantic search. Falling back to text search.");
+
+      // Fallback to text search
+      const textSearchResults = allImages.filter(image =>
+        image.alt_text?.toLowerCase().includes(debouncedSearchTerm.toLowerCase())
+      );
+      setAllImages(textSearchResults);
+      setCurrentPage(1);
     } finally {
       setIsSearching(false);
     }
