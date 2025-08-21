@@ -120,7 +120,7 @@ const Travel = () => {
 
         {loading ? (
           <div className="flex flex-col lg:flex-row gap-8">
-            <Skeleton className="lg:w-2/3 h-[450px] rounded-lg" />
+            <Skeleton className="lg:w-2/3 h-[550px] rounded-lg" />
             <div className="lg:w-1/3 space-y-4">
               {Array.from({ length: 3 }).map((_, i) => (
                 <Card key={i}>
@@ -132,14 +132,14 @@ const Travel = () => {
           </div>
         ) : filteredLocations.length > 0 ? (
           <div className="flex flex-col lg:flex-row gap-8">
-            <div className="lg:w-2/3 h-[450px] lg:h-auto">
+            <div className="lg:w-2/3 h-[550px]">
               <Suspense fallback={<Skeleton className="h-full w-full rounded-lg" />}>
                 <LazyMapComponent ref={mapRef} locations={allLocations} />
               </Suspense>
             </div>
 
-            <div className="lg:w-1/3 flex flex-col gap-4">
-              <div className="space-y-4">
+            <div className="lg:w-1/3 flex flex-col">
+              <div className="space-y-4 flex-grow">
                 {paginatedLocations.map((location) => (
                   <Card
                     key={location.id}
@@ -161,7 +161,7 @@ const Travel = () => {
                   </Card>
                 ))}
               </div>
-              <div className="mt-auto pt-4">
+              <div className="pt-4">
                 <PaginationControls currentPage={currentPage} totalPages={totalPages} onPageChange={setCurrentPage} />
               </div>
             </div>
