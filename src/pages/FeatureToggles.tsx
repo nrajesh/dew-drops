@@ -24,7 +24,7 @@ const FeatureToggles = () => {
   const { toggles, loading, updateToggle } = useFeatureToggles();
 
   const orderedFeatures = Object.values(navFeatures).filter(
-    key => key !== navFeatures.HOME
+    key => key !== navFeatures.HOME && key !== navFeatures.FEATURE_TOGGLES
   );
 
   return (
@@ -63,7 +63,6 @@ const FeatureToggles = () => {
                   checked={toggles[key] ?? true}
                   onCheckedChange={(checked) => updateToggle(key, checked)}
                   aria-label={`Toggle ${featureDescriptions[key]?.title}`}
-                  disabled={key === navFeatures.FEATURE_TOGGLES}
                 />
               </div>
             ))
