@@ -13,7 +13,7 @@ import { Button } from "@/components/ui/button";
 
 const LazyImageLightbox = lazy(() => import("@/components/ImageLightbox").then(module => ({ default: module.ImageLightbox })));
 
-const IMAGES_PER_PAGE = 9;
+const IMAGES_PER_PAGE = 3;
 
 const Gallery = () => {
   const [allImages, setAllImages] = useState<GalleryImage[]>([]);
