@@ -50,6 +50,9 @@ const ManageGallery = () => {
 
   const form = useForm<z.infer<typeof editSchema>>({
     resolver: zodResolver(editSchema),
+    defaultValues: {
+      alt_text: "",
+    },
   });
 
   useEffect(() => {
@@ -247,18 +250,27 @@ const ManageGallery = () => {
     if (!editingImage) return;
 
     const toastId = showLoading("Updating alt text...");
-    const { error } = await supabase
-      .from("gallery_images")
-      .update({ alt_text: values.alt_text })
-      .eq("id", editingImage.id);
+    try {
+      const { error } = await supabase
+        .from("gallery_images")
+        .update({ alt_text: values.alt_text })
+        .eq("id", editingImage.id);
 
-    dismissToast(toastId);
-    if (error) {
-      showError(`Update failed: ${error.message}`);
-    } else {
+      if (error) throw error;
+
+      // Update the local state immediately
+      setImages(prevImages =>
+        prevImages.map(img =>
+          img.id === editingImage.id ? { ...img, alt_text: values.alt_text } : img
+        )
+      );
+
+      dismissToast(toastId);
       showSuccess("Alt text updated successfully!");
-      setImages(images.map(img => img.id === editingImage.id ? { ...img, alt_text: values.alt_text } : img));
       setEditingImage(null);
+    } catch (error: any) {
+      dismissToast(toastId);
+      showError(`Update failed: ${error.message}`);
     }
   };
 
