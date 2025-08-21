@@ -23,5 +23,10 @@ export function sanitizeFileName(fileName: string): string {
   // Convert to NFC form to handle combining characters
   const normalized = trimmed.normalize('NFC');
 
-  return normalized;
+  // Replace any remaining special characters with their closest ASCII equivalents
+  const asciiNormalized = normalized.replace(/[^\x00-\x7F]/g, function(char) {
+    return char.charCodeAt(0).toString(16).padStart(4, '0');
+  });
+
+  return asciiNormalized;
 }
