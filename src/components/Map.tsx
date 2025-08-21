@@ -20,27 +20,6 @@ const MapComponent = forwardRef<MapRef, MapProps>(({ locations }, ref) => {
   const map = useRef<mapboxgl.Map | null>(null);
   const markersRef = useRef<Map<string, mapboxgl.Marker>>(new Map());
 
-  // Suppress Mapbox analytics errors
-  useEffect(() => {
-    const originalErrorHandler = window.onerror;
-    window.onerror = function(message, source, lineno, colno, error) {
-      // Check if the error is related to Mapbox analytics
-      if (typeof message === 'string' && message.includes('events.mapbox.com')) {
-        console.warn('Suppressed Mapbox analytics error:', message);
-        return true; // Suppress the error
-      }
-      // Call the original error handler if it exists
-      if (originalErrorHandler) {
-        return originalErrorHandler(message, source, lineno, colno, error);
-      }
-      return false;
-    };
-
-    return () => {
-      window.onerror = originalErrorHandler;
-    };
-  }, []);
-
   useImperativeHandle(ref, () => ({
     triggerPopup: (locationId: string) => {
       const marker = markersRef.current.get(locationId);
@@ -126,7 +105,7 @@ const MapComponent = forwardRef<MapRef, MapProps>(({ locations }, ref) => {
             .setPopup(popup)
             .addTo(map.current!);
         }
-
+        
         markersRef.current.set(location.id, marker);
       }
     });
