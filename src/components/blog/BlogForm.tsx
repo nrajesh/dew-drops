@@ -119,7 +119,7 @@ export const BlogForm = ({ editingPost, galleryImages, uniqueTags, onSubmit, onC
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-4">
                 <FormField control={form.control} name="title" render={({ field }) => (
-                  <FormItem><FormLabel>Title</FormLabel><FormControl><Input placeholder="Your Post Title" {...field} /></FormControl><FormMessage /></FormItem>
+                  <FormItem><FormControl><Input placeholder="Your Post Title" {...field} /></FormControl><FormMessage /></FormItem>
                 )} />
                 <FormField control={form.control} name="published" render={({ field }) => (
                   <FormItem className="flex flex-row items-center space-x-3 space-y-0 rounded-md border p-4">
@@ -133,23 +133,23 @@ export const BlogForm = ({ editingPost, galleryImages, uniqueTags, onSubmit, onC
                 )} />
               </div>
               <FormField control={form.control} name="description" render={({ field }) => (
-                <FormItem><FormLabel>Description (Optional)</FormLabel><FormControl><Textarea placeholder="A short description of your post..." className="h-full" {...field} value={field.value ?? ''} /></FormControl><FormMessage /></FormItem>
+                <FormItem><FormControl><Textarea placeholder="A short description of your post..." className="h-full" {...field} value={field.value ?? ''} /></FormControl><FormMessage /></FormItem>
               )} />
             </div>
             <FormField control={form.control} name="content" render={({ field }) => (
-              <FormItem><FormLabel>Content (Markdown supported)</FormLabel><FormControl><Textarea placeholder="Write your full article here..." className="min-h-[250px]" {...field} /></FormControl><FormMessage /></FormItem>
+              <FormItem><FormControl><Textarea placeholder="Write your full article here..." className="min-h-[250px]" {...field} /></FormControl><FormMessage /></FormItem>
             )} />
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <FormField control={form.control} name="published_at" render={({ field }) => (
-                <FormItem><FormLabel>Publish Date</FormLabel><FormControl><Input type="date" {...field} /></FormControl><FormMessage /></FormItem>
+                <FormItem><FormControl><Input type="date" {...field} /></FormControl><FormMessage /></FormItem>
               )} />
               <FormField control={form.control} name="tags" render={({ field }) => (
-                <FormItem><FormLabel>Tags</FormLabel><FormControl><MultiSelectPopover suggestions={uniqueTags} value={field.value || []} onChange={field.onChange} /></FormControl><FormMessage /></FormItem>
+                <FormItem><FormControl><MultiSelectPopover suggestions={uniqueTags} value={field.value || []} onChange={field.onChange} /></FormControl><FormMessage /></FormItem>
               )} />
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <FormField control={form.control} name="cover_image_id" render={({ field }) => (
-                <FormItem><FormLabel>Cover Image (Optional)</FormLabel><FormControl>
+                <FormItem><FormControl>
                   <Select onValueChange={field.onChange} value={field.value || ""}>
                     <SelectTrigger><SelectValue placeholder="Select a cover image" /></SelectTrigger>
                     <SelectContent>
@@ -164,7 +164,7 @@ export const BlogForm = ({ editingPost, galleryImages, uniqueTags, onSubmit, onC
                 </FormControl><FormMessage /></FormItem>
               )} />
               <FormField control={form.control} name="youtube_video_id" render={({ field }) => (
-                <FormItem><FormLabel>YouTube Video ID (Optional)</FormLabel><FormControl><Input placeholder="e.g., dQw4w9WgXcQ" {...field} /></FormControl><FormMessage /></FormItem>
+                <FormItem><FormControl><Input placeholder="e.g., dQw4w9WgXcQ" {...field} /></FormControl><FormMessage /></FormItem>
               )} />
             </div>
             <div className="flex gap-2 pt-4">
