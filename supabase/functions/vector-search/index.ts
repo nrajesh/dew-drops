@@ -2,11 +2,11 @@ import { serve } from "https://deno.land/std@0.190.0/http/server.ts"
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.0'
 
 declare global {
-  const Deno: {
+  interface Deno {
     env: {
       get: (key: string) => string | undefined;
     };
-  };
+  }
 }
 
 const corsHeaders = {
@@ -25,20 +25,22 @@ serve(async (req) => {
     // Initialize Supabase client
     const supabase = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_ANON_KEY') ?? '',
-      { global: { headers: { Authorization: req.headers.get('Authorization')! } } }
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
+      { global: { headers: { Authorization: `Bearer ${Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')}` } } }
     )
 
     // Generate embedding for the search query
-    const embeddingResponse = await supabase.functions.invoke('generate-embeddings', {
-      body: { alt_text: query }
-    })
+    const embeddingResponse = await supabase
+      .rpc('generate_embedding', {
+        text: query,
+        model: 'text-embedding-3-small'
+      })
 
     if (embeddingResponse.error) {
       throw new Error(embeddingResponse.error.message)
     }
 
-    const query_embedding = embeddingResponse.data.embedding
+    const query_embedding = embeddingResponse.data
 
     // Perform the vector search using the custom function
     const { data: searchResults, error: searchError } = await supabase
