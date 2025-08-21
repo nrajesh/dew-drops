@@ -9,6 +9,7 @@ import { BrowserRouter } from "react-router-dom";
 import { SpeedInsights } from "@vercel/speed-insights/react";
 import { AuthProvider } from "./contexts/AuthContext.tsx";
 import { FeatureToggleProvider } from "./contexts/FeatureToggleContext.tsx";
+import { setupElasticsearchIndex } from "./integrations/elasticsearch/setup.ts";
 
 const queryClient = new QueryClient();
 
@@ -20,6 +21,11 @@ console.error = function(...args) {
   }
   originalConsoleError.apply(console, args);
 };
+
+// Initialize Elasticsearch index
+setupElasticsearchIndex().catch(error => {
+  console.error('Failed to initialize Elasticsearch index:', error);
+});
 
 createRoot(document.getElementById("root")!).render(
   <React.StrictMode>

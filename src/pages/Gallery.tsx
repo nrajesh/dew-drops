@@ -10,6 +10,7 @@ import { useDebounce } from "@/hooks/useDebounce";
 import { PaginationControls } from "@/components/PaginationControls";
 import { usePaginationNavigation } from "@/hooks/usePaginationNavigation";
 import { Button } from "@/components/ui/button";
+import { ImageSearch, ImageSearchResults } from "@/components/gallery/ImageSearch";
 
 const LazyImageLightbox = lazy(() => import("@/components/ImageLightbox").then(module => ({ default: module.ImageLightbox })));
 
@@ -22,6 +23,7 @@ const Gallery = () => {
   const [activeMake, setActiveMake] = useState<string | 'all'>('all');
   const [searchTerm, setSearchTerm] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
+  const [similarImages, setSimilarImages] = useState<GalleryImage[]>([]);
   const containerRef = useRef<HTMLDivElement>(null);
 
   const debouncedSearchTerm = useDebounce(searchTerm, 300);
@@ -114,6 +116,12 @@ const Gallery = () => {
               />
             </div>
           </div>
+
+          <ImageSearch onResults={setSimilarImages} />
+
+          {similarImages.length > 0 && (
+            <ImageSearchResults images={similarImages} />
+          )}
 
           {deviceMakes.length > 0 && (
             <div className="flex flex-wrap gap-2 justify-center">
