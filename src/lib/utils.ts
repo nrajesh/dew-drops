@@ -9,16 +9,20 @@ export function sanitizeFileName(fileName: string): string {
   // Decode URI components to handle encoded characters like %20
   const decodedName = decodeURIComponent(fileName);
 
-  // Replace spaces and other whitespace with a single underscore
-  const withUnderscores = decodedName.replace(/\s+/g, '_');
+  // Remove any characters that are not alphanumeric, underscore, hyphen, or dot
+  // This is a more aggressive approach that will remove most special characters
+  const sanitized = decodedName.replace(/[^a-zA-Z0-9_\-\.]/g, '_');
 
-  // Remove characters that are invalid in filenames on most OSes.
-  // The characters are: / \ : * ? " < > |
-  // Also remove control characters from the ASCII range.
-  const sanitized = withUnderscores.replace(/[\\/:\*\?"<>\|]/g, '').replace(/[\x00-\x1f\x7f]/g, '');
+  // Replace multiple underscores with a single one
+  const singleUnderscores = sanitized.replace(/_+/g, '_');
 
-  // Trim leading/trailing underscores or dots that might result from sanitization
-  const trimmed = sanitized.replace(/^[_.]+|[_.]+$/g, '');
+  // Trim leading/trailing underscores or dots
+  const trimmed = singleUnderscores.replace(/^[_.]+|[_.]+$/g, '');
+
+  // If the result is empty, use a default name
+  if (!trimmed) {
+    return `file_${Date.now()}`;
+  }
 
   return trimmed;
 }

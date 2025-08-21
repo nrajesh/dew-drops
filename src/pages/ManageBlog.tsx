@@ -1,10 +1,7 @@
 import { useState, useEffect, useMemo, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import type { Post, GalleryImage } from "@/types";
-import { showSuccess, showError, showLoading, dismissToast, updateToastSuccess, updateToastError } from "@/utils/toast";
-import TurndownService from "turndown";
-import JSZip from 'jszip';
-import { sanitizeFileName } from "@/lib/utils";
+import { showSuccess, showError, showLoading, dismissToast } from "@/utils/toast";
 import { useAuth } from "@/contexts/AuthContext";
 import { BlogForm, PostFormData } from "../components/blog/BlogForm";
 import { PostList } from "../components/blog/PostList";
@@ -13,6 +10,19 @@ import { UpdatePostsDialog } from "../components/blog/UpdatePostsDialog";
 import { usePaginationNavigation } from "@/hooks/usePaginationNavigation";
 import { useLocation } from "react-router-dom";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import {
+  fetchPosts,
+  fetchGalleryImages,
+  parseWordPressXml,
+  parseMarkdownFile,
+  processUploads,
+  handleBulkDelete,
+  handleBulkTagUpdate,
+  handleBulkStatusChange,
+  handleBulkDownload,
+  extractDescriptionFromContent,
+  ensureContentHasTripleBackticks
+} from "@/components/blog/BlogManagementUtils";
 
 type NewPost = Omit<Post, 'id' | 'created_at' | 'user_id'>;
 
@@ -25,7 +35,6 @@ const ManageBlog = () => {
   const [selectedFiles, setSelectedFiles] = useState<FileList | null>(null);
   const [isUploading, setIsUploading] = useState(false);
   const [selectedPosts, setSelectedPosts] = useState<Set<string>>(new Set());
-  const turndownService = new TurndownService();
   const containerRef = useRef<HTMLDivElement>(null);
   const location = useLocation();
 
@@ -40,8 +49,24 @@ const ManageBlog = () => {
 
   // Fetch data
   useEffect(() => {
-    fetchPosts();
-    fetchGalleryImages();
+    const loadData = async () => {
+      const [fetchedPosts, fetchedGalleryImages] = await Promise.all([
+        fetchPosts(),
+        fetchGalleryImages()
+      ]);
+
+      setPosts(fetchedPosts);
+      setGalleryImages(fetchedGalleryImages);
+
+      // Extract unique tags
+      const allTags = new Set<string>();
+      fetchedPosts.forEach(post => {
+        post.tags?.forEach(tag => allTags.add(tag));
+      });
+      setUniqueTags(Array.from(allTags).sort());
+    };
+
+    loadData();
   }, []);
 
   // Handle new post creation from the layout
@@ -74,31 +99,6 @@ const ManageBlog = () => {
     setCurrentPage(1);
   };
 
-  // Data fetching functions
-  const fetchPosts = async () => {
-    const { data, error } = await supabase.from("posts").select("*").order("published_at", { ascending: false });
-    if (error) {
-      showError("Failed to fetch posts.");
-      console.error(error);
-    } else {
-      setPosts(data as Post[]);
-      const allTags = new Set<string>();
-      (data as Post[]).forEach(post => {
-        post.tags?.forEach(tag => allTags.add(tag));
-      });
-      setUniqueTags(Array.from(allTags).sort());
-    }
-  };
-
-  const fetchGalleryImages = async () => {
-    const { data, error } = await supabase.from("gallery_images").select("id, image_url, alt_text").order("created_at", { ascending: false });
-    if (error) {
-      console.error("Error fetching gallery images:", error);
-    } else {
-      setGalleryImages(data as GalleryImage[]);
-    }
-  };
-
   // Form handling
   async function handleFormSubmit(values: PostFormData) {
     if (!user) {
@@ -110,36 +110,10 @@ const ManageBlog = () => {
 
     let description = values.description;
     if (!description || description.trim() === '') {
-      // Extract the first 5 lines from the content
-      const contentLines = values.content.split('\n');
-      let extractedDescription = '';
-
-      // Find the first code block
-      const codeBlockRegex = /```([\s\S]*?)```/;
-      const match = values.content.match(codeBlockRegex);
-
-      if (match && match[1]) {
-        // If there's a code block, use the first 5 lines of the code block
-        const codeBlockLines = match[1].split('\n');
-        extractedDescription = codeBlockLines.slice(0, 5).join('\n').trim();
-      } else {
-        // If no code block, use the first 5 lines of the content
-        extractedDescription = contentLines.slice(0, 5).join('\n').trim();
-      }
-
-      // Trim to 500 characters max
-      if (extractedDescription.length > 500) {
-        extractedDescription = extractedDescription.substring(0, 497) + '...';
-      }
-
-      description = extractedDescription;
+      description = extractDescriptionFromContent(values.content);
     }
 
-    // Ensure content has triple backticks
-    let content = values.content;
-    if (!content.startsWith('```') || !content.endsWith('```')) {
-      content = '```\n' + content + '\n```';
-    }
+    const content = ensureContentHasTripleBackticks(values.content);
 
     const postData = {
       ...values,
@@ -158,7 +132,8 @@ const ManageBlog = () => {
     } else {
       showSuccess(`Post ${editingPost ? "updated" : "added"} successfully!`);
       setEditingPost(null);
-      fetchPosts();
+      const updatedPosts = await fetchPosts();
+      setPosts(updatedPosts);
     }
   }
 
@@ -167,284 +142,38 @@ const ManageBlog = () => {
   };
 
   // Bulk operations
-  const handleBulkDelete = async () => {
-    const toastId = showLoading(`Deleting ${selectedPosts.size} posts...`);
-    const { error } = await supabase.from("posts").delete().in("id", Array.from(selectedPosts));
-    dismissToast(toastId);
-    if (error) {
-      showError(error.message);
-    } else {
-      showError(`${selectedPosts.size} posts removed.`);
-      fetchPosts();
+  const handleBulkDeleteWrapper = async () => {
+    const success = await handleBulkDelete(selectedPosts);
+    if (success) {
       setSelectedPosts(new Set());
+      const updatedPosts = await fetchPosts();
+      setPosts(updatedPosts);
     }
   };
 
-  const handleBulkTagUpdate = async (tags: string[]) => {
-    const toastId = showLoading(`Updating tags for ${selectedPosts.size} posts...`);
-    const { error } = await supabase
-      .from("posts")
-      .update({ tags })
-      .in("id", Array.from(selectedPosts));
-
-    dismissToast(toastId);
-    if (error) {
-      showError(`Failed to update tags: ${error.message}`);
-    } else {
-      showSuccess("Tags updated successfully.");
-      fetchPosts();
+  const handleBulkTagUpdateWrapper = async (tags: string[]) => {
+    const success = await handleBulkTagUpdate(selectedPosts, tags);
+    if (success) {
       setSelectedPosts(new Set());
+      const updatedPosts = await fetchPosts();
+      setPosts(updatedPosts);
     }
   };
 
-  const handleBulkStatusChange = async (published: boolean) => {
-    const status = published ? "published" : "unpublished";
-    const toastId = showLoading(`Setting ${selectedPosts.size} posts to ${status}...`);
-    const { error } = await supabase
-      .from("posts")
-      .update({ published })
-      .in("id", Array.from(selectedPosts));
-
-    dismissToast(toastId);
-    if (error) {
-      showError(`Failed to update status: ${error.message}`);
-    } else {
-      showSuccess(`Posts marked as ${status}.`);
-      fetchPosts();
+  const handleBulkStatusChangeWrapper = async (published: boolean) => {
+    const success = await handleBulkStatusChange(selectedPosts, published);
+    if (success) {
       setSelectedPosts(new Set());
+      const updatedPosts = await fetchPosts();
+      setPosts(updatedPosts);
     }
+  };
+
+  const handleBulkDownloadWrapper = async () => {
+    await handleBulkDownload(posts, selectedPosts);
   };
 
   // File parsing and processing
-  const parseWordPressXml = async (xmlString: string): Promise<NewPost[]> => {
-    const parser = new DOMParser();
-    const xmlDoc = parser.parseFromString(xmlString, "text/xml");
-    const items = xmlDoc.querySelectorAll("item");
-    const newPosts: NewPost[] = [];
-
-    items.forEach(item => {
-      const title = item.querySelector("title")?.textContent || "";
-      const pubDate = item.querySelector("pubDate")?.textContent || new Date().toISOString();
-      let description = item.querySelector("description")?.textContent || "";
-      let contentHtml = item.getElementsByTagNameNS("*", "encoded")[0]?.textContent || "";
-      const status = item.querySelector("status, \\:status")?.textContent || 'draft';
-
-      contentHtml = contentHtml.replace(/<!--\s*(more|nextpage)\s*-->/gi, '');
-
-      const content = turndownService.turndown(contentHtml);
-      const tags: string[] | null = null;
-      const cover_image_id: string | null = null;
-      const youtube_video_id: string | null = null;
-
-      if (!description || description.trim() === '') {
-        // Extract the first 5 lines from the content
-        const contentLines = content.split('\n');
-        let extractedDescription = '';
-
-        // Find the first code block
-        const codeBlockRegex = /```([\s\S]*?)```/;
-        const match = content.match(codeBlockRegex);
-
-        if (match && match[1]) {
-          // If there's a code block, use the first 5 lines of the code block
-          const codeBlockLines = match[1].split('\n');
-          extractedDescription = codeBlockLines.slice(0, 5).join('\n').trim();
-        } else {
-          // If no code block, use the first 5 lines of the content
-          extractedDescription = contentLines.slice(0, 5).join('\n').trim();
-        }
-
-        // Trim to 500 characters max
-        if (extractedDescription.length > 500) {
-          extractedDescription = extractedDescription.substring(0, 497) + '...';
-        }
-
-        description = extractedDescription;
-      }
-
-      // Ensure content has triple backticks
-      let finalContent = content;
-      if (!finalContent.startsWith('```') || !finalContent.endsWith('```')) {
-        finalContent = '```\n' + finalContent + '\n```';
-      }
-
-      if (title && finalContent) {
-        newPosts.push({
-          title,
-          description,
-          content: finalContent,
-          published_at: new Date(pubDate).toISOString(),
-          published: status === 'publish',
-          tags,
-          cover_image_id,
-          youtube_video_id,
-        });
-      }
-    });
-    return newPosts;
-  };
-
-  const parseMarkdownFile = async (file: File): Promise<NewPost> => {
-    const fullContent = await file.text();
-    let title = file.name.replace(/\.md$/, '');
-    let description = '';
-    let published_at = new Date().toISOString();
-    let published = false; // Default to unpublished
-    let content = fullContent;
-    let tags: string[] | null = null;
-    let cover_image_id: string | null = null;
-    let youtube_video_id: string | null = null;
-
-    const frontmatterRegex = /^---\r?\n([\s\S]*?)\r?\n---\r?\n([\s\S]*)$/;
-    const match = fullContent.match(frontmatterRegex);
-
-    if (match) {
-      const frontmatterContent = match[1];
-      content = match[2];
-
-      frontmatterContent.split(/\r?\n/).forEach(line => {
-        const colonIndex = line.indexOf(':');
-        if (colonIndex > -1) {
-          const key = line.slice(0, colonIndex).trim();
-          let value = line.slice(colonIndex + 1).trim();
-
-          if ((value.startsWith('"') && value.endsWith('"')) || (value.startsWith("'") && value.endsWith("'"))) {
-            value = value.slice(1, -1);
-          }
-
-          switch (key) {
-            case 'title':
-              title = value;
-              break;
-            case 'description':
-              description = value;
-              break;
-            case 'published_at':
-            case 'date':
-              const trimmedValue = value.trim();
-              const dateOnlyRegex = /^\d{4}-\d{2}-\d{2}$/;
-
-              if (dateOnlyRegex.test(trimmedValue)) {
-                const parts = trimmedValue.split('-').map(p => parseInt(p, 10));
-                const utcDate = new Date(Date.UTC(parts[0], parts[1] - 1, parts[2]));
-                published_at = utcDate.toISOString();
-              } else {
-                const parsedDate = new Date(trimmedValue);
-                if (!isNaN(parsedDate.getTime())) {
-                  published_at = parsedDate.toISOString();
-                }
-              }
-              break;
-            case 'published':
-              published = value === 'true';
-              break;
-            case 'tags':
-              let rawTags = value;
-              if (rawTags.startsWith('[') && rawTags.endsWith(']')) {
-                rawTags = rawTags.slice(1, -1);
-              }
-              tags = rawTags.split(',').map(tag => tag.trim().replace(/^['"]|['"]$/g, '')).filter(Boolean);
-              break;
-            case 'cover_image_id':
-              cover_image_id = value;
-              break;
-            case 'youtube_video_id':
-              youtube_video_id = value;
-              break;
-          }
-        }
-      });
-    }
-
-    content = content.trim().replace(/<!--\s*(more|nextpage)\s*-->/gi, '');
-
-    if (!description || description.trim() === '') {
-      // Extract the first 5 lines from the content
-      const contentLines = content.split('\n');
-      let extractedDescription = '';
-
-      // Find the first code block
-      const codeBlockRegex = /```([\s\S]*?)```/;
-      const match = content.match(codeBlockRegex);
-
-      if (match && match[1]) {
-        // If there's a code block, use the first 5 lines of the code block
-        const codeBlockLines = match[1].split('\n');
-        extractedDescription = codeBlockLines.slice(0, 5).join('\n').trim();
-      } else {
-        // If no code block, use the first 5 lines of the content
-        extractedDescription = contentLines.slice(0, 5).join('\n').trim();
-      }
-
-      // Trim to 500 characters max
-      if (extractedDescription.length > 500) {
-        extractedDescription = extractedDescription.substring(0, 497) + '...';
-      }
-
-      description = extractedDescription;
-    }
-
-    // Ensure content has triple backticks
-    let finalContent = content;
-    if (!finalContent.startsWith('```') || !finalContent.endsWith('```')) {
-      finalContent = '```\n' + finalContent + '\n```';
-    }
-
-    return { title, description, content: finalContent, published_at, published, tags, cover_image_id, youtube_video_id };
-  };
-
-  const processUploads = async (inserts: NewPost[], updates: { existingId: string; newData: NewPost }[]) => {
-    if (!user) {
-      showError("You must be logged in to process uploads.");
-      return;
-    }
-    const toastId = showLoading(`Processing import...`);
-    try {
-      const insertPromises = [];
-      if (inserts.length > 0) {
-        const insertsWithUserId = inserts.map(p => ({ ...p, user_id: user.id, published: false })); // Always import as draft
-        insertPromises.push(supabase.from("posts").insert(insertsWithUserId));
-      }
-
-      const updatePromises = updates.map(u =>
-        supabase.from("posts").update({ ...u.newData, user_id: user.id }).eq('id', u.existingId)
-      );
-
-      const results = await Promise.all([...insertPromises, ...updatePromises]);
-
-      for (const result of results) {
-        if (result.error) throw new Error(result.error.message);
-      }
-
-      dismissToast(toastId);
-      if (inserts.length > 0 || updates.length > 0) {
-        showSuccess(`${inserts.length} new posts added, ${updates.length} posts updated.`);
-      }
-      fetchPosts();
-
-    } catch (error: any) {
-      dismissToast(toastId);
-      showError(`Import failed: ${error.message}`);
-    }
-  };
-
-  const handleConfirmAndProcessUploads = async () => {
-    setIsUpdateDialogVisible(false);
-
-    const updatesToPerform = postsToUpdate.filter(u => selectedUpdates.has(u.existingId));
-    const skippedCount = postsToUpdate.length - updatesToPerform.length;
-
-    await processUploads(postsToInsert, updatesToPerform);
-
-    if (skippedCount > 0) {
-      showError(`${skippedCount} potential updates were skipped.`);
-    }
-
-    setPostsToInsert([]);
-    setPostsToUpdate([]);
-    setSelectedUpdates(new Set());
-  };
-
   const handleUpload = async () => {
     if (!selectedFiles || selectedFiles.length === 0) return;
     if (!user) {
@@ -500,7 +229,11 @@ const ManageBlog = () => {
         setSelectedUpdates(new Set());
         setIsUpdateDialogVisible(true);
       } else if (newPostsToInsert.length > 0) {
-        await processUploads(newPostsToInsert, []);
+        const success = await processUploads(user.id, newPostsToInsert, []);
+        if (success) {
+          const updatedPosts = await fetchPosts();
+          setPosts(updatedPosts);
+        }
       } else {
         showSuccess("No new posts to import.");
       }
@@ -514,52 +247,30 @@ const ManageBlog = () => {
     }
   };
 
-  const handleBulkDownload = async () => {
-    const toastId = showLoading(`Preparing ${selectedPosts.size} post(s) for download...`);
-    try {
-        const zip = new JSZip();
-        const postsToDownload = posts.filter(post => selectedPosts.has(post.id));
-
-        postsToDownload.forEach(post => {
-            const tagsString = post.tags && post.tags.length > 0 ? `\ntags: "${post.tags.join(', ').replace(/"/g, '\\"')}"` : '';
-            const coverImageIdString = post.cover_image_id ? `\ncover_image_id: "${post.cover_image_id}"` : '';
-            const youtubeVideoIdString = post.youtube_video_id ? `\nyoutube_video_id: "${post.youtube_video_id}"` : '';
-
-            const frontmatter = `---
-title: "${post.title.replace(/"/g, '\\"')}"
-description: "${(post.description || '').replace(/"/g, '\\"')}"
-published_at: ${post.published_at ? new Date(post.published_at).toISOString().split('T')[0] : ''}
-published: ${post.published}${tagsString}${coverImageIdString}${youtubeVideoIdString}
----
-
-`;
-            // Ensure content has triple backticks
-            let content = post.content || '';
-            if (!content.startsWith('```') || !content.endsWith('```')) {
-              content = '```\n' + content + '\n```';
-            }
-
-            const markdownContent = frontmatter + content;
-            const sanitizedTitle = sanitizeFileName(post.title).replace(/\.[^/.]+$/, "");
-            const fileName = (sanitizedTitle.trim().length > 0 ? sanitizedTitle : post.id) + ".md";
-            zip.file(fileName, markdownContent);
-        });
-
-        const zipBlob = await zip.generateAsync({ type: "blob" });
-
-        const link = document.createElement("a");
-        link.href = URL.createObjectURL(zipBlob);
-        link.download = "blog_export.zip";
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-        URL.revokeObjectURL(link.href);
-
-        updateToastSuccess(toastId, `${postsToDownload.length} post(s) downloaded.`);
-
-    } catch (error: any) {
-        updateToastError(toastId, `Download failed: ${error.message}`);
+  const handleConfirmAndProcessUploads = async () => {
+    if (!user) {
+      showError("You must be logged in to process uploads.");
+      return;
     }
+
+    setIsUpdateDialogVisible(false);
+
+    const updatesToPerform = postsToUpdate.filter(u => selectedUpdates.has(u.existingId));
+    const skippedCount = postsToUpdate.length - updatesToPerform.length;
+
+    const success = await processUploads(user.id, postsToInsert, updatesToPerform);
+
+    if (success) {
+      if (skippedCount > 0) {
+        showError(`${skippedCount} potential updates were skipped.`);
+      }
+      const updatedPosts = await fetchPosts();
+      setPosts(updatedPosts);
+    }
+
+    setPostsToInsert([]);
+    setPostsToUpdate([]);
+    setSelectedUpdates(new Set());
   };
 
   // Selection handling
@@ -597,10 +308,10 @@ published: ${post.published}${tagsString}${coverImageIdString}${youtubeVideoIdSt
           onSelectPost={handleSelectPost}
           onSelectAll={handleSelectAll}
           onEdit={setEditingPost}
-          onDelete={handleBulkDelete}
-          onDownload={handleBulkDownload}
-          onBulkTagUpdate={handleBulkTagUpdate}
-          onBulkStatusChange={handleBulkStatusChange}
+          onDelete={handleBulkDeleteWrapper}
+          onDownload={handleBulkDownloadWrapper}
+          onBulkTagUpdate={handleBulkTagUpdateWrapper}
+          onBulkStatusChange={handleBulkStatusChangeWrapper}
           uniqueTags={uniqueTags}
           currentPage={currentPage}
           totalPages={totalPages}

@@ -50,6 +50,9 @@ const ManageGallery = () => {
 
   const form = useForm<z.infer<typeof editSchema>>({
     resolver: zodResolver(editSchema),
+    defaultValues: {
+      alt_text: "",
+    },
   });
 
   useEffect(() => {
@@ -129,13 +132,13 @@ const ManageGallery = () => {
     const uploadPromises = Array.from(selectedFiles).map(async (file) => {
       const sanitizedName = sanitizeFileName(file.name);
       const fileName = `${user.id}/${Date.now()}_${sanitizedName}`;
-      
+
       const fileBuffer = await file.arrayBuffer();
       let exifData: Record<string, any> | null = null;
       try {
         const tags = ExifReader.load(fileBuffer);
         const cleanExif: Record<string, any> = {};
-        
+
         for (const key in tags) {
           if (Object.prototype.hasOwnProperty.call(tags, key)) {
             if (key === 'MakerNote' || key === 'UserComment' || key === 'thumbnail') {
@@ -247,18 +250,29 @@ const ManageGallery = () => {
     if (!editingImage) return;
 
     const toastId = showLoading("Updating alt text...");
-    const { error } = await supabase
-      .from("gallery_images")
-      .update({ alt_text: values.alt_text })
-      .eq("id", editingImage.id);
+    try {
+      // First, update the local state immediately for better UX
+      const updatedImages = images.map(img =>
+        img.id === editingImage.id ? { ...img, alt_text: values.alt_text } : img
+      );
+      setImages(updatedImages);
 
-    dismissToast(toastId);
-    if (error) {
-      showError(`Update failed: ${error.message}`);
-    } else {
+      // Then perform the database update
+      const { error } = await supabase
+        .from("gallery_images")
+        .update({ alt_text: values.alt_text })
+        .eq("id", editingImage.id);
+
+      if (error) throw error;
+
+      dismissToast(toastId);
       showSuccess("Alt text updated successfully!");
-      setImages(images.map(img => img.id === editingImage.id ? { ...img, alt_text: values.alt_text } : img));
       setEditingImage(null);
+    } catch (error: any) {
+      // If the update fails, revert the local state
+      setImages(images);
+      dismissToast(toastId);
+      showError(`Update failed: ${error.message}`);
     }
   };
 
