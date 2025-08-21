@@ -1,16 +1,17 @@
 import { Card, CardContent } from "@/components/ui/card";
 import { AspectRatio } from "@/components/ui/aspect-ratio";
-import { useEffect, useState, useMemo, useRef } from "react";
+import { useEffect, useState, useMemo, useRef, lazy, Suspense, ComponentType } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import type { GalleryImage } from "@/types";
 import { Skeleton } from "@/components/ui/skeleton";
-import { ImageLightbox } from "@/components/ImageLightbox";
-import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Search } from "lucide-react";
 import { useDebounce } from "@/hooks/useDebounce";
 import { PaginationControls } from "@/components/PaginationControls";
 import { usePaginationNavigation } from "@/hooks/usePaginationNavigation";
+import { Button } from "@/components/ui/button";
+
+const LazyImageLightbox = lazy(() => import("@/components/ImageLightbox").then(module => ({ default: module.ImageLightbox })));
 
 const IMAGES_PER_PAGE = 9;
 
@@ -166,13 +167,15 @@ const Gallery = () => {
         </div>
         <PaginationControls currentPage={currentPage} totalPages={totalPages} onPageChange={setCurrentPage} />
       </div>
-      <ImageLightbox
-        image={selectedImage}
-        onClose={() => setSelectedImageIndex(null)}
-        onNavigate={handleNavigate}
-        hasNext={filteredImages.length > 1}
-        hasPrev={filteredImages.length > 1}
-      />
+      <Suspense fallback={null}>
+        <LazyImageLightbox
+          image={selectedImage}
+          onClose={() => setSelectedImageIndex(null)}
+          onNavigate={handleNavigate}
+          hasNext={filteredImages.length > 1}
+          hasPrev={filteredImages.length > 1}
+        />
+      </Suspense>
     </>
   );
 };

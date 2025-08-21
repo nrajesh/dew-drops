@@ -1,16 +1,17 @@
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { useEffect, useState, useMemo, useRef } from "react";
+import { useEffect, useState, useMemo, useRef, lazy, Suspense, ComponentType } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import type { Post } from "@/types";
 import { Link } from "react-router-dom";
 import { Skeleton } from "@/components/ui/skeleton";
-import { MultiSelectPopover } from "@/components/MultiSelectPopover";
 import { Input } from "@/components/ui/input";
 import { Search } from "lucide-react";
 import { useDebounce } from "@/hooks/useDebounce";
 import { PaginationControls } from "@/components/PaginationControls";
 import { usePaginationNavigation } from "@/hooks/usePaginationNavigation";
+
+const LazyMultiSelectPopover = lazy(() => import("@/components/MultiSelectPopover").then(module => ({ default: module.MultiSelectPopover })));
 
 const POSTS_PER_PAGE = 6;
 
@@ -105,13 +106,15 @@ const Blog = () => {
             />
           </div>
           <div className="sm:w-full sm:max-w-xs">
-            <MultiSelectPopover
-              suggestions={uniqueTags}
-              value={selectedTags}
-              onChange={setSelectedTags}
-              placeholder="Filter by tags..."
-              canCreate={false}
-            />
+            <Suspense fallback={<Skeleton className="h-10 w-full" />}>
+              <LazyMultiSelectPopover
+                suggestions={uniqueTags}
+                value={selectedTags}
+                onChange={setSelectedTags}
+                placeholder="Filter by tags..."
+                canCreate={false}
+              />
+            </Suspense>
           </div>
         </div>
 

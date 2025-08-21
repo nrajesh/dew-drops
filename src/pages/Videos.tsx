@@ -1,6 +1,6 @@
 import { AspectRatio } from "@/components/ui/aspect-ratio";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef, lazy, Suspense } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import type { Video } from "@/types";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -10,6 +10,9 @@ import { useDebounce } from "@/hooks/useDebounce";
 import { PaginationControls } from "@/components/PaginationControls";
 import { usePaginationNavigation } from "@/hooks/usePaginationNavigation";
 import { showError } from "@/utils/toast";
+import { useFeatureToggles } from "@/contexts/FeatureToggleContext";
+
+const LazyPaginationControls = lazy(() => import("@/components/PaginationControls").then(module => ({ default: module.PaginationControls })));
 
 const VIDEOS_PER_PAGE = 4;
 
@@ -19,6 +22,7 @@ const Videos = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const containerRef = useRef<HTMLDivElement>(null);
+  const { toggles } = useFeatureToggles();
 
   const debouncedSearchTerm = useDebounce(searchTerm, 500);
 
@@ -26,15 +30,30 @@ const Videos = () => {
     const fetchVideos = async () => {
       setLoading(true);
       try {
-        const { data, error } = await supabase.functions.invoke('search-videos', {
-          body: { searchTerm: debouncedSearchTerm },
-        });
+        if (toggles['youtube_search']) {
+          const { data, error } = await supabase.functions.invoke('search-videos', {
+            body: { searchTerm: debouncedSearchTerm },
+          });
 
-        if (error) throw error;
+          if (error) throw error;
 
-        if (data.error) throw new Error(data.error);
+          if (data.error) throw new Error(data.error);
 
-        setVideos(data as Video[]);
+          setVideos(data as Video[]);
+        } else {
+          // Fallback to a direct, simple database search if the feature toggle is off
+          let query = supabase.from('videos').select('*');
+          
+          if (debouncedSearchTerm) {
+            query = query.ilike('title', `%${debouncedSearchTerm}%`);
+          }
+          
+          const { data, error } = await query.order('created_at', { ascending: false });
+
+          if (error) throw error;
+
+          setVideos(data as Video[]);
+        }
       } catch (err: any) {
         console.error("Error searching videos:", err);
         if (err.message.includes('YouTube API key')) {
@@ -49,7 +68,7 @@ const Videos = () => {
     };
 
     fetchVideos();
-  }, [debouncedSearchTerm]);
+  }, [debouncedSearchTerm, toggles]);
 
   const totalPages = Math.ceil(videos.length / VIDEOS_PER_PAGE);
   const paginatedVideos = videos.slice(
@@ -119,7 +138,13 @@ const Videos = () => {
           )}
         </div>
       </div>
-      <PaginationControls currentPage={currentPage} totalPages={totalPages} onPageChange={setCurrentPage} />
+      <Suspense fallback={<Skeleton className="h-12 w-full" />}>
+        <LazyPaginationControls
+          currentPage={currentPage}
+          totalPages={totalPages}
+          onPageChange={setCurrentPage}
+        />
+      </Suspense>
     </div>
   );
 };
