@@ -251,6 +251,13 @@ const ManageGallery = () => {
 
     const toastId = showLoading("Updating alt text...");
     try {
+      // First, update the local state immediately for better UX
+      const updatedImages = images.map(img =>
+        img.id === editingImage.id ? { ...img, alt_text: values.alt_text } : img
+      );
+      setImages(updatedImages);
+
+      // Then perform the database update
       const { error } = await supabase
         .from("gallery_images")
         .update({ alt_text: values.alt_text })
@@ -258,17 +265,12 @@ const ManageGallery = () => {
 
       if (error) throw error;
 
-      // Update the local state immediately
-      setImages(prevImages =>
-        prevImages.map(img =>
-          img.id === editingImage.id ? { ...img, alt_text: values.alt_text } : img
-        )
-      );
-
       dismissToast(toastId);
       showSuccess("Alt text updated successfully!");
       setEditingImage(null);
     } catch (error: any) {
+      // If the update fails, revert the local state
+      setImages(images);
       dismissToast(toastId);
       showError(`Update failed: ${error.message}`);
     }
