@@ -12,9 +12,7 @@ import { PaginationControls } from "@/components/PaginationControls";
 import { usePaginationNavigation } from "@/hooks/usePaginationNavigation";
 
 const LazyMapComponent = lazy(() => import('@/components/Map'));
-
-const LOCATIONS_ON_RIGHT = 3;
-const LOCATIONS_PER_PAGE_GRID = 6;
+const LOCATIONS_PER_PAGE = 9; // 3 on the right, 6 below
 
 const Travel = () => {
   const [allLocations, setAllLocations] = useState<TravelLocation[]>([]);
@@ -82,18 +80,14 @@ const Travel = () => {
     );
   }, [allLocations, debouncedSearchTerm]);
 
-  // Top locations are separate from pagination
-  const rightColumnLocations = filteredLocations.slice(0, LOCATIONS_ON_RIGHT);
-
-  // Locations for the bottom grid are the rest, and these are what we paginate
-  const gridLocations = filteredLocations.slice(LOCATIONS_ON_RIGHT);
-
-  const totalPages = Math.ceil(gridLocations.length / LOCATIONS_PER_PAGE_GRID);
-
-  const paginatedGridLocations = gridLocations.slice(
-    (currentPage - 1) * LOCATIONS_PER_PAGE_GRID,
-    currentPage * LOCATIONS_PER_PAGE_GRID
+  const totalPages = Math.ceil(filteredLocations.length / LOCATIONS_PER_PAGE);
+  const paginatedLocations = filteredLocations.slice(
+    (currentPage - 1) * LOCATIONS_PER_PAGE,
+    currentPage * LOCATIONS_PER_PAGE
   );
+
+  const rightColumnLocations = paginatedLocations.slice(0, 3);
+  const bottomGridLocations = paginatedLocations.slice(3);
 
   usePaginationNavigation({
     currentPage,
@@ -142,7 +136,7 @@ const Travel = () => {
         ) : filteredLocations.length > 0 ? (
           <>
             <div className="flex flex-col lg:flex-row gap-8">
-              <div className="lg:w-2/3 h-[450px] lg:h-auto flex flex-col">
+              <div className="lg:w-2/3 h-[450px] lg:h-auto">
                 <Suspense fallback={<Skeleton className="h-full w-full rounded-lg" />}>
                   <LazyMapComponent ref={mapRef} locations={allLocations} />
                 </Suspense>
@@ -172,9 +166,9 @@ const Travel = () => {
               </div>
             </div>
 
-            {paginatedGridLocations.length > 0 && (
-              <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3 mt-8">
-                {paginatedGridLocations.map((location) => (
+            {bottomGridLocations.length > 0 && (
+              <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+                {bottomGridLocations.map((location) => (
                   <Card
                     key={location.id}
                     className="h-full transition-all hover:shadow-md hover:border-primary/50 cursor-pointer flex flex-col"
