@@ -1,5 +1,5 @@
 import { motion, AnimatePresence, Variants } from "framer-motion";
-import { X, ChevronLeft, ChevronRight, Info } from "lucide-react";
+import { X, ChevronLeft, ChevronRight, Info, FileText, Camera, Tag, Calendar, MapPin, Settings } from "lucide-react";
 import { useEffect, useState } from "react";
 import type { GalleryImage } from "@/types";
 import { CardDescription, CardHeader, CardTitle } from "./ui/card";
@@ -36,38 +36,43 @@ const modalVariants: Variants = {
 };
 
 const ExifDisplay = ({ data }: { data: Record<string, any> }) => {
-    const relevantTags = {
-        Make: 'Camera Make',
-        Model: 'Camera Model',
-        DateTimeOriginal: 'Date Taken',
-        FNumber: 'F-stop',
-        ExposureTime: 'Exposure Time',
-        ISOSpeedRatings: 'ISO',
-        FocalLength: 'Focal Length',
-        LensModel: 'Lens Model',
-    };
+  const relevantTags = {
+    Make: { label: 'Camera Make', icon: <Camera className="h-4 w-4" /> },
+    Model: { label: 'Camera Model', icon: <Camera className="h-4 w-4" /> },
+    DateTimeOriginal: { label: 'Date Taken', icon: <Calendar className="h-4 w-4" /> },
+    FNumber: { label: 'F-stop', icon: <Settings className="h-4 w-4" /> },
+    ExposureTime: { label: 'Exposure Time', icon: <Settings className="h-4 w-4" /> },
+    ISOSpeedRatings: { label: 'ISO', icon: <Settings className="h-4 w-4" /> },
+    FocalLength: { label: 'Focal Length', icon: <Settings className="h-4 w-4" /> },
+    LensModel: { label: 'Lens Model', icon: <Settings className="h-4 w-4" /> },
+    GPSLatitude: { label: 'Latitude', icon: <MapPin className="h-4 w-4" /> },
+    GPSLongitude: { label: 'Longitude', icon: <MapPin className="h-4 w-4" /> },
+  };
 
-    const entries = Object.entries(relevantTags)
-        .map(([key, label]) => {
-            const value = data[key];
-            return value ? { label, value } : null;
-        })
-        .filter((item): item is { label: string; value: any } => item !== null);
+  const entries = Object.entries(relevantTags)
+    .map(([key, { label, icon }]) => {
+      const value = data[key];
+      return value ? { label, value, icon } : null;
+    })
+    .filter((item): item is { label: string; value: any; icon: JSX.Element } => item !== null);
 
-    if (entries.length === 0) {
-        return <p className="text-center text-muted-foreground">No common EXIF data found.</p>;
-    }
+  if (entries.length === 0) {
+    return <p className="text-center text-muted-foreground">No common EXIF data found.</p>;
+  }
 
-    return (
-        <ul className="space-y-2 text-sm font-mono">
-            {entries.map(entry => (
-                <li key={entry.label} className="flex justify-between items-center border-b border-border pb-2">
-                    <span className="text-muted-foreground">{entry.label}</span>
-                    <span className="font-semibold text-right text-foreground">{String(entry.value)}</span>
-                </li>
-            ))}
-        </ul>
-    );
+  return (
+    <ul className="space-y-2 text-sm font-mono">
+      {entries.map(entry => (
+        <li key={entry.label} className="flex justify-between items-center border-b border-border pb-2">
+          <div className="flex items-center gap-2 text-muted-foreground">
+            {entry.icon}
+            <span>{entry.label}</span>
+          </div>
+          <span className="font-semibold text-right text-foreground">{String(entry.value)}</span>
+        </li>
+      ))}
+    </ul>
+  );
 };
 
 export const ImageLightbox = ({ image, onClose, onNavigate, hasNext, hasPrev }: ImageLightboxProps) => {
@@ -254,7 +259,10 @@ export const ImageLightbox = ({ image, onClose, onNavigate, hasNext, hasPrev }: 
                   exit="hidden"
                 >
                   <CardHeader className="p-0 mb-4">
-                    <CardTitle>EXIF Data</CardTitle>
+                    <CardTitle className="flex items-center gap-2">
+                      <Camera className="h-5 w-5" />
+                      EXIF Data
+                    </CardTitle>
                     <CardDescription>Technical details from the image file.</CardDescription>
                   </CardHeader>
                   <button

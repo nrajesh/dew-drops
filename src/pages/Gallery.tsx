@@ -5,12 +5,12 @@ import { supabase } from "@/integrations/supabase/client";
 import type { GalleryImage } from "@/types";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Input } from "@/components/ui/input";
-import { Search, Image as ImageIcon, AlertTriangle } from "lucide-react";
+import { Search, Image as ImageIcon, AlertTriangle, FileText, Camera, Tag } from "lucide-react";
 import { useDebounce } from "@/hooks/useDebounce";
 import { PaginationControls } from "@/components/PaginationControls";
 import { usePaginationNavigation } from "@/hooks/usePaginationNavigation";
 import { Button } from "@/components/ui/button";
-import { generateEmbedding, searchSimilarImages, generateSearchEmbedding } from "@/utils/embeddings";
+import { generateEmbedding, searchSimilarImages, generateSearchEmbedding, searchImagesByMetadata } from "@/utils/embeddings";
 import { showError } from "@/utils/toast";
 
 const LazyImageLightbox = lazy(() => import("@/components/ImageLightbox").then(module => ({ default: module.ImageLightbox })));
@@ -27,6 +27,7 @@ const Gallery = () => {
   const [isSearching, setIsSearching] = useState(false);
   const [searchResults, setSearchResults] = useState<GalleryImage[]>([]);
   const [rateLimitInfo, setRateLimitInfo] = useState<{ remaining: number; resetTime: string } | null>(null);
+  const [searchMethod, setSearchMethod] = useState<'semantic' | 'metadata'>('semantic');
   const containerRef = useRef<HTMLDivElement>(null);
 
   const debouncedSearchTerm = useDebounce(searchTerm, 500);
@@ -111,31 +112,38 @@ const Gallery = () => {
 
     setIsSearching(true);
     try {
-      // First, try to find an image that matches the search term
-      const matchingImage = allImages.find(img =>
-        img.alt_text?.toLowerCase().includes(debouncedSearchTerm.toLowerCase())
-      );
-
-      if (matchingImage && matchingImage.embedding) {
-        // If we find a matching image with an embedding, use it for similarity search
-        const results = await searchSimilarImages(matchingImage.embedding, 20);
+      if (searchMethod === 'metadata') {
+        // Perform metadata search
+        const results = await searchImagesByMetadata(debouncedSearchTerm, allImages);
         setSearchResults(results);
       } else {
-        // If no matching image found, generate a search embedding based on the search term
-        try {
-          const searchEmbedding = await generateSearchEmbedding(debouncedSearchTerm);
-          const results = await searchSimilarImages(searchEmbedding, 20);
+        // Perform semantic search
+        // First, try to find an image that matches the search term
+        const matchingImage = allImages.find(img =>
+          img.alt_text?.toLowerCase().includes(debouncedSearchTerm.toLowerCase())
+        );
+
+        if (matchingImage && matchingImage.embedding) {
+          // If we find a matching image with an embedding, use it for similarity search
+          const results = await searchSimilarImages(matchingImage.embedding, 20);
           setSearchResults(results);
-        } catch (error: any) {
-          if (error.message.includes('429')) {
-            const rateLimitMatch = error.message.match(/quotaValue":"(\d+)"/);
-            if (rateLimitMatch) {
-              const remaining = parseInt(rateLimitMatch[1], 10);
-              const resetTime = new Date(Date.now() + 24 * 60 * 60 * 1000).toLocaleTimeString();
-              setRateLimitInfo({ remaining, resetTime });
+        } else {
+          // If no matching image found, generate a search embedding based on the search term
+          try {
+            const searchEmbedding = await generateSearchEmbedding(debouncedSearchTerm);
+            const results = await searchSimilarImages(searchEmbedding, 20);
+            setSearchResults(results);
+          } catch (error: any) {
+            if (error.message.includes('429')) {
+              const rateLimitMatch = error.message.match(/quotaValue":"(\d+)"/);
+              if (rateLimitMatch) {
+                const remaining = parseInt(rateLimitMatch[1], 10);
+                const resetTime = new Date(Date.now() + 24 * 60 * 60 * 1000).toLocaleTimeString();
+                setRateLimitInfo({ remaining, resetTime });
+              }
             }
+            throw error;
           }
-          throw error;
         }
       }
     } catch (error: any) {
@@ -154,7 +162,7 @@ const Gallery = () => {
       setIsSearching(false);
       setSearchResults([]);
     }
-  }, [debouncedSearchTerm]);
+  }, [debouncedSearchTerm, searchMethod]);
 
   return (
     <>
@@ -176,6 +184,25 @@ const Gallery = () => {
                 onChange={(e) => setSearchTerm(e.target.value)}
               />
             </div>
+          </div>
+
+          <div className="flex flex-wrap gap-2 justify-center">
+            <Button
+              variant={searchMethod === 'semantic' ? 'default' : 'outline'}
+              onClick={() => setSearchMethod('semantic')}
+              className="gap-2"
+            >
+              <ImageIcon className="h-4 w-4" />
+              Semantic Search
+            </Button>
+            <Button
+              variant={searchMethod === 'metadata' ? 'default' : 'outline'}
+              onClick={() => setSearchMethod('metadata')}
+              className="gap-2"
+            >
+              <FileText className="h-4 w-4" />
+              Metadata Search
+            </Button>
           </div>
 
           {deviceMakes.length > 0 && (

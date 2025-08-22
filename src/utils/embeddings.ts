@@ -106,3 +106,28 @@ export const generateSearchEmbedding = async (searchTerm: string): Promise<numbe
   const magnitude = Math.sqrt(embedding.reduce((sum, val) => sum + val * val, 0));
   return embedding.map(val => val / magnitude);
 };
+
+export const searchImagesByMetadata = async (searchTerm: string, images: GalleryImage[]): Promise<GalleryImage[]> => {
+  const lowerSearchTerm = searchTerm.toLowerCase();
+
+  return images.filter(image => {
+    // Search in filename
+    const filenameMatch = image.file_name.toLowerCase().includes(lowerSearchTerm);
+
+    // Search in alt text
+    const altTextMatch = image.alt_text?.toLowerCase().includes(lowerSearchTerm) || false;
+
+    // Search in EXIF data
+    let exifMatch = false;
+    if (image.exif_data) {
+      for (const [key, value] of Object.entries(image.exif_data)) {
+        if (String(value).toLowerCase().includes(lowerSearchTerm)) {
+          exifMatch = true;
+          break;
+        }
+      }
+    }
+
+    return filenameMatch || altTextMatch || exifMatch;
+  });
+};
