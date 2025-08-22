@@ -1,5 +1,6 @@
 import { supabase } from '@/integrations/supabase/client';
 import { GalleryImage } from '@/types';
+import { FunctionsHttpError } from '@supabase/supabase-js';
 
 const GEMINI_API_KEY = import.meta.env.VITE_GEMINI_API_KEY;
 
@@ -9,70 +10,53 @@ export const generateEmbedding = async (imageUrl: string, retryCount = 0): Promi
   }
 
   try {
-    const response = await fetch('https://dasjvafuudjotbaoawrj.supabase.co/functions/v1/generate-image-embedding', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`
-      },
-      body: JSON.stringify({ imageUrl })
+    const { data, error } = await supabase.functions.invoke('generate-image-embedding', {
+      body: { imageUrl },
     });
 
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
-      if (response.status === 429 && retryCount < 3) {
-        // Handle rate limiting with exponential backoff
-        const retryAfter = Math.pow(2, retryCount) * 1000; // Exponential backoff
-        await new Promise(resolve => setTimeout(resolve, retryAfter));
-        return generateEmbedding(imageUrl, retryCount + 1);
+    if (error) {
+      if (error instanceof FunctionsHttpError) {
+        const isRateLimit = error.context.status === 429;
+        if (isRateLimit && retryCount < 3) {
+          const retryAfter = Math.pow(2, retryCount) * 1000; // Exponential backoff
+          await new Promise(resolve => setTimeout(resolve, retryAfter));
+          return generateEmbedding(imageUrl, retryCount + 1);
+        }
+        const errorData = await error.context.json().catch(() => ({ error: 'Unknown function error' }));
+        throw new Error(`Failed to generate embedding: ${errorData.error || error.message}`);
       }
-      throw new Error(`Failed to generate embedding: ${response.statusText}${errorData.error ? ` - ${errorData.error}` : ''}`);
+      throw new Error(`Failed to generate embedding: ${error.message}`);
     }
 
-    const data = await response.json();
-
-    // Handle different response formats
-    if (Array.isArray(data)) {
-      // Direct array response
-      return data;
-    } else if (data.embedding && Array.isArray(data.embedding)) {
-      // Object with embedding property
+    if (data?.embedding && Array.isArray(data.embedding)) {
       return data.embedding;
     } else {
-      throw new Error("Unexpected response format - expected an array or object with 'embedding' property");
+      throw new Error("Unexpected response format from embedding function.");
     }
   } catch (error: any) {
     console.error("Error generating embedding:", error);
-    if (error.message.includes('429') && retryCount < 3) {
-      // If it's a rate limit error and we haven't retried too many times
-      const retryAfter = Math.pow(2, retryCount) * 1000; // Exponential backoff
-      await new Promise(resolve => setTimeout(resolve, retryAfter));
-      return generateEmbedding(imageUrl, retryCount + 1);
-    }
     throw error;
   }
 };
 
 export const searchSimilarImages = async (queryEmbedding: number[], limit: number = 10): Promise<GalleryImage[]> => {
   try {
-    const response = await fetch('https://dasjvafuudjotbaoawrj.supabase.co/functions/v1/search-gallery-images', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`
-      },
-      body: JSON.stringify({
+    const { data, error } = await supabase.functions.invoke('search-gallery-images', {
+      body: {
         queryEmbedding,
         matchCount: limit
-      })
+      }
     });
 
-    if (!response.ok) {
-      throw new Error(`Failed to search images: ${response.statusText}`);
+    if (error) {
+      if (error instanceof FunctionsHttpError) {
+        const errorData = await error.context.json().catch(() => ({ error: 'Unknown function error' }));
+        throw new Error(`Failed to search images: ${errorData.error || error.message}`);
+      }
+      throw new Error(`Failed to search images: ${error.message}`);
     }
 
-    const data = await response.json();
-    return data.results;
+    return data.results || [];
   } catch (error) {
     console.error("Error searching images:", error);
     throw error;
@@ -91,49 +75,35 @@ export const updateImageEmbedding = async (imageId: string, embedding: number[])
 };
 
 export const generateSearchEmbedding = async (searchTerm: string): Promise<number[]> => {
-  // Create a simple text embedding based on the search term
-  // This is a simplified approach - in a real application, you might want to use a proper text embedding model
   const embedding = new Array(512).fill(0);
-
-  // Distribute the search term's characters across the embedding
   for (let i = 0; i < searchTerm.length; i++) {
     const charCode = searchTerm.charCodeAt(i);
     const index = charCode % 512;
     embedding[index] = (embedding[index] + charCode) / 2;
   }
-
-  // Normalize the embedding
   const magnitude = Math.sqrt(embedding.reduce((sum, val) => sum + val * val, 0));
+  if (magnitude === 0) return embedding;
   return embedding.map(val => val / magnitude);
 };
 
 export const searchImagesByMetadata = async (searchTerm: string, images: GalleryImage[]): Promise<GalleryImage[]> => {
   const lowerSearchTerm = searchTerm.toLowerCase();
-
-  // Split the search term into individual words
   const searchTerms = lowerSearchTerm.split(/\s+/).filter(term => term.length > 0);
 
   return images.filter(image => {
-    // Search in filename
     const filenameMatch = searchTerms.some(term =>
       image.file_name.toLowerCase().includes(term)
     );
-
-    // Search in alt text
     const altTextMatch = image.alt_text?.toLowerCase().includes(lowerSearchTerm) || false;
-
-    // Search in EXIF data
     let exifMatch = false;
     if (image.exif_data) {
-      for (const [key, value] of Object.entries(image.exif_data)) {
+      for (const value of Object.values(image.exif_data)) {
         if (String(value).toLowerCase().includes(lowerSearchTerm)) {
           exifMatch = true;
           break;
         }
       }
     }
-
-    // Return true if any of the search terms match in filename, alt text, or EXIF data
     return filenameMatch || altTextMatch || exifMatch;
   });
 };
