@@ -1,9 +1,9 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts"
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.0'
 
-// These secrets MUST be set in your Supabase project's Edge Function settings
 const supabaseUrl = Deno.env.get('SUPABASE_URL')!
-const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
+const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
+const supabase = createClient(supabaseUrl, supabaseKey)
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -16,9 +16,14 @@ serve(async (req) => {
   }
 
   try {
-    // The Supabase client is initialized with the SERVICE_ROLE_KEY for admin-level access.
-    // This is secure because this function only exposes a specific, safe database query.
-    const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey)
+    // Verify the request has proper authorization
+    const authHeader = req.headers.get('Authorization')
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return new Response(JSON.stringify({ error: 'Unauthorized - Missing or invalid Authorization header' }), {
+        status: 401,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      })
+    }
 
     const { queryEmbedding, similarityThreshold = 0.7, matchCount = 10 } = await req.json();
 
@@ -29,7 +34,8 @@ serve(async (req) => {
       })
     }
 
-    const { data, error } = await supabaseAdmin.rpc('search_gallery_images', {
+    // Use the vector search function we created earlier
+    const { data, error } = await supabase.rpc('search_gallery_images', {
       query_embedding: queryEmbedding,
       similarity_threshold: similarityThreshold,
       match_count: matchCount
