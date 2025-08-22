@@ -27,6 +27,7 @@ const Gallery = () => {
   const [isSearching, setIsSearching] = useState(false);
   const [searchResults, setSearchResults] = useState<GalleryImage[]>([]);
   const [rateLimitInfo, setRateLimitInfo] = useState<{ remaining: number; resetTime: string } | null>(null);
+  const [authError, setAuthError] = useState<string | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
   const debouncedSearchTerm = useDebounce(searchTerm, 500);
@@ -108,6 +109,7 @@ const Gallery = () => {
     }
 
     setIsSearching(true);
+    setAuthError(null);
     try {
       // Perform both metadata and semantic search
       const [metadataResults, semanticResults] = await Promise.all([
@@ -148,7 +150,11 @@ const Gallery = () => {
       setSearchResults(uniqueResults);
     } catch (error: any) {
       console.error("Error performing image search:", error);
-      showError("Failed to perform image search. Please try again.");
+      if (error.message.includes('401')) {
+        setAuthError("Authentication failed. Please check your API keys and permissions.");
+      } else {
+        showError("Failed to perform image search. Please try again.");
+      }
       setSearchResults([]);
     } finally {
       setIsSearching(false);
@@ -210,6 +216,15 @@ const Gallery = () => {
               <AlertTriangle className="h-5 w-5 text-yellow-500" />
               <p className="text-sm text-yellow-700">
                 API rate limit reached. You've made {50 - rateLimitInfo.remaining} requests today. The limit resets at {rateLimitInfo.resetTime}.
+              </p>
+            </div>
+          )}
+
+          {authError && (
+            <div className="flex items-center gap-2 p-4 bg-red-50 border border-red-200 rounded-lg">
+              <AlertTriangle className="h-5 w-5 text-red-500" />
+              <p className="text-sm text-red-700">
+                {authError}
               </p>
             </div>
           )}

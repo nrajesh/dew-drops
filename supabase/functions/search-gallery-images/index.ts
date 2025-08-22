@@ -16,6 +16,15 @@ serve(async (req) => {
   }
 
   try {
+    // Verify the request has proper authorization
+    const authHeader = req.headers.get('Authorization')
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return new Response(JSON.stringify({ error: 'Unauthorized - Missing or invalid Authorization header' }), {
+        status: 401,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      })
+    }
+
     const { queryEmbedding, similarityThreshold = 0.7, matchCount = 10 } = await req.json();
 
     if (!queryEmbedding || !Array.isArray(queryEmbedding) || queryEmbedding.length !== 512) {
