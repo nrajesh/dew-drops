@@ -89,3 +89,20 @@ export const updateImageEmbedding = async (imageId: string, embedding: number[])
     throw new Error(`Failed to update embedding: ${error.message}`);
   }
 };
+
+export const generateSearchEmbedding = async (searchTerm: string): Promise<number[]> => {
+  // Create a simple text embedding based on the search term
+  // This is a simplified approach - in a real application, you might want to use a proper text embedding model
+  const embedding = new Array(512).fill(0);
+
+  // Distribute the search term's characters across the embedding
+  for (let i = 0; i < searchTerm.length; i++) {
+    const charCode = searchTerm.charCodeAt(i);
+    const index = charCode % 512;
+    embedding[index] = (embedding[index] + charCode) / 2;
+  }
+
+  // Normalize the embedding
+  const magnitude = Math.sqrt(embedding.reduce((sum, val) => sum + val * val, 0));
+  return embedding.map(val => val / magnitude);
+};

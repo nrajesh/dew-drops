@@ -10,7 +10,7 @@ import { useDebounce } from "@/hooks/useDebounce";
 import { PaginationControls } from "@/components/PaginationControls";
 import { usePaginationNavigation } from "@/hooks/usePaginationNavigation";
 import { Button } from "@/components/ui/button";
-import { generateEmbedding, searchSimilarImages } from "@/utils/embeddings";
+import { generateEmbedding, searchSimilarImages, generateSearchEmbedding } from "@/utils/embeddings";
 import { showError } from "@/utils/toast";
 
 const LazyImageLightbox = lazy(() => import("@/components/ImageLightbox").then(module => ({ default: module.ImageLightbox })));
@@ -121,10 +121,9 @@ const Gallery = () => {
         const results = await searchSimilarImages(matchingImage.embedding, 20);
         setSearchResults(results);
       } else {
-        // If no matching image found, generate an embedding for the search term
-        const searchImageUrl = "https://example.com/search-image.jpg"; // Replace with a real image URL
+        // If no matching image found, generate a search embedding based on the search term
         try {
-          const searchEmbedding = await generateEmbedding(searchImageUrl);
+          const searchEmbedding = await generateSearchEmbedding(debouncedSearchTerm);
           const results = await searchSimilarImages(searchEmbedding, 20);
           setSearchResults(results);
         } catch (error: any) {
