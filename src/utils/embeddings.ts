@@ -110,9 +110,14 @@ export const generateSearchEmbedding = async (searchTerm: string): Promise<numbe
 export const searchImagesByMetadata = async (searchTerm: string, images: GalleryImage[]): Promise<GalleryImage[]> => {
   const lowerSearchTerm = searchTerm.toLowerCase();
 
+  // Split the search term into individual words
+  const searchTerms = lowerSearchTerm.split(/\s+/).filter(term => term.length > 0);
+
   return images.filter(image => {
     // Search in filename
-    const filenameMatch = image.file_name.toLowerCase().includes(lowerSearchTerm);
+    const filenameMatch = searchTerms.some(term =>
+      image.file_name.toLowerCase().includes(term)
+    );
 
     // Search in alt text
     const altTextMatch = image.alt_text?.toLowerCase().includes(lowerSearchTerm) || false;
@@ -128,6 +133,7 @@ export const searchImagesByMetadata = async (searchTerm: string, images: Gallery
       }
     }
 
+    // Return true if any of the search terms match in filename, alt text, or EXIF data
     return filenameMatch || altTextMatch || exifMatch;
   });
 };
