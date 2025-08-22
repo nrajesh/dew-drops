@@ -27,7 +27,6 @@ const Gallery = () => {
   const [isSearching, setIsSearching] = useState(false);
   const [searchResults, setSearchResults] = useState<GalleryImage[]>([]);
   const [rateLimitInfo, setRateLimitInfo] = useState<{ remaining: number; resetTime: string } | null>(null);
-  const [searchMethod, setSearchMethod] = useState<'semantic' | 'metadata'>('semantic');
   const containerRef = useRef<HTMLDivElement>(null);
 
   const debouncedSearchTerm = useDebounce(searchTerm, 500);
@@ -112,40 +111,43 @@ const Gallery = () => {
 
     setIsSearching(true);
     try {
-      if (searchMethod === 'metadata') {
-        // Perform metadata search
-        const results = await searchImagesByMetadata(debouncedSearchTerm, allImages);
-        setSearchResults(results);
-      } else {
-        // Perform semantic search
-        // First, try to find an image that matches the search term
-        const matchingImage = allImages.find(img =>
-          img.alt_text?.toLowerCase().includes(debouncedSearchTerm.toLowerCase())
-        );
+      // Perform both metadata and semantic search
+      const [metadataResults, semanticResults] = await Promise.all([
+        searchImagesByMetadata(debouncedSearchTerm, allImages),
+        (async () => {
+          // First, try to find an image that matches the search term
+          const matchingImage = allImages.find(img =>
+            img.alt_text?.toLowerCase().includes(debouncedSearchTerm.toLowerCase())
+          );
 
-        if (matchingImage && matchingImage.embedding) {
-          // If we find a matching image with an embedding, use it for similarity search
-          const results = await searchSimilarImages(matchingImage.embedding, 20);
-          setSearchResults(results);
-        } else {
-          // If no matching image found, generate a search embedding based on the search term
-          try {
-            const searchEmbedding = await generateSearchEmbedding(debouncedSearchTerm);
-            const results = await searchSimilarImages(searchEmbedding, 20);
-            setSearchResults(results);
-          } catch (error: any) {
-            if (error.message.includes('429')) {
-              const rateLimitMatch = error.message.match(/quotaValue":"(\d+)"/);
-              if (rateLimitMatch) {
-                const remaining = parseInt(rateLimitMatch[1], 10);
-                const resetTime = new Date(Date.now() + 24 * 60 * 60 * 1000).toLocaleTimeString();
-                setRateLimitInfo({ remaining, resetTime });
+          if (matchingImage && matchingImage.embedding) {
+            // If we find a matching image with an embedding, use it for similarity search
+            return await searchSimilarImages(matchingImage.embedding, 20);
+          } else {
+            // If no matching image found, generate a search embedding based on the search term
+            try {
+              const searchEmbedding = await generateSearchEmbedding(debouncedSearchTerm);
+              return await searchSimilarImages(searchEmbedding, 20);
+            } catch (error: any) {
+              if (error.message.includes('429')) {
+                const rateLimitMatch = error.message.match(/quotaValue":"(\d+)"/);
+                if (rateLimitMatch) {
+                  const remaining = parseInt(rateLimitMatch[1], 10);
+                  const resetTime = new Date(Date.now() + 24 * 60 * 60 * 1000).toLocaleTimeString();
+                  setRateLimitInfo({ remaining, resetTime });
+                }
               }
+              throw error;
             }
-            throw error;
           }
-        }
-      }
+        })()
+      ]);
+
+      // Combine results, removing duplicates
+      const combinedResults = [...metadataResults, ...semanticResults];
+      const uniqueResults = Array.from(new Map(combinedResults.map(item => [item.id, item])).values());
+
+      setSearchResults(uniqueResults);
     } catch (error: any) {
       console.error("Error performing image search:", error);
       showError("Failed to perform image search. Please try again.");
@@ -162,7 +164,7 @@ const Gallery = () => {
       setIsSearching(false);
       setSearchResults([]);
     }
-  }, [debouncedSearchTerm, searchMethod]);
+  }, [debouncedSearchTerm]);
 
   return (
     <>
@@ -184,25 +186,6 @@ const Gallery = () => {
                 onChange={(e) => setSearchTerm(e.target.value)}
               />
             </div>
-          </div>
-
-          <div className="flex flex-wrap gap-2 justify-center">
-            <Button
-              variant={searchMethod === 'semantic' ? 'default' : 'outline'}
-              onClick={() => setSearchMethod('semantic')}
-              className="gap-2"
-            >
-              <ImageIcon className="h-4 w-4" />
-              Semantic Search
-            </Button>
-            <Button
-              variant={searchMethod === 'metadata' ? 'default' : 'outline'}
-              onClick={() => setSearchMethod('metadata')}
-              className="gap-2"
-            >
-              <FileText className="h-4 w-4" />
-              Metadata Search
-            </Button>
           </div>
 
           {deviceMakes.length > 0 && (
