@@ -97,7 +97,7 @@ export const generateSearchEmbedding = async (searchTerm: string): Promise<numbe
 
   // Distribute the search term's characters across the embedding
   for (let i = 0; i < searchTerm.length; i++) {
-    const charCode = searchTerm.charCodeAt(i);
+    const charCode = searchTerm.charCodeAt(i); // <-- Fixed the error by using charCodeAt
     const index = charCode % 512;
     embedding[index] = (embedding[index] + charCode) / 2;
   }

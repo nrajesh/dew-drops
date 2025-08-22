@@ -55,16 +55,15 @@ const Gallery = () => {
   ).sort(), [allImages]);
 
   const filteredImages = useMemo(() => {
-    if (isSearching) {
+    if (debouncedSearchTerm) {
       return searchResults;
     }
 
     return allImages.filter(image => {
       const makeFilter = activeMake === 'all' || image.exif_data?.Make === activeMake;
-      const searchFilter = !debouncedSearchTerm || (image.alt_text && image.alt_text.toLowerCase().includes(debouncedSearchTerm.toLowerCase()));
-      return makeFilter && searchFilter;
+      return makeFilter;
     });
-  }, [allImages, activeMake, debouncedSearchTerm, isSearching, searchResults]);
+  }, [allImages, activeMake, debouncedSearchTerm, searchResults]);
 
   const totalPages = Math.ceil(filteredImages.length / IMAGES_PER_PAGE);
   const paginatedImages = filteredImages.slice(
@@ -104,7 +103,6 @@ const Gallery = () => {
 
   const handleImageSearch = async () => {
     if (!debouncedSearchTerm.trim()) {
-      setIsSearching(false);
       setSearchResults([]);
       return;
     }
@@ -161,7 +159,6 @@ const Gallery = () => {
     if (debouncedSearchTerm) {
       handleImageSearch();
     } else {
-      setIsSearching(false);
       setSearchResults([]);
     }
   }, [debouncedSearchTerm]);
