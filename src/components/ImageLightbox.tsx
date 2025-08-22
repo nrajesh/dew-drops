@@ -105,7 +105,7 @@ export const ImageLightbox = ({ image, onClose, onNavigate, hasNext, hasPrev }: 
   }, [image]);
 
   const exifData = image?.exif_data;
-  const captionText = image?.alt_text || (image?.file_name ? image.file_name.replace(/\.[^/.]+$/, "") : "");
+  const captionText = image?.alt_text || (image?.file_name ? image.file_name.split('_').slice(1).join('_').replace(/\.[^/.]+$/, "").replace(/[^\w\s]/g, '') : "");
   const showCaption = captionText && !/\.(jpe?g|png|tiff|gif)$/i.test(captionText);
 
   const minSwipeDistance = 50;
