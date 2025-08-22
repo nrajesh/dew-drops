@@ -3,7 +3,7 @@ import { GalleryImage } from '@/types';
 
 const GEMINI_API_KEY = import.meta.env.VITE_GEMINI_API_KEY;
 
-export const generateEmbedding = async (imageUrl: string): Promise<number[]> => {
+export const generateEmbedding = async (imageUrl: string, retryCount = 0): Promise<number[]> => {
   if (!GEMINI_API_KEY) {
     throw new Error("Gemini API key is not configured");
   }
@@ -20,6 +20,12 @@ export const generateEmbedding = async (imageUrl: string): Promise<number[]> => 
 
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}));
+      if (response.status === 429 && retryCount < 3) {
+        // Handle rate limiting with exponential backoff
+        const retryAfter = Math.pow(2, retryCount) * 1000; // Exponential backoff
+        await new Promise(resolve => setTimeout(resolve, retryAfter));
+        return generateEmbedding(imageUrl, retryCount + 1);
+      }
       throw new Error(`Failed to generate embedding: ${response.statusText}${errorData.error ? ` - ${errorData.error}` : ''}`);
     }
 
@@ -35,8 +41,14 @@ export const generateEmbedding = async (imageUrl: string): Promise<number[]> => 
     } else {
       throw new Error("Unexpected response format - expected an array or object with 'embedding' property");
     }
-  } catch (error) {
+  } catch (error: any) {
     console.error("Error generating embedding:", error);
+    if (error.message.includes('429') && retryCount < 3) {
+      // If it's a rate limit error and we haven't retried too many times
+      const retryAfter = Math.pow(2, retryCount) * 1000; // Exponential backoff
+      await new Promise(resolve => setTimeout(resolve, retryAfter));
+      return generateEmbedding(imageUrl, retryCount + 1);
+    }
     throw error;
   }
 };

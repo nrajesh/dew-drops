@@ -11,7 +11,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { supabase } from "@/integrations/supabase/client";
 import { showSuccess, showError, showLoading, dismissToast } from "@/utils/toast";
-import { Upload, Trash2, Edit, RefreshCw, AlertCircle } from "lucide-react";
+import { Upload, Trash2, Edit, RefreshCw, AlertCircle, AlertTriangle } from "lucide-react";
 import type { GalleryImage } from "@/types";
 import {
   AlertDialog,
@@ -46,6 +46,7 @@ const ManageGallery = () => {
   const [editingImage, setEditingImage] = useState<GalleryImage | null>(null);
   const [isGeneratingEmbeddings, setIsGeneratingEmbeddings] = useState(false);
   const [embeddingErrors, setEmbeddingErrors] = useState<Record<string, string>>({});
+  const [rateLimitInfo, setRateLimitInfo] = useState<{ remaining: number; resetTime: string } | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
   const [currentPage, setCurrentPage] = useState(1);
@@ -331,6 +332,17 @@ const ManageGallery = () => {
         } catch (error: any) {
           console.error(`Failed to generate embedding for image ${image.id}:`, error);
           newErrors[image.id] = error.message;
+
+          // Check if this is a rate limit error
+          if (error.message.includes('429')) {
+            const rateLimitMatch = error.message.match(/quotaValue":"(\d+)"/);
+            if (rateLimitMatch) {
+              const remaining = parseInt(rateLimitMatch[1], 10);
+              const resetTime = new Date(Date.now() + 24 * 60 * 60 * 1000).toLocaleTimeString();
+              setRateLimitInfo({ remaining, resetTime });
+            }
+          }
+
           showError(`Failed to generate embedding for image ${image.id}: ${error.message}`);
         }
       }
@@ -383,6 +395,17 @@ const ManageGallery = () => {
         } catch (error: any) {
           console.error(`Failed to regenerate embedding for image ${image.id}:`, error);
           newErrors[image.id] = error.message;
+
+          // Check if this is a rate limit error
+          if (error.message.includes('429')) {
+            const rateLimitMatch = error.message.match(/quotaValue":"(\d+)"/);
+            if (rateLimitMatch) {
+              const remaining = parseInt(rateLimitMatch[1], 10);
+              const resetTime = new Date(Date.now() + 24 * 60 * 60 * 1000).toLocaleTimeString();
+              setRateLimitInfo({ remaining, resetTime });
+            }
+          }
+
           showError(`Failed to regenerate embedding for image ${image.id}: ${error.message}`);
         }
       }
@@ -430,6 +453,23 @@ const ManageGallery = () => {
             </div>
           </CardContent>
         </Card>
+
+        {rateLimitInfo && (
+          <Card className="bg-yellow-50 border-yellow-200">
+            <CardHeader className="flex flex-row items-center gap-4">
+              <AlertTriangle className="h-5 w-5 text-yellow-500" />
+              <CardTitle className="text-yellow-700">API Rate Limit Reached</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-yellow-700">
+                You've reached your daily limit of {50 - rateLimitInfo.remaining} requests. The limit resets at {rateLimitInfo.resetTime} today.
+              </p>
+              <p className="mt-2 text-yellow-700">
+                You can continue generating embeddings, but some requests may fail. Try again later for better results.
+              </p>
+            </CardContent>
+          </Card>
+        )}
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between">

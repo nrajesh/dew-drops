@@ -5,7 +5,7 @@ import { supabase } from "@/integrations/supabase/client";
 import type { GalleryImage } from "@/types";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Input } from "@/components/ui/input";
-import { Search, Image as ImageIcon } from "lucide-react";
+import { Search, Image as ImageIcon, AlertTriangle } from "lucide-react";
 import { useDebounce } from "@/hooks/useDebounce";
 import { PaginationControls } from "@/components/PaginationControls";
 import { usePaginationNavigation } from "@/hooks/usePaginationNavigation";
@@ -26,6 +26,7 @@ const Gallery = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [isSearching, setIsSearching] = useState(false);
   const [searchResults, setSearchResults] = useState<GalleryImage[]>([]);
+  const [rateLimitInfo, setRateLimitInfo] = useState<{ remaining: number; resetTime: string } | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
   const debouncedSearchTerm = useDebounce(searchTerm, 500);
@@ -122,11 +123,23 @@ const Gallery = () => {
       } else {
         // If no matching image found, generate an embedding for the search term
         const searchImageUrl = "https://example.com/search-image.jpg"; // Replace with a real image URL
-        const searchEmbedding = await generateEmbedding(searchImageUrl);
-        const results = await searchSimilarImages(searchEmbedding, 20);
-        setSearchResults(results);
+        try {
+          const searchEmbedding = await generateEmbedding(searchImageUrl);
+          const results = await searchSimilarImages(searchEmbedding, 20);
+          setSearchResults(results);
+        } catch (error: any) {
+          if (error.message.includes('429')) {
+            const rateLimitMatch = error.message.match(/quotaValue":"(\d+)"/);
+            if (rateLimitMatch) {
+              const remaining = parseInt(rateLimitMatch[1], 10);
+              const resetTime = new Date(Date.now() + 24 * 60 * 60 * 1000).toLocaleTimeString();
+              setRateLimitInfo({ remaining, resetTime });
+            }
+          }
+          throw error;
+        }
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error performing image search:", error);
       showError("Failed to perform image search. Please try again.");
       setSearchResults([]);
@@ -183,6 +196,15 @@ const Gallery = () => {
             <div className="flex items-center justify-center gap-2 text-muted-foreground">
               <ImageIcon className="h-4 w-4 animate-pulse" />
               <span>Searching for similar images...</span>
+            </div>
+          )}
+
+          {rateLimitInfo && (
+            <div className="flex items-center gap-2 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+              <AlertTriangle className="h-5 w-5 text-yellow-500" />
+              <p className="text-sm text-yellow-700">
+                API rate limit reached. You've made {50 - rateLimitInfo.remaining} requests today. The limit resets at {rateLimitInfo.resetTime}.
+              </p>
             </div>
           )}
 
