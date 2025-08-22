@@ -105,7 +105,7 @@ export const ImageLightbox = ({ image, onClose, onNavigate, hasNext, hasPrev }: 
   }, [image]);
 
   const exifData = image?.exif_data;
-  const captionText = image?.alt_text;
+  const captionText = image?.alt_text || (image?.file_name ? image.file_name.replace(/\.[^/.]+$/, "") : "");
   const showCaption = captionText && !/\.(jpe?g|png|tiff|gif)$/i.test(captionText);
 
   const minSwipeDistance = 50;
@@ -213,6 +213,11 @@ export const ImageLightbox = ({ image, onClose, onNavigate, hasNext, hasPrev }: 
               alt={image.alt_text || "Enlarged gallery image"}
               className="w-full h-auto object-contain max-h-[85vh] rounded-lg shadow-2xl"
             />
+            {showCaption && (
+              <p className="mt-2 text-white/80 text-center text-sm max-w-[80%]">
+                {captionText}
+              </p>
+            )}
             {session && (
               <div className="w-full mt-4 p-4 bg-background/80 rounded-lg">
                 <div className="flex flex-col gap-2">
