@@ -11,7 +11,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { supabase } from "@/integrations/supabase/client";
 import { showSuccess, showError, showLoading, dismissToast } from "@/utils/toast";
-import { Upload, Trash2, Edit } from "lucide-react";
+import { Upload, Trash2, Edit, RefreshCw, AlertCircle, AlertTriangle } from "lucide-react";
 import type { GalleryImage } from "@/types";
 import {
   AlertDialog,
@@ -30,6 +30,7 @@ import ExifReader from 'exifreader';
 import { Checkbox } from "@/components/ui/checkbox";
 import { ManagementPagination } from "@/components/ManagementPagination";
 import { usePaginationNavigation } from "@/hooks/usePaginationNavigation";
+import { generateEmbedding, updateImageEmbedding } from "@/utils/embeddings";
 
 const editSchema = z.object({
   alt_text: z.string().min(3, "Alt text must be at least 3 characters.").max(200, "Alt text cannot exceed 200 characters."),
@@ -43,6 +44,9 @@ const ManageGallery = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [selectedImages, setSelectedImages] = useState<Set<string>>(new Set());
   const [editingImage, setEditingImage] = useState<GalleryImage | null>(null);
+  const [isGeneratingEmbeddings, setIsGeneratingEmbeddings] = useState(false);
+  const [embeddingErrors, setEmbeddingErrors] = useState<Record<string, string>>({});
+  const [rateLimitInfo, setRateLimitInfo] = useState<{ remaining: number; resetTime: string } | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
   const [currentPage, setCurrentPage] = useState(1);
@@ -297,6 +301,131 @@ const ManageGallery = () => {
 
   const allOnPageSelected = paginatedImages.length > 0 && paginatedImages.every(i => selectedImages.has(i.id));
 
+  const generateEmbeddingsForImages = async () => {
+    if (!user) {
+      showError("You must be logged in to generate embeddings.");
+      return;
+    }
+
+    const imagesWithoutEmbeddings = images.filter(img => !img.embedding);
+    if (imagesWithoutEmbeddings.length === 0) {
+      showSuccess("All images already have embeddings.");
+      return;
+    }
+
+    setIsGeneratingEmbeddings(true);
+    const toastId = showLoading(`Generating embeddings for ${imagesWithoutEmbeddings.length} images...`);
+    const newErrors: Record<string, string> = {};
+
+    try {
+      for (const image of imagesWithoutEmbeddings) {
+        try {
+          const embedding = await generateEmbedding(image.image_url);
+          await updateImageEmbedding(image.id, embedding);
+
+          // Update the local state
+          setImages(prevImages =>
+            prevImages.map(img =>
+              img.id === image.id ? { ...img, embedding } : img
+            )
+          );
+        } catch (error: any) {
+          console.error(`Failed to generate embedding for image ${image.id}:`, error);
+          newErrors[image.id] = error.message;
+
+          // Check if this is a rate limit error
+          if (error.message.includes('429')) {
+            const rateLimitMatch = error.message.match(/quotaValue":"(\d+)"/);
+            if (rateLimitMatch) {
+              const remaining = parseInt(rateLimitMatch[1], 10);
+              const resetTime = new Date(Date.now() + 24 * 60 * 60 * 1000).toLocaleTimeString();
+              setRateLimitInfo({ remaining, resetTime });
+            }
+          }
+
+          showError(`Failed to generate embedding for image ${image.id}: ${error.message}`);
+        }
+      }
+
+      dismissToast(toastId);
+      if (Object.keys(newErrors).length > 0) {
+        showError(`Successfully generated embeddings for ${imagesWithoutEmbeddings.length - Object.keys(newErrors).length} images. ${Object.keys(newErrors).length} failed.`);
+      } else {
+        showSuccess(`Successfully generated embeddings for ${imagesWithoutEmbeddings.length} images.`);
+      }
+    } catch (error: any) {
+      dismissToast(toastId);
+      showError(`Error generating embeddings: ${error.message}`);
+    } finally {
+      setEmbeddingErrors(newErrors);
+      setIsGeneratingEmbeddings(false);
+    }
+  };
+
+  const regenerateEmbeddingsForSelected = async () => {
+    if (!user) {
+      showError("You must be logged in to regenerate embeddings.");
+      return;
+    }
+
+    if (selectedImages.size === 0) {
+      showError("Please select at least one image to regenerate embeddings.");
+      return;
+    }
+
+    const selectedImageIds = Array.from(selectedImages);
+    const imagesToUpdate = images.filter(img => selectedImageIds.includes(img.id));
+
+    setIsGeneratingEmbeddings(true);
+    const toastId = showLoading(`Regenerating embeddings for ${imagesToUpdate.length} images...`);
+    const newErrors: Record<string, string> = {};
+
+    try {
+      for (const image of imagesToUpdate) {
+        try {
+          const embedding = await generateEmbedding(image.image_url);
+          await updateImageEmbedding(image.id, embedding);
+
+          // Update the local state
+          setImages(prevImages =>
+            prevImages.map(img =>
+              img.id === image.id ? { ...img, embedding } : img
+            )
+          );
+        } catch (error: any) {
+          console.error(`Failed to regenerate embedding for image ${image.id}:`, error);
+          newErrors[image.id] = error.message;
+
+          // Check if this is a rate limit error
+          if (error.message.includes('429')) {
+            const rateLimitMatch = error.message.match(/quotaValue":"(\d+)"/);
+            if (rateLimitMatch) {
+              const remaining = parseInt(rateLimitMatch[1], 10);
+              const resetTime = new Date(Date.now() + 24 * 60 * 60 * 1000).toLocaleTimeString();
+              setRateLimitInfo({ remaining, resetTime });
+            }
+          }
+
+          showError(`Failed to regenerate embedding for image ${image.id}: ${error.message}`);
+        }
+      }
+
+      dismissToast(toastId);
+      if (Object.keys(newErrors).length > 0) {
+        showError(`Successfully regenerated embeddings for ${imagesToUpdate.length - Object.keys(newErrors).length} images. ${Object.keys(newErrors).length} failed.`);
+      } else {
+        showSuccess(`Successfully regenerated embeddings for ${imagesToUpdate.length} images.`);
+      }
+      setSelectedImages(new Set());
+    } catch (error: any) {
+      dismissToast(toastId);
+      showError(`Error regenerating embeddings: ${error.message}`);
+    } finally {
+      setEmbeddingErrors(newErrors);
+      setIsGeneratingEmbeddings(false);
+    }
+  };
+
   return (
     <>
       <div className="space-y-8" ref={containerRef}>
@@ -325,6 +454,23 @@ const ManageGallery = () => {
           </CardContent>
         </Card>
 
+        {rateLimitInfo && (
+          <Card className="bg-yellow-50 border-yellow-200">
+            <CardHeader className="flex flex-row items-center gap-4">
+              <AlertTriangle className="h-5 w-5 text-yellow-500" />
+              <CardTitle className="text-yellow-700">API Rate Limit Reached</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-yellow-700">
+                You've reached your daily limit of {50 - rateLimitInfo.remaining} requests. The limit resets at {rateLimitInfo.resetTime} today.
+              </p>
+              <p className="mt-2 text-yellow-700">
+                You can continue generating embeddings, but some requests may fail. Try again later for better results.
+              </p>
+            </CardContent>
+          </Card>
+        )}
+
         <Card>
           <CardHeader className="flex flex-row items-center justify-between">
             <div>
@@ -333,30 +479,50 @@ const ManageGallery = () => {
                 View, edit, and delete your uploaded images.
               </CardDescription>
             </div>
-            {selectedImages.size > 0 && (
-              <AlertDialog>
-                <AlertDialogTrigger asChild>
-                  <Button variant="destructive">
-                    <Trash2 className="h-4 w-4 mr-2" />
-                    Delete ({selectedImages.size})
-                  </Button>
-                </AlertDialogTrigger>
-                <AlertDialogContent>
-                  <AlertDialogHeader>
-                    <AlertDialogTitle>Are you sure?</AlertDialogTitle>
-                    <AlertDialogDescription>
-                      This will permanently delete the {selectedImages.size} selected image(s). This action cannot be undone.
-                    </AlertDialogDescription>
-                  </AlertDialogHeader>
-                  <AlertDialogFooter>
-                    <AlertDialogCancel>Cancel</AlertDialogCancel>
-                    <AlertDialogAction onClick={() => handleDelete(Array.from(selectedImages))}>
-                      Delete
-                    </AlertDialogAction>
-                  </AlertDialogFooter>
-                </AlertDialogContent>
-              </AlertDialog>
-            )}
+            <div className="flex gap-2">
+              {selectedImages.size > 0 && (
+                <AlertDialog>
+                  <AlertDialogTrigger asChild>
+                    <Button variant="destructive">
+                      <Trash2 className="h-4 w-4 mr-2" />
+                      Delete ({selectedImages.size})
+                    </Button>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                      <AlertDialogDescription>
+                        This will permanently delete the {selectedImages.size} selected image(s). This action cannot be undone.
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel>Cancel</AlertDialogCancel>
+                      <AlertDialogAction onClick={() => handleDelete(Array.from(selectedImages))}>
+                        Delete
+                      </AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
+              )}
+              {selectedImages.size > 0 && (
+                <Button
+                  variant="outline"
+                  onClick={regenerateEmbeddingsForSelected}
+                  disabled={isGeneratingEmbeddings}
+                >
+                  <RefreshCw className="h-4 w-4 mr-2" />
+                  Regenerate Embeddings ({selectedImages.size})
+                </Button>
+              )}
+              <Button
+                variant="outline"
+                onClick={generateEmbeddingsForImages}
+                disabled={isGeneratingEmbeddings}
+              >
+                <RefreshCw className="h-4 w-4 mr-2" />
+                Generate Missing Embeddings
+              </Button>
+            </div>
           </CardHeader>
           <CardContent>
             {isLoading ? (
@@ -396,9 +562,19 @@ const ManageGallery = () => {
                             checked={selectedImages.has(image.id)}
                             onCheckedChange={() => handleSelectImage(image.id)}
                           />
-                          <Button variant="ghost" size="sm" onClick={() => setEditingImage(image)}>
-                            <Edit className="h-3 w-3 mr-1" /> Edit
-                          </Button>
+                          <div className="flex gap-1">
+                            {image.embedding && (
+                              <span className="text-xs text-green-500">✓</span>
+                            )}
+                            {embeddingErrors[image.id] && (
+                              <span className="text-xs text-red-500" title={embeddingErrors[image.id]}>
+                                <AlertCircle className="h-3 w-3" />
+                              </span>
+                            )}
+                            <Button variant="ghost" size="sm" onClick={() => setEditingImage(image)}>
+                              <Edit className="h-3 w-3 mr-1" /> Edit
+                            </Button>
+                          </div>
                         </div>
                       </CardFooter>
                     </Card>

@@ -1,21 +1,139 @@
 import { supabase } from '@/integrations/supabase/client';
 import { GalleryImage } from '@/types';
 
-export const generateEmbedding = async (imageUrl: string): Promise<number[]> => {
-  // This is a mock implementation. In a real application, you would:
-  // 1. Download the image
-  // 2. Process it with a model like CLIP
-  // 3. Return the embedding
-  const embedding: number[] = [];
-  for (let i = 0; i < 512; i++) {
-    embedding.push(Math.random() * 2 - 1);
+const GEMINI_API_KEY = import.meta.env.VITE_GEMINI_API_KEY;
+
+export const generateEmbedding = async (imageUrl: string, retryCount = 0): Promise<number[]> => {
+  if (!GEMINI_API_KEY) {
+    throw new Error("Gemini API key is not configured");
   }
-  return embedding;
+
+  try {
+    const response = await fetch('https://dasjvafuudjotbaoawrj.supabase.co/functions/v1/generate-image-embedding', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`
+      },
+      body: JSON.stringify({ imageUrl })
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      if (response.status === 429 && retryCount < 3) {
+        // Handle rate limiting with exponential backoff
+        const retryAfter = Math.pow(2, retryCount) * 1000; // Exponential backoff
+        await new Promise(resolve => setTimeout(resolve, retryAfter));
+        return generateEmbedding(imageUrl, retryCount + 1);
+      }
+      throw new Error(`Failed to generate embedding: ${response.statusText}${errorData.error ? ` - ${errorData.error}` : ''}`);
+    }
+
+    const data = await response.json();
+
+    // Handle different response formats
+    if (Array.isArray(data)) {
+      // Direct array response
+      return data;
+    } else if (data.embedding && Array.isArray(data.embedding)) {
+      // Object with embedding property
+      return data.embedding;
+    } else {
+      throw new Error("Unexpected response format - expected an array or object with 'embedding' property");
+    }
+  } catch (error: any) {
+    console.error("Error generating embedding:", error);
+    if (error.message.includes('429') && retryCount < 3) {
+      // If it's a rate limit error and we haven't retried too many times
+      const retryAfter = Math.pow(2, retryCount) * 1000; // Exponential backoff
+      await new Promise(resolve => setTimeout(resolve, retryAfter));
+      return generateEmbedding(imageUrl, retryCount + 1);
+    }
+    throw error;
+  }
 };
 
 export const searchSimilarImages = async (queryEmbedding: number[], limit: number = 10): Promise<GalleryImage[]> => {
-  // This is a mock implementation. In a real application, you would:
-  // 1. Call your vector search endpoint
-  // 2. Return the results
-  return [];
+  try {
+    const response = await fetch('https://dasjvafuudjotbaoawrj.supabase.co/functions/v1/search-gallery-images', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`
+      },
+      body: JSON.stringify({
+        queryEmbedding,
+        matchCount: limit
+      })
+    });
+
+    if (!response.ok) {
+      throw new Error(`Failed to search images: ${response.statusText}`);
+    }
+
+    const data = await response.json();
+    return data.results;
+  } catch (error) {
+    console.error("Error searching images:", error);
+    throw error;
+  }
+};
+
+export const updateImageEmbedding = async (imageId: string, embedding: number[]): Promise<void> => {
+  const { error } = await supabase
+    .from('gallery_images')
+    .update({ embedding })
+    .eq('id', imageId);
+
+  if (error) {
+    throw new Error(`Failed to update embedding: ${error.message}`);
+  }
+};
+
+export const generateSearchEmbedding = async (searchTerm: string): Promise<number[]> => {
+  // Create a simple text embedding based on the search term
+  // This is a simplified approach - in a real application, you might want to use a proper text embedding model
+  const embedding = new Array(512).fill(0);
+
+  // Distribute the search term's characters across the embedding
+  for (let i = 0; i < searchTerm.length; i++) {
+    const charCode = searchTerm.charCodeAt(i); // <-- Fixed the error by using charCodeAt
+    const index = charCode % 512;
+    embedding[index] = (embedding[index] + charCode) / 2;
+  }
+
+  // Normalize the embedding
+  const magnitude = Math.sqrt(embedding.reduce((sum, val) => sum + val * val, 0));
+  return embedding.map(val => val / magnitude);
+};
+
+export const searchImagesByMetadata = async (searchTerm: string, images: GalleryImage[]): Promise<GalleryImage[]> => {
+  const lowerSearchTerm = searchTerm.toLowerCase();
+
+  // Split the search term into individual words
+  const searchTerms = lowerSearchTerm.split(/\s+/).filter(term => term.length > 0);
+
+  return images.filter(image => {
+    // Search in filename
+    const filenameMatch = searchTerms.some(term =>
+      image.file_name.toLowerCase().includes(term)
+    );
+
+    // Search in alt text
+    const altTextMatch = image.alt_text?.toLowerCase().includes(lowerSearchTerm) || false;
+
+    // Search in EXIF data
+    let exifMatch = false;
+    if (image.exif_data) {
+      for (const [key, value] of Object.entries(image.exif_data)) {
+        if (String(value).toLowerCase().includes(lowerSearchTerm)) {
+          exifMatch = true;
+          break;
+        }
+      }
+    }
+
+    // Return true if any of the search terms match in filename, alt text, or EXIF data
+    return filenameMatch || altTextMatch || exifMatch;
+  });
 };
