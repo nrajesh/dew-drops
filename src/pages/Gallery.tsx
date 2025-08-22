@@ -5,11 +5,13 @@ import { supabase } from "@/integrations/supabase/client";
 import type { GalleryImage } from "@/types";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Input } from "@/components/ui/input";
-import { Search } from "lucide-react";
+import { Search, Image as ImageIcon } from "lucide-react";
 import { useDebounce } from "@/hooks/useDebounce";
 import { PaginationControls } from "@/components/PaginationControls";
 import { usePaginationNavigation } from "@/hooks/usePaginationNavigation";
 import { Button } from "@/components/ui/button";
+import { generateEmbedding, searchSimilarImages } from "@/utils/embeddings";
+import { showError } from "@/utils/toast";
 
 const LazyImageLightbox = lazy(() => import("@/components/ImageLightbox").then(module => ({ default: module.ImageLightbox })));
 
@@ -22,9 +24,11 @@ const Gallery = () => {
   const [activeMake, setActiveMake] = useState<string | 'all'>('all');
   const [searchTerm, setSearchTerm] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
+  const [isSearching, setIsSearching] = useState(false);
+  const [searchResults, setSearchResults] = useState<GalleryImage[]>([]);
   const containerRef = useRef<HTMLDivElement>(null);
 
-  const debouncedSearchTerm = useDebounce(searchTerm, 300);
+  const debouncedSearchTerm = useDebounce(searchTerm, 500);
 
   useEffect(() => {
     const fetchImages = async () => {
@@ -50,12 +54,16 @@ const Gallery = () => {
   ).sort(), [allImages]);
 
   const filteredImages = useMemo(() => {
+    if (isSearching) {
+      return searchResults;
+    }
+
     return allImages.filter(image => {
       const makeFilter = activeMake === 'all' || image.exif_data?.Make === activeMake;
       const searchFilter = !debouncedSearchTerm || (image.alt_text && image.alt_text.toLowerCase().includes(debouncedSearchTerm.toLowerCase()));
       return makeFilter && searchFilter;
     });
-  }, [allImages, activeMake, debouncedSearchTerm]);
+  }, [allImages, activeMake, debouncedSearchTerm, isSearching, searchResults]);
 
   const totalPages = Math.ceil(filteredImages.length / IMAGES_PER_PAGE);
   const paginatedImages = filteredImages.slice(
@@ -93,6 +101,49 @@ const Gallery = () => {
 
   const selectedImage = selectedImageIndex !== null ? filteredImages[selectedImageIndex] : null;
 
+  const handleImageSearch = async () => {
+    if (!debouncedSearchTerm.trim()) {
+      setIsSearching(false);
+      setSearchResults([]);
+      return;
+    }
+
+    setIsSearching(true);
+    try {
+      // First, try to find an image that matches the search term
+      const matchingImage = allImages.find(img =>
+        img.alt_text?.toLowerCase().includes(debouncedSearchTerm.toLowerCase())
+      );
+
+      if (matchingImage && matchingImage.embedding) {
+        // If we find a matching image with an embedding, use it for similarity search
+        const results = await searchSimilarImages(matchingImage.embedding, 20);
+        setSearchResults(results);
+      } else {
+        // If no matching image found, generate an embedding for the search term
+        const searchImageUrl = "https://example.com/search-image.jpg"; // Replace with a real image URL
+        const searchEmbedding = await generateEmbedding(searchImageUrl);
+        const results = await searchSimilarImages(searchEmbedding, 20);
+        setSearchResults(results);
+      }
+    } catch (error) {
+      console.error("Error performing image search:", error);
+      showError("Failed to perform image search. Please try again.");
+      setSearchResults([]);
+    } finally {
+      setIsSearching(false);
+    }
+  };
+
+  useEffect(() => {
+    if (debouncedSearchTerm) {
+      handleImageSearch();
+    } else {
+      setIsSearching(false);
+      setSearchResults([]);
+    }
+  }, [debouncedSearchTerm]);
+
   return (
     <>
       <div className="flex flex-col min-h-[calc(100vh-112px)]" ref={containerRef}>
@@ -125,6 +176,13 @@ const Gallery = () => {
                   {make}
                 </Button>
               ))}
+            </div>
+          )}
+
+          {isSearching && (
+            <div className="flex items-center justify-center gap-2 text-muted-foreground">
+              <ImageIcon className="h-4 w-4 animate-pulse" />
+              <span>Searching for similar images...</span>
             </div>
           )}
 
