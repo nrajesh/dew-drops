@@ -1,8 +1,10 @@
+/// <reference types="../../../src/types/deno.d.ts" />
+
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts"
 import { GoogleGenerativeAI } from "https://esm.sh/@google/generative-ai";
 
 const GEMINI_API_KEY = Deno.env.get('GEMINI_API_KEY');
-const genAI = new GoogleGenerativeAI(GEMINI_API_KEY);
+const genAI = new GoogleGenerativeAI(GEMINI_API_KEY!);
 const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
 
 const corsHeaders = {
@@ -48,15 +50,28 @@ serve(async (req) => {
           data: base64Image.split(',')[1]
         }
       },
-      { text: "Generate a 512-dimensional embedding for this image." }
+      { text: "Generate a 512-dimensional embedding for this image. Respond with a JSON object containing only the embedding array, no other text or formatting." }
     ]);
 
     const responseText = await result.response.text();
-    const embedding = JSON.parse(responseText);
+
+    // Try to parse the response as JSON first
+    let embedding;
+    try {
+      embedding = JSON.parse(responseText);
+    } catch (e) {
+      // If parsing fails, try to extract the array from the text
+      const arrayMatch = responseText.match(/\[[\s\S]*\]/);
+      if (arrayMatch) {
+        embedding = JSON.parse(arrayMatch[0]);
+      } else {
+        throw new Error("Could not extract embedding array from response");
+      }
+    }
 
     // Ensure it's a 512-dimensional vector
     if (!Array.isArray(embedding) || embedding.length !== 512) {
-      throw new Error("Invalid embedding format");
+      throw new Error("Invalid embedding format - expected a 512-dimensional array");
     }
 
     return new Response(JSON.stringify({ embedding }), {

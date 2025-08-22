@@ -11,7 +11,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { supabase } from "@/integrations/supabase/client";
 import { showSuccess, showError, showLoading, dismissToast } from "@/utils/toast";
-import { Upload, Trash2, Edit, RefreshCw } from "lucide-react";
+import { Upload, Trash2, Edit, RefreshCw, AlertCircle } from "lucide-react";
 import type { GalleryImage } from "@/types";
 import {
   AlertDialog,
@@ -45,6 +45,7 @@ const ManageGallery = () => {
   const [selectedImages, setSelectedImages] = useState<Set<string>>(new Set());
   const [editingImage, setEditingImage] = useState<GalleryImage | null>(null);
   const [isGeneratingEmbeddings, setIsGeneratingEmbeddings] = useState(false);
+  const [embeddingErrors, setEmbeddingErrors] = useState<Record<string, string>>({});
   const containerRef = useRef<HTMLDivElement>(null);
 
   const [currentPage, setCurrentPage] = useState(1);
@@ -313,6 +314,7 @@ const ManageGallery = () => {
 
     setIsGeneratingEmbeddings(true);
     const toastId = showLoading(`Generating embeddings for ${imagesWithoutEmbeddings.length} images...`);
+    const newErrors: Record<string, string> = {};
 
     try {
       for (const image of imagesWithoutEmbeddings) {
@@ -326,18 +328,24 @@ const ManageGallery = () => {
               img.id === image.id ? { ...img, embedding } : img
             )
           );
-        } catch (error) {
+        } catch (error: any) {
           console.error(`Failed to generate embedding for image ${image.id}:`, error);
-          showError(`Failed to generate embedding for image ${image.id}`);
+          newErrors[image.id] = error.message;
+          showError(`Failed to generate embedding for image ${image.id}: ${error.message}`);
         }
       }
 
       dismissToast(toastId);
-      showSuccess(`Successfully generated embeddings for ${imagesWithoutEmbeddings.length} images.`);
+      if (Object.keys(newErrors).length > 0) {
+        showError(`Successfully generated embeddings for ${imagesWithoutEmbeddings.length - Object.keys(newErrors).length} images. ${Object.keys(newErrors).length} failed.`);
+      } else {
+        showSuccess(`Successfully generated embeddings for ${imagesWithoutEmbeddings.length} images.`);
+      }
     } catch (error: any) {
       dismissToast(toastId);
       showError(`Error generating embeddings: ${error.message}`);
     } finally {
+      setEmbeddingErrors(newErrors);
       setIsGeneratingEmbeddings(false);
     }
   };
@@ -358,6 +366,7 @@ const ManageGallery = () => {
 
     setIsGeneratingEmbeddings(true);
     const toastId = showLoading(`Regenerating embeddings for ${imagesToUpdate.length} images...`);
+    const newErrors: Record<string, string> = {};
 
     try {
       for (const image of imagesToUpdate) {
@@ -371,19 +380,25 @@ const ManageGallery = () => {
               img.id === image.id ? { ...img, embedding } : img
             )
           );
-        } catch (error) {
+        } catch (error: any) {
           console.error(`Failed to regenerate embedding for image ${image.id}:`, error);
-          showError(`Failed to regenerate embedding for image ${image.id}`);
+          newErrors[image.id] = error.message;
+          showError(`Failed to regenerate embedding for image ${image.id}: ${error.message}`);
         }
       }
 
       dismissToast(toastId);
-      showSuccess(`Successfully regenerated embeddings for ${imagesToUpdate.length} images.`);
+      if (Object.keys(newErrors).length > 0) {
+        showError(`Successfully regenerated embeddings for ${imagesToUpdate.length - Object.keys(newErrors).length} images. ${Object.keys(newErrors).length} failed.`);
+      } else {
+        showSuccess(`Successfully regenerated embeddings for ${imagesToUpdate.length} images.`);
+      }
       setSelectedImages(new Set());
     } catch (error: any) {
       dismissToast(toastId);
       showError(`Error regenerating embeddings: ${error.message}`);
     } finally {
+      setEmbeddingErrors(newErrors);
       setIsGeneratingEmbeddings(false);
     }
   };
@@ -510,6 +525,11 @@ const ManageGallery = () => {
                           <div className="flex gap-1">
                             {image.embedding && (
                               <span className="text-xs text-green-500">✓</span>
+                            )}
+                            {embeddingErrors[image.id] && (
+                              <span className="text-xs text-red-500" title={embeddingErrors[image.id]}>
+                                <AlertCircle className="h-3 w-3" />
+                              </span>
                             )}
                             <Button variant="ghost" size="sm" onClick={() => setEditingImage(image)}>
                               <Edit className="h-3 w-3 mr-1" /> Edit

@@ -19,11 +19,22 @@ export const generateEmbedding = async (imageUrl: string): Promise<number[]> => 
     });
 
     if (!response.ok) {
-      throw new Error(`Failed to generate embedding: ${response.statusText}`);
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(`Failed to generate embedding: ${response.statusText}${errorData.error ? ` - ${errorData.error}` : ''}`);
     }
 
     const data = await response.json();
-    return data.embedding;
+
+    // Handle different response formats
+    if (Array.isArray(data)) {
+      // Direct array response
+      return data;
+    } else if (data.embedding && Array.isArray(data.embedding)) {
+      // Object with embedding property
+      return data.embedding;
+    } else {
+      throw new Error("Unexpected response format - expected an array or object with 'embedding' property");
+    }
   } catch (error) {
     console.error("Error generating embedding:", error);
     throw error;
