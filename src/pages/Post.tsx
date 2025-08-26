@@ -326,7 +326,7 @@ const Post = () => {
       <PostNavigation prev={postNav.prev} next={postNav.next} />
 
       <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
-        <DialogContent className="max-w-4xl">
+        <DialogContent className="max-w-4xl w-[90vw] max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Edit Post</DialogTitle>
             <DialogDescription>

@@ -211,7 +211,7 @@ const Layout = () => {
       <Sonner />
 
       <Dialog open={isAddBlogDialogOpen} onOpenChange={setIsAddBlogDialogOpen}>
-        <DialogContent className="max-w-4xl">
+        <DialogContent className="max-w-4xl w-[90vw] max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Add New Post</DialogTitle>
             <DialogDescription>
