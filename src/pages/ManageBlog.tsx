@@ -331,7 +331,7 @@ const ManageBlog = () => {
         onConfirm={handleConfirmAndProcessUploads}
       />
       <Dialog open={!!editingPost} onOpenChange={() => setEditingPost(null)}>
-        <DialogContent className="max-w-4xl">
+        <DialogContent className="max-w-4xl w-[90vw] max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Edit Post</DialogTitle>
             <DialogDescription>
