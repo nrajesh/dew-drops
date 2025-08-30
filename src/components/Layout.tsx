@@ -1,83 +1,246 @@
-import { Outlet, Link } from "react-router-dom";
+import { NavLink, Outlet, Link } from "react-router-dom";
+import { Menu, LogIn, LogOut, Plus, Bot } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger, SheetDescription } from "@/components/ui/sheet";
 import { ThemeToggle } from "./ThemeToggle";
+import { useState } from "react";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
-import { Button } from "@/components/ui/button";
-import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
-import { Menu } from "lucide-react";
-import { useState } from "react";
+import { mainNavItems, managementNavItems, navFeatures } from "@/config/navigation";
+import { useAuth } from "@/contexts/AuthContext";
+import { supabase } from "@/integrations/supabase/client";
+import { showError, showSuccess } from "@/utils/toast";
+import { useFeatureToggles } from "@/contexts/FeatureToggleContext";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import { BlogForm, PostFormData } from "@/components/blog/BlogForm";
+import { useNavigate } from "react-router-dom";
+import Chat from "@/pages/Chat";
 
-const NavLinks = ({ onLinkClick }: { onLinkClick?: () => void }) => (
-  <>
-    <a href="/#books" onClick={onLinkClick} className="transition-colors hover:text-foreground/80 text-foreground/60">
-      Books
-    </a>
-    <a href="/#about" onClick={onLinkClick} className="transition-colors hover:text-foreground/80 text-foreground/60">
-      About
-    </a>
-    <Link to="/contact" onClick={onLinkClick} className="transition-colors hover:text-foreground/80 text-foreground/60">
-      Contact
-    </Link>
-  </>
-);
+const NavContent = ({ onLinkClick }: { onLinkClick?: () => void }) => {
+  const { toggles } = useFeatureToggles();
+  const { session } = useAuth();
+
+  const visibleMainNavItems = mainNavItems.filter(item => toggles[item.featureKey]);
+  const visibleManagementNavItems = session ? managementNavItems.filter(item => toggles[item.featureKey]) : [];
+
+  const navLinkClassName = ({ isActive }: { isActive: boolean }) =>
+    `flex items-center gap-3 rounded-lg px-3 py-2 transition-all hover:bg-sidebar-accent hover:text-sidebar-accent-foreground ${
+      isActive ? "bg-sidebar-primary text-sidebar-primary-foreground" : "text-sidebar-foreground"
+    }`;
+
+  const areManagementItemsVisible = visibleManagementNavItems.length > 0;
+
+  return (
+    <>
+      <nav className="grid items-start px-2 text-sm font-medium lg:px-4">
+        {visibleMainNavItems.map((item) => (
+          <NavLink
+            key={item.to}
+            to={item.to}
+            onClick={onLinkClick}
+            end={item.to === "/"}
+            className={navLinkClassName}
+          >
+            <item.icon className="h-4 w-4" />
+            {item.label}
+          </NavLink>
+        ))}
+      </nav>
+
+      {areManagementItemsVisible && (
+        <>
+          <div className="mt-4 px-4 lg:px-6">
+            <h3 className="mb-2 text-xs font-semibold uppercase text-sidebar-foreground/70 tracking-wider">
+              Management
+            </h3>
+          </div>
+          <nav className="grid items-start px-2 text-sm font-medium lg:px-4">
+            {visibleManagementNavItems.map((item) => (
+              <NavLink
+                key={item.to}
+                to={item.to}
+                onClick={onLinkClick}
+                className={navLinkClassName}
+              >
+                <item.icon className="h-4 w-4" />
+                {item.label}
+              </NavLink>
+            ))}
+          </nav>
+        </>
+      )}
+    </>
+  );
+};
 
 const Layout = () => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const { session } = useAuth();
+  const [isAddBlogDialogOpen, setIsAddBlogDialogOpen] = useState(false);
+  const [isChatOpen, setIsChatOpen] = useState(false);
+  const navigate = useNavigate();
+  const { toggles } = useFeatureToggles();
+
+  const handleLogout = async () => {
+    const { error } = await supabase.auth.signOut();
+
+    if (error && error.name !== 'AuthSessionMissingError') {
+      showError("Logout failed. Please try again.");
+      console.error("Logout error:", error);
+    } else {
+      showSuccess("You have been logged out.");
+      window.location.href = "/";
+    }
+  };
+
+  const handleFormSubmit = (values: PostFormData) => {
+    // This will be handled by the ManageBlog component
+    setIsAddBlogDialogOpen(false);
+    navigate('/manage-blog', { state: { newPostData: values } });
+  };
 
   return (
-    <div className="flex flex-col min-h-screen">
-      <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-        <div className="container flex h-14 items-center">
-          <div className="mr-4 flex items-center">
-            <Link to="/" className="mr-6 flex items-center space-x-2">
-              <span className="font-bold">Sripriya Srinivasan</span>
-            </Link>
-            <nav className="hidden md:flex items-center space-x-6 text-sm font-medium">
-              <NavLinks />
-            </nav>
+    <>
+      <div className="grid min-h-screen w-full md:grid-cols-[220px_1fr] lg:grid-cols-[280px_1fr]">
+        <div className="hidden border-r bg-sidebar md:block">
+          <div className="flex h-full max-h-screen flex-col">
+            <div className="flex h-14 items-center border-b border-sidebar-border px-4 lg:h-[60px] lg:px-6">
+              <NavLink to="/" className="flex items-center gap-2 font-semibold text-sidebar-foreground">
+                <span className="">My Portfolio</span>
+              </NavLink>
+            </div>
+            <div className="flex-1 overflow-auto py-2">
+              <NavContent />
+            </div>
           </div>
-          <div className="flex flex-1 items-center justify-end space-x-2">
-            <div className="md:hidden">
-              <Sheet open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>
-                <SheetTrigger asChild>
-                  <Button variant="ghost" size="icon">
-                    <Menu className="h-5 w-5" />
-                    <span className="sr-only">Toggle Menu</span>
-                  </Button>
-                </SheetTrigger>
-                <SheetContent side="left">
-                  <div className="grid gap-4 py-4">
-                    <nav className="grid gap-2 text-lg font-medium">
-                      <NavLinks onLinkClick={() => setMobileMenuOpen(false)} />
-                    </nav>
-                  </div>
-                </SheetContent>
-              </Sheet>
+        </div>
+        <div className="flex flex-col">
+          <header className="flex h-14 items-center gap-4 border-b bg-background px-4 md:px-6 lg:h-[60px]">
+            <Sheet open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>
+              <SheetTrigger asChild>
+                <Button variant="outline" size="icon" className="shrink-0 md:hidden">
+                  <Menu className="h-5 w-5" />
+                  <span className="sr-only">Toggle navigation menu</span>
+                </Button>
+              </SheetTrigger>
+              <SheetContent side="left" className="flex flex-col bg-sidebar p-0">
+                <SheetHeader className="sr-only">
+                  <SheetTitle>Main Menu</SheetTitle>
+                  <SheetDescription>
+                    A list of navigation links to browse the site.
+                  </SheetDescription>
+                </SheetHeader>
+                <div className="flex h-14 items-center border-b border-sidebar-border px-4">
+                  <NavLink
+                    to="/"
+                    className="flex items-center gap-2 font-semibold text-sidebar-foreground"
+                    onClick={() => setMobileMenuOpen(false)}
+                  >
+                    <span>My Portfolio</span>
+                  </NavLink>
+                </div>
+                <div className="flex-1 overflow-auto py-2">
+                  <NavContent onLinkClick={() => setMobileMenuOpen(false)} />
+                </div>
+              </SheetContent>
+            </Sheet>
+            <div className="w-full flex-1">
+              {/* Future content like breadcrumbs can go here */}
             </div>
             <ThemeToggle />
-          </div>
+            {session ? (
+              <Button variant="ghost" size="icon" onClick={handleLogout}>
+                <LogOut className="h-5 w-5" />
+                <span className="sr-only">Logout</span>
+              </Button>
+            ) : (
+              <Button variant="ghost" size="icon" asChild>
+                <Link to="/login">
+                  <LogIn className="h-5 w-5" />
+                  <span className="sr-only">Login</span>
+                </Link>
+              </Button>
+            )}
+          </header>
+          <main className="flex-1 overflow-auto p-4 md:p-8">
+            <Outlet />
+          </main>
+          <footer className="border-t bg-background px-6 py-4">
+            <div className="flex items-center justify-between text-sm text-muted-foreground">
+              <p>&copy; {new Date().getFullYear()} My Portfolio. All rights reserved.</p>
+              <div className="flex items-center gap-4">
+                <Link to="/contact" className="hover:text-primary transition-colors">
+                  Contact
+                </Link>
+                <Link to="/privacy" className="hover:text-primary transition-colors">
+                  Privacy Policy
+                </Link>
+              </div>
+            </div>
+          </footer>
         </div>
-      </header>
-      <main className="flex-1">
-        <Outlet />
-      </main>
-      <footer className="border-t bg-background">
-        <div className="container flex flex-col items-center justify-between gap-4 py-10 md:h-24 md:flex-row md:py-0">
-          <div className="flex flex-col items-center gap-4 px-8 md:flex-row md:gap-2 md:px-0">
-            <p className="text-center text-sm leading-loose md:text-left">
-              &copy; {new Date().getFullYear()} Sripriya Srinivasan. All rights reserved.
-            </p>
-          </div>
-          <div className="flex items-center gap-4">
-            <Link to="/privacy" className="text-sm text-muted-foreground hover:text-primary transition-colors">
-              Privacy Policy
-            </Link>
-          </div>
-        </div>
-      </footer>
+      </div>
+
+      {/* Floating Action Buttons */}
+      <div className="fixed bottom-6 left-6 flex flex-col gap-4 z-40">
+        {session && (
+          <Button
+            variant="default"
+            size="icon"
+            className="h-14 w-14 rounded-full shadow-lg"
+            onClick={() => setIsAddBlogDialogOpen(true)}
+            aria-label="Add New Blog Post"
+          >
+            <Plus className="h-7 w-7" />
+          </Button>
+        )}
+        {toggles[navFeatures.CHATBOT] && (
+          <Button
+            variant="default"
+            size="icon"
+            className="h-14 w-14 rounded-full shadow-lg"
+            onClick={() => setIsChatOpen(true)}
+            aria-label="Open Chatbot"
+          >
+            <Bot className="h-7 w-7" />
+          </Button>
+        )}
+      </div>
+
       <Toaster />
       <Sonner />
-    </div>
+
+      <Dialog open={isAddBlogDialogOpen} onOpenChange={setIsAddBlogDialogOpen}>
+        <DialogContent className="max-w-4xl w-[90vw] max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Add New Post</DialogTitle>
+            <DialogDescription>
+              Create a new blog post. You can use Markdown for the content.
+            </DialogDescription>
+          </DialogHeader>
+          <BlogForm
+            editingPost={null}
+            galleryImages={[]}
+            uniqueTags={[]}
+            onSubmit={handleFormSubmit}
+            onCancel={() => setIsAddBlogDialogOpen(false)}
+            isPopup={true}
+          />
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={isChatOpen} onOpenChange={setIsChatOpen}>
+        <DialogContent className="w-full sm:max-w-lg p-0 flex flex-col h-[80vh]">
+          <DialogHeader className="sr-only">
+            <DialogTitle>Chatbot</DialogTitle>
+            <DialogDescription>
+              A chat interface to ask questions about the portfolio.
+            </DialogDescription>
+          </DialogHeader>
+          <Chat />
+        </DialogContent>
+      </Dialog>
+    </>
   );
 };
 
