@@ -38,7 +38,6 @@ const Gallery = () => {
       const { data, error } = await supabase
         .from("gallery_images")
         .select("*")
-        .eq('published', true) // Only fetch published images
         .order("created_at", { ascending: false });
 
       if (error) {
@@ -83,7 +82,7 @@ const Gallery = () => {
 
   useEffect(() => {
     setCurrentPage(1);
-  }, [selectedTags, debouncedSearchTerm]);
+  }, [activeMake, debouncedSearchTerm]);
 
   const getThumbnailUrl = (fileName: string) => {
     const { data } = supabase.storage.from('gallery').getPublicUrl(fileName, {
@@ -253,7 +252,7 @@ const Gallery = () => {
                     <AspectRatio ratio={4 / 3}>
                       <img
                         src={getThumbnailUrl(image.file_name)}
-                        alt={image.alt_text || "Enlarged gallery image"}
+                        alt={image.alt_text || "Gallery image"}
                         className="h-full w-full object-cover bg-background transition-transform duration-300 group-hover:scale-105"
                       />
                     </AspectRatio>

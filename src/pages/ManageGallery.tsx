@@ -11,7 +11,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { supabase } from "@/integrations/supabase/client";
 import { showSuccess, showError, showLoading, dismissToast } from "@/utils/toast";
-import { Upload, Trash2, Edit, RefreshCw, AlertCircle, AlertTriangle, MoreHorizontal } from "lucide-react";
+import { Upload, Trash2, Edit, RefreshCw, AlertCircle, AlertTriangle } from "lucide-react";
 import type { GalleryImage } from "@/types";
 import {
   AlertDialog,
@@ -31,8 +31,6 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { ManagementPagination } from "@/components/ManagementPagination";
 import { usePaginationNavigation } from "@/hooks/usePaginationNavigation";
 import { generateEmbedding, updateImageEmbedding } from "@/utils/embeddings";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { cn } from "@/lib/utils";
 
 const editSchema = z.object({
   alt_text: z.string().min(3, "Alt text must be at least 3 characters.").max(200, "Alt text cannot exceed 200 characters."),
@@ -192,7 +190,6 @@ const ManageGallery = () => {
         file_name: fileName,
         user_id: user.id,
         exif_data: exifData,
-        published: false, // New images are drafts by default
       });
 
       if (dbError) {
@@ -303,73 +300,6 @@ const ManageGallery = () => {
   };
 
   const allOnPageSelected = paginatedImages.length > 0 && paginatedImages.every(i => selectedImages.has(i.id));
-
-  const handleUpdatePublishedStatus = async (imageId: string, published: boolean) => {
-    if (!user) {
-      showError("You must be logged in to change image status.");
-      return;
-    }
-
-    // Optimistic update
-    setImages(prevImages =>
-      prevImages.map(img =>
-        img.id === imageId ? { ...img, published } : img
-      )
-    );
-
-    const { error } = await supabase
-      .from("gallery_images")
-      .update({ published })
-      .eq("id", imageId);
-
-    if (error) {
-      showError(`Failed to update status: ${error.message}`);
-      // Revert on error
-      setImages(prevImages =>
-        prevImages.map(img =>
-          img.id === imageId ? { ...img, published: !published } : img
-        )
-      );
-    } else {
-      showSuccess(`Image status updated to ${published ? 'published' : 'draft'}.`);
-    }
-  };
-
-  const handleBulkStatusChange = async (published: boolean) => {
-    if (!user) {
-      showError("You must be logged in to change image status.");
-      return;
-    }
-    if (selectedImages.size === 0) {
-      showError("Please select images to update.");
-      return;
-    }
-
-    const statusText = published ? "publishing" : "unpublishing";
-    const toastId = showLoading(`Bulk ${statusText} ${selectedImages.size} images...`);
-
-    // Optimistic update
-    setImages(prevImages =>
-      prevImages.map(img =>
-        selectedImages.has(img.id) ? { ...img, published } : img
-      )
-    );
-
-    const { error } = await supabase
-      .from("gallery_images")
-      .update({ published })
-      .in("id", Array.from(selectedImages));
-
-    dismissToast(toastId);
-    if (error) {
-      showError(`Bulk update failed: ${error.message}`);
-      // Revert on error
-      fetchImages(); // Re-fetch to ensure consistency
-    } else {
-      showSuccess(`Successfully ${statusText} ${selectedImages.size} images.`);
-      setSelectedImages(new Set());
-    }
-  };
 
   const generateEmbeddingsForImages = async () => {
     if (!user) {
@@ -503,7 +433,7 @@ const ManageGallery = () => {
           <CardHeader>
             <CardTitle>Upload to Gallery</CardTitle>
             <CardDescription>
-              Select one or more images to upload. EXIF data will be automatically extracted. New images are uploaded as drafts.
+              Select one or more images to upload. EXIF data will be automatically extracted.
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -531,8 +461,8 @@ const ManageGallery = () => {
               <CardTitle className="text-yellow-700">API Rate Limit Reached</CardTitle>
             </CardHeader>
             <CardContent>
-              <p className="text-sm text-yellow-700">
-                You've reached your daily limit of {50 - rateLimitInfo.remaining} requests. The limit resets at {rateLimitInfo.resetTime}.
+              <p className="text-yellow-700">
+                You've reached your daily limit of {50 - rateLimitInfo.remaining} requests. The limit resets at {rateLimitInfo.resetTime} today.
               </p>
               <p className="mt-2 text-yellow-700">
                 You can continue generating embeddings, but some requests may fail. Try again later for better results.
@@ -546,45 +476,43 @@ const ManageGallery = () => {
             <div>
               <CardTitle>Manage Gallery</CardTitle>
               <CardDescription>
-                View, edit, and delete your uploaded images. Toggle their public visibility.
+                View, edit, and delete your uploaded images.
               </CardDescription>
             </div>
             <div className="flex gap-2">
               {selectedImages.size > 0 && (
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button variant="outline" size="sm">Actions <MoreHorizontal className="ml-2 h-4 w-4" /></Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent>
-                    <DropdownMenuItem onClick={() => handleBulkStatusChange(true)}>Publish Selected</DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => handleBulkStatusChange(false)}>Unpublish Selected</DropdownMenuItem>
-                    <DropdownMenuItem onClick={regenerateEmbeddingsForSelected} disabled={isGeneratingEmbeddings}>
-                      Regenerate Embeddings ({selectedImages.size})
-                    </DropdownMenuItem>
-                    <AlertDialog>
-                      <AlertDialogTrigger asChild>
-                        <DropdownMenuItem onSelect={(e) => e.preventDefault()} className="text-destructive focus:bg-destructive/10 focus:text-destructive">
-                          <Trash2 className="h-4 w-4 mr-2" />
-                          Delete ({selectedImages.size})
-                        </DropdownMenuItem>
-                      </AlertDialogTrigger>
-                      <AlertDialogContent>
-                        <AlertDialogHeader>
-                          <AlertDialogTitle>Are you sure?</AlertDialogTitle>
-                          <AlertDialogDescription>
-                            This will permanently delete the {selectedImages.size} selected image(s). This action cannot be undone.
-                          </AlertDialogDescription>
-                        </AlertDialogHeader>
-                        <AlertDialogFooter>
-                          <AlertDialogCancel>Cancel</AlertDialogCancel>
-                          <AlertDialogAction onClick={() => handleDelete(Array.from(selectedImages))}>
-                            Delete
-                          </AlertDialogAction>
-                        </AlertDialogFooter>
-                      </AlertDialogContent>
-                    </AlertDialog>
-                  </DropdownMenuContent>
-                </DropdownMenu>
+                <AlertDialog>
+                  <AlertDialogTrigger asChild>
+                    <Button variant="destructive">
+                      <Trash2 className="h-4 w-4 mr-2" />
+                      Delete ({selectedImages.size})
+                    </Button>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                      <AlertDialogDescription>
+                        This will permanently delete the {selectedImages.size} selected image(s). This action cannot be undone.
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel>Cancel</AlertDialogCancel>
+                      <AlertDialogAction onClick={() => handleDelete(Array.from(selectedImages))}>
+                        Delete
+                      </AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
+              )}
+              {selectedImages.size > 0 && (
+                <Button
+                  variant="outline"
+                  onClick={regenerateEmbeddingsForSelected}
+                  disabled={isGeneratingEmbeddings}
+                >
+                  <RefreshCw className="h-4 w-4 mr-2" />
+                  Regenerate Embeddings ({selectedImages.size})
+                </Button>
               )}
               <Button
                 variant="outline"
@@ -625,24 +553,18 @@ const ManageGallery = () => {
                         </AspectRatio>
                       </CardContent>
                       <CardFooter className="p-2 flex-col items-start flex-grow justify-between">
-                        <div className="flex items-center gap-2 w-full">
-                          <span
-                            className={cn("h-2 w-2 rounded-full", image.published ? "bg-green-500" : "bg-gray-400")}
-                            title={image.published ? "Published" : "Draft"}
-                          />
-                          <p className="text-xs text-muted-foreground truncate w-full">
-                            {image.alt_text || "No alt text"}
-                          </p>
-                        </div>
+                        <p className="text-xs text-muted-foreground truncate w-full h-8">
+                          {image.alt_text}
+                        </p>
                         <div className="flex justify-between w-full items-center mt-1">
                           <Checkbox
                             id={`select-${image.id}`}
                             checked={selectedImages.has(image.id)}
                             onCheckedChange={() => handleSelectImage(image.id)}
                           />
-                          <div className="flex gap-1 items-center">
+                          <div className="flex gap-1">
                             {image.embedding && (
-                              <span className="text-xs text-green-500" title="Embedding generated">✓</span>
+                              <span className="text-xs text-green-500">✓</span>
                             )}
                             {embeddingErrors[image.id] && (
                               <span className="text-xs text-red-500" title={embeddingErrors[image.id]}>
@@ -651,13 +573,6 @@ const ManageGallery = () => {
                             )}
                             <Button variant="ghost" size="sm" onClick={() => setEditingImage(image)}>
                               <Edit className="h-3 w-3 mr-1" /> Edit
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => handleUpdatePublishedStatus(image.id, !image.published)}
-                            >
-                              {image.published ? "Unpublish" : "Publish"}
                             </Button>
                           </div>
                         </div>

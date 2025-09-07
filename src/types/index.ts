@@ -24,7 +24,6 @@ export interface TravelLocation {
   blog_title?: string; // Added for map popups
   marker_image_url: string | null;
   user_id: string | null;
-  published: boolean; // Added published status
 }
 
 export interface GalleryImage {
@@ -36,7 +35,6 @@ export interface GalleryImage {
   user_id: string | null;
   exif_data: Record<string, any> | null;
   embedding: number[] | null; // Added for vector search
-  published: boolean; // Added published status
 }
 
 export interface Video {

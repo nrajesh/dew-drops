@@ -15,7 +15,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { showSuccess, showError, showLoading, dismissToast, updateToastSuccess, updateToastError } from "@/utils/toast";
 import { useState, useEffect, useRef, useMemo } from "react";
-import { Trash2, Edit, Upload, Download, Check, ChevronsUpDown, MoreHorizontal } from "lucide-react";
+import { Trash2, Edit, Upload, Download, Check, ChevronsUpDown } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import type { TravelLocation, Post } from "@/types";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -45,7 +45,6 @@ import { cn } from "@/lib/utils";
 import { ManagementPagination } from "@/components/ManagementPagination";
 import { usePaginationNavigation } from "@/hooks/usePaginationNavigation";
 import { useAuth } from "@/contexts/AuthContext";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 
 const MAPBOX_ACCESS_TOKEN = import.meta.env.VITE_MAPBOX_ACCESS_TOKEN;
 
@@ -57,7 +56,6 @@ const locationSchema = z.object({
   longitude: z.coerce.number().min(-180).max(180).optional().or(z.literal('')),
   blog_url: z.string().optional().nullable(),
   image: z.instanceof(FileList).optional(),
-  published: z.boolean().default(false), // Added published status
 });
 
 const ManageTravel = () => {
@@ -135,7 +133,6 @@ const ManageTravel = () => {
       latitude: "",
       longitude: "",
       blog_url: null,
-      published: false, // Default to draft
     },
   });
 
@@ -227,7 +224,6 @@ const ManageTravel = () => {
         blog_url: values.blog_url,
         marker_image_url: imageUrl,
         user_id: user.id,
-        published: values.published, // Include published status
       };
 
       let error;
@@ -249,7 +245,7 @@ const ManageTravel = () => {
       dismissToast(toastId);
       showError(`Operation failed: ${error.message}`);
     }
-  }
+  };
 
   const handleEdit = (location: TravelLocation) => {
     setEditingId(location.id);
@@ -261,7 +257,6 @@ const ManageTravel = () => {
       latitude: location.latitude,
       longitude: location.longitude,
       blog_url: location.blog_url || null,
-      published: location.published, // Set published status for editing
     });
   };
 
@@ -297,7 +292,6 @@ const ManageTravel = () => {
       latitude: "",
       longitude: "",
       blog_url: null,
-      published: false,
     });
   };
 
@@ -445,7 +439,6 @@ const ManageTravel = () => {
             longitude: parseFloat(longitude),
             blog_url: blog_url,
             marker_image_url: row.marker_image_url || null,
-            published: row.published ? row.published.toLowerCase() === 'true' : false, // Handle published status from CSV, default to false
           };
 
           const existingLocation = locations.find(loc => loc.name.toLowerCase() === locationData.name.toLowerCase());
@@ -531,7 +524,7 @@ const ManageTravel = () => {
         const blogTitleMap = new Map(blogPosts.map(p => [p.id, p.title]));
         const locationsToDownload = locations.filter(loc => selectedLocations.has(loc.id));
 
-        const headers = ["title", "name", "description", "latitude", "longitude", "marker_image_url", "blog_title", "published"];
+        const headers = ["title", "name", "description", "latitude", "longitude", "marker_image_url", "blog_title"];
         
         const escapeCsv = (val: any) => {
             const str = String(val);
@@ -553,7 +546,6 @@ const ManageTravel = () => {
                 loc.longitude,
                 loc.marker_image_url || '',
                 blogTitle,
-                loc.published,
             ];
             return rowData.map(escapeCsv).join(';');
         });
@@ -592,73 +584,6 @@ const ManageTravel = () => {
     }
   };
 
-  const handleUpdatePublishedStatus = async (locationId: string, published: boolean) => {
-    if (!user) {
-      showError("You must be logged in to change location status.");
-      return;
-    }
-
-    // Optimistic update
-    setLocations(prevLocations =>
-      prevLocations.map(loc =>
-        loc.id === locationId ? { ...loc, published } : loc
-      )
-    );
-
-    const { error } = await supabase
-      .from("travel_locations")
-      .update({ published })
-      .eq("id", locationId);
-
-    if (error) {
-      showError(`Failed to update status: ${error.message}`);
-      // Revert on error
-      setLocations(prevLocations =>
-        prevLocations.map(loc =>
-          loc.id === locationId ? { ...loc, published: !published } : loc
-        )
-      );
-    } else {
-      showSuccess(`Location status updated to ${published ? 'published' : 'draft'}.`);
-    }
-  };
-
-  const handleBulkStatusChange = async (published: boolean) => {
-    if (!user) {
-      showError("You must be logged in to change location status.");
-      return;
-    }
-    if (selectedLocations.size === 0) {
-      showError("Please select locations to update.");
-      return;
-    }
-
-    const statusText = published ? "publishing" : "unpublishing";
-    const toastId = showLoading(`Bulk ${statusText} ${selectedLocations.size} locations...`);
-
-    // Optimistic update
-    setLocations(prevLocations =>
-      prevLocations.map(loc =>
-        selectedLocations.has(loc.id) ? { ...loc, published } : loc
-      )
-    );
-
-    const { error } = await supabase
-      .from("travel_locations")
-      .update({ published })
-      .in("id", Array.from(selectedLocations));
-
-    dismissToast(toastId);
-    if (error) {
-      showError(`Bulk update failed: ${error.message}`);
-      // Revert on error
-      fetchLocations(); // Re-fetch to ensure consistency
-    } else {
-      showSuccess(`Successfully ${statusText} ${selectedLocations.size} locations.`);
-      setSelectedLocations(new Set());
-    }
-  };
-
   const allOnPageSelected = paginatedLocations.length > 0 && paginatedLocations.every(l => selectedLocations.has(l.id));
 
   return (
@@ -666,13 +591,13 @@ const ManageTravel = () => {
       <Card>
         <CardHeader>
           <CardTitle>Bulk Upload Locations</CardTitle>
-          <CardDescription>Upload a semicolon-separated CSV file to add multiple locations at once. Include a 'published' column (true/false) or they will default to draft.</CardDescription>
+          <CardDescription>Upload a semicolon-separated CSV file to add multiple locations at once.</CardDescription>
         </CardHeader>
         <CardContent>
           <div className="space-y-4">
             <div className="flex items-center justify-between p-3 bg-muted rounded-md">
                 <p className="text-sm text-muted-foreground">
-                  Headers: <code>"title";"name";"blog_title";"published";...</code>
+                  Headers: <code>"title";"name";"blog_title";...</code>
                 </p>
                 <Button asChild variant="secondary" size="sm">
                     <a href="/sample-travel-locations.csv" download>
@@ -702,7 +627,7 @@ const ManageTravel = () => {
           <CardHeader>
             <CardTitle>{editingId ? "Edit Location" : "Add New Location"}</CardTitle>
             <CardDescription>
-              {editingId ? "Update the details for this travel location." : "Add a new pin to your travel map. Coordinates are optional. New locations are drafts by default."}
+              {editingId ? "Update the details for this travel location." : "Add a new pin to your travel map. Coordinates are optional."}
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -787,21 +712,6 @@ const ManageTravel = () => {
                     <FormMessage />
                   </FormItem>
                 )}/>
-
-                <FormField control={form.control} name="published" render={({ field }) => (
-                  <FormItem className="flex flex-row items-center space-x-3 space-y-0 rounded-md border p-4">
-                    <FormControl>
-                      <Checkbox checked={field.value} onCheckedChange={field.onChange} />
-                    </FormControl>
-                    <div className="space-y-1 leading-none">
-                      <FormLabel>Published</FormLabel>
-                      <FormDescription>
-                        If checked, this location will be visible on the public travel map.
-                      </FormDescription>
-                    </div>
-                  </FormItem>
-                )} />
-
                 <div className="flex gap-2">
                   <Button type="submit">{editingId ? "Update Location" : "Add Location"}</Button>
                   {editingId && <Button type="button" variant="outline" onClick={cancelEdit}>Cancel</Button>}
@@ -815,34 +725,22 @@ const ManageTravel = () => {
             <div className="flex items-center justify-between">
               <div>
                 <CardTitle>Travel Log</CardTitle>
-                <CardDescription>Your current list of visited places. Toggle their public visibility.</CardDescription>
+                <CardDescription>Your current list of visited places.</CardDescription>
               </div>
               {selectedLocations.size > 0 && (
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button variant="outline" size="sm">Actions <MoreHorizontal className="ml-2 h-4 w-4" /></Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent>
-                    <DropdownMenuItem onClick={() => handleBulkStatusChange(true)}>Publish Selected</DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => handleBulkStatusChange(false)}>Unpublish Selected</DropdownMenuItem>
-                    <DropdownMenuItem onClick={handleBulkDownload}>
-                      <Download className="h-4 w-4 mr-2" />
-                      Download ({selectedLocations.size})
-                    </DropdownMenuItem>
-                    <AlertDialog>
-                      <AlertDialogTrigger asChild>
-                        <DropdownMenuItem onSelect={(e) => e.preventDefault()} className="text-destructive focus:bg-destructive/10 focus:text-destructive">
-                          <Trash2 className="h-4 w-4 mr-2" />
-                          Delete ({selectedLocations.size})
-                        </DropdownMenuItem>
-                      </AlertDialogTrigger>
-                      <AlertDialogContent>
-                        <AlertDialogHeader><AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle><AlertDialogDescription>This action cannot be undone. This will permanently delete {selectedLocations.size} selected locations and any associated images.</AlertDialogDescription></AlertDialogHeader>
-                        <AlertDialogFooter><AlertDialogCancel onClick={() => setSelectedLocations(new Set())}>Cancel</AlertDialogCancel><AlertDialogAction onClick={handleBulkDelete}>Continue</AlertDialogAction></AlertDialogFooter>
-                      </AlertDialogContent>
-                    </AlertDialog>
-                  </DropdownMenuContent>
-                </DropdownMenu>
+                <div className="flex items-center gap-2">
+                  <Button variant="outline" size="sm" onClick={handleBulkDownload}>
+                    <Download className="h-4 w-4 mr-2" />
+                    Download ({selectedLocations.size})
+                  </Button>
+                  <AlertDialog>
+                    <AlertDialogTrigger asChild><Button variant="destructive" size="sm"><Trash2 className="h-4 w-4 mr-2" />Delete ({selectedLocations.size})</Button></AlertDialogTrigger>
+                    <AlertDialogContent>
+                      <AlertDialogHeader><AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle><AlertDialogDescription>This action cannot be undone. This will permanently delete {selectedLocations.size} selected locations and any associated images.</AlertDialogDescription></AlertDialogHeader>
+                      <AlertDialogFooter><AlertDialogCancel onClick={() => setSelectedLocations(new Set())}>Cancel</AlertDialogCancel><AlertDialogAction onClick={handleBulkDelete}>Continue</AlertDialogAction></AlertDialogFooter>
+                    </AlertDialogContent>
+                  </AlertDialog>
+                </div>
               )}
             </div>
           </CardHeader>
@@ -857,18 +755,9 @@ const ManageTravel = () => {
                   <div key={location.id} className="flex items-center justify-between p-2 rounded-lg border">
                     <div className="flex items-center gap-3">
                       <Checkbox id={`select-${location.id}`} checked={selectedLocations.has(location.id)} onCheckedChange={() => { const newSelected = new Set(selectedLocations); if (newSelected.has(location.id)) { newSelected.delete(location.id); } else { newSelected.add(location.id); } setSelectedLocations(newSelected); }}/>
-                      <span
-                        className={cn("h-2 w-2 rounded-full", location.published ? "bg-green-500" : "bg-gray-400")}
-                        title={location.published ? "Published" : "Draft"}
-                      />
                       <label htmlFor={`select-${location.id}`} className="font-medium truncate pr-2 cursor-pointer">{location.title}</label>
                     </div>
-                    <div className="flex items-center gap-2 shrink-0">
-                      <Button variant="ghost" size="sm" onClick={() => handleUpdatePublishedStatus(location.id, !location.published)}>
-                        {location.published ? "Unpublish" : "Publish"}
-                      </Button>
-                      <Button variant="ghost" size="icon" onClick={() => handleEdit(location)}><Edit className="h-4 w-4" /></Button>
-                    </div>
+                    <div className="flex items-center gap-2 shrink-0"><Button variant="ghost" size="icon" onClick={() => handleEdit(location)}><Edit className="h-4 w-4" /></Button></div>
                   </div>
                 ))
               ) : (
