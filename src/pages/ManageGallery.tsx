@@ -31,6 +31,12 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Switch } from "@/components/ui/switch";
 import { ManagementPagination } from "@/components/ManagementPagination";
 import { usePaginationNavigation } from "@/hooks/usePaginationNavigation";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 const editSchema = z.object({
   alt_text: z.string().min(3, "Alt text must be at least 3 characters.").max(200, "Alt text cannot exceed 200 characters."),
@@ -377,12 +383,21 @@ const ManageGallery = () => {
             <div className="flex gap-2">
               {selectedImages.size > 0 && (
                 <>
-                  <Button variant="outline" onClick={() => handleBulkPublish(true)} disabled={selectedImages.size === 0}>
-                    Publish ({selectedImages.size})
-                  </Button>
-                  <Button variant="outline" onClick={() => handleBulkPublish(false)} disabled={selectedImages.size === 0}>
-                    Unpublish ({selectedImages.size})
-                  </Button>
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button variant="outline">
+                        Bulk Actions ({selectedImages.size})
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                      <DropdownMenuItem onClick={() => handleBulkPublish(true)}>
+                        Publish Selected
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => handleBulkPublish(false)}>
+                        Unpublish Selected
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
                   <AlertDialog>
                     <AlertDialogTrigger asChild>
                       <Button variant="destructive">

@@ -47,6 +47,12 @@ import { cn } from "@/lib/utils";
 import { ManagementPagination } from "@/components/ManagementPagination";
 import { usePaginationNavigation } from "@/hooks/usePaginationNavigation";
 import { useAuth } from "@/contexts/AuthContext";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 const MAPBOX_ACCESS_TOKEN = import.meta.env.VITE_MAPBOX_ACCESS_TOKEN;
 
@@ -793,16 +799,25 @@ const ManageTravel = () => {
               </div>
               {selectedLocations.size > 0 && (
                 <div className="flex items-center gap-2">
-                  <Button variant="outline" onClick={() => handleBulkPublish(true)} disabled={selectedLocations.size === 0}>
-                    Publish ({selectedLocations.size})
-                  </Button>
-                  <Button variant="outline" onClick={() => handleBulkPublish(false)} disabled={selectedLocations.size === 0}>
-                    Unpublish ({selectedLocations.size})
-                  </Button>
-                  <Button variant="outline" size="sm" onClick={handleBulkDownload}>
-                    <Download className="h-4 w-4 mr-2" />
-                    Download ({selectedLocations.size})
-                  </Button>
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button variant="outline">
+                        Bulk Actions ({selectedLocations.size})
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                      <DropdownMenuItem onClick={() => handleBulkPublish(true)}>
+                        Publish Selected
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => handleBulkPublish(false)}>
+                        Unpublish Selected
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={handleBulkDownload}>
+                        <Download className="h-4 w-4 mr-2" />
+                        Download Selected
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
                   <AlertDialog>
                     <AlertDialogTrigger asChild><Button variant="destructive" size="sm"><Trash2 className="h-4 w-4 mr-2" />Delete ({selectedLocations.size})</Button></AlertDialogTrigger>
                     <AlertDialogContent>
