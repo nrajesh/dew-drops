@@ -19,6 +19,8 @@ import { Trash2, Edit, Upload, Download, Check, ChevronsUpDown } from "lucide-re
 import { supabase } from "@/integrations/supabase/client";
 import type { TravelLocation, Post } from "@/types";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -56,6 +58,7 @@ const locationSchema = z.object({
   longitude: z.coerce.number().min(-180).max(180).optional().or(z.literal('')),
   blog_url: z.string().optional().nullable(),
   image: z.instanceof(FileList).optional(),
+  published: z.boolean().default(false),
 });
 
 const ManageTravel = () => {
@@ -133,6 +136,7 @@ const ManageTravel = () => {
       latitude: "",
       longitude: "",
       blog_url: null,
+      published: false,
     },
   });
 
@@ -224,6 +228,7 @@ const ManageTravel = () => {
         blog_url: values.blog_url,
         marker_image_url: imageUrl,
         user_id: user.id,
+        published: values.published,
       };
 
       let error;
@@ -257,6 +262,7 @@ const ManageTravel = () => {
       latitude: location.latitude,
       longitude: location.longitude,
       blog_url: location.blog_url || null,
+      published: location.published,
     });
   };
 
@@ -292,6 +298,7 @@ const ManageTravel = () => {
       latitude: "",
       longitude: "",
       blog_url: null,
+      published: false,
     });
   };
 
@@ -439,6 +446,7 @@ const ManageTravel = () => {
             longitude: parseFloat(longitude),
             blog_url: blog_url,
             marker_image_url: row.marker_image_url || null,
+            published: row.published ? row.published.toLowerCase() === 'true' : false,
           };
 
           const existingLocation = locations.find(loc => loc.name.toLowerCase() === locationData.name.toLowerCase());
@@ -524,7 +532,7 @@ const ManageTravel = () => {
         const blogTitleMap = new Map(blogPosts.map(p => [p.id, p.title]));
         const locationsToDownload = locations.filter(loc => selectedLocations.has(loc.id));
 
-        const headers = ["title", "name", "description", "latitude", "longitude", "marker_image_url", "blog_title"];
+        const headers = ["title", "name", "description", "latitude", "longitude", "marker_image_url", "blog_title", "published"];
         
         const escapeCsv = (val: any) => {
             const str = String(val);
@@ -546,6 +554,7 @@ const ManageTravel = () => {
                 loc.longitude,
                 loc.marker_image_url || '',
                 blogTitle,
+                loc.published,
             ];
             return rowData.map(escapeCsv).join(';');
         });
@@ -581,6 +590,23 @@ const ManageTravel = () => {
         pageIds.forEach(id => newSet.delete(id));
         return newSet;
       });
+    }
+  };
+
+  const handleTogglePublish = async (location: TravelLocation) => {
+    const newPublishedStatus = !location.published;
+    const toastId = showLoading(newPublishedStatus ? "Publishing..." : "Unpublishing...");
+
+    const { error } = await supabase
+      .from("travel_locations")
+      .update({ published: newPublishedStatus })
+      .eq("id", location.id);
+
+    if (error) {
+      updateToastError(toastId, `Failed to update status: ${error.message}`);
+    } else {
+      updateToastSuccess(toastId, `Location ${newPublishedStatus ? "published" : "unpublished"}.`);
+      setLocations(locations.map(l => l.id === location.id ? { ...l, published: newPublishedStatus } : l));
     }
   };
 
@@ -712,6 +738,24 @@ const ManageTravel = () => {
                     <FormMessage />
                   </FormItem>
                 )}/>
+                <FormField
+                  control={form.control}
+                  name="published"
+                  render={({ field }) => (
+                    <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3 shadow-sm">
+                      <div className="space-y-0.5">
+                        <FormLabel>Published</FormLabel>
+                        <FormMessage />
+                      </div>
+                      <FormControl>
+                        <Switch
+                          checked={field.value}
+                          onCheckedChange={field.onChange}
+                        />
+                      </FormControl>
+                    </FormItem>
+                  )}
+                />
                 <div className="flex gap-2">
                   <Button type="submit">{editingId ? "Update Location" : "Add Location"}</Button>
                   {editingId && <Button type="button" variant="outline" onClick={cancelEdit}>Cancel</Button>}
@@ -757,7 +801,14 @@ const ManageTravel = () => {
                       <Checkbox id={`select-${location.id}`} checked={selectedLocations.has(location.id)} onCheckedChange={() => { const newSelected = new Set(selectedLocations); if (newSelected.has(location.id)) { newSelected.delete(location.id); } else { newSelected.add(location.id); } setSelectedLocations(newSelected); }}/>
                       <label htmlFor={`select-${location.id}`} className="font-medium truncate pr-2 cursor-pointer">{location.title}</label>
                     </div>
-                    <div className="flex items-center gap-2 shrink-0"><Button variant="ghost" size="icon" onClick={() => handleEdit(location)}><Edit className="h-4 w-4" /></Button></div>
+                    <div className="flex items-center gap-2 shrink-0">
+                      <Switch
+                        checked={location.published}
+                        onCheckedChange={() => handleTogglePublish(location)}
+                        aria-label="Publish status"
+                      />
+                      <Button variant="ghost" size="icon" onClick={() => handleEdit(location)}><Edit className="h-4 w-4" /></Button>
+                    </div>
                   </div>
                 ))
               ) : (

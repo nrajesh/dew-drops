@@ -28,6 +28,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { sanitizeFileName } from "@/lib/utils";
 import ExifReader from 'exifreader';
 import { Checkbox } from "@/components/ui/checkbox";
+import { Switch } from "@/components/ui/switch";
 import { ManagementPagination } from "@/components/ManagementPagination";
 import { usePaginationNavigation } from "@/hooks/usePaginationNavigation";
 
@@ -43,7 +44,6 @@ const ManageGallery = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [selectedImages, setSelectedImages] = useState(new Set<string>());
   const [editingImage, setEditingImage] = useState<GalleryImage | null>(null);
-  const [isGeneratingEmbeddings, setIsGeneratingEmbeddings] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
 
   const [currentPage, setCurrentPage] = useState(1);
@@ -187,6 +187,7 @@ const ManageGallery = () => {
         file_name: fileName,
         user_id: user.id,
         exif_data: exifData,
+        published: false,
       });
 
       if (dbError) {
@@ -296,6 +297,25 @@ const ManageGallery = () => {
     }
   };
 
+  const handleTogglePublish = async (image: GalleryImage) => {
+    const newPublishedStatus = !image.published;
+    const toastId = showLoading(newPublishedStatus ? "Publishing..." : "Unpublishing...");
+
+    const { error } = await supabase
+      .from("gallery_images")
+      .update({ published: newPublishedStatus })
+      .eq("id", image.id);
+
+    if (error) {
+      dismissToast(toastId);
+      showError(`Failed to update status: ${error.message}`);
+    } else {
+      dismissToast(toastId);
+      showSuccess(`Image ${newPublishedStatus ? "published" : "unpublished"}.`);
+      setImages(images.map(i => i.id === image.id ? { ...i, published: newPublishedStatus } : i));
+    }
+  };
+
   const allOnPageSelected = paginatedImages.length > 0 && paginatedImages.every(i => selectedImages.has(i.id));
 
   return (
@@ -399,10 +419,12 @@ const ManageGallery = () => {
                             checked={selectedImages.has(image.id)}
                             onCheckedChange={() => handleSelectImage(image.id)}
                           />
-                          <div className="flex gap-1">
-                            {image.embedding && (
-                              <span className="text-xs text-green-500">✓</span>
-                            )}
+                          <div className="flex gap-1 items-center">
+                            <Switch
+                              checked={image.published}
+                              onCheckedChange={() => handleTogglePublish(image)}
+                              aria-label="Publish status"
+                            />
                             <Button variant="ghost" size="sm" onClick={() => setEditingImage(image)}>
                               <Edit className="h-3 w-3 mr-1" /> Edit
                             </Button>
