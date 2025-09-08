@@ -10,7 +10,6 @@ import { useDebounce } from "@/hooks/useDebounce";
 import { PaginationControls } from "@/components/PaginationControls";
 import { usePaginationNavigation } from "@/hooks/usePaginationNavigation";
 import { Button } from "@/components/ui/button";
-import { generateEmbedding, searchSimilarImages, generateSearchEmbedding, searchImagesByMetadata } from "@/utils/embeddings";
 import { showError } from "@/utils/toast";
 
 const LazyImageLightbox = lazy(() => import("@/components/ImageLightbox").then(module => ({ default: module.ImageLightbox })));
@@ -24,10 +23,6 @@ const Gallery = () => {
   const [activeMake, setActiveMake] = useState<string | 'all'>('all');
   const [searchTerm, setSearchTerm] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
-  const [isSearching, setIsSearching] = useState(false);
-  const [searchResults, setSearchResults] = useState<GalleryImage[]>([]);
-  const [rateLimitInfo, setRateLimitInfo] = useState<{ remaining: number; resetTime: string } | null>(null);
-  const [authError, setAuthError] = useState<string | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
   const debouncedSearchTerm = useDebounce(searchTerm, 500);
@@ -57,14 +52,32 @@ const Gallery = () => {
 
   const filteredImages = useMemo(() => {
     if (debouncedSearchTerm) {
-      return searchResults;
+      const lowerSearchTerm = debouncedSearchTerm.toLowerCase();
+      const searchTerms = lowerSearchTerm.split(/\s+/).filter(term => term.length > 0);
+
+      return allImages.filter(image => {
+        const filenameMatch = searchTerms.some(term =>
+          image.file_name.toLowerCase().includes(term)
+        );
+        const altTextMatch = image.alt_text?.toLowerCase().includes(lowerSearchTerm) || false;
+        let exifMatch = false;
+        if (image.exif_data) {
+          for (const value of Object.values(image.exif_data)) {
+            if (String(value).toLowerCase().includes(lowerSearchTerm)) {
+              exifMatch = true;
+              break;
+            }
+          }
+        }
+        return filenameMatch || altTextMatch || exifMatch;
+      });
     }
 
     return allImages.filter(image => {
       const makeFilter = activeMake === 'all' || image.exif_data?.Make === activeMake;
       return makeFilter;
     });
-  }, [allImages, activeMake, debouncedSearchTerm, searchResults]);
+  }, [allImages, activeMake, debouncedSearchTerm]);
 
   const totalPages = Math.ceil(filteredImages.length / IMAGES_PER_PAGE);
   const paginatedImages = filteredImages.slice(
@@ -102,73 +115,6 @@ const Gallery = () => {
 
   const selectedImage = selectedImageIndex !== null ? filteredImages[selectedImageIndex] : null;
 
-  const handleImageSearch = async () => {
-    if (!debouncedSearchTerm.trim()) {
-      setSearchResults([]);
-      return;
-    }
-
-    setIsSearching(true);
-    setAuthError(null);
-    try {
-      // Perform both metadata and semantic search
-      const [metadataResults, semanticResults] = await Promise.all([
-        searchImagesByMetadata(debouncedSearchTerm, allImages),
-        (async () => {
-          // First, try to find an image that matches the search term
-          const matchingImage = allImages.find(img =>
-            img.alt_text?.toLowerCase().includes(debouncedSearchTerm.toLowerCase())
-          );
-
-          if (matchingImage && matchingImage.embedding) {
-            // If we find a matching image with an embedding, use it for similarity search
-            return await searchSimilarImages(matchingImage.embedding, 20);
-          } else {
-            // If no matching image found, generate a search embedding based on the search term
-            try {
-              const searchEmbedding = await generateSearchEmbedding(debouncedSearchTerm);
-              return await searchSimilarImages(searchEmbedding, 20);
-            } catch (error: any) {
-              if (error.message.includes('429')) {
-                const rateLimitMatch = error.message.match(/quotaValue":"(\d+)"/);
-                if (rateLimitMatch) {
-                  const remaining = parseInt(rateLimitMatch[1], 10);
-                  const resetTime = new Date(Date.now() + 24 * 60 * 60 * 1000).toLocaleTimeString();
-                  setRateLimitInfo({ remaining, resetTime });
-                }
-              }
-              throw error;
-            }
-          }
-        })()
-      ]);
-
-      // Combine results, removing duplicates
-      const combinedResults = [...metadataResults, ...semanticResults];
-      const uniqueResults = Array.from(new Map(combinedResults.map(item => [item.id, item])).values());
-
-      setSearchResults(uniqueResults);
-    } catch (error: any) {
-      console.error("Error performing image search:", error);
-      if (error.message.includes('401')) {
-        setAuthError("Authentication failed. Please check your API keys and permissions.");
-      } else {
-        showError("Failed to perform image search. Please try again.");
-      }
-      setSearchResults([]);
-    } finally {
-      setIsSearching(false);
-    }
-  };
-
-  useEffect(() => {
-    if (debouncedSearchTerm) {
-      handleImageSearch();
-    } else {
-      setSearchResults([]);
-    }
-  }, [debouncedSearchTerm]);
-
   return (
     <>
       <div className="flex flex-col min-h-[calc(100vh-112px)]" ref={containerRef}>
@@ -201,31 +147,6 @@ const Gallery = () => {
                   {make}
                 </Button>
               ))}
-            </div>
-          )}
-
-          {isSearching && (
-            <div className="flex items-center justify-center gap-2 text-muted-foreground">
-              <ImageIcon className="h-4 w-4 animate-pulse" />
-              <span>Searching for similar images...</span>
-            </div>
-          )}
-
-          {rateLimitInfo && (
-            <div className="flex items-center gap-2 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
-              <AlertTriangle className="h-5 w-5 text-yellow-500" />
-              <p className="text-sm text-yellow-700">
-                API rate limit reached. You've made {50 - rateLimitInfo.remaining} requests today. The limit resets at {rateLimitInfo.resetTime}.
-              </p>
-            </div>
-          )}
-
-          {authError && (
-            <div className="flex items-center gap-2 p-4 bg-red-50 border border-red-200 rounded-lg">
-              <AlertTriangle className="h-5 w-5 text-red-500" />
-              <p className="text-sm text-red-700">
-                {authError}
-              </p>
             </div>
           )}
 
