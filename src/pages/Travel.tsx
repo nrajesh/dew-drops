@@ -30,6 +30,7 @@ const Travel = () => {
       const { data: locationsData, error: locationsError } = await supabase
         .from("travel_locations")
         .select("*")
+        .eq("published", true)
         .order("created_at", { ascending: false });
 
       if (locationsError) {

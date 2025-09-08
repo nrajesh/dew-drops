@@ -25,6 +25,33 @@ const Chat = () => {
 
   const GEMINI_API_KEY = import.meta.env.VITE_GEMINI_API_KEY;
 
+  // Static context derived from README.md for fallback
+  const staticReadmeContext = `
+This portfolio website features:
+- Core Home Page: Main entry point.
+- Dynamic Blog: Full-featured, Supabase-powered blog with Markdown.
+- Photo Gallery: Dynamic gallery with EXIF data, Supabase Storage, and AI-generated tags.
+- Interactive Travel Map: Pin travel destinations, searchable by title, location, description.
+- Contact Form: Secure, serverless form for sending emails.
+- AI Chatbot: Integrated Google Gemini chatbot providing intelligent answers based on portfolio content.
+- Streamlined Content Management: Dedicated pages for creating, editing, deleting content.
+- Feature Toggles: Settings to enable/disable sections.
+- Enhanced Navigation: Paginated content, keyboard/swipe navigation.
+- Light & Dark Mode: Theme toggle.
+- Fully Responsive: Works on all devices.
+
+The tech stack includes:
+- Frontend: React & Vite
+- Language: TypeScript
+- Styling: Tailwind CSS
+- UI Components: shadcn/ui
+- Backend: Supabase (Database, Storage, Edge Functions)
+- AI: Google Gemini (for chatbot and image embedding)
+- Routing: React Router
+- Forms: React Hook Form & Zod
+- Icons: Lucide React
+`;
+
   useEffect(() => {
     if (scrollAreaRef.current) {
       const viewport = scrollAreaRef.current.querySelector('div');
@@ -39,7 +66,7 @@ const Chat = () => {
 
     const homePageContext = `
 **Home Page Introduction:**
-"Welcome to My Creative Space. A curated collection of professional work, personal projects and travels of Rajesh Narayanan. Explore my blog, watch my videos, and get in touch."
+"Welcome to My Creative Space. A curated collection of professional work, personal projects and travels of Rajesh Narayanan. Explore my blog and get in touch."
     `.trim();
 
     const websiteFeaturesContext = `
@@ -59,9 +86,15 @@ ${context.locations.map(l => `- Location: ${l.title} in ${l.name}${l.description
     `.trim() : '';
 
     const imagesContext = context.images.length > 0 ? `
-**Photo Gallery Highlights (from image descriptions):**
-${context.images.map(i => `- ${i.alt_text}`).join('\n')}
+**Photo Gallery Highlights (from image descriptions and AI-generated tags):**
+${context.images.map(i => `- Alt Text: ${i.alt_text}${i.tags && i.tags.length > 0 ? `, Tags: ${i.tags.join(', ')}` : ''}`).join('\n')}
     `.trim() : '';
+
+    const contentManagementTips = `
+**Content Management Tips:**
+- For the Photo Gallery, you can manage image alt text and tags using a 'metadata.json' file. This is useful for bulk uploads or to avoid using AI APIs for tag generation, which can be rate-limited or incur costs.
+- You can download a sample 'metadata.json' from the 'Manage Gallery' page. When uploading images, if you include a 'metadata.json' file, the system will automatically apply the alt text and tags from the file to matching image filenames.
+    `.trim();
 
     return `
 Here is some context about this portfolio website and its owner, Rajesh Narayanan. Please use this information to answer user questions conversationally, as if you are a helpful assistant for this website.
@@ -75,6 +108,8 @@ ${postsContext}
 ${locationsContext}
 
 ${imagesContext}
+
+${contentManagementTips}
 
 Based on this context, please answer the user's question.
 ---
@@ -99,8 +134,20 @@ User's question:
       const modelMessage: Message = { role: 'model', text: response };
       setMessages(prev => [...prev, modelMessage]);
     } catch (error: any) {
-      showError(error.message);
-      setMessages(prev => prev.slice(0, -1)); // Remove user message on failure
+      console.error("Error with Gemini call:", error);
+      
+      let errorMessageText: string;
+
+      if (error.message && error.message.includes("quota")) {
+        errorMessageText = "I'm experiencing high demand and have reached my daily limit. Please try again tomorrow. I apologize for the inconvenience.";
+        showError("Chatbot daily limit reached.");
+      } else {
+        errorMessageText = "I'm having trouble connecting right now. Please try again in a moment.";
+        showError("Failed to get a response from the chatbot.");
+      }
+
+      const errorMessage: Message = { role: 'model', text: errorMessageText };
+      setMessages(prev => [...prev, errorMessage]);
     } finally {
       setIsLoading(false);
     }

@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo, useRef } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import * as z from "zod";
+import * as z from "zod"; // Added missing import
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -11,7 +11,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { supabase } from "@/integrations/supabase/client";
 import { showSuccess, showError, showLoading, dismissToast } from "@/utils/toast";
-import { Upload, Trash2, Edit } from "lucide-react";
+import { Upload, Trash2, Edit, Download } from "lucide-react";
 import type { GalleryImage } from "@/types";
 import {
   AlertDialog,
@@ -28,11 +28,26 @@ import { useAuth } from "@/contexts/AuthContext";
 import { sanitizeFileName } from "@/lib/utils";
 import ExifReader from 'exifreader';
 import { Checkbox } from "@/components/ui/checkbox";
+import { Switch } from "@/components/ui/switch";
 import { ManagementPagination } from "@/components/ManagementPagination";
 import { usePaginationNavigation } from "@/hooks/usePaginationNavigation";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
+  fetchImages,
+  handleDelete,
+  handleBulkPublish,
+  handleGenerateTags,
+  handleBulkDownload,
+} from "@/components/gallery/GalleryManagementUtils.ts";
 
 const editSchema = z.object({
   alt_text: z.string().min(3, "Alt text must be at least 3 characters.").max(200, "Alt text cannot exceed 200 characters."),
+  tags: z.string().optional(),
 });
 
 const ManageGallery = () => {
@@ -43,7 +58,6 @@ const ManageGallery = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [selectedImages, setSelectedImages] = useState(new Set<string>());
   const [editingImage, setEditingImage] = useState<GalleryImage | null>(null);
-  const [isGeneratingEmbeddings, setIsGeneratingEmbeddings] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
 
   const [currentPage, setCurrentPage] = useState(1);
@@ -53,18 +67,29 @@ const ManageGallery = () => {
     resolver: zodResolver(editSchema),
     defaultValues: {
       alt_text: "",
+      tags: "",
     },
   });
 
   useEffect(() => {
     if (editingImage) {
-      form.reset({ alt_text: editingImage.alt_text || '' });
+      form.reset({ 
+        alt_text: editingImage.alt_text || '',
+        tags: editingImage.tags?.join(', ') || '',
+      });
     }
   }, [editingImage, form]);
 
   useEffect(() => {
-    fetchImages();
+    loadImages();
   }, []);
+
+  const loadImages = async () => {
+    setIsLoading(true);
+    const fetchedImages = await fetchImages();
+    setImages(fetchedImages);
+    setIsLoading(false);
+  };
 
   const paginatedImages = useMemo(() => {
     const startIndex = (currentPage - 1) * imagesPerPage;
@@ -84,22 +109,6 @@ const ManageGallery = () => {
   const handleItemsPerPageChange = (value: number) => {
     setImagesPerPage(value);
     setCurrentPage(1);
-  };
-
-  const fetchImages = async () => {
-    setIsLoading(true);
-    const { data, error } = await supabase
-      .from("gallery_images")
-      .select("*")
-      .order("created_at", { ascending: false });
-
-    if (error) {
-      showError("Failed to fetch images.");
-      console.error(error);
-    } else {
-      setImages(data as GalleryImage[]);
-    }
-    setIsLoading(false);
   };
 
   const getThumbnailUrl = (fileName: string) => {
@@ -126,35 +135,58 @@ const ManageGallery = () => {
       showError("You must be logged in to upload images.");
       return;
     }
-
+  
     setIsUploading(true);
-    const toastId = showLoading(`Uploading ${selectedFiles.length} image(s)...`);
-
-    const uploadPromises = Array.from(selectedFiles).map(async (file) => {
+    const toastId = showLoading(`Preparing ${selectedFiles.length} file(s)...`);
+  
+    const filesToUpload = Array.from(selectedFiles);
+    let metadataMap = new Map<string, { alt_text: string; tags: string[] }>();
+  
+    const metadataFile = filesToUpload.find(f => f.name === 'metadata.json');
+    if (metadataFile) {
+      try {
+        const metadataContent = await metadataFile.text();
+        const metadata = JSON.parse(metadataContent);
+        if (Array.isArray(metadata)) {
+          for (const item of metadata) {
+            if (item.fileName && (item.alt_text || item.tags)) {
+              metadataMap.set(item.fileName, {
+                alt_text: item.alt_text || "",
+                tags: item.tags || [],
+              });
+            }
+          }
+        }
+        dismissToast(toastId);
+        showSuccess("Found and processed metadata.json.");
+      } catch (e) {
+        dismissToast(toastId);
+        showError("Could not parse metadata.json. Proceeding without it.");
+      }
+    }
+  
+    const imageFiles = filesToUpload.filter(f => f.type.startsWith('image/'));
+    const uploadToastId = showLoading(`Uploading ${imageFiles.length} image(s)...`);
+  
+    const uploadPromises = imageFiles.map(async (file) => {
       const sanitizedName = sanitizeFileName(file.name);
       const fileName = `${user.id}/${Date.now()}_${sanitizedName}`;
-
+      const originalFileName = file.name;
+      const preloadedMeta = metadataMap.get(originalFileName);
+  
       const fileBuffer = await file.arrayBuffer();
       let exifData: Record<string, any> | null = null;
       try {
         const tags = ExifReader.load(fileBuffer);
         const cleanExif: Record<string, any> = {};
-
         for (const key in tags) {
           if (Object.prototype.hasOwnProperty.call(tags, key)) {
-            if (key === 'MakerNote' || key === 'UserComment' || key === 'thumbnail') {
-              continue;
-            }
-
+            if (key === 'MakerNote' || key === 'UserComment' || key === 'thumbnail') continue;
             const tagValue = tags[key];
             if (tagValue && typeof tagValue.description !== 'undefined') {
               const description = tagValue.description;
-
               if (typeof description === 'string') {
-                const sanitized = description
-                  .replace(/,/g, '.')
-                  .replace(/[^\w\s.:/-]/g, '');
-                cleanExif[key] = sanitized;
+                cleanExif[key] = description.replace(/,/g, '.').replace(/[^\w\s.:/-]/g, '');
               } else if (typeof description === 'number') {
                 cleanExif[key] = description;
               }
@@ -165,43 +197,35 @@ const ManageGallery = () => {
       } catch (error) {
         console.warn(`Could not read EXIF data for ${file.name}:`, error);
       }
-
-      const { error: uploadError } = await supabase.storage
-        .from("gallery")
-        .upload(fileName, file, {
-          cacheControl: '31536000',
-          upsert: false,
-        });
-
-      if (uploadError) {
-        throw new Error(`Failed to upload ${file.name}: ${uploadError.message}`);
-      }
-
-      const { data: { publicUrl } } = supabase.storage
-        .from("gallery")
-        .getPublicUrl(fileName);
-
+  
+      const { error: uploadError } = await supabase.storage.from("gallery").upload(fileName, file, { cacheControl: '31536000', upsert: false });
+      if (uploadError) throw new Error(`Failed to upload ${file.name}: ${uploadError.message}`);
+  
+      const { data: { publicUrl } } = supabase.storage.from("gallery").getPublicUrl(fileName);
+  
       const { error: dbError } = await supabase.from("gallery_images").insert({
         image_url: publicUrl,
-        alt_text: "",
+        alt_text: preloadedMeta?.alt_text || "",
+        tags: preloadedMeta?.tags || null,
         file_name: fileName,
         user_id: user.id,
         exif_data: exifData,
+        published: false,
       });
-
+  
       if (dbError) {
         await supabase.storage.from("gallery").remove([fileName]);
         throw new Error(`Failed to save ${file.name} to database: ${dbError.message}`);
       }
     });
-
+  
     try {
       await Promise.all(uploadPromises);
-      dismissToast(toastId);
-      showSuccess(`${selectedFiles.length} image(s) uploaded successfully!`);
-      fetchImages();
+      dismissToast(uploadToastId);
+      showSuccess(`${imageFiles.length} image(s) uploaded successfully!`);
+      loadImages();
     } catch (error: any) {
-      dismissToast(toastId);
+      dismissToast(uploadToastId);
       showError(error.message);
     } finally {
       setIsUploading(false);
@@ -211,63 +235,36 @@ const ManageGallery = () => {
     }
   };
 
-  const handleDelete = async (imageIds: string[]) => {
-    const toastId = showLoading(`Deleting ${imageIds.length} image(s)...`);
-    try {
-      const imagesToDelete = images.filter(img => imageIds.includes(img.id));
-      const fileNamesToDelete = imagesToDelete.map(img => img.file_name);
-
-      if (fileNamesToDelete.length > 0) {
-        const { error: storageError } = await supabase.storage
-          .from("gallery")
-          .remove(fileNamesToDelete);
-
-        if (storageError && storageError.message !== 'The resource was not found') {
-          throw new Error(`Storage error: ${storageError.message}`);
-        }
-      }
-
-      const { error: dbError } = await supabase
-        .from("gallery_images")
-        .delete()
-        .in("id", imageIds);
-
-      if (dbError) {
-        throw new Error(`Database error: ${dbError.message}`);
-      }
-
-      dismissToast(toastId);
-      showError(`${imageIds.length} image(s) deleted successfully.`);
+  const handleDeleteWrapper = async (imageIds: string[]) => {
+    const success = await handleDelete(imageIds, images);
+    if (success) {
       setImages(images.filter((i) => !imageIds.includes(i.id)));
       setSelectedImages(new Set());
-    } catch (error: any) {
-      dismissToast(toastId);
-      showError(error.message);
     }
   };
 
-  const handleUpdateAltText = async (values: z.infer<typeof editSchema>) => {
+  const handleUpdateImageData = async (values: z.infer<typeof editSchema>) => {
     if (!editingImage) return;
 
-    const toastId = showLoading("Updating alt text...");
+    const toastId = showLoading("Updating image data...");
     try {
-      const updatedImages = images.map(img =>
-        img.id === editingImage.id ? { ...img, alt_text: values.alt_text } : img
-      );
-      setImages(updatedImages);
-
+      const tagsArray = values.tags?.split(',').map(t => t.trim()).filter(Boolean) || [];
+      
       const { error } = await supabase
         .from("gallery_images")
-        .update({ alt_text: values.alt_text })
+        .update({ 
+          alt_text: values.alt_text,
+          tags: tagsArray,
+        })
         .eq("id", editingImage.id);
 
       if (error) throw error;
 
       dismissToast(toastId);
-      showSuccess("Alt text updated successfully!");
+      showSuccess("Image data updated successfully!");
       setEditingImage(null);
+      loadImages();
     } catch (error: any) {
-      setImages(images);
       dismissToast(toastId);
       showError(`Update failed: ${error.message}`);
     }
@@ -296,6 +293,72 @@ const ManageGallery = () => {
     }
   };
 
+  const handleTogglePublish = async (image: GalleryImage) => {
+    const newPublishedStatus = !image.published;
+    const toastId = showLoading(newPublishedStatus ? "Publishing..." : "Unpublishing...");
+
+    const { error } = await supabase
+      .from("gallery_images")
+      .update({ published: newPublishedStatus })
+      .eq("id", image.id);
+
+    if (error) {
+      dismissToast(toastId);
+      showError(`Failed to update status: ${error.message}`);
+    } else {
+      dismissToast(toastId);
+      showSuccess(`Image ${newPublishedStatus ? "published" : "unpublished"}.`);
+      setImages(images.map(i => i.id === image.id ? { ...i, published: newPublishedStatus } : i));
+    }
+  };
+
+  const handleBulkPublishWrapper = async (publishStatus: boolean) => {
+    const success = await handleBulkPublish(selectedImages, publishStatus);
+    if (success) {
+      loadImages();
+      setSelectedImages(new Set());
+    }
+  };
+
+  const handleGenerateTagsWrapper = async () => {
+    const successCount = await handleGenerateTags(selectedImages, images);
+    if (successCount > 0) {
+      loadImages();
+    }
+    setSelectedImages(new Set());
+  };
+
+  const handleBulkDownloadWrapper = async () => {
+    await handleBulkDownload(selectedImages, images);
+    setSelectedImages(new Set());
+  };
+
+  const handleDownloadSampleMetadata = () => {
+    const sampleMetadata = [
+      {
+        "fileName": "your-image-name-1.jpg",
+        "alt_text": "A descriptive alt text for your first image.",
+        "tags": ["tag1", "tag2", "tag3"]
+      },
+      {
+        "fileName": "your-image-name-2.png",
+        "alt_text": "Another descriptive alt text for your second image.",
+        "tags": ["tag4", "tag5"]
+      }
+    ];
+    const jsonString = JSON.stringify(sampleMetadata, null, 2);
+    const blob = new Blob([jsonString], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = 'sample_metadata.json';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+    showSuccess("Sample metadata.json downloaded!");
+  };
+
   const allOnPageSelected = paginatedImages.length > 0 && paginatedImages.every(i => selectedImages.has(i.id));
 
   return (
@@ -305,22 +368,27 @@ const ManageGallery = () => {
           <CardHeader>
             <CardTitle>Upload to Gallery</CardTitle>
             <CardDescription>
-              Select one or more images to upload. EXIF data will be automatically extracted.
+              Select one or more images to upload. Include a `metadata.json` file from a previous download to automatically apply alt text and tags.
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="flex items-center gap-4">
-              <Input
-                id="file-input"
-                type="file"
-                multiple
-                accept="image/jpeg,image/png,image/tiff"
-                onChange={handleFileChange}
-                className="flex-grow"
-              />
-              <Button onClick={handleUpload} disabled={isUploading || !selectedFiles}>
-                <Upload className="h-4 w-4 mr-2" />
-                {isUploading ? "Uploading..." : "Upload"}
+            <div className="flex flex-col gap-4">
+              <div className="flex items-center gap-4">
+                <Input
+                  id="file-input"
+                  type="file"
+                  multiple
+                  accept="image/jpeg,image/png,image/tiff,application/json"
+                  onChange={handleFileChange}
+                  className="flex-grow"
+                />
+                <Button onClick={handleUpload} disabled={isUploading || !selectedFiles}>
+                  <Upload className="h-4 w-4 mr-2" />
+                  {isUploading ? "Uploading..." : "Upload"}
+                </Button>
+              </div>
+              <Button variant="outline" onClick={handleDownloadSampleMetadata} className="w-fit">
+                Download Sample metadata.json
               </Button>
             </div>
           </CardContent>
@@ -336,28 +404,52 @@ const ManageGallery = () => {
             </div>
             <div className="flex gap-2">
               {selectedImages.size > 0 && (
-                <AlertDialog>
-                  <AlertDialogTrigger asChild>
-                    <Button variant="destructive">
-                      <Trash2 className="h-4 w-4 mr-2" />
-                      Delete ({selectedImages.size})
-                    </Button>
-                  </AlertDialogTrigger>
-                  <AlertDialogContent>
-                    <AlertDialogHeader>
-                      <AlertDialogTitle>Are you sure?</AlertDialogTitle>
-                      <AlertDialogDescription>
-                        This will permanently delete the {selectedImages.size} selected image(s). This action cannot be undone.
-                      </AlertDialogDescription>
-                    </AlertDialogHeader>
-                    <AlertDialogFooter>
-                      <AlertDialogCancel>Cancel</AlertDialogCancel>
-                      <AlertDialogAction onClick={() => handleDelete(Array.from(selectedImages))}>
-                        Delete
-                      </AlertDialogAction>
-                    </AlertDialogFooter>
-                  </AlertDialogContent>
-                </AlertDialog>
+                <>
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button variant="outline">
+                        Bulk Actions ({selectedImages.size})
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                      <DropdownMenuItem onClick={() => handleBulkPublishWrapper(true)}>
+                        Publish Selected
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => handleBulkPublishWrapper(false)}>
+                        Unpublish Selected
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={handleGenerateTagsWrapper}>
+                        Generate Tags
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={handleBulkDownloadWrapper}>
+                        <Download className="h-4 w-4 mr-2" />
+                        Download Selected
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                  <AlertDialog>
+                    <AlertDialogTrigger asChild>
+                      <Button variant="destructive">
+                        <Trash2 className="h-4 w-4 mr-2" />
+                        Delete ({selectedImages.size})
+                      </Button>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent>
+                      <AlertDialogHeader>
+                        <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                          This will permanently delete the {selectedImages.size} selected image(s). This action cannot be undone.
+                        </AlertDialogDescription>
+                      </AlertDialogHeader>
+                      <AlertDialogFooter>
+                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                        <AlertDialogAction onClick={() => handleDeleteWrapper(Array.from(selectedImages))}>
+                          Delete
+                        </AlertDialogAction>
+                      </AlertDialogFooter>
+                    </AlertDialogContent>
+                  </AlertDialog>
+                </>
               )}
             </div>
           </CardHeader>
@@ -399,10 +491,12 @@ const ManageGallery = () => {
                             checked={selectedImages.has(image.id)}
                             onCheckedChange={() => handleSelectImage(image.id)}
                           />
-                          <div className="flex gap-1">
-                            {image.embedding && (
-                              <span className="text-xs text-green-500">✓</span>
-                            )}
+                          <div className="flex gap-1 items-center">
+                            <Switch
+                              checked={image.published}
+                              onCheckedChange={() => handleTogglePublish(image)}
+                              aria-label="Publish status"
+                            />
                             <Button variant="ghost" size="sm" onClick={() => setEditingImage(image)}>
                               <Edit className="h-3 w-3 mr-1" /> Edit
                             </Button>
@@ -435,13 +529,13 @@ const ManageGallery = () => {
       <Dialog open={!!editingImage} onOpenChange={(isOpen) => !isOpen && setEditingImage(null)}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Edit Alt Text</DialogTitle>
+            <DialogTitle>Edit Image Data</DialogTitle>
             <DialogDescription>
-              Write a descriptive alt text for this image. This helps with accessibility and SEO.
+              Update the alt text and tags for this image.
             </DialogDescription>
           </DialogHeader>
           <Form {...form}>
-            <form onSubmit={form.handleSubmit(handleUpdateAltText)} className="space-y-4">
+            <form onSubmit={form.handleSubmit(handleUpdateImageData)} className="space-y-4">
               <FormField
                 control={form.control}
                 name="alt_text"
@@ -451,6 +545,22 @@ const ManageGallery = () => {
                     <FormControl>
                       <Textarea
                         placeholder="e.g., A beautiful sunset over the mountains"
+                        {...field}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="tags"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Tags (comma-separated)</FormLabel>
+                    <FormControl>
+                      <Input
+                        placeholder="e.g., nature, mountains, sunset"
                         {...field}
                       />
                     </FormControl>
