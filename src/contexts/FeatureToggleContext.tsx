@@ -56,12 +56,11 @@ export const FeatureToggleProvider = ({ children }: { children: ReactNode }) => 
     }
 
     const now = new Date();
-    const globalToggles = Object.fromEntries(
-      data.map(t => {
-        const isTemporarilyDisabled = t.auto_disabled_until && new Date(t.auto_disabled_until) > now;
-        return [t.feature_key, t.is_enabled && !isTemporarilyDisabled];
-      })
-    );
+    const globalToggles: Record<string, boolean> = {};
+    data.forEach(t => {
+      const isTemporarilyDisabled = t.auto_disabled_until && new Date(t.auto_disabled_until) > now;
+      globalToggles[t.feature_key] = t.is_enabled && !isTemporarilyDisabled;
+    });
 
     globalToggles[navFeatures.HOME] = true; // Home is always on.
 

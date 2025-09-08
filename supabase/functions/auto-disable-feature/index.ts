@@ -7,7 +7,8 @@ const corsHeaders = {
 }
 
 // The key for the chatbot feature, hardcoded for security.
-const CHATBOT_FEATURE_KEY = 'chatbot';
+// CORRECTED: This now matches the 'nav_chatbot' key used in the frontend.
+const CHATBOT_FEATURE_KEY = 'nav_chatbot';
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
