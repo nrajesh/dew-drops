@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo, useRef } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import * as z from "zod";
+import * as z from "zod"; // Added missing import
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -27,7 +27,6 @@ import {
 import { useAuth } from "@/contexts/AuthContext";
 import { sanitizeFileName } from "@/lib/utils";
 import ExifReader from 'exifreader';
-import JSZip from 'jszip';
 import { Checkbox } from "@/components/ui/checkbox";
 import { Switch } from "@/components/ui/switch";
 import { ManagementPagination } from "@/components/ManagementPagination";
@@ -38,6 +37,13 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+  fetchImages,
+  handleDelete,
+  handleBulkPublish,
+  handleGenerateTags,
+  handleBulkDownload,
+} from "@/components/gallery/GalleryManagementUtils.ts";
 
 const editSchema = z.object({
   alt_text: z.string().min(3, "Alt text must be at least 3 characters.").max(200, "Alt text cannot exceed 200 characters."),
@@ -75,8 +81,15 @@ const ManageGallery = () => {
   }, [editingImage, form]);
 
   useEffect(() => {
-    fetchImages();
+    loadImages();
   }, []);
+
+  const loadImages = async () => {
+    setIsLoading(true);
+    const fetchedImages = await fetchImages();
+    setImages(fetchedImages);
+    setIsLoading(false);
+  };
 
   const paginatedImages = useMemo(() => {
     const startIndex = (currentPage - 1) * imagesPerPage;
@@ -96,22 +109,6 @@ const ManageGallery = () => {
   const handleItemsPerPageChange = (value: number) => {
     setImagesPerPage(value);
     setCurrentPage(1);
-  };
-
-  const fetchImages = async () => {
-    setIsLoading(true);
-    const { data, error } = await supabase
-      .from("gallery_images")
-      .select("*")
-      .order("created_at", { ascending: false });
-
-    if (error) {
-      showError("Failed to fetch images.");
-      console.error(error);
-    } else {
-      setImages(data as GalleryImage[]);
-    }
-    setIsLoading(false);
   };
 
   const getThumbnailUrl = (fileName: string) => {
@@ -145,7 +142,6 @@ const ManageGallery = () => {
     const filesToUpload = Array.from(selectedFiles);
     let metadataMap = new Map<string, { alt_text: string; tags: string[] }>();
   
-    // Check for and process metadata.json
     const metadataFile = filesToUpload.find(f => f.name === 'metadata.json');
     if (metadataFile) {
       try {
@@ -227,7 +223,7 @@ const ManageGallery = () => {
       await Promise.all(uploadPromises);
       dismissToast(uploadToastId);
       showSuccess(`${imageFiles.length} image(s) uploaded successfully!`);
-      fetchImages();
+      loadImages();
     } catch (error: any) {
       dismissToast(uploadToastId);
       showError(error.message);
@@ -239,38 +235,11 @@ const ManageGallery = () => {
     }
   };
 
-  const handleDelete = async (imageIds: string[]) => {
-    const toastId = showLoading(`Deleting ${imageIds.length} image(s)...`);
-    try {
-      const imagesToDelete = images.filter(img => imageIds.includes(img.id));
-      const fileNamesToDelete = imagesToDelete.map(img => img.file_name);
-
-      if (fileNamesToDelete.length > 0) {
-        const { error: storageError } = await supabase.storage
-          .from("gallery")
-          .remove(fileNamesToDelete);
-
-        if (storageError && storageError.message !== 'The resource was not found') {
-          throw new Error(`Storage error: ${storageError.message}`);
-        }
-      }
-
-      const { error: dbError } = await supabase
-        .from("gallery_images")
-        .delete()
-        .in("id", imageIds);
-
-      if (dbError) {
-        throw new Error(`Database error: ${dbError.message}`);
-      }
-
-      dismissToast(toastId);
-      showError(`${imageIds.length} image(s) deleted successfully.`);
+  const handleDeleteWrapper = async (imageIds: string[]) => {
+    const success = await handleDelete(imageIds, images);
+    if (success) {
       setImages(images.filter((i) => !imageIds.includes(i.id)));
       setSelectedImages(new Set());
-    } catch (error: any) {
-      dismissToast(toastId);
-      showError(error.message);
     }
   };
 
@@ -294,7 +263,7 @@ const ManageGallery = () => {
       dismissToast(toastId);
       showSuccess("Image data updated successfully!");
       setEditingImage(null);
-      fetchImages();
+      loadImages();
     } catch (error: any) {
       dismissToast(toastId);
       showError(`Update failed: ${error.message}`);
@@ -343,125 +312,25 @@ const ManageGallery = () => {
     }
   };
 
-  const handleBulkPublish = async (publishStatus: boolean) => {
-    const toastId = showLoading(`${publishStatus ? "Publishing" : "Unpublishing"} ${selectedImages.size} image(s)...`);
-    try {
-      const { error } = await supabase
-        .from("gallery_images")
-        .update({ published: publishStatus })
-        .in("id", Array.from(selectedImages));
-
-      if (error) throw error;
-
-      dismissToast(toastId);
-      showSuccess(`${selectedImages.size} image(s) ${publishStatus ? "published" : "unpublished"} successfully.`);
-      fetchImages(); // Re-fetch to update UI
-      setSelectedImages(new Set()); // Clear selection
-    } catch (error: any) {
-      dismissToast(toastId);
-      showError(`Failed to update status: ${error.message}`);
+  const handleBulkPublishWrapper = async (publishStatus: boolean) => {
+    const success = await handleBulkPublish(selectedImages, publishStatus);
+    if (success) {
+      loadImages();
+      setSelectedImages(new Set());
     }
   };
 
-  const handleGenerateTags = async () => {
-    if (selectedImages.size === 0) {
-      showError("Please select images to generate tags for.");
-      return;
-    }
-    const toastId = showLoading(`Generating tags for ${selectedImages.size} image(s)...`);
-
-    const selectedImageIds = Array.from(selectedImages);
-    const imagesToProcess = images.filter(img => selectedImageIds.includes(img.id));
-
-    let successCount = 0;
-    let errorCount = 0;
-
-    for (const image of imagesToProcess) {
-      try {
-        const { data, error } = await supabase.functions.invoke('generate-image-tags', {
-          body: { fileName: image.file_name },
-        });
-
-        if (error) throw error;
-
-        const { tags } = data;
-        if (tags && Array.isArray(tags)) {
-          const { error: updateError } = await supabase
-            .from('gallery_images')
-            .update({ tags: tags })
-            .eq('id', image.id);
-
-          if (updateError) throw updateError;
-          successCount++;
-        }
-      } catch (e: any) {
-        console.error(`Failed to generate tags for ${image.file_name}:`, e);
-        errorCount++;
-      }
-    }
-
-    dismissToast(toastId);
+  const handleGenerateTagsWrapper = async () => {
+    const successCount = await handleGenerateTags(selectedImages, images);
     if (successCount > 0) {
-      showSuccess(`${successCount} image(s) updated with new tags.`);
-      fetchImages();
-    }
-    if (errorCount > 0) {
-      showError(`${errorCount} image(s) failed to process.`);
+      loadImages();
     }
     setSelectedImages(new Set());
   };
 
-  const handleBulkDownload = async () => {
-    if (selectedImages.size === 0) {
-      showError("No images selected for download.");
-      return;
-    }
-  
-    const toastId = showLoading(`Preparing ${selectedImages.size} image(s) for download...`);
-    try {
-      const zip = new JSZip();
-      const imagesToDownload = images.filter(img => selectedImages.has(img.id));
-      const metadata = [];
-  
-      const downloadPromises = imagesToDownload.map(async (image) => {
-        const { data: blob, error } = await supabase.storage.from('gallery').download(image.file_name);
-  
-        if (error) throw new Error(`Failed to download ${image.file_name}: ${error.message}`);
-        
-        if (blob) {
-          const originalFileName = image.file_name.split('/').pop()?.split('_').slice(1).join('_') || image.file_name;
-          zip.file(originalFileName, blob);
-          metadata.push({
-            fileName: originalFileName,
-            alt_text: image.alt_text,
-            tags: image.tags,
-          });
-        }
-      });
-  
-      await Promise.all(downloadPromises);
-  
-      // Add metadata.json to the zip
-      zip.file("metadata.json", JSON.stringify(metadata, null, 2));
-  
-      const zipBlob = await zip.generateAsync({ type: 'blob' });
-  
-      const link = document.createElement('a');
-      link.href = URL.createObjectURL(zipBlob);
-      link.download = `gallery-export-${new Date().toISOString().split('T')[0]}.zip`;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      URL.revokeObjectURL(link.href);
-  
-      dismissToast(toastId);
-      showSuccess(`${imagesToDownload.length} image(s) and metadata downloaded successfully.`);
-      setSelectedImages(new Set());
-  
-    } catch (error: any) {
-      dismissToast(toastId);
-      showError(`Download failed: ${error.message}`);
-    }
+  const handleBulkDownloadWrapper = async () => {
+    await handleBulkDownload(selectedImages, images);
+    setSelectedImages(new Set());
   };
 
   const handleDownloadSampleMetadata = () => {
@@ -543,16 +412,16 @@ const ManageGallery = () => {
                       </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end">
-                      <DropdownMenuItem onClick={() => handleBulkPublish(true)}>
+                      <DropdownMenuItem onClick={() => handleBulkPublishWrapper(true)}>
                         Publish Selected
                       </DropdownMenuItem>
-                      <DropdownMenuItem onClick={() => handleBulkPublish(false)}>
+                      <DropdownMenuItem onClick={() => handleBulkPublishWrapper(false)}>
                         Unpublish Selected
                       </DropdownMenuItem>
-                      <DropdownMenuItem onClick={handleGenerateTags}>
+                      <DropdownMenuItem onClick={handleGenerateTagsWrapper}>
                         Generate Tags
                       </DropdownMenuItem>
-                      <DropdownMenuItem onClick={handleBulkDownload}>
+                      <DropdownMenuItem onClick={handleBulkDownloadWrapper}>
                         <Download className="h-4 w-4 mr-2" />
                         Download Selected
                       </DropdownMenuItem>
@@ -574,7 +443,7 @@ const ManageGallery = () => {
                       </AlertDialogHeader>
                       <AlertDialogFooter>
                         <AlertDialogCancel>Cancel</AlertDialogCancel>
-                        <AlertDialogAction onClick={() => handleDelete(Array.from(selectedImages))}>
+                        <AlertDialogAction onClick={() => handleDeleteWrapper(Array.from(selectedImages))}>
                           Delete
                         </AlertDialogAction>
                       </AlertDialogFooter>

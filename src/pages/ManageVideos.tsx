@@ -1,6 +1,6 @@
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import * as z from "zod";
+import * as z from "zod"; // Added missing import
 import { Button } from "@/components/ui/button";
 import {
   Form,
@@ -12,7 +12,7 @@ import {
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
-import { showSuccess, showError, showLoading, dismissToast, updateToastSuccess, updateToastError } from "@/utils/toast";
+import { showSuccess, showError, showLoading, dismissToast } from "@/utils/toast";
 import { useState, useEffect, useRef, useMemo } from "react";
 import { Trash2, Edit, Upload, Download } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
@@ -40,6 +40,13 @@ import {
 } from "@/components/ui/dialog";
 import { ManagementPagination } from "@/components/ManagementPagination";
 import { usePaginationNavigation } from "@/hooks/usePaginationNavigation";
+import { parseCsv } from "@/utils/csv.ts"; // Added .ts extension
+import {
+  fetchVideos,
+  processUploads,
+  handleBulkDelete,
+  handleBulkDownload,
+} from "@/components/video/VideoManagementUtils.ts"; // Added .ts extension
 
 const videoSchema = z.object({
   title: z.string().min(3, { message: "Title must be at least 3 characters." }),
@@ -59,15 +66,19 @@ const ManageVideos = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [videosPerPage, setVideosPerPage] = useState(10);
 
-  // State for the update confirmation dialog
   const [isUpdateDialogVisible, setIsUpdateDialogVisible] = useState(false);
   const [videosToInsert, setVideosToInsert] = useState<any[]>([]);
   const [videosToUpdate, setVideosToUpdate] = useState<{ existingId: string; existingTitle: string; newData: any }[]>([]);
   const [selectedUpdates, setSelectedUpdates] = useState<Set<string>>(new Set());
 
   useEffect(() => {
-    fetchVideos();
+    loadVideos();
   }, []);
+
+  const loadVideos = async () => {
+    const fetchedVideos = await fetchVideos();
+    setVideos(fetchedVideos);
+  };
 
   const paginatedVideos = useMemo(() => {
     const startIndex = (currentPage - 1) * videosPerPage;
@@ -87,16 +98,6 @@ const ManageVideos = () => {
   const handleItemsPerPageChange = (value: number) => {
     setVideosPerPage(value);
     setCurrentPage(1);
-  };
-
-  const fetchVideos = async () => {
-    const { data, error } = await supabase.from("videos").select("*").order("created_at", { ascending: false });
-    if (error) {
-      showError("Failed to fetch videos.");
-      console.error(error);
-    } else {
-      setVideos(data as Video[]);
-    }
   };
 
   const form = useForm<z.infer<typeof videoSchema>>({
@@ -136,7 +137,7 @@ const ManageVideos = () => {
       showSuccess(`Video ${editingId ? "updated" : "added"} successfully!`);
       setEditingId(null);
       form.reset();
-      fetchVideos();
+      loadVideos();
     }
   }
 
@@ -157,85 +158,6 @@ const ManageVideos = () => {
     } else {
       setUploadFile(null);
     }
-  };
-
-  const parseCsv = (csvText: string): any[] => {
-    const lines = csvText.trim().split(/\r\n|\n/);
-    if (lines.length < 2) return [];
-
-    const headers = lines[0].split(';').map(h => h.trim().replace(/"/g, ''));
-    const data = [];
-
-    const csvRowRegex = /;(?=(?:(?:[^"]*"){2})*[^"]*$)/;
-
-    for (let i = 1; i < lines.length; i++) {
-        const line = lines[i];
-        if (!line) continue;
-
-        const values = line.split(csvRowRegex).map(val => {
-            let value = val.trim();
-            if (value.startsWith('"') && value.endsWith('"')) {
-                value = value.substring(1, value.length - 1);
-            }
-            return value.replace(/""/g, '"');
-        });
-
-        const entry: { [key: string]: string } = {};
-        for (let j = 0; j < headers.length; j++) {
-            entry[headers[j]] = values[j] || '';
-        }
-        data.push(entry);
-    }
-    return data;
-  };
-
-  const processUploads = async (inserts: any[], updates: { existingId: string; newData: any }[]) => {
-    if (!user) return;
-    const toastId = showLoading(`Processing import...`);
-    try {
-        const insertPromises = [];
-        if (inserts.length > 0) {
-            const insertsWithUserId = inserts.map(v => ({ ...v, user_id: user.id }));
-            insertPromises.push(supabase.from("videos").insert(insertsWithUserId));
-        }
-
-        const updatePromises = updates.map(u =>
-            supabase.from("videos").update({ ...u.newData, user_id: user.id }).eq('id', u.existingId)
-        );
-
-        const results = await Promise.all([...insertPromises, ...updatePromises]);
-
-        for (const result of results) {
-            if (result.error) throw new Error(result.error.message);
-        }
-
-        dismissToast(toastId);
-        if (inserts.length > 0 || updates.length > 0) {
-            showSuccess(`${inserts.length} new videos added, ${updates.length} videos updated.`);
-        }
-        fetchVideos();
-
-    } catch (error: any) {
-        dismissToast(toastId);
-        showError(`Import failed: ${error.message}`);
-    }
-  };
-
-  const handleConfirmAndProcessUploads = async () => {
-    setIsUpdateDialogVisible(false);
-    
-    const updatesToPerform = videosToUpdate.filter(u => selectedUpdates.has(u.existingId));
-    const skippedCount = videosToUpdate.length - updatesToPerform.length;
-
-    await processUploads(videosToInsert, updatesToPerform);
-
-    if (skippedCount > 0) {
-        showError(`${skippedCount} potential updates were skipped.`);
-    }
-    
-    setVideosToInsert([]);
-    setVideosToUpdate([]);
-    setSelectedUpdates(new Set());
   };
 
   const handleBulkUpload = async () => {
@@ -284,7 +206,8 @@ const ManageVideos = () => {
           setSelectedUpdates(new Set());
           setIsUpdateDialogVisible(true);
       } else if (newVideosToInsert.length > 0) {
-          await processUploads(newVideosToInsert, []);
+          await processUploads(user.id, newVideosToInsert, []);
+          loadVideos();
       } else {
           showSuccess("No new videos to import.");
       }
@@ -299,64 +222,37 @@ const ManageVideos = () => {
     }
   };
 
-  const handleBulkDelete = async () => {
-    const toastId = showLoading(`Deleting ${selectedVideos.size} videos...`);
-    try {
-      const { error } = await supabase.from("videos").delete().in("id", Array.from(selectedVideos));
-      if (error) throw error;
+  const handleConfirmAndProcessUploads = async () => {
+    if (!user) return;
+    setIsUpdateDialogVisible(false);
+    
+    const updatesToPerform = videosToUpdate.filter(u => selectedUpdates.has(u.existingId));
+    const skippedCount = videosToUpdate.length - updatesToPerform.length;
 
-      dismissToast(toastId);
-      showError(`${selectedVideos.size} videos removed.`);
-      fetchVideos();
+    const success = await processUploads(user.id, videosToInsert, updatesToPerform);
+
+    if (success) {
+      if (skippedCount > 0) {
+          showError(`${skippedCount} potential updates were skipped.`);
+      }
+      loadVideos();
+    }
+    
+    setVideosToInsert([]);
+    setVideosToUpdate([]);
+    setSelectedUpdates(new Set());
+  };
+
+  const handleBulkDeleteWrapper = async () => {
+    const success = await handleBulkDelete(selectedVideos);
+    if (success) {
+      loadVideos();
       setSelectedVideos(new Set());
-    } catch (error: any) {
-      dismissToast(toastId);
-      showError(error.message);
     }
   };
 
-  const handleBulkDownload = async () => {
-    const toastId = showLoading(`Preparing ${selectedVideos.size} video(s) for download...`);
-    try {
-        const videosToDownload = videos.filter(video => selectedVideos.has(video.id));
-
-        const headers = ["title", "youtube_id"];
-        
-        const escapeCsv = (val: any) => {
-            const str = String(val ?? '');
-            if (str.includes('"') || str.includes(';') || str.includes('\n') || str.includes(',')) {
-                return `"${str.replace(/"/g, '""')}"`;
-            }
-            return `"${str}"`;
-        };
-
-        const csvRows = videosToDownload.map(video => {
-            const rowData = [
-                video.title,
-                video.youtube_id,
-            ];
-            return rowData.map(escapeCsv).join(';');
-        });
-
-        const csvHeader = headers.map(h => `"${h}"`).join(';');
-        const csvContent = [csvHeader, ...csvRows].join('\r\n');
-
-        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-        const link = document.createElement("a");
-        const url = URL.createObjectURL(blob);
-        link.setAttribute("href", url);
-        link.setAttribute("download", "videos_export.csv");
-        link.style.visibility = 'hidden';
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-        URL.revokeObjectURL(url);
-
-        updateToastSuccess(toastId, `${videosToDownload.length} video(s) downloaded.`);
-
-    } catch (error: any) {
-        updateToastError(toastId, `Download failed: ${error.message}`);
-    }
+  const handleBulkDownloadWrapper = async () => {
+    await handleBulkDownload(selectedVideos, videos);
   };
 
   const handleSelectVideo = (id: string) => {
@@ -452,7 +348,7 @@ const ManageVideos = () => {
               </div>
               {selectedVideos.size > 0 && (
                 <div className="flex items-center gap-2">
-                  <Button variant="outline" size="sm" onClick={handleBulkDownload}>
+                  <Button variant="outline" size="sm" onClick={handleBulkDownloadWrapper}>
                     <Download className="h-4 w-4 mr-2" />
                     Download ({selectedVideos.size})
                   </Button>
@@ -467,7 +363,7 @@ const ManageVideos = () => {
                       </AlertDialogHeader>
                       <AlertDialogFooter>
                         <AlertDialogCancel onClick={() => setSelectedVideos(new Set())}>Cancel</AlertDialogCancel>
-                        <AlertDialogAction onClick={handleBulkDelete}>Continue</AlertDialogAction>
+                        <AlertDialogAction onClick={handleBulkDeleteWrapper}>Continue</AlertDialogAction>
                       </AlertDialogFooter>
                     </AlertDialogContent>
                   </AlertDialog>
