@@ -61,7 +61,10 @@ The gallery is fully dynamic, with images stored in Supabase Storage and metadat
 1.  **Navigate:** Go to the **Manage Gallery** page.
 2.  **Upload:** Use the upload form to add new images. The system will automatically attempt to extract EXIF data (camera model, date taken, etc.) from your photos.
 3.  **AI Tagging:** When you upload an image, an AI-powered Supabase Edge Function will automatically analyze the image and generate relevant keywords (tags) for it. These tags enhance searchability and provide more context for your chatbot.
-4.  **Manage:** You can edit the "alt text" for each image (important for accessibility) or delete images.
+4.  **Metadata Import/Export:** For bulk uploads or to avoid AI API costs, you can manage image metadata (alt text and tags) using a `metadata.json` file.
+    *   **Download:** Use the "Download Selected" bulk action to export selected image metadata into a `metadata.json` file within a ZIP archive. You can also download a sample `metadata.json` directly from the upload section.
+    *   **Upload:** Include a `metadata.json` file (from a previous download or manually created) when uploading images. If a `fileName` in the JSON matches an image being uploaded, its `alt_text` and `tags` will be automatically applied, bypassing AI generation for those specific images.
+5.  **Manage:** You can edit the "alt text" for each image (important for accessibility) or delete images.
 
 **Note on Caching:** To ensure fast loading times, gallery images are aggressively cached on the CDN and in the user's browser for one year. If you replace an image with a new version that has the same file name, you may need to clear your browser cache to see the change.
 

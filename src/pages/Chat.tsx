@@ -63,6 +63,12 @@ ${context.locations.map(l => `- Location: ${l.title} in ${l.name}${l.description
 ${context.images.map(i => `- Alt Text: ${i.alt_text}${i.tags && i.tags.length > 0 ? `, Tags: ${i.tags.join(', ')}` : ''}`).join('\n')}
     `.trim() : '';
 
+    const contentManagementTips = `
+**Content Management Tips:**
+- For the Photo Gallery, you can manage image alt text and tags using a 'metadata.json' file. This is useful for bulk uploads or to avoid using AI APIs for tag generation, which can be rate-limited or incur costs.
+- You can download a sample 'metadata.json' from the 'Manage Gallery' page. When uploading images, if you include a 'metadata.json' file, the system will automatically apply the alt text and tags from the file to matching image filenames.
+    `.trim();
+
     return `
 Here is some context about this portfolio website and its owner, Rajesh Narayanan. Please use this information to answer user questions conversationally, as if you are a helpful assistant for this website.
 
@@ -75,6 +81,8 @@ ${postsContext}
 ${locationsContext}
 
 ${imagesContext}
+
+${contentManagementTips}
 
 Based on this context, please answer the user's question.
 ---
