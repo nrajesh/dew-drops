@@ -39,7 +39,7 @@ const Chat = () => {
 
     const homePageContext = `
 **Home Page Introduction:**
-"Welcome to My Creative Space. A curated collection of professional work, personal projects and travels of Rajesh Narayanan. Explore my blog, watch my videos, and get in touch."
+"Welcome to My Creative Space. A curated collection of professional work, personal projects and travels of Rajesh Narayanan. Explore my blog and get in touch."
     `.trim();
 
     const websiteFeaturesContext = `

@@ -36,7 +36,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { parseCsv } from "@/utils/csv.ts"; // Added .ts extension
+import { parseCsv } from "@/utils/csv.ts";
 import {
   fetchLocations,
   fetchBlogPosts,
@@ -45,8 +45,8 @@ import {
   handleBulkDelete,
   handleBulkPublish,
   handleBulkDownload,
-} from "@/components/travel/TravelManagementUtils.ts"; // Added .ts extension
-import { TravelLocationForm, LocationFormData } from "@/components/travel/TravelLocationForm.tsx"; // Added .tsx extension
+} from "@/components/travel/TravelManagementUtils.ts";
+import { TravelLocationForm, LocationFormData } from "@/components/travel/TravelLocationForm.tsx";
 import { sanitizeFileName } from "@/lib/utils";
 
 const ManageTravel = () => {
@@ -110,27 +110,29 @@ const ManageTravel = () => {
     const toastId = showLoading(editingLocation ? "Updating location..." : "Adding new location...");
     
     try {
-      let { latitude, longitude } = values;
+      // Explicitly handle the type from form values (number | '')
+      let currentLatitude: number | undefined = values.latitude === '' ? undefined : values.latitude;
+      let currentLongitude: number | undefined = values.longitude === '' ? undefined : values.longitude;
 
-      if ((!latitude || !longitude) && values.name) {
+      if ((currentLatitude === undefined || currentLongitude === undefined) && values.name) {
         const geocodeToastId = showLoading(`Finding coordinates for ${values.name}...`);
         try {
           const coords = await geocodeLocation(values.name);
-          latitude = coords.latitude;
-          longitude = coords.longitude;
+          currentLatitude = coords.latitude;
+          currentLongitude = coords.longitude;
         } finally {
           dismissToast(geocodeToastId);
         }
       }
 
-      if (!latitude || !longitude) {
+      if (currentLatitude === undefined || currentLongitude === undefined) {
         throw new Error("Coordinates are required. Could not automatically find them for the given place name.");
       }
 
       if (!editingLocation) {
         const isDuplicate = locations.some(loc => 
           loc.name.toLowerCase() === values.name.toLowerCase() ||
-          (loc.latitude === latitude && loc.longitude === longitude)
+          (loc.latitude === currentLatitude && loc.longitude === currentLongitude)
         );
         if (isDuplicate) {
           throw new Error("A location with the same name or coordinates already exists.");
@@ -165,8 +167,8 @@ const ManageTravel = () => {
         title: values.title,
         description: values.description,
         name: values.name,
-        latitude,
-        longitude,
+        latitude: currentLatitude,
+        longitude: currentLongitude,
         blog_url: values.blog_url,
         marker_image_url: imageUrl,
         user_id: user.id,
@@ -256,13 +258,15 @@ const ManageTravel = () => {
         try {
           if (!row.title || !row.name) throw new Error("Missing required 'title' or 'name'.");
 
-          let { latitude, longitude } = row;
-          if ((!latitude || !longitude) && row.name) {
+          let latitude: number | undefined = row.latitude ? parseFloat(row.latitude) : undefined;
+          let longitude: number | undefined = row.longitude ? parseFloat(row.longitude) : undefined;
+
+          if ((latitude === undefined || longitude === undefined) && row.name) {
             const coords = await geocodeLocation(row.name);
             latitude = coords.latitude;
             longitude = coords.longitude;
           }
-          if (!latitude || !longitude) throw new Error(`Could not determine coordinates for "${row.name}".`);
+          if (latitude === undefined || longitude === undefined) throw new Error(`Could not determine coordinates for "${row.name}".`);
 
           let blog_url = null;
           if (row.blog_title) {
@@ -274,8 +278,8 @@ const ManageTravel = () => {
             title: row.title,
             name: row.name,
             description: row.description || null,
-            latitude: parseFloat(latitude),
-            longitude: parseFloat(longitude),
+            latitude: latitude,
+            longitude: longitude,
             blog_url: blog_url,
             marker_image_url: row.marker_image_url || null,
             published: row.published ? row.published.toLowerCase() === 'true' : false,
