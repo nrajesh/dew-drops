@@ -27,27 +27,40 @@ export const usePortfolioContext = () => {
         const IMAGE_LIMIT = 20;
         let images: Pick<GalleryImage, 'alt_text' | 'tags'>[] = [];
 
-        // First, try to fetch images with no tags (tags is null or an empty array)
-        const { data: untaggedImages, error: untaggedError } = await supabase
+        // First, fetch images where tags is null
+        const { data: nullTagsImages, error: nullTagsError } = await supabase
           .from('gallery_images')
           .select('alt_text, tags')
-          .or('tags.is.null,tags.eq."{}"') // Corrected syntax for empty array
-          .neq('alt_text', '') // Still exclude empty alt_text
+          .is('tags', null)
+          .neq('alt_text', '')
           .limit(IMAGE_LIMIT);
 
-        if (untaggedError) throw new Error(`Untagged Images: ${untaggedError.message}`);
+        if (nullTagsError) throw new Error(`Null Tags Images: ${nullTagsError.message}`);
+        images = nullTagsImages || [];
 
-        images = untaggedImages || [];
+        // If we still need more images, fetch where tags is an empty array
+        if (images.length < IMAGE_LIMIT) {
+          const remainingLimit = IMAGE_LIMIT - images.length;
+          const { data: emptyTagsImages, error: emptyTagsError } = await supabase
+            .from('gallery_images')
+            .select('alt_text, tags')
+            .eq('tags', '{}') // Correct way to check for empty array
+            .neq('alt_text', '')
+            .limit(remainingLimit);
 
-        // If we don't have enough images, fetch some with tags to meet the limit
+          if (emptyTagsError) throw new Error(`Empty Tags Images: ${emptyTagsError.message}`);
+          images = [...images, ...(emptyTagsImages || [])];
+        }
+
+        // Finally, if we still don't have enough, fetch some with actual tags
         if (images.length < IMAGE_LIMIT) {
           const remainingLimit = IMAGE_LIMIT - images.length;
           const { data: taggedImages, error: taggedError } = await supabase
             .from('gallery_images')
             .select('alt_text, tags')
             .not('tags', 'is', null) // Exclude null tags
-            .not('tags', 'eq', '"{}"') // Exclude empty array tags - Corrected syntax
-            .neq('alt_text', '') // Still exclude empty alt_text
+            .not('tags', 'eq', '{}') // Exclude empty array tags
+            .neq('alt_text', '')
             .limit(remainingLimit);
 
           if (taggedError) throw new Error(`Tagged Images: ${taggedError.message}`);
