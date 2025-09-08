@@ -42,7 +42,7 @@ const ManageGallery = () => {
   const [selectedFiles, setSelectedFiles] = useState<FileList | null>(null);
   const [isUploading, setIsUploading] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
-  const [selectedImages, setSelectedImages] = useState<Set<string>>(new Set());
+  const [selectedImages, setSelectedImages] = useState(new Set<string>());
   const [editingImage, setEditingImage] = useState<GalleryImage | null>(null);
   const [isGeneratingEmbeddings, setIsGeneratingEmbeddings] = useState(false);
   const [embeddingErrors, setEmbeddingErrors] = useState<Record<string, string>>({});
