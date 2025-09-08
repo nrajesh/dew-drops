@@ -141,7 +141,9 @@ User's question:
       
       let errorMessageText: string;
 
-      if (error.message && error.message.includes("quota")) {
+      const isQuotaError = error.message && (error.message.includes("quota") || error.message.toLowerCase().includes("daily limit"));
+
+      if (isQuotaError) {
         errorMessageText = "I'm experiencing high demand and have reached my daily limit. This feature will be temporarily disabled. Please try again tomorrow.";
         showError("Chatbot has been auto-disabled due to API limits.");
         
