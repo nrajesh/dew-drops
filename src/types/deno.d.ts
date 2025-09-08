@@ -24,8 +24,15 @@ declare module "https://esm.sh/@supabase/supabase-js@2.45.0" {
   export const createClient: any;
 }
 
-// Declare modules imported via 'npm:' specifier
-// This tells TypeScript to treat 'npm:' imports as valid module specifiers.
+// Specific declaration for @google/generative-ai to ensure named export is recognized
+declare module "npm:@google/generative-ai" {
+  export class GoogleGenerativeAI {
+    constructor(apiKey: string);
+    getGenerativeModel(params: { model: string }): any; // Simplified for type declaration
+  }
+}
+
+// Generic declaration for other 'npm:' specifiers
 declare module "npm:*" {
   const content: any;
   export default content;
