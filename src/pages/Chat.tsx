@@ -136,24 +136,30 @@ User's question:
       setMessages(prev => [...prev, modelMessage]);
     } catch (dynamicError: any) {
       console.error("Error with dynamic context Gemini call:", dynamicError);
-      showError("Failed to get a detailed response. Trying with basic knowledge...");
 
-      try {
-        // Fallback: Try again with static README context
-        const fallbackPrompt = `
-          You are a helpful assistant for a portfolio website. Here is some general information about the website:
-          ${staticReadmeContext}
-          ---
-          Based on this general information, please answer the user's question:
-          ${currentInput}
-        `;
-        const fallbackResponse = await sendMessageToGemini(fallbackPrompt);
-        const modelMessage: Message = { role: 'model', text: fallbackResponse };
-        setMessages(prev => [...prev, modelMessage]);
-      } catch (fallbackError: any) {
-        console.error("Error with fallback Gemini call:", fallbackError);
-        showError("Failed to get a response from the chatbot. Please try again later.");
-        setMessages(prev => prev.slice(0, -1)); // Remove user message on complete failure
+      // Check if the error is a quota error
+      if (dynamicError.message && dynamicError.message.includes("quota")) {
+        showError("Gemini API quota exceeded. Please try again later or check your Google Cloud project settings.");
+        setMessages(prev => prev.slice(0, -1)); // Remove user message on failure
+      } else {
+        showError("Failed to get a detailed response. Trying with basic knowledge...");
+        try {
+          // Fallback: Try again with static README context
+          const fallbackPrompt = `
+            You are a helpful assistant for a portfolio website. Here is some general information about the website:
+            ${staticReadmeContext}
+            ---
+            Based on this general information, please answer the user's question:
+            ${currentInput}
+          `;
+          const fallbackResponse = await sendMessageToGemini(fallbackPrompt);
+          const modelMessage: Message = { role: 'model', text: fallbackResponse };
+          setMessages(prev => [...prev, modelMessage]);
+        } catch (fallbackError: any) {
+          console.error("Error with fallback Gemini call:", fallbackError);
+          showError("Failed to get a response from the chatbot. Please try again later.");
+          setMessages(prev => prev.slice(0, -1)); // Remove user message on complete failure
+        }
       }
     } finally {
       setIsLoading(false);

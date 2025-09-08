@@ -18,6 +18,7 @@ export const sendMessageToGemini = async (message: string) => {
     return text;
   } catch (error) {
     console.error("Error sending message to Gemini:", error);
-    throw new Error("Failed to get a response from the chatbot. Check the console for details.");
+    // Re-throw the original error for better handling in calling component
+    throw error;
   }
 };

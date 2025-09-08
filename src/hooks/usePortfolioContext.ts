@@ -31,7 +31,7 @@ export const usePortfolioContext = () => {
         const { data: untaggedImages, error: untaggedError } = await supabase
           .from('gallery_images')
           .select('alt_text, tags')
-          .or('tags is null,tags.eq.{}') // Check for NULL or empty array
+          .or('tags.is.null,tags.eq."{}"') // Corrected syntax for empty array
           .neq('alt_text', '') // Still exclude empty alt_text
           .limit(IMAGE_LIMIT);
 
@@ -46,7 +46,7 @@ export const usePortfolioContext = () => {
             .from('gallery_images')
             .select('alt_text, tags')
             .not('tags', 'is', null) // Exclude null tags
-            .not('tags', 'eq', '{}') // Exclude empty array tags
+            .not('tags', 'eq', '"{}"') // Exclude empty array tags - Corrected syntax
             .neq('alt_text', '') // Still exclude empty alt_text
             .limit(remainingLimit);
 
