@@ -11,7 +11,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { supabase } from "@/integrations/supabase/client";
 import { showSuccess, showError, showLoading, dismissToast } from "@/utils/toast";
-import { Upload, Trash2, Edit, RefreshCw, AlertCircle, AlertTriangle } from "lucide-react";
+import { Upload, Trash2, Edit } from "lucide-react";
 import type { GalleryImage } from "@/types";
 import {
   AlertDialog,
@@ -484,16 +484,6 @@ const ManageGallery = () => {
                     </AlertDialogFooter>
                   </AlertDialogContent>
                 </AlertDialog>
-              )}
-              {selectedImages.size > 0 && (
-                <Button
-                  variant="outline"
-                  onClick={regenerateEmbeddingsForSelected}
-                  disabled={isGeneratingEmbeddings}
-                >
-                  <RefreshCw className="h-4 w-4 mr-2" />
-                  Regenerate Embeddings ({selectedImages.size})
-                </Button>
               )}
             </div>
           </CardHeader>
