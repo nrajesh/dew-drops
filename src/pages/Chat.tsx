@@ -10,6 +10,9 @@ import { Bot, User, Send } from "lucide-react";
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { usePortfolioContext } from "@/hooks/usePortfolioContext";
+import { useFeatureToggles } from "@/contexts/FeatureToggleContext";
+import { navFeatures } from "@/config/navigation";
+import { useAuth } from "@/contexts/AuthContext";
 
 interface Message {
   role: 'user' | 'model';
@@ -22,6 +25,8 @@ const Chat = () => {
   const [isLoading, setIsLoading] = useState(false);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
   const { context, loading: contextLoading } = usePortfolioContext();
+  const { updateToggle } = useFeatureToggles();
+  const { user } = useAuth();
 
   const GEMINI_API_KEY = import.meta.env.VITE_GEMINI_API_KEY;
 
@@ -139,8 +144,12 @@ User's question:
       let errorMessageText: string;
 
       if (error.message && error.message.includes("quota")) {
-        errorMessageText = "I'm experiencing high demand and have reached my daily limit. Please try again tomorrow. I apologize for the inconvenience.";
-        showError("Chatbot daily limit reached.");
+        errorMessageText = "I'm experiencing high demand and have reached my daily limit. This feature will be temporarily disabled. Please try again tomorrow.";
+        showError("Chatbot has been auto-disabled due to API limits.");
+        if (user) {
+          // Auto-disable the feature for 24 hours
+          updateToggle(navFeatures.CHATBOT, false, { autoDisable: true });
+        }
       } else {
         errorMessageText = "I'm having trouble connecting right now. Please try again in a moment.";
         showError("Failed to get a response from the chatbot.");

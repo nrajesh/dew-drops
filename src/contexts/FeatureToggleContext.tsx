@@ -7,12 +7,11 @@ import { navFeatures } from '@/config/navigation';
 interface FeatureToggleContextType {
   toggles: Record<string, boolean>;
   loading: boolean;
-  updateToggle: (featureKey: string, isEnabled: boolean) => Promise<void>;
+  updateToggle: (featureKey: string, isEnabled: boolean, options?: { autoDisable?: boolean }) => Promise<void>;
 }
 
 const FeatureToggleContext = createContext<FeatureToggleContextType | undefined>(undefined);
 
-// All features that are actually toggleable
 const ALL_FEATURES = Object.values(navFeatures).filter(key => key !== navFeatures.HOME);
 
 export const FeatureToggleProvider = ({ children }: { children: ReactNode }) => {
@@ -20,89 +19,53 @@ export const FeatureToggleProvider = ({ children }: { children: ReactNode }) => 
   const [toggles, setToggles] = useState<Record<string, boolean>>({});
   const [loading, setLoading] = useState(true);
 
-  const initializeTogglesForAdmin = useCallback(async (userId: string) => {
-    const { data, error } = await supabase.from('feature_toggles').select('*').eq('user_id', userId);
+  const fetchToggles = useCallback(async () => {
+    const { data, error } = await supabase.from('feature_toggles').select('feature_key, is_enabled, auto_disabled_until');
     
     if (error) {
-      showError("Could not load your feature settings.");
+      showError("Could not load website features.");
       console.error(error);
-      return {};
+      return { [navFeatures.HOME]: true };
     }
 
-    const existingToggles = new Map(data.map(t => [t.feature_key, t.is_enabled]));
-    const missingToggles = ALL_FEATURES.filter(key => !existingToggles.has(key));
+    const now = new Date();
+    const finalToggles = Object.fromEntries(
+      data.map(t => {
+        const isTemporarilyDisabled = t.auto_disabled_until && new Date(t.auto_disabled_until) > now;
+        return [t.feature_key, t.is_enabled && !isTemporarilyDisabled];
+      })
+    );
 
-    if (missingToggles.length > 0) {
-      const newToggles = missingToggles.map(key => ({
-        user_id: userId,
-        feature_key: key,
-        is_enabled: true, // Default to enabled for admin
-      }));
-      const { error: insertError } = await supabase.from('feature_toggles').insert(newToggles);
-      if (insertError) {
-        showError("Could not initialize default feature settings.");
-        console.error(insertError);
-      } else {
-        missingToggles.forEach(key => existingToggles.set(key, true));
-      }
+    finalToggles[navFeatures.HOME] = true; // Home is always on
+
+    if (!user) {
+      // Ensure management routes are always off for logged-out users
+      Object.keys(navFeatures).forEach(key => {
+        if (key.startsWith('manage_')) {
+          finalToggles[navFeatures[key as keyof typeof navFeatures]] = false;
+        }
+      });
     }
     
-    const finalToggles = Object.fromEntries(existingToggles);
-    finalToggles[navFeatures.HOME] = true; // Always ensure Home is enabled
     return finalToggles;
-  }, []);
-
-  const fetchPublicToggles = useCallback(async () => {
-    const { data, error } = await supabase
-      .from('feature_toggles')
-      .select('feature_key, is_enabled');
-
-    if (error) {
-        showError("Could not load website features.");
-        console.error(error);
-        // Fallback to safe defaults on error
-        return {
-            [navFeatures.HOME]: true,
-            [navFeatures.BLOG]: true,
-            [navFeatures.GALLERY]: true,
-            [navFeatures.TRAVEL]: true,
-            [navFeatures.CHATBOT]: false,
-            [navFeatures.MANAGE_BLOG]: false,
-            [navFeatures.MANAGE_GALLERY]: false,
-            [navFeatures.MANAGE_TRAVEL]: false,
-            [navFeatures.FEATURE_TOGGLES]: false,
-        };
-    }
-
-    const publicToggles = Object.fromEntries(data.map(t => [t.feature_key, t.is_enabled]));
-    publicToggles[navFeatures.HOME] = true; // Home is always on
-
-    // Ensure management routes are always off for logged-out users
-    publicToggles[navFeatures.MANAGE_BLOG] = false;
-    publicToggles[navFeatures.MANAGE_GALLERY] = false;
-    publicToggles[navFeatures.MANAGE_TRAVEL] = false;
-    publicToggles[navFeatures.FEATURE_TOGGLES] = false;
-
-    return publicToggles;
-  }, []);
+  }, [user]);
 
   useEffect(() => {
-    setLoading(true);
-    const loadToggles = async () => {
-      let newToggles;
-      if (user) {
-        newToggles = await initializeTogglesForAdmin(user.id);
-      } else {
-        newToggles = await fetchPublicToggles();
-      }
+    const loadAndCheckToggles = async () => {
+      setLoading(true);
+      // First, trigger the function to check for and re-enable any expired toggles.
+      await supabase.functions.invoke('check-feature-toggles', { method: 'POST' });
+      
+      // Then, fetch the latest state of all toggles.
+      const newToggles = await fetchToggles();
       setToggles(newToggles);
       setLoading(false);
     };
 
-    loadToggles();
-  }, [user, initializeTogglesForAdmin, fetchPublicToggles]);
+    loadAndCheckToggles();
+  }, [user, fetchToggles]);
 
-  const updateToggle = async (featureKey: string, isEnabled: boolean) => {
+  const updateToggle = async (featureKey: string, isEnabled: boolean, options: { autoDisable?: boolean } = {}) => {
     if (!user) {
       showError("You must be logged in to change settings.");
       return;
@@ -110,18 +73,33 @@ export const FeatureToggleProvider = ({ children }: { children: ReactNode }) => 
 
     setToggles(prev => ({ ...prev, [featureKey]: isEnabled }));
 
+    const updatePayload: { is_enabled: boolean; auto_disabled_until?: string | null } = {
+      is_enabled: isEnabled,
+    };
+
+    if (options.autoDisable) {
+      updatePayload.auto_disabled_until = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
+    } else {
+      // A manual toggle should always clear any automatic disable timer.
+      updatePayload.auto_disabled_until = null;
+    }
+
     const { error } = await supabase
       .from('feature_toggles')
-      .update({ is_enabled: isEnabled })
+      .update(updatePayload)
       .eq('user_id', user.id)
       .eq('feature_key', featureKey);
 
     if (error) {
       showError(`Failed to update ${featureKey}. Reverting.`);
       console.error(error);
-      setToggles(prev => ({ ...prev, [featureKey]: !isEnabled }));
+      // Re-fetch to get the true state from DB
+      const freshToggles = await fetchToggles();
+      setToggles(freshToggles);
     } else {
-      showSuccess("Setting saved!");
+      if (!options.autoDisable) {
+        showSuccess("Setting saved!");
+      }
     }
   };
 
