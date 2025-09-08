@@ -377,6 +377,12 @@ const ManageGallery = () => {
             <div className="flex gap-2">
               {selectedImages.size > 0 && (
                 <>
+                  <Button variant="outline" onClick={() => handleBulkPublish(true)} disabled={selectedImages.size === 0}>
+                    Publish ({selectedImages.size})
+                  </Button>
+                  <Button variant="outline" onClick={() => handleBulkPublish(false)} disabled={selectedImages.size === 0}>
+                    Unpublish ({selectedImages.size})
+                  </Button>
                   <AlertDialog>
                     <AlertDialogTrigger asChild>
                       <Button variant="destructive">
