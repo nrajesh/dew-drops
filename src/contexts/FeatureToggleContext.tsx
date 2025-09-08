@@ -13,78 +13,70 @@ interface FeatureToggleContextType {
 
 const FeatureToggleContext = createContext<FeatureToggleContextType | undefined>(undefined);
 
-const ALL_FEATURES = Object.values(navFeatures).filter(key => key !== navFeatures.HOME);
-
 export const FeatureToggleProvider = ({ children }: { children: ReactNode }) => {
   const { user } = useAuth();
   const [toggles, setToggles] = useState<Record<string, boolean>>({});
   const [loading, setLoading] = useState(true);
 
   const fetchToggles = useCallback(async () => {
-    let targetUserId: string | null = null;
+    // Step 1: Find the admin user ID. This is the owner of the canonical feature toggles.
+    const { data: adminData, error: adminError } = await supabase
+      .from('feature_toggles')
+      .select('user_id')
+      .limit(1)
+      .single();
 
-    if (user) {
-      // If logged in, use the current user's ID
-      targetUserId = user.id;
-    } else {
-      // If not logged in, try to find an admin user ID from the feature_toggles table.
-      // This assumes the first user_id found is the admin whose settings control public view.
-      const { data: adminData, error: adminError } = await supabase
-        .from('feature_toggles')
-        .select('user_id')
-        .limit(1)
-        .single();
-
-      if (adminError || !adminData) {
-        console.warn("Could not find an admin user to determine public feature toggles. Falling back to default.");
-        // Fallback to safe defaults if no admin user is found
-        return {
-            [navFeatures.HOME]: true,
-            [navFeatures.BLOG]: true,
-            [navFeatures.GALLERY]: true,
-            [navFeatures.TRAVEL]: true,
-            [navFeatures.CHATBOT]: false, // Default to off if no admin settings
-            [navFeatures.MANAGE_BLOG]: false,
-            [navFeatures.MANAGE_GALLERY]: false,
-            [navFeatures.MANAGE_TRAVEL]: false,
-            [navFeatures.FEATURE_TOGGLES]: false,
-        };
-      }
-      targetUserId = adminData.user_id;
+    if (adminError || !adminData) {
+      console.warn("No feature toggles found in the database. Using default settings.");
+      // Fallback to safe defaults if no toggles are configured at all.
+      return {
+          [navFeatures.HOME]: true,
+          [navFeatures.BLOG]: true,
+          [navFeatures.GALLERY]: true,
+          [navFeatures.TRAVEL]: true,
+          [navFeatures.CHATBOT]: false,
+          [navFeatures.MANAGE_BLOG]: false,
+          [navFeatures.MANAGE_GALLERY]: false,
+          [navFeatures.MANAGE_TRAVEL]: false,
+          [navFeatures.FEATURE_TOGGLES]: false,
+      };
     }
+    const adminUserId = adminData.user_id;
 
-    // Now fetch the toggles for the determined targetUserId
+    // Step 2: Fetch the global toggle settings owned by the admin.
     const { data, error } = await supabase
       .from('feature_toggles')
       .select('feature_key, is_enabled, auto_disabled_until')
-      .eq('user_id', targetUserId); // Filter by the target user ID
+      .eq('user_id', adminUserId);
     
     if (error) {
       showError("Could not load website features.");
       console.error(error);
-      return { [navFeatures.HOME]: true };
+      return { [navFeatures.HOME]: true }; // Minimal safe default on error
     }
 
     const now = new Date();
-    const finalToggles = Object.fromEntries(
+    const globalToggles = Object.fromEntries(
       data.map(t => {
         const isTemporarilyDisabled = t.auto_disabled_until && new Date(t.auto_disabled_until) > now;
         return [t.feature_key, t.is_enabled && !isTemporarilyDisabled];
       })
     );
 
-    finalToggles[navFeatures.HOME] = true; // Home is always on
+    globalToggles[navFeatures.HOME] = true; // Home is always on.
 
-    if (!user) {
-      // Ensure management routes are always off for logged-out users
-      Object.keys(navFeatures).forEach(key => {
-        if (key.startsWith('manage_')) {
-          finalToggles[navFeatures[key as keyof typeof navFeatures]] = false;
+    // Step 3: Apply visibility rules. Hide management features for everyone except the admin.
+    const isCurrentUserAdmin = user && user.id === adminUserId;
+
+    if (!isCurrentUserAdmin) {
+      Object.values(navFeatures).forEach(key => {
+        if (key.startsWith('manage_') || key === navFeatures.FEATURE_TOGGLES) {
+          globalToggles[key] = false;
         }
       });
     }
     
-    return finalToggles;
+    return globalToggles;
   }, [user]);
 
   const refreshToggles = useCallback(async () => {
@@ -112,6 +104,7 @@ export const FeatureToggleProvider = ({ children }: { children: ReactNode }) => 
       return;
     }
 
+    // Optimistically update UI
     setToggles(prev => ({ ...prev, [featureKey]: isEnabled }));
 
     const updatePayload: { is_enabled: boolean; auto_disabled_until?: string | null } = {
@@ -128,7 +121,7 @@ export const FeatureToggleProvider = ({ children }: { children: ReactNode }) => 
     const { error } = await supabase
       .from('feature_toggles')
       .update(updatePayload)
-      .eq('user_id', user.id)
+      .eq('user_id', user.id) // RLS policies will ensure only the owner can update.
       .eq('feature_key', featureKey);
 
     if (error) {
