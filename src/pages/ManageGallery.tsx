@@ -11,7 +11,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { supabase } from "@/integrations/supabase/client";
 import { showSuccess, showError, showLoading, dismissToast } from "@/utils/toast";
-import { Upload, Trash2, Edit } from "lucide-react";
+import { Upload, Trash2, Edit, Download } from "lucide-react";
 import type { GalleryImage } from "@/types";
 import {
   AlertDialog,
@@ -27,6 +27,7 @@ import {
 import { useAuth } from "@/contexts/AuthContext";
 import { sanitizeFileName } from "@/lib/utils";
 import ExifReader from 'exifreader';
+import JSZip from 'jszip';
 import { Checkbox } from "@/components/ui/checkbox";
 import { Switch } from "@/components/ui/switch";
 import { ManagementPagination } from "@/components/ManagementPagination";
@@ -342,6 +343,53 @@ const ManageGallery = () => {
     }
   };
 
+  const handleBulkDownload = async () => {
+    if (selectedImages.size === 0) {
+      showError("No images selected for download.");
+      return;
+    }
+
+    const toastId = showLoading(`Preparing ${selectedImages.size} image(s) for download...`);
+    try {
+      const zip = new JSZip();
+      const imagesToDownload = images.filter(img => selectedImages.has(img.id));
+
+      const downloadPromises = imagesToDownload.map(async (image) => {
+        const { data: blob, error } = await supabase.storage
+          .from('gallery')
+          .download(image.file_name);
+
+        if (error) {
+          throw new Error(`Failed to download ${image.file_name}: ${error.message}`);
+        }
+        if (blob) {
+          const originalFileName = image.file_name.split('/').pop()?.split('_').slice(1).join('_') || image.file_name;
+          zip.file(originalFileName, blob);
+        }
+      });
+
+      await Promise.all(downloadPromises);
+
+      const zipBlob = await zip.generateAsync({ type: 'blob' });
+
+      const link = document.createElement('a');
+      link.href = URL.createObjectURL(zipBlob);
+      link.download = `gallery-export-${new Date().toISOString().split('T')[0]}.zip`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(link.href);
+
+      dismissToast(toastId);
+      showSuccess(`${imagesToDownload.length} image(s) downloaded successfully.`);
+      setSelectedImages(new Set());
+
+    } catch (error: any) {
+      dismissToast(toastId);
+      showError(`Download failed: ${error.message}`);
+    }
+  };
+
   const allOnPageSelected = paginatedImages.length > 0 && paginatedImages.every(i => selectedImages.has(i.id));
 
   return (
@@ -395,6 +443,10 @@ const ManageGallery = () => {
                       </DropdownMenuItem>
                       <DropdownMenuItem onClick={() => handleBulkPublish(false)}>
                         Unpublish Selected
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={handleBulkDownload}>
+                        <Download className="h-4 w-4 mr-2" />
+                        Download Selected
                       </DropdownMenuItem>
                     </DropdownMenuContent>
                   </DropdownMenu>
