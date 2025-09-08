@@ -59,8 +59,8 @@ ${context.locations.map(l => `- Location: ${l.title} in ${l.name}${l.description
     `.trim() : '';
 
     const imagesContext = context.images.length > 0 ? `
-**Photo Gallery Highlights (from image descriptions):**
-${context.images.map(i => `- ${i.alt_text}`).join('\n')}
+**Photo Gallery Highlights (from image descriptions and AI-generated tags):**
+${context.images.map(i => `- Alt Text: ${i.alt_text}${i.tags && i.tags.length > 0 ? `, Tags: ${i.tags.join(', ')}` : ''}`).join('\n')}
     `.trim() : '';
 
     return `

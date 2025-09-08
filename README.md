@@ -8,7 +8,7 @@ This README provides a comprehensive guide to understanding, customizing, and ma
 
 -   **Core Home Page:** A permanent landing page that always remains active as the main entry point to your site.
 -   **Dynamic Blog:** A full-featured blog powered by a Supabase database, with Markdown support for writing posts.
--   **Photo Gallery:** A dynamic gallery with automatic EXIF data extraction, managed via Supabase Storage.
+-   **Photo Gallery:** A dynamic gallery with automatic EXIF data extraction, managed via Supabase Storage, now enhanced with AI-generated tags.
 -   **Interactive Travel Map:** Pin your travel destinations on a world map. The list is searchable by title, location, and description.
 -   **Contact Form:** A secure, serverless contact form that sends emails directly to you.
 -   **AI Chatbot:** An integrated chatbot powered by Google Gemini that uses your portfolio's content to provide intelligent answers.
@@ -31,7 +31,7 @@ This portfolio is built with a selection of modern tools chosen for their perfor
 | **Backend**       | [Supabase](https://supabase.com/)                                       | The open-source Firebase alternative. Used for:                                                    |
 |                   | &nbsp;&nbsp;&nbsp;**Database**                                          | A PostgreSQL database for storing blog posts, and travel locations.                        |
 |                   | &nbsp;&nbsp;&nbsp;**Storage**                                           | For hosting user-uploaded images for the gallery and map markers.                                  |
-|                   | &nbsp;&nbsp;&nbsp;**Edge Functions**                                    | Serverless functions for backend logic, like the contact form and geocode location.                |
+|                   | &nbsp;&nbsp;&nbsp;**Edge Functions**                                    | Serverless functions for backend logic, like the contact form, geocode location, and AI image tagging.                |
 | **AI**            | [Google Gemini](https://ai.google.dev/)                                 | Powers the conversational AI chatbot feature and image embedding generation.                      |
 | **Routing**       | [React Router](https://reactrouter.com/)                                | The standard for declarative routing in React applications.                                        |
 | **Forms**         | [React Hook Form](https://react-hook-form.com/) & [Zod](https://zod.dev/) | A powerful combination for building performant, type-safe, and validated forms.                    |
@@ -60,7 +60,8 @@ The gallery is fully dynamic, with images stored in Supabase Storage and metadat
 
 1.  **Navigate:** Go to the **Manage Gallery** page.
 2.  **Upload:** Use the upload form to add new images. The system will automatically attempt to extract EXIF data (camera model, date taken, etc.) from your photos.
-3.  **Manage:** You can edit the "alt text" for each image (important for accessibility) or delete images.
+3.  **AI Tagging:** When you upload an image, an AI-powered Supabase Edge Function will automatically analyze the image and generate relevant keywords (tags) for it. These tags enhance searchability and provide more context for your chatbot.
+4.  **Manage:** You can edit the "alt text" for each image (important for accessibility) or delete images.
 
 **Note on Caching:** To ensure fast loading times, gallery images are aggressively cached on the CDN and in the user's browser for one year. If you replace an image with a new version that has the same file name, you may need to clear your browser cache to see the change.
 
@@ -92,7 +93,7 @@ The chatbot uses a **Retrieval-Augmented Generation (RAG)** approach. It's not i
 
 1.  **To change *what* the chatbot knows:**
     *   **File:** `src/hooks/usePortfolioContext.ts`
-    *   **How:** This file fetches the data that forms the chatbot's context. You can change the `.limit()` on the Supabase queries to give it more (or less) information about your posts, travels, etc. You could also add new queries to other tables to expand its knowledge base.
+    *   **How:** This file fetches the data that forms the chatbot's context. You can change the `.limit()` on the Supabase queries to give it more (or less) information about your posts, travels, etc. You could also add new queries to other tables to expand its knowledge base, including the newly generated image tags.
 
 2.  **To change *how* the chatbot behaves:**
     *   **File:** `src/pages/Chat.tsx`

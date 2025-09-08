@@ -5,7 +5,7 @@ import type { Post, TravelLocation, GalleryImage } from '@/types';
 interface PortfolioContext {
   posts: Pick<Post, 'title' | 'description'>[];
   locations: Pick<TravelLocation, 'title' | 'name' | 'description'>[];
-  images: Pick<GalleryImage, 'alt_text'>[];
+  images: Pick<GalleryImage, 'alt_text' | 'tags'>[]; // Added 'tags' here
 }
 
 export const usePortfolioContext = () => {
@@ -19,7 +19,7 @@ export const usePortfolioContext = () => {
         const [postsRes, locationsRes, imagesRes] = await Promise.all([
           supabase.from('posts').select('title, description').eq('published', true).order('published_at', { ascending: false }).limit(10),
           supabase.from('travel_locations').select('title, name, description').order('created_at', { ascending: false }).limit(10),
-          supabase.from('gallery_images').select('alt_text').neq('alt_text', '').limit(20)
+          supabase.from('gallery_images').select('alt_text, tags').neq('alt_text', '').limit(20) // Fetching 'tags'
         ]);
 
         if (postsRes.error) throw new Error(`Posts: ${postsRes.error.message}`);
