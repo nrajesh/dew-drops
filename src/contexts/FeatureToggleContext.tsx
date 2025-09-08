@@ -21,7 +21,43 @@ export const FeatureToggleProvider = ({ children }: { children: ReactNode }) => 
   const [loading, setLoading] = useState(true);
 
   const fetchToggles = useCallback(async () => {
-    const { data, error } = await supabase.from('feature_toggles').select('feature_key, is_enabled, auto_disabled_until');
+    let targetUserId: string | null = null;
+
+    if (user) {
+      // If logged in, use the current user's ID
+      targetUserId = user.id;
+    } else {
+      // If not logged in, try to find an admin user ID from the feature_toggles table.
+      // This assumes the first user_id found is the admin whose settings control public view.
+      const { data: adminData, error: adminError } = await supabase
+        .from('feature_toggles')
+        .select('user_id')
+        .limit(1)
+        .single();
+
+      if (adminError || !adminData) {
+        console.warn("Could not find an admin user to determine public feature toggles. Falling back to default.");
+        // Fallback to safe defaults if no admin user is found
+        return {
+            [navFeatures.HOME]: true,
+            [navFeatures.BLOG]: true,
+            [navFeatures.GALLERY]: true,
+            [navFeatures.TRAVEL]: true,
+            [navFeatures.CHATBOT]: false, // Default to off if no admin settings
+            [navFeatures.MANAGE_BLOG]: false,
+            [navFeatures.MANAGE_GALLERY]: false,
+            [navFeatures.MANAGE_TRAVEL]: false,
+            [navFeatures.FEATURE_TOGGLES]: false,
+        };
+      }
+      targetUserId = adminData.user_id;
+    }
+
+    // Now fetch the toggles for the determined targetUserId
+    const { data, error } = await supabase
+      .from('feature_toggles')
+      .select('feature_key, is_enabled, auto_disabled_until')
+      .eq('user_id', targetUserId); // Filter by the target user ID
     
     if (error) {
       showError("Could not load website features.");
