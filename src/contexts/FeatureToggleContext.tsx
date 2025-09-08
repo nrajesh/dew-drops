@@ -8,6 +8,7 @@ interface FeatureToggleContextType {
   toggles: Record<string, boolean>;
   loading: boolean;
   updateToggle: (featureKey: string, isEnabled: boolean, options?: { autoDisable?: boolean }) => Promise<void>;
+  refreshToggles: () => Promise<void>;
 }
 
 const FeatureToggleContext = createContext<FeatureToggleContextType | undefined>(undefined);
@@ -50,6 +51,11 @@ export const FeatureToggleProvider = ({ children }: { children: ReactNode }) => 
     return finalToggles;
   }, [user]);
 
+  const refreshToggles = useCallback(async () => {
+    const newToggles = await fetchToggles();
+    setToggles(newToggles);
+  }, [fetchToggles]);
+
   useEffect(() => {
     const loadAndCheckToggles = async () => {
       setLoading(true);
@@ -57,13 +63,12 @@ export const FeatureToggleProvider = ({ children }: { children: ReactNode }) => 
       await supabase.functions.invoke('check-feature-toggles', { method: 'POST' });
       
       // Then, fetch the latest state of all toggles.
-      const newToggles = await fetchToggles();
-      setToggles(newToggles);
+      await refreshToggles();
       setLoading(false);
     };
 
     loadAndCheckToggles();
-  }, [user, fetchToggles]);
+  }, [user, refreshToggles]);
 
   const updateToggle = async (featureKey: string, isEnabled: boolean, options: { autoDisable?: boolean } = {}) => {
     if (!user) {
@@ -94,8 +99,7 @@ export const FeatureToggleProvider = ({ children }: { children: ReactNode }) => 
       showError(`Failed to update ${featureKey}. Reverting.`);
       console.error(error);
       // Re-fetch to get the true state from DB
-      const freshToggles = await fetchToggles();
-      setToggles(freshToggles);
+      await refreshToggles();
     } else {
       if (!options.autoDisable) {
         showSuccess("Setting saved!");
@@ -103,7 +107,7 @@ export const FeatureToggleProvider = ({ children }: { children: ReactNode }) => 
     }
   };
 
-  const value = { toggles, loading, updateToggle };
+  const value = { toggles, loading, updateToggle, refreshToggles };
 
   return (
     <FeatureToggleContext.Provider value={value}>

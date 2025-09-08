@@ -11,8 +11,7 @@ import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { usePortfolioContext } from "@/hooks/usePortfolioContext";
 import { useFeatureToggles } from "@/contexts/FeatureToggleContext";
-import { navFeatures } from "@/config/navigation";
-import { useAuth } from "@/contexts/AuthContext";
+import { supabase } from "@/integrations/supabase/client";
 
 interface Message {
   role: 'user' | 'model';
@@ -25,8 +24,7 @@ const Chat = () => {
   const [isLoading, setIsLoading] = useState(false);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
   const { context, loading: contextLoading } = usePortfolioContext();
-  const { updateToggle } = useFeatureToggles();
-  const { user } = useAuth();
+  const { refreshToggles } = useFeatureToggles();
 
   const GEMINI_API_KEY = import.meta.env.VITE_GEMINI_API_KEY;
 
@@ -146,10 +144,17 @@ User's question:
       if (error.message && error.message.includes("quota")) {
         errorMessageText = "I'm experiencing high demand and have reached my daily limit. This feature will be temporarily disabled. Please try again tomorrow.";
         showError("Chatbot has been auto-disabled due to API limits.");
-        if (user) {
-          // Auto-disable the feature for 24 hours
-          updateToggle(navFeatures.CHATBOT, false, { autoDisable: true });
-        }
+        
+        // Invoke the edge function to auto-disable the feature for everyone.
+        supabase.functions.invoke('auto-disable-feature', { method: 'POST' })
+          .then(() => {
+            // Refresh the toggles to update the UI instantly.
+            refreshToggles();
+          })
+          .catch(err => {
+              console.error("Failed to invoke auto-disable function:", err);
+          });
+
       } else {
         errorMessageText = "I'm having trouble connecting right now. Please try again in a moment.";
         showError("Failed to get a response from the chatbot.");
