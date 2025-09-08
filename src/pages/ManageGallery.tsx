@@ -30,7 +30,6 @@ import ExifReader from 'exifreader';
 import { Checkbox } from "@/components/ui/checkbox";
 import { ManagementPagination } from "@/components/ManagementPagination";
 import { usePaginationNavigation } from "@/hooks/usePaginationNavigation";
-import { generateEmbedding, updateImageEmbedding } from "@/utils/embeddings";
 
 const editSchema = z.object({
   alt_text: z.string().min(3, "Alt text must be at least 3 characters.").max(200, "Alt text cannot exceed 200 characters."),
@@ -298,131 +297,6 @@ const ManageGallery = () => {
   };
 
   const allOnPageSelected = paginatedImages.length > 0 && paginatedImages.every(i => selectedImages.has(i.id));
-
-  const generateEmbeddingsForImages = async () => {
-    if (!user) {
-      showError("You must be logged in to generate embeddings.");
-      return;
-    }
-
-    const imagesWithoutEmbeddings = images.filter(img => !img.embedding);
-    if (imagesWithoutEmbeddings.length === 0) {
-      showSuccess("All images already have embeddings.");
-      return;
-    }
-
-    setIsGeneratingEmbeddings(true);
-    const toastId = showLoading(`Generating embeddings for ${imagesWithoutEmbeddings.length} images...`);
-    const newErrors: Record<string, string> = {};
-
-    try {
-      for (const image of imagesWithoutEmbeddings) {
-        try {
-          const embedding = await generateEmbedding(image.image_url);
-          await updateImageEmbedding(image.id, embedding);
-
-          // Update the local state
-          setImages(prevImages =>
-            prevImages.map(img =>
-              img.id === image.id ? { ...img, embedding } : img
-            )
-          );
-        } catch (error: any) {
-          console.error(`Failed to generate embedding for image ${image.id}:`, error);
-          newErrors[image.id] = error.message;
-
-          // Check if this is a rate limit error
-          if (error.message.includes('429')) {
-            const rateLimitMatch = error.message.match(/quotaValue":"(\d+)"/);
-            if (rateLimitMatch) {
-              const remaining = parseInt(rateLimitMatch[1], 10);
-              const resetTime = new Date(Date.now() + 24 * 60 * 60 * 1000).toLocaleTimeString();
-              // setRateLimitInfo({ remaining, resetTime }); // Removed as rateLimitInfo state is removed
-            }
-          }
-
-          showError(`Failed to generate embedding for image ${image.id}: ${error.message}`);
-        }
-      }
-
-      dismissToast(toastId);
-      if (Object.keys(newErrors).length > 0) {
-        showError(`Successfully generated embeddings for ${imagesWithoutEmbeddings.length - Object.keys(newErrors).length} images. ${Object.keys(newErrors).length} failed.`);
-      } else {
-        showSuccess(`Successfully generated embeddings for ${imagesWithoutEmbeddings.length} images.`);
-      }
-    } catch (error: any) {
-      dismissToast(toastId);
-      showError(`Error generating embeddings: ${error.message}`);
-    } finally {
-      // setEmbeddingErrors(newErrors); // Removed as embeddingErrors state is removed
-      setIsGeneratingEmbeddings(false);
-    }
-  };
-
-  const regenerateEmbeddingsForSelected = async () => {
-    if (!user) {
-      showError("You must be logged in to regenerate embeddings.");
-      return;
-    }
-
-    if (selectedImages.size === 0) {
-      showError("Please select at least one image to regenerate embeddings.");
-      return;
-    }
-
-    const selectedImageIds = Array.from(selectedImages);
-    const imagesToUpdate = images.filter(img => selectedImageIds.includes(img.id));
-
-    setIsGeneratingEmbeddings(true);
-    const toastId = showLoading(`Regenerating embeddings for ${imagesToUpdate.length} images...`);
-    const newErrors: Record<string, string> = {};
-
-    try {
-      for (const image of imagesToUpdate) {
-        try {
-          const embedding = await generateEmbedding(image.image_url);
-          await updateImageEmbedding(image.id, embedding);
-
-          // Update the local state
-          setImages(prevImages =>
-            prevImages.map(img =>
-              img.id === image.id ? { ...img, embedding } : img
-            )
-          );
-        } catch (error: any) {
-          console.error(`Failed to regenerate embedding for image ${image.id}:`, error);
-          newErrors[image.id] = error.message;
-
-          // Check if this is a rate limit error
-          if (error.message.includes('429')) {
-            const rateLimitMatch = error.message.match(/quotaValue":"(\d+)"/);
-            if (rateLimitMatch) {
-              const remaining = parseInt(rateLimitMatch[1], 10);
-              const resetTime = new Date(Date.now() + 24 * 60 * 60 * 1000).toLocaleTimeString();
-              // setRateLimitInfo({ remaining, resetTime }); // Removed as rateLimitInfo state is removed
-            }
-          }
-
-          showError(`Failed to regenerate embedding for image ${image.id}: ${error.message}`);
-        }
-      }
-
-      dismissToast(toastId);
-      if (Object.keys(newErrors).length > 0) {
-        showError(`Successfully regenerated embeddings for ${imagesToUpdate.length - Object.keys(newErrors).length} images. ${Object.keys(newErrors).length} failed.`);
-      } else {
-        showSuccess(`Successfully regenerated embeddings for ${imagesToUpdate.length} images.`);
-      }
-      setSelectedImages(new Set());
-    } catch (error: any) {
-      dismissToast(toastId);
-      showError(`Error regenerating embeddings: ${error.message}`);
-    } finally {
-      // setEmbeddingErrors(newErrors); // Removed as embeddingErrors state is removed
-      setIsGeneratingEmbeddings(false);
-    }
-  };
 
   return (
     <>
