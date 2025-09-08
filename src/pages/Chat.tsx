@@ -128,33 +128,26 @@ User's question:
     setIsLoading(true);
 
     try {
-      // Attempt with dynamic context first
       const systemPrompt = formatContext();
       const fullPrompt = `${systemPrompt} ${currentInput}`;
       const response = await sendMessageToGemini(fullPrompt);
       const modelMessage: Message = { role: 'model', text: response };
       setMessages(prev => [...prev, modelMessage]);
-    } catch (dynamicError: any) {
-      console.error("Error with dynamic context Gemini call:", dynamicError);
-      // Always try fallback if dynamic call fails for any reason (including quota)
-      showError("Failed to get a detailed response. Trying with basic knowledge...");
-      try {
-        // Fallback: Try again with static README context
-        const fallbackPrompt = `
-          You are a helpful assistant for a portfolio website. Here is some general information about the website:
-          ${staticReadmeContext}
-          ---
-          Based on this general information, please answer the user's question:
-          ${currentInput}
-        `;
-        const fallbackResponse = await sendMessageToGemini(fallbackPrompt);
-        const modelMessage: Message = { role: 'model', text: fallbackResponse };
-        setMessages(prev => [...prev, modelMessage]);
-      } catch (fallbackError: any) {
-        console.error("Error with fallback Gemini call:", fallbackError);
-        showError("Failed to get a response from the chatbot. Please try again later.");
-        setMessages(prev => prev.slice(0, -1)); // Remove user message on complete failure
+    } catch (error: any) {
+      console.error("Error with Gemini call:", error);
+      
+      let errorMessageText: string;
+
+      if (error.message && error.message.includes("quota")) {
+        errorMessageText = "I'm experiencing high demand and have reached my daily limit. Please try again tomorrow. I apologize for the inconvenience.";
+        showError("Chatbot daily limit reached.");
+      } else {
+        errorMessageText = "I'm having trouble connecting right now. Please try again in a moment.";
+        showError("Failed to get a response from the chatbot.");
       }
+
+      const errorMessage: Message = { role: 'model', text: errorMessageText };
+      setMessages(prev => [...prev, errorMessage]);
     } finally {
       setIsLoading(false);
     }
