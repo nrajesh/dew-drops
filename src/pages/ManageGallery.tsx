@@ -464,6 +464,32 @@ const ManageGallery = () => {
     }
   };
 
+  const handleDownloadSampleMetadata = () => {
+    const sampleMetadata = [
+      {
+        "fileName": "your-image-name-1.jpg",
+        "alt_text": "A descriptive alt text for your first image.",
+        "tags": ["tag1", "tag2", "tag3"]
+      },
+      {
+        "fileName": "your-image-name-2.png",
+        "alt_text": "Another descriptive alt text for your second image.",
+        "tags": ["tag4", "tag5"]
+      }
+    ];
+    const jsonString = JSON.stringify(sampleMetadata, null, 2);
+    const blob = new Blob([jsonString], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = 'sample_metadata.json';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+    showSuccess("Sample metadata.json downloaded!");
+  };
+
   const allOnPageSelected = paginatedImages.length > 0 && paginatedImages.every(i => selectedImages.has(i.id));
 
   return (
@@ -477,18 +503,23 @@ const ManageGallery = () => {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="flex items-center gap-4">
-              <Input
-                id="file-input"
-                type="file"
-                multiple
-                accept="image/jpeg,image/png,image/tiff,application/json"
-                onChange={handleFileChange}
-                className="flex-grow"
-              />
-              <Button onClick={handleUpload} disabled={isUploading || !selectedFiles}>
-                <Upload className="h-4 w-4 mr-2" />
-                {isUploading ? "Uploading..." : "Upload"}
+            <div className="flex flex-col gap-4">
+              <div className="flex items-center gap-4">
+                <Input
+                  id="file-input"
+                  type="file"
+                  multiple
+                  accept="image/jpeg,image/png,image/tiff,application/json"
+                  onChange={handleFileChange}
+                  className="flex-grow"
+                />
+                <Button onClick={handleUpload} disabled={isUploading || !selectedFiles}>
+                  <Upload className="h-4 w-4 mr-2" />
+                  {isUploading ? "Uploading..." : "Upload"}
+                </Button>
+              </div>
+              <Button variant="outline" onClick={handleDownloadSampleMetadata} className="w-fit">
+                Download Sample metadata.json
               </Button>
             </div>
           </CardContent>
