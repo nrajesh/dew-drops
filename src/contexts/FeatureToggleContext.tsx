@@ -60,9 +60,19 @@ export const FeatureToggleProvider = ({ children }: { children: ReactNode }) => 
         setLoading(false);
       });
     } else {
-      // For logged-out users, show public features by default
-      const defaultPublicToggles = Object.fromEntries(ALL_FEATURES.map(key => [key, true]));
-      defaultPublicToggles[navFeatures.HOME] = true; // Always ensure Home is enabled
+      // For logged-out users, define specific default states for features.
+      // Public-facing content features are generally enabled, while management and specific widgets like chatbot are off.
+      const defaultPublicToggles: Record<string, boolean> = {
+        [navFeatures.HOME]: true,
+        [navFeatures.BLOG]: true,
+        [navFeatures.GALLERY]: true,
+        [navFeatures.TRAVEL]: true,
+        [navFeatures.CHATBOT]: false, // Default to OFF for public users
+        [navFeatures.MANAGE_BLOG]: false,
+        [navFeatures.MANAGE_GALLERY]: false,
+        [navFeatures.MANAGE_TRAVEL]: false,
+        [navFeatures.FEATURE_TOGGLES]: false,
+      };
       setToggles(defaultPublicToggles);
       setLoading(false);
     }
