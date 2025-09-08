@@ -36,6 +36,7 @@ export interface GalleryImage {
   user_id: string | null;
   exif_data: Record<string, any> | null;
   published: boolean;
+  tags: string[] | null;
 }
 
 export interface Video {

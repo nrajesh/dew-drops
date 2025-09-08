@@ -41,6 +41,7 @@ import {
 
 const editSchema = z.object({
   alt_text: z.string().min(3, "Alt text must be at least 3 characters.").max(200, "Alt text cannot exceed 200 characters."),
+  tags: z.string().optional(),
 });
 
 const ManageGallery = () => {
@@ -60,12 +61,16 @@ const ManageGallery = () => {
     resolver: zodResolver(editSchema),
     defaultValues: {
       alt_text: "",
+      tags: "",
     },
   });
 
   useEffect(() => {
     if (editingImage) {
-      form.reset({ alt_text: editingImage.alt_text || '' });
+      form.reset({ 
+        alt_text: editingImage.alt_text || '',
+        tags: editingImage.tags?.join(', ') || '',
+      });
     }
   }, [editingImage, form]);
 
@@ -281,6 +286,33 @@ const ManageGallery = () => {
     }
   };
 
+  const handleUpdateImageData = async (values: z.infer<typeof editSchema>) => {
+    if (!editingImage) return;
+
+    const toastId = showLoading("Updating image data...");
+    try {
+      const tagsArray = values.tags?.split(',').map(t => t.trim()).filter(Boolean) || [];
+      
+      const { error } = await supabase
+        .from("gallery_images")
+        .update({ 
+          alt_text: values.alt_text,
+          tags: tagsArray,
+        })
+        .eq("id", editingImage.id);
+
+      if (error) throw error;
+
+      dismissToast(toastId);
+      showSuccess("Image data updated successfully!");
+      setEditingImage(null);
+      fetchImages();
+    } catch (error: any) {
+      dismissToast(toastId);
+      showError(`Update failed: ${error.message}`);
+    }
+  };
+
   const handleSelectImage = (id: string) => {
     const newSelection = new Set(selectedImages);
     if (newSelection.has(id)) {
@@ -341,6 +373,54 @@ const ManageGallery = () => {
       dismissToast(toastId);
       showError(`Failed to update status: ${error.message}`);
     }
+  };
+
+  const handleGenerateTags = async () => {
+    if (selectedImages.size === 0) {
+      showError("Please select images to generate tags for.");
+      return;
+    }
+    const toastId = showLoading(`Generating tags for ${selectedImages.size} image(s)...`);
+
+    const selectedImageIds = Array.from(selectedImages);
+    const imagesToProcess = images.filter(img => selectedImageIds.includes(img.id));
+
+    let successCount = 0;
+    let errorCount = 0;
+
+    for (const image of imagesToProcess) {
+      try {
+        const { data, error } = await supabase.functions.invoke('generate-image-tags', {
+          body: { fileName: image.file_name },
+        });
+
+        if (error) throw error;
+
+        const { tags } = data;
+        if (tags && Array.isArray(tags)) {
+          const { error: updateError } = await supabase
+            .from('gallery_images')
+            .update({ tags: tags })
+            .eq('id', image.id);
+
+          if (updateError) throw updateError;
+          successCount++;
+        }
+      } catch (e: any) {
+        console.error(`Failed to generate tags for ${image.file_name}:`, e);
+        errorCount++;
+      }
+    }
+
+    dismissToast(toastId);
+    if (successCount > 0) {
+      showSuccess(`${successCount} image(s) updated with new tags.`);
+      fetchImages();
+    }
+    if (errorCount > 0) {
+      showError(`${errorCount} image(s) failed to process.`);
+    }
+    setSelectedImages(new Set());
   };
 
   const handleBulkDownload = async () => {
@@ -443,6 +523,9 @@ const ManageGallery = () => {
                       </DropdownMenuItem>
                       <DropdownMenuItem onClick={() => handleBulkPublish(false)}>
                         Unpublish Selected
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={handleGenerateTags}>
+                        Generate Tags
                       </DropdownMenuItem>
                       <DropdownMenuItem onClick={handleBulkDownload}>
                         <Download className="h-4 w-4 mr-2" />
@@ -558,7 +641,7 @@ const ManageGallery = () => {
             </DialogDescription>
           </DialogHeader>
           <Form {...form}>
-            <form onSubmit={form.handleSubmit(handleUpdateAltText)} className="space-y-4">
+            <form onSubmit={form.handleSubmit(handleUpdateImageData)} className="space-y-4">
               <FormField
                 control={form.control}
                 name="alt_text"
@@ -568,6 +651,22 @@ const ManageGallery = () => {
                     <FormControl>
                       <Textarea
                         placeholder="e.g., A beautiful sunset over the mountains"
+                        {...field}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="tags"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Tags</FormLabel>
+                    <FormControl>
+                      <Input
+                        placeholder="e.g., nature, mountains, sunset"
                         {...field}
                       />
                     </FormControl>
