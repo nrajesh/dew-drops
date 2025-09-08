@@ -610,6 +610,26 @@ const ManageTravel = () => {
     }
   };
 
+  const handleBulkPublish = async (publishStatus: boolean) => {
+    const toastId = showLoading(`${publishStatus ? "Publishing" : "Unpublishing"} ${selectedLocations.size} location(s)...`);
+    try {
+      const { error } = await supabase
+        .from("travel_locations")
+        .update({ published: publishStatus })
+        .in("id", Array.from(selectedLocations));
+
+      if (error) throw error;
+
+      dismissToast(toastId);
+      showSuccess(`${selectedLocations.size} location(s) ${publishStatus ? "published" : "unpublished"} successfully.`);
+      fetchLocations(); // Re-fetch to update UI
+      setSelectedLocations(new Set()); // Clear selection
+    } catch (error: any) {
+      dismissToast(toastId);
+      showError(`Failed to update status: ${error.message}`);
+    }
+  };
+
   const allOnPageSelected = paginatedLocations.length > 0 && paginatedLocations.every(l => selectedLocations.has(l.id));
 
   return (
@@ -628,7 +648,7 @@ const ManageTravel = () => {
                 <Button asChild variant="secondary" size="sm">
                     <a href="/sample-travel-locations.csv" download>
                         <Download className="h-4 w-4 mr-2" />
-                        Download Sample
+                        Download ({selectedLocations.size})
                     </a>
                 </Button>
             </div>
@@ -773,6 +793,12 @@ const ManageTravel = () => {
               </div>
               {selectedLocations.size > 0 && (
                 <div className="flex items-center gap-2">
+                  <Button variant="outline" onClick={() => handleBulkPublish(true)} disabled={selectedLocations.size === 0}>
+                    Publish ({selectedLocations.size})
+                  </Button>
+                  <Button variant="outline" onClick={() => handleBulkPublish(false)} disabled={selectedLocations.size === 0}>
+                    Unpublish ({selectedLocations.size})
+                  </Button>
                   <Button variant="outline" size="sm" onClick={handleBulkDownload}>
                     <Download className="h-4 w-4 mr-2" />
                     Download ({selectedLocations.size})

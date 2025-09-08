@@ -316,6 +316,26 @@ const ManageGallery = () => {
     }
   };
 
+  const handleBulkPublish = async (publishStatus: boolean) => {
+    const toastId = showLoading(`${publishStatus ? "Publishing" : "Unpublishing"} ${selectedImages.size} image(s)...`);
+    try {
+      const { error } = await supabase
+        .from("gallery_images")
+        .update({ published: publishStatus })
+        .in("id", Array.from(selectedImages));
+
+      if (error) throw error;
+
+      dismissToast(toastId);
+      showSuccess(`${selectedImages.size} image(s) ${publishStatus ? "published" : "unpublished"} successfully.`);
+      fetchImages(); // Re-fetch to update UI
+      setSelectedImages(new Set()); // Clear selection
+    } catch (error: any) {
+      dismissToast(toastId);
+      showError(`Failed to update status: ${error.message}`);
+    }
+  };
+
   const allOnPageSelected = paginatedImages.length > 0 && paginatedImages.every(i => selectedImages.has(i.id));
 
   return (
@@ -356,28 +376,36 @@ const ManageGallery = () => {
             </div>
             <div className="flex gap-2">
               {selectedImages.size > 0 && (
-                <AlertDialog>
-                  <AlertDialogTrigger asChild>
-                    <Button variant="destructive">
-                      <Trash2 className="h-4 w-4 mr-2" />
-                      Delete ({selectedImages.size})
-                    </Button>
-                  </AlertDialogTrigger>
-                  <AlertDialogContent>
-                    <AlertDialogHeader>
-                      <AlertDialogTitle>Are you sure?</AlertDialogTitle>
-                      <AlertDialogDescription>
-                        This will permanently delete the {selectedImages.size} selected image(s). This action cannot be undone.
-                      </AlertDialogDescription>
-                    </AlertDialogHeader>
-                    <AlertDialogFooter>
-                      <AlertDialogCancel>Cancel</AlertDialogCancel>
-                      <AlertDialogAction onClick={() => handleDelete(Array.from(selectedImages))}>
-                        Delete
-                      </AlertDialogAction>
-                    </AlertDialogFooter>
-                  </AlertDialogContent>
-                </AlertDialog>
+                <>
+                  <Button variant="outline" onClick={() => handleBulkPublish(true)} disabled={selectedImages.size === 0}>
+                    Publish ({selectedImages.size})
+                  </Button>
+                  <Button variant="outline" onClick={() => handleBulkPublish(false)} disabled={selectedImages.size === 0}>
+                    Unpublish ({selectedImages.size})
+                  </Button>
+                  <AlertDialog>
+                    <AlertDialogTrigger asChild>
+                      <Button variant="destructive">
+                        <Trash2 className="h-4 w-4 mr-2" />
+                        Delete ({selectedImages.size})
+                      </Button>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent>
+                      <AlertDialogHeader>
+                        <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                          This will permanently delete the {selectedImages.size} selected image(s). This action cannot be undone.
+                        </AlertDialogDescription>
+                      </AlertDialogHeader>
+                      <AlertDialogFooter>
+                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                        <AlertDialogAction onClick={() => handleDelete(Array.from(selectedImages))}>
+                          Delete
+                        </AlertDialogAction>
+                      </AlertDialogFooter>
+                    </AlertDialogContent>
+                  </AlertDialog>
+                </>
               )}
             </div>
           </CardHeader>
