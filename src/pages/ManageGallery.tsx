@@ -45,8 +45,6 @@ const ManageGallery = () => {
   const [selectedImages, setSelectedImages] = useState(new Set<string>());
   const [editingImage, setEditingImage] = useState<GalleryImage | null>(null);
   const [isGeneratingEmbeddings, setIsGeneratingEmbeddings] = useState(false);
-  const [embeddingErrors, setEmbeddingErrors] = useState<Record<string, string>>({});
-  const [rateLimitInfo, setRateLimitInfo] = useState<{ remaining: number; resetTime: string } | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
   const [currentPage, setCurrentPage] = useState(1);
@@ -339,7 +337,7 @@ const ManageGallery = () => {
             if (rateLimitMatch) {
               const remaining = parseInt(rateLimitMatch[1], 10);
               const resetTime = new Date(Date.now() + 24 * 60 * 60 * 1000).toLocaleTimeString();
-              setRateLimitInfo({ remaining, resetTime });
+              // setRateLimitInfo({ remaining, resetTime }); // Removed as rateLimitInfo state is removed
             }
           }
 
@@ -357,7 +355,7 @@ const ManageGallery = () => {
       dismissToast(toastId);
       showError(`Error generating embeddings: ${error.message}`);
     } finally {
-      setEmbeddingErrors(newErrors);
+      // setEmbeddingErrors(newErrors); // Removed as embeddingErrors state is removed
       setIsGeneratingEmbeddings(false);
     }
   };
@@ -402,7 +400,7 @@ const ManageGallery = () => {
             if (rateLimitMatch) {
               const remaining = parseInt(rateLimitMatch[1], 10);
               const resetTime = new Date(Date.now() + 24 * 60 * 60 * 1000).toLocaleTimeString();
-              setRateLimitInfo({ remaining, resetTime });
+              // setRateLimitInfo({ remaining, resetTime }); // Removed as rateLimitInfo state is removed
             }
           }
 
@@ -421,7 +419,7 @@ const ManageGallery = () => {
       dismissToast(toastId);
       showError(`Error regenerating embeddings: ${error.message}`);
     } finally {
-      setEmbeddingErrors(newErrors);
+      // setEmbeddingErrors(newErrors); // Removed as embeddingErrors state is removed
       setIsGeneratingEmbeddings(false);
     }
   };
@@ -453,23 +451,6 @@ const ManageGallery = () => {
             </div>
           </CardContent>
         </Card>
-
-        {rateLimitInfo && (
-          <Card className="bg-yellow-50 border-yellow-200">
-            <CardHeader className="flex flex-row items-center gap-4">
-              <AlertTriangle className="h-5 w-5 text-yellow-500" />
-              <CardTitle className="text-yellow-700">API Rate Limit Reached</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-yellow-700">
-                You've reached your daily limit of {50 - rateLimitInfo.remaining} requests. The limit resets at {rateLimitInfo.resetTime} today.
-              </p>
-              <p className="mt-2 text-yellow-700">
-                You can continue generating embeddings, but some requests may fail. Try again later for better results.
-              </p>
-            </CardContent>
-          </Card>
-        )}
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between">
@@ -514,14 +495,6 @@ const ManageGallery = () => {
                   Regenerate Embeddings ({selectedImages.size})
                 </Button>
               )}
-              <Button
-                variant="outline"
-                onClick={generateEmbeddingsForImages}
-                disabled={isGeneratingEmbeddings}
-              >
-                <RefreshCw className="h-4 w-4 mr-2" />
-                Generate Missing Embeddings
-              </Button>
             </div>
           </CardHeader>
           <CardContent>
@@ -565,11 +538,6 @@ const ManageGallery = () => {
                           <div className="flex gap-1">
                             {image.embedding && (
                               <span className="text-xs text-green-500">✓</span>
-                            )}
-                            {embeddingErrors[image.id] && (
-                              <span className="text-xs text-red-500" title={embeddingErrors[image.id]}>
-                                <AlertCircle className="h-3 w-3" />
-                              </span>
                             )}
                             <Button variant="ghost" size="sm" onClick={() => setEditingImage(image)}>
                               <Edit className="h-3 w-3 mr-1" /> Edit
