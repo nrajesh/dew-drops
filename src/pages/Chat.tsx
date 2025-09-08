@@ -25,6 +25,33 @@ const Chat = () => {
 
   const GEMINI_API_KEY = import.meta.env.VITE_GEMINI_API_KEY;
 
+  // Static context derived from README.md for fallback
+  const staticReadmeContext = `
+This portfolio website features:
+- Core Home Page: Main entry point.
+- Dynamic Blog: Full-featured, Supabase-powered blog with Markdown.
+- Photo Gallery: Dynamic gallery with EXIF data, Supabase Storage, and AI-generated tags.
+- Interactive Travel Map: Pin travel destinations, searchable by title, location, description.
+- Contact Form: Secure, serverless form for sending emails.
+- AI Chatbot: Integrated Google Gemini chatbot providing intelligent answers based on portfolio content.
+- Streamlined Content Management: Dedicated pages for creating, editing, deleting content.
+- Feature Toggles: Settings to enable/disable sections.
+- Enhanced Navigation: Paginated content, keyboard/swipe navigation.
+- Light & Dark Mode: Theme toggle.
+- Fully Responsive: Works on all devices.
+
+The tech stack includes:
+- Frontend: React & Vite
+- Language: TypeScript
+- Styling: Tailwind CSS
+- UI Components: shadcn/ui
+- Backend: Supabase (Database, Storage, Edge Functions)
+- AI: Google Gemini (for chatbot and image embedding)
+- Routing: React Router
+- Forms: React Hook Form & Zod
+- Icons: Lucide React
+`;
+
   useEffect(() => {
     if (scrollAreaRef.current) {
       const viewport = scrollAreaRef.current.querySelector('div');
@@ -101,14 +128,33 @@ User's question:
     setIsLoading(true);
 
     try {
+      // Attempt with dynamic context first
       const systemPrompt = formatContext();
       const fullPrompt = `${systemPrompt} ${currentInput}`;
       const response = await sendMessageToGemini(fullPrompt);
       const modelMessage: Message = { role: 'model', text: response };
       setMessages(prev => [...prev, modelMessage]);
-    } catch (error: any) {
-      showError(error.message);
-      setMessages(prev => prev.slice(0, -1)); // Remove user message on failure
+    } catch (dynamicError: any) {
+      console.error("Error with dynamic context Gemini call:", dynamicError);
+      showError("Failed to get a detailed response. Trying with basic knowledge...");
+
+      try {
+        // Fallback: Try again with static README context
+        const fallbackPrompt = `
+          You are a helpful assistant for a portfolio website. Here is some general information about the website:
+          ${staticReadmeContext}
+          ---
+          Based on this general information, please answer the user's question:
+          ${currentInput}
+        `;
+        const fallbackResponse = await sendMessageToGemini(fallbackPrompt);
+        const modelMessage: Message = { role: 'model', text: fallbackResponse };
+        setMessages(prev => [...prev, modelMessage]);
+      } catch (fallbackError: any) {
+        console.error("Error with fallback Gemini call:", fallbackError);
+        showError("Failed to get a response from the chatbot. Please try again later.");
+        setMessages(prev => prev.slice(0, -1)); // Remove user message on complete failure
+      }
     } finally {
       setIsLoading(false);
     }
