@@ -138,35 +138,59 @@ const ManageGallery = () => {
       showError("You must be logged in to upload images.");
       return;
     }
-
+  
     setIsUploading(true);
-    const toastId = showLoading(`Uploading ${selectedFiles.length} image(s)...`);
-
-    const uploadPromises = Array.from(selectedFiles).map(async (file) => {
+    const toastId = showLoading(`Preparing ${selectedFiles.length} file(s)...`);
+  
+    const filesToUpload = Array.from(selectedFiles);
+    let metadataMap = new Map<string, { alt_text: string; tags: string[] }>();
+  
+    // Check for and process metadata.json
+    const metadataFile = filesToUpload.find(f => f.name === 'metadata.json');
+    if (metadataFile) {
+      try {
+        const metadataContent = await metadataFile.text();
+        const metadata = JSON.parse(metadataContent);
+        if (Array.isArray(metadata)) {
+          for (const item of metadata) {
+            if (item.fileName && (item.alt_text || item.tags)) {
+              metadataMap.set(item.fileName, {
+                alt_text: item.alt_text || "",
+                tags: item.tags || [],
+              });
+            }
+          }
+        }
+        dismissToast(toastId);
+        showSuccess("Found and processed metadata.json.");
+      } catch (e) {
+        dismissToast(toastId);
+        showError("Could not parse metadata.json. Proceeding without it.");
+      }
+    }
+  
+    const imageFiles = filesToUpload.filter(f => f.type.startsWith('image/'));
+    const uploadToastId = showLoading(`Uploading ${imageFiles.length} image(s)...`);
+  
+    const uploadPromises = imageFiles.map(async (file) => {
       const sanitizedName = sanitizeFileName(file.name);
       const fileName = `${user.id}/${Date.now()}_${sanitizedName}`;
-
+      const originalFileName = file.name;
+      const preloadedMeta = metadataMap.get(originalFileName);
+  
       const fileBuffer = await file.arrayBuffer();
       let exifData: Record<string, any> | null = null;
       try {
         const tags = ExifReader.load(fileBuffer);
         const cleanExif: Record<string, any> = {};
-
         for (const key in tags) {
           if (Object.prototype.hasOwnProperty.call(tags, key)) {
-            if (key === 'MakerNote' || key === 'UserComment' || key === 'thumbnail') {
-              continue;
-            }
-
+            if (key === 'MakerNote' || key === 'UserComment' || key === 'thumbnail') continue;
             const tagValue = tags[key];
             if (tagValue && typeof tagValue.description !== 'undefined') {
               const description = tagValue.description;
-
               if (typeof description === 'string') {
-                const sanitized = description
-                  .replace(/,/g, '.')
-                  .replace(/[^\w\s.:/-]/g, '');
-                cleanExif[key] = sanitized;
+                cleanExif[key] = description.replace(/,/g, '.').replace(/[^\w\s.:/-]/g, '');
               } else if (typeof description === 'number') {
                 cleanExif[key] = description;
               }
@@ -177,44 +201,35 @@ const ManageGallery = () => {
       } catch (error) {
         console.warn(`Could not read EXIF data for ${file.name}:`, error);
       }
-
-      const { error: uploadError } = await supabase.storage
-        .from("gallery")
-        .upload(fileName, file, {
-          cacheControl: '31536000',
-          upsert: false,
-        });
-
-      if (uploadError) {
-        throw new Error(`Failed to upload ${file.name}: ${uploadError.message}`);
-      }
-
-      const { data: { publicUrl } } = supabase.storage
-        .from("gallery")
-        .getPublicUrl(fileName);
-
+  
+      const { error: uploadError } = await supabase.storage.from("gallery").upload(fileName, file, { cacheControl: '31536000', upsert: false });
+      if (uploadError) throw new Error(`Failed to upload ${file.name}: ${uploadError.message}`);
+  
+      const { data: { publicUrl } } = supabase.storage.from("gallery").getPublicUrl(fileName);
+  
       const { error: dbError } = await supabase.from("gallery_images").insert({
         image_url: publicUrl,
-        alt_text: "",
+        alt_text: preloadedMeta?.alt_text || "",
+        tags: preloadedMeta?.tags || null,
         file_name: fileName,
         user_id: user.id,
         exif_data: exifData,
         published: false,
       });
-
+  
       if (dbError) {
         await supabase.storage.from("gallery").remove([fileName]);
         throw new Error(`Failed to save ${file.name} to database: ${dbError.message}`);
       }
     });
-
+  
     try {
       await Promise.all(uploadPromises);
-      dismissToast(toastId);
-      showSuccess(`${selectedFiles.length} image(s) uploaded successfully!`);
+      dismissToast(uploadToastId);
+      showSuccess(`${imageFiles.length} image(s) uploaded successfully!`);
       fetchImages();
     } catch (error: any) {
-      dismissToast(toastId);
+      dismissToast(uploadToastId);
       showError(error.message);
     } finally {
       setIsUploading(false);
@@ -256,33 +271,6 @@ const ManageGallery = () => {
     } catch (error: any) {
       dismissToast(toastId);
       showError(error.message);
-    }
-  };
-
-  const handleUpdateAltText = async (values: z.infer<typeof editSchema>) => {
-    if (!editingImage) return;
-
-    const toastId = showLoading("Updating alt text...");
-    try {
-      const updatedImages = images.map(img =>
-        img.id === editingImage.id ? { ...img, alt_text: values.alt_text } : img
-      );
-      setImages(updatedImages);
-
-      const { error } = await supabase
-        .from("gallery_images")
-        .update({ alt_text: values.alt_text })
-        .eq("id", editingImage.id);
-
-      if (error) throw error;
-
-      dismissToast(toastId);
-      showSuccess("Alt text updated successfully!");
-      setEditingImage(null);
-    } catch (error: any) {
-      setImages(images);
-      dismissToast(toastId);
-      showError(`Update failed: ${error.message}`);
     }
   };
 
@@ -428,30 +416,36 @@ const ManageGallery = () => {
       showError("No images selected for download.");
       return;
     }
-
+  
     const toastId = showLoading(`Preparing ${selectedImages.size} image(s) for download...`);
     try {
       const zip = new JSZip();
       const imagesToDownload = images.filter(img => selectedImages.has(img.id));
-
+      const metadata = [];
+  
       const downloadPromises = imagesToDownload.map(async (image) => {
-        const { data: blob, error } = await supabase.storage
-          .from('gallery')
-          .download(image.file_name);
-
-        if (error) {
-          throw new Error(`Failed to download ${image.file_name}: ${error.message}`);
-        }
+        const { data: blob, error } = await supabase.storage.from('gallery').download(image.file_name);
+  
+        if (error) throw new Error(`Failed to download ${image.file_name}: ${error.message}`);
+        
         if (blob) {
           const originalFileName = image.file_name.split('/').pop()?.split('_').slice(1).join('_') || image.file_name;
           zip.file(originalFileName, blob);
+          metadata.push({
+            fileName: originalFileName,
+            alt_text: image.alt_text,
+            tags: image.tags,
+          });
         }
       });
-
+  
       await Promise.all(downloadPromises);
-
+  
+      // Add metadata.json to the zip
+      zip.file("metadata.json", JSON.stringify(metadata, null, 2));
+  
       const zipBlob = await zip.generateAsync({ type: 'blob' });
-
+  
       const link = document.createElement('a');
       link.href = URL.createObjectURL(zipBlob);
       link.download = `gallery-export-${new Date().toISOString().split('T')[0]}.zip`;
@@ -459,11 +453,11 @@ const ManageGallery = () => {
       link.click();
       document.body.removeChild(link);
       URL.revokeObjectURL(link.href);
-
+  
       dismissToast(toastId);
-      showSuccess(`${imagesToDownload.length} image(s) downloaded successfully.`);
+      showSuccess(`${imagesToDownload.length} image(s) and metadata downloaded successfully.`);
       setSelectedImages(new Set());
-
+  
     } catch (error: any) {
       dismissToast(toastId);
       showError(`Download failed: ${error.message}`);
@@ -479,7 +473,7 @@ const ManageGallery = () => {
           <CardHeader>
             <CardTitle>Upload to Gallery</CardTitle>
             <CardDescription>
-              Select one or more images to upload. EXIF data will be automatically extracted.
+              Select one or more images to upload. Include a `metadata.json` file from a previous download to automatically apply alt text and tags.
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -488,7 +482,7 @@ const ManageGallery = () => {
                 id="file-input"
                 type="file"
                 multiple
-                accept="image/jpeg,image/png,image/tiff"
+                accept="image/jpeg,image/png,image/tiff,application/json"
                 onChange={handleFileChange}
                 className="flex-grow"
               />
@@ -635,9 +629,9 @@ const ManageGallery = () => {
       <Dialog open={!!editingImage} onOpenChange={(isOpen) => !isOpen && setEditingImage(null)}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Edit Alt Text</DialogTitle>
+            <DialogTitle>Edit Image Data</DialogTitle>
             <DialogDescription>
-              Write a descriptive alt text for this image. This helps with accessibility and SEO.
+              Update the alt text and tags for this image.
             </DialogDescription>
           </DialogHeader>
           <Form {...form}>
@@ -663,7 +657,7 @@ const ManageGallery = () => {
                 name="tags"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Tags</FormLabel>
+                    <FormLabel>Tags (comma-separated)</FormLabel>
                     <FormControl>
                       <Input
                         placeholder="e.g., nature, mountains, sunset"
