@@ -20,11 +20,11 @@ export const FeatureToggleProvider = ({ children }: { children: ReactNode }) => 
   const [toggles, setToggles] = useState<Record<string, boolean>>({});
   const [loading, setLoading] = useState(true);
 
-  const initializeToggles = useCallback(async (userId: string) => {
+  const initializeTogglesForAdmin = useCallback(async (userId: string) => {
     const { data, error } = await supabase.from('feature_toggles').select('*').eq('user_id', userId);
     
     if (error) {
-      showError("Could not load feature settings.");
+      showError("Could not load your feature settings.");
       console.error(error);
       return {};
     }
@@ -36,7 +36,7 @@ export const FeatureToggleProvider = ({ children }: { children: ReactNode }) => 
       const newToggles = missingToggles.map(key => ({
         user_id: userId,
         feature_key: key,
-        is_enabled: true, // Default to enabled
+        is_enabled: true, // Default to enabled for admin
       }));
       const { error: insertError } = await supabase.from('feature_toggles').insert(newToggles);
       if (insertError) {
@@ -52,21 +52,55 @@ export const FeatureToggleProvider = ({ children }: { children: ReactNode }) => 
     return finalToggles;
   }, []);
 
-  useEffect(() => {
-    if (user) {
-      setLoading(true);
-      initializeToggles(user.id).then(userToggles => {
-        setToggles(userToggles);
-        setLoading(false);
-      });
-    } else {
-      // For logged-out users, show public features by default
-      const defaultPublicToggles = Object.fromEntries(ALL_FEATURES.map(key => [key, true]));
-      defaultPublicToggles[navFeatures.HOME] = true; // Always ensure Home is enabled
-      setToggles(defaultPublicToggles);
-      setLoading(false);
+  const fetchPublicToggles = useCallback(async () => {
+    const { data, error } = await supabase
+      .from('feature_toggles')
+      .select('feature_key, is_enabled');
+
+    if (error) {
+        showError("Could not load website features.");
+        console.error(error);
+        // Fallback to safe defaults on error
+        return {
+            [navFeatures.HOME]: true,
+            [navFeatures.BLOG]: true,
+            [navFeatures.GALLERY]: true,
+            [navFeatures.TRAVEL]: true,
+            [navFeatures.CHATBOT]: false,
+            [navFeatures.MANAGE_BLOG]: false,
+            [navFeatures.MANAGE_GALLERY]: false,
+            [navFeatures.MANAGE_TRAVEL]: false,
+            [navFeatures.FEATURE_TOGGLES]: false,
+        };
     }
-  }, [user, initializeToggles]);
+
+    const publicToggles = Object.fromEntries(data.map(t => [t.feature_key, t.is_enabled]));
+    publicToggles[navFeatures.HOME] = true; // Home is always on
+
+    // Ensure management routes are always off for logged-out users
+    publicToggles[navFeatures.MANAGE_BLOG] = false;
+    publicToggles[navFeatures.MANAGE_GALLERY] = false;
+    publicToggles[navFeatures.MANAGE_TRAVEL] = false;
+    publicToggles[navFeatures.FEATURE_TOGGLES] = false;
+
+    return publicToggles;
+  }, []);
+
+  useEffect(() => {
+    setLoading(true);
+    const loadToggles = async () => {
+      let newToggles;
+      if (user) {
+        newToggles = await initializeTogglesForAdmin(user.id);
+      } else {
+        newToggles = await fetchPublicToggles();
+      }
+      setToggles(newToggles);
+      setLoading(false);
+    };
+
+    loadToggles();
+  }, [user, initializeTogglesForAdmin, fetchPublicToggles]);
 
   const updateToggle = async (featureKey: string, isEnabled: boolean) => {
     if (!user) {
@@ -74,7 +108,6 @@ export const FeatureToggleProvider = ({ children }: { children: ReactNode }) => 
       return;
     }
 
-    // Optimistic update
     setToggles(prev => ({ ...prev, [featureKey]: isEnabled }));
 
     const { error } = await supabase
@@ -86,7 +119,6 @@ export const FeatureToggleProvider = ({ children }: { children: ReactNode }) => 
     if (error) {
       showError(`Failed to update ${featureKey}. Reverting.`);
       console.error(error);
-      // Revert on failure
       setToggles(prev => ({ ...prev, [featureKey]: !isEnabled }));
     } else {
       showSuccess("Setting saved!");
