@@ -1,4 +1,4 @@
-import { Home, Newspaper, Image as ImageIcon, Map, Send, Wrench, ToggleRight, Database, User as UserIcon } from "lucide-react";
+import { Home, Newspaper, Image as ImageIcon, Map, Send, Wrench, ToggleRight, Database, User as UserIcon, Bot } from "lucide-react";
 
 export const navFeatures = {
   HOME: "home",
@@ -33,6 +33,11 @@ export const settingsNavItems = [
     to: "/manage-data",
     icon: Database,
     label: "Manage Data",
+  },
+  {
+    to: "/manage-chatbot",
+    icon: Bot,
+    label: "Chatbot Knowledge",
   },
   {
     to: "/profile",

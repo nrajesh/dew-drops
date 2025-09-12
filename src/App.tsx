@@ -14,11 +14,12 @@ import FeatureToggles from "./pages/FeatureToggles";
 import PrivacyPolicy from "./pages/PrivacyPolicy";
 import Login from "./pages/Login";
 import ProtectedRoute from "./components/ProtectedRoute";
-import { mainNavItems, managementNavItems } from "./config/navigation";
+import { mainNavItems, managementNavItems, settingsNavItems } from "./config/navigation";
 import { useFeatureToggles } from "./contexts/FeatureToggleContext";
 import { Skeleton } from "./components/ui/skeleton";
 import Profile from "./pages/Profile";
 import ManageData from "./pages/ManageData";
+import ManageChatbot from "./pages/ManageChatbot";
 
 const App = () => {
   const { toggles, loading } = useFeatureToggles();
@@ -66,6 +67,7 @@ const App = () => {
             })}
           <Route path="/profile" element={<Profile />} />
           <Route path="/manage-data" element={<ManageData />} />
+          <Route path="/manage-chatbot" element={<ManageChatbot />} />
         </Route>
       </Route>
       <Route path="*" element={<NotFound />} />

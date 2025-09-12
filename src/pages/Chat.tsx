@@ -2,29 +2,40 @@ import { useState, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Send, Bot, User as UserIcon, Loader2 } from "lucide-react";
-import { useFeatureToggles } from "@/contexts/FeatureToggleContext";
+import { Send, Bot, User as UserIcon, Loader2, AlertTriangle } from "lucide-react";
+import { usePortfolioContext } from "@/hooks/usePortfolioContext";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
 interface Message {
   role: "user" | "assistant";
   content: string;
 }
 
+let sendMessageToGemini: (message: string) => Promise<string>;
+
 const Chat = () => {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [apiKeyError, setApiKeyError] = useState<string | null>(null);
+  const { context, loading: contextLoading, error: contextError } = usePortfolioContext();
   const scrollAreaRef = useRef<HTMLDivElement>(null);
 
-  const { refetchToggles } = useFeatureToggles();
-
   useEffect(() => {
-    refetchToggles();
-  }, [refetchToggles]);
+    const initGemini = async () => {
+      try {
+        const module = await import('@/integrations/gemini/client');
+        sendMessageToGemini = module.sendMessageToGemini;
+      } catch (error: any) {
+        setApiKeyError(error.message);
+      }
+    };
+    initGemini();
+  }, []);
 
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!input.trim()) return;
+    if (!input.trim() || isLoading || contextLoading) return;
 
     const userMessage: Message = { role: "user", content: input };
     setMessages((prev) => [...prev, userMessage]);
@@ -32,16 +43,29 @@ const Chat = () => {
     setIsLoading(true);
 
     try {
-      // This is a placeholder for your actual API call to the chatbot backend
-      const response = await new Promise<string>((resolve) =>
-        setTimeout(() => resolve("This is a simulated response from the AI assistant."), 1000)
-      );
+      if (contextError) throw new Error(contextError);
+      if (!context) throw new Error("Knowledge base is not available.");
+      if (!sendMessageToGemini) throw new Error("Chat client is not initialized.");
 
+      const systemPrompt = `You are a helpful assistant for a personal portfolio website.
+      Use ONLY the following context to answer the user's question.
+      Be friendly, concise, and helpful. If the answer is not in the context, say you don't have that information. Do not make things up.
+
+      CONTEXT:
+      ---
+      ${context}
+      ---
+
+      QUESTION:
+      ${input}
+      `;
+
+      const response = await sendMessageToGemini(systemPrompt);
       const assistantMessage: Message = { role: "assistant", content: response };
       setMessages((prev) => [...prev, assistantMessage]);
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error fetching chat response:", error);
-      const errorMessage: Message = { role: "assistant", content: "Sorry, I couldn't get a response. Please try again." };
+      const errorMessage: Message = { role: "assistant", content: `Sorry, an error occurred: ${error.message}` };
       setMessages((prev) => [...prev, errorMessage]);
     } finally {
       setIsLoading(false);
@@ -53,6 +77,20 @@ const Chat = () => {
       scrollAreaRef.current.scrollTo({ top: scrollAreaRef.current.scrollHeight, behavior: 'smooth' });
     }
   }, [messages]);
+
+  if (apiKeyError) {
+    return (
+      <div className="p-4">
+        <Alert variant="destructive">
+          <AlertTriangle className="h-4 w-4" />
+          <AlertTitle>Configuration Error</AlertTitle>
+          <AlertDescription>
+            The chatbot is not configured correctly. Please ensure the <code>VITE_GEMINI_API_KEY</code> is set in your environment variables.
+          </AlertDescription>
+        </Alert>
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col h-full">
@@ -68,7 +106,7 @@ const Chat = () => {
             <div key={index} className={`flex items-start gap-3 ${message.role === 'user' ? 'justify-end' : ''}`}>
               {message.role === 'assistant' && <Bot className="h-6 w-6 text-primary" />}
               <div className={`rounded-lg p-3 max-w-[80%] ${message.role === 'user' ? 'bg-primary text-primary-foreground' : 'bg-muted'}`}>
-                <p className="text-sm">{message.content}</p>
+                <p className="text-sm whitespace-pre-wrap">{message.content}</p>
               </div>
               {message.role === 'user' && <UserIcon className="h-6 w-6" />}
             </div>
@@ -88,10 +126,10 @@ const Chat = () => {
           <Input
             value={input}
             onChange={(e) => setInput(e.target.value)}
-            placeholder="Ask me anything about this portfolio..."
-            disabled={isLoading}
+            placeholder="Ask about my projects, travel, or photos..."
+            disabled={isLoading || contextLoading}
           />
-          <Button type="submit" disabled={isLoading || !input.trim()}>
+          <Button type="submit" disabled={isLoading || contextLoading || !input.trim()}>
             <Send className="h-4 w-4" />
             <span className="sr-only">Send</span>
           </Button>
