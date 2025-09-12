@@ -12,7 +12,7 @@ serve(async (req) => {
   }
 
   try {
-    // 1. Create a client with the ANON key to verify the user's JWT
+    // 1. Create a stateless client with the ANON key to verify the user's JWT
     const supabaseAuthClient = createClient(
       Deno.env.get('SUPABASE_URL')!,
       Deno.env.get('SUPABASE_ANON_KEY')!,
@@ -36,10 +36,10 @@ serve(async (req) => {
     const supabaseAdmin = createClient(
       Deno.env.get('SUPABASE_URL')!,
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
-      { auth: { persistSession: false } } // Crucial for stateless environments
+      { auth: { persistSession: false } }
     );
 
-    // Exclude 'feature_toggles' and 'profiles' as requested
+    // Only export content tables
     const tables = ['posts', 'gallery_images', 'travel_locations'];
     const exportData: { [key: string]: any[] } = {};
 
