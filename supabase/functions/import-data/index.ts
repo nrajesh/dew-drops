@@ -32,15 +32,19 @@ serve(async (req) => {
   }
 
   try {
-    // 1. Authenticate user with the ANON key
-    const authHeader = req.headers.get('Authorization')!;
+    // 1. Create a client with the ANON key to verify the user's JWT
     const supabaseAuthClient = createClient(
       Deno.env.get('SUPABASE_URL')!,
-      Deno.env.get('SUPABASE_ANON_KEY')!,
-      { global: { headers: { Authorization: authHeader } } }
+      Deno.env.get('SUPABASE_ANON_KEY')!
     );
-    const { data: { user } } = await supabaseAuthClient.auth.getUser();
-    if (!user) {
+    
+    const authHeader = req.headers.get('Authorization');
+    if (!authHeader) throw new Error('Missing Authorization header');
+    const jwt = authHeader.replace('Bearer ', '');
+    
+    const { data: { user }, error: userError } = await supabaseAuthClient.auth.getUser(jwt);
+    if (userError || !user) {
+      console.error('Auth error:', userError);
       return new Response(JSON.stringify({ error: 'Unauthorized' }), {
         status: 401,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
