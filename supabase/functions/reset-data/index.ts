@@ -12,7 +12,15 @@ const resetData = async (supabase: SupabaseClient) => {
   // Delete in an order that respects foreign key constraints (posts may reference gallery_images).
   const deletionOrder = ['posts', 'travel_locations', 'gallery_images', 'chatbot_knowledge'];
   for (const table of deletionOrder) {
-    const { error } = await supabase.from(table).delete().neq('id', '00000000-0000-0000-0000-000000000000');
+    let query = supabase.from(table).delete();
+    if (table === 'chatbot_knowledge') {
+      // The 'id' is an integer, so we compare with an integer
+      query = query.neq('id', 0);
+    } else {
+      // The 'id' is a UUID, so we compare with a UUID string
+      query = query.neq('id', '00000000-0000-0000-0000-000000000000');
+    }
+    const { error } = await query;
     if (error) throw new Error(`Failed to reset ${table}: ${error.message}`);
   }
 

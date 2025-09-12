@@ -14,7 +14,15 @@ const tablesInOrder = ['chatbot_knowledge', 'gallery_images', 'travel_locations'
 const wipeData = async (supabase: SupabaseClient) => {
   // Delete in reverse order to handle foreign key dependencies
   for (const table of [...tablesInOrder].reverse()) {
-    const { error } = await supabase.from(table).delete().neq('id', '00000000-0000-0000-0000-000000000000');
+    let query = supabase.from(table).delete();
+    if (table === 'chatbot_knowledge') {
+      // The 'id' is an integer, so we compare with an integer
+      query = query.neq('id', 0);
+    } else {
+      // The 'id' is a UUID, so we compare with a UUID string
+      query = query.neq('id', '00000000-0000-0000-0000-000000000000');
+    }
+    const { error } = await query;
     if (error) throw new Error(`Failed to delete from ${table}: ${error.message}`);
   }
 };
