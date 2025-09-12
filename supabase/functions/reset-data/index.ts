@@ -8,10 +8,16 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-const tablesToReset = ['posts', 'gallery_images', 'travel_locations'];
+// Order matters for foreign key constraints: delete child tables before parent tables.
+// All these tables reference auth.users, so their relative order is flexible,
+// but putting feature_toggles last might help if it's unexpectedly a parent.
+const tablesToReset = ['posts', 'travel_locations', 'gallery_images', 'profiles', 'feature_toggles'];
 
 const resetData = async (supabase: SupabaseClient) => {
   for (const table of tablesToReset) {
+    // Delete all rows from the table. The 'neq' clause is a common pattern
+    // to ensure the DELETE statement is not empty, which can sometimes be optimized away
+    // by PostgreSQL in a way that bypasses RLS, but here we are using the service role key.
     const { error } = await supabase.from(table).delete().neq('id', '00000000-0000-0000-0000-000000000000');
     if (error) throw new Error(`Failed to reset ${table}: ${error.message}`);
   }
@@ -23,33 +29,24 @@ serve(async (req) => {
   }
 
   try {
-    // 1. Create a client with the ANON key to verify the user's JWT
-    const supabaseAuthClient = createClient(
+    const supabase = createClient(
       Deno.env.get('SUPABASE_URL')!,
-      Deno.env.get('SUPABASE_ANON_KEY')!
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
+      { auth: { persistSession: false } }
     );
-    
-    const authHeader = req.headers.get('Authorization');
-    if (!authHeader) throw new Error('Missing Authorization header');
+
+    const authHeader = req.headers.get('Authorization')!;
     const jwt = authHeader.replace('Bearer ', '');
-    
-    const { data: { user }, error: userError } = await supabaseAuthClient.auth.getUser(jwt);
-    if (userError || !user) {
-      console.error('Auth error:', userError);
+    const { data: { user } } = await supabase.auth.getUser(jwt);
+
+    if (!user) {
       return new Response(JSON.stringify({ error: 'Unauthorized' }), {
         status: 401,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
 
-    // 2. Create an admin client with the SERVICE_ROLE_KEY to perform the reset
-    const supabaseAdmin = createClient(
-      Deno.env.get('SUPABASE_URL')!,
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
-      { auth: { persistSession: false } }
-    );
-
-    await resetData(supabaseAdmin);
+    await resetData(supabase);
 
     return new Response(JSON.stringify({ message: 'Reset successful' }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
