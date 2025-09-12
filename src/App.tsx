@@ -18,6 +18,7 @@ import { mainNavItems, managementNavItems } from "./config/navigation";
 import { useFeatureToggles } from "./contexts/FeatureToggleContext";
 import { Skeleton } from "./components/ui/skeleton";
 import Profile from "./pages/Profile";
+import ManageData from "./pages/ManageData";
 
 const App = () => {
   const { toggles, loading } = useFeatureToggles();
@@ -36,24 +37,22 @@ const App = () => {
   return (
     <Routes>
       <Route element={<Layout />}>
-        {/* Public Routes */}
         {mainNavItems
-          .filter((item) => toggles[item.featureKey])
+          .filter((item) => toggles[item.featureKey] || !item.featureKey)
           .map((item) => {
             const Component = item.to === "/" ? Index :
                               item.to === "/blog" ? Blog :
                               item.to === "/gallery" ? Gallery :
-                              item.to === "/travel" ? Travel : null;
+                              item.to === "/travel" ? Travel :
+                              item.to === "/contact" ? Contact : null;
             if (!Component) return null;
             return <Route key={item.to} path={item.to} element={<Component />} />;
           })}
 
         <Route path="/blog/:id" element={<Post />} />
-        <Route path="/contact" element={<Contact />} />
         <Route path="/privacy" element={<PrivacyPolicy />} />
         <Route path="/login" element={<Login />} />
 
-        {/* Protected Management Routes */}
         <Route element={<ProtectedRoute />}>
           {managementNavItems
             .filter((item) => toggles[item.featureKey])
@@ -66,6 +65,7 @@ const App = () => {
               return <Route key={item.to} path={item.to} element={<Component />} />;
             })}
           <Route path="/profile" element={<Profile />} />
+          <Route path="/manage-data" element={<ManageData />} />
         </Route>
       </Route>
       <Route path="*" element={<NotFound />} />

@@ -1,28 +1,42 @@
-import { Home, Newspaper, Image, Map, Edit, Settings, MapPin, GalleryThumbnails, ToggleRight } from "lucide-react";
+import { Home, Newspaper, Image as ImageIcon, Map, Send, Wrench, ToggleRight, Database, User as UserIcon } from "lucide-react";
 
-// These keys must match the `feature_key` column in the `feature_toggles` table.
 export const navFeatures = {
-  HOME: 'nav_home',
-  BLOG: 'nav_blog',
-  GALLERY: 'nav_gallery',
-  TRAVEL: 'nav_travel',
-  CHATBOT: 'nav_chatbot',
-  MANAGE_BLOG: 'manage_blog',
-  MANAGE_GALLERY: 'manage_gallery',
-  MANAGE_TRAVEL: 'manage_travel',
-  FEATURE_TOGGLES: 'manage_feature_toggles',
+  HOME: "home",
+  CONTACT: "contact",
+  BLOG: "blog",
+  GALLERY: "gallery",
+  TRAVEL: "travel",
+  CHATBOT: "chatbot",
+  MANAGE_BLOG: "manage_blog",
+  MANAGE_GALLERY: "manage_gallery",
+  MANAGE_TRAVEL: "manage_travel",
+  FEATURE_TOGGLES: "feature_toggles",
 };
 
 export const mainNavItems = [
   { to: "/", icon: Home, label: "Home", featureKey: navFeatures.HOME },
   { to: "/blog", icon: Newspaper, label: "Blog", featureKey: navFeatures.BLOG },
-  { to: "/gallery", icon: Image, label: "Gallery", featureKey: navFeatures.GALLERY },
+  { to: "/gallery", icon: ImageIcon, label: "Gallery", featureKey: navFeatures.GALLERY },
   { to: "/travel", icon: Map, label: "Travel", featureKey: navFeatures.TRAVEL },
+  { to: "/contact", icon: Send, label: "Contact", featureKey: navFeatures.CONTACT },
 ];
 
 export const managementNavItems = [
-  { to: "/manage-blog", icon: Edit, label: "Manage Blog", featureKey: navFeatures.MANAGE_BLOG },
-  { to: "/manage-gallery", icon: GalleryThumbnails, label: "Manage Gallery", featureKey: navFeatures.MANAGE_GALLERY },
-  { to: "/manage-travel", icon: MapPin, label: "Manage Travel", featureKey: navFeatures.MANAGE_TRAVEL },
+  { to: "/manage-blog", icon: Newspaper, label: "Manage Blog", featureKey: navFeatures.MANAGE_BLOG },
+  { to: "/manage-gallery", icon: ImageIcon, label: "Manage Gallery", featureKey: navFeatures.MANAGE_GALLERY },
+  { to: "/manage-travel", icon: Map, label: "Manage Travel", featureKey: navFeatures.MANAGE_TRAVEL },
   { to: "/feature-toggles", icon: ToggleRight, label: "Feature Toggles", featureKey: navFeatures.FEATURE_TOGGLES },
+];
+
+export const settingsNavItems = [
+  {
+    to: "/manage-data",
+    icon: Database,
+    label: "Manage Data",
+  },
+  {
+    to: "/profile",
+    icon: UserIcon,
+    label: "User Profile",
+  },
 ];

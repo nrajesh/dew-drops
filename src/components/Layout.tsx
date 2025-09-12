@@ -6,7 +6,7 @@ import { ThemeToggle } from "./ThemeToggle";
 import { useState } from "react";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
-import { mainNavItems, managementNavItems, navFeatures } from "@/config/navigation";
+import { mainNavItems, managementNavItems, navFeatures, settingsNavItems } from "@/config/navigation";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { showError, showSuccess } from "@/utils/toast";
@@ -22,8 +22,9 @@ const NavContent = ({ onLinkClick }: { onLinkClick?: () => void }) => {
   const { toggles } = useFeatureToggles();
   const { session } = useAuth();
 
-  const visibleMainNavItems = mainNavItems.filter(item => toggles[item.featureKey]);
+  const visibleMainNavItems = mainNavItems.filter(item => toggles[item.featureKey] || !item.featureKey);
   const visibleManagementNavItems = session ? managementNavItems.filter(item => toggles[item.featureKey]) : [];
+  const visibleSettingsNavItems = session ? settingsNavItems : [];
 
   const navLinkClassName = ({ isActive }: { isActive: boolean }) =>
     `flex items-center gap-3 rounded-lg px-3 py-2 transition-all hover:bg-sidebar-accent hover:text-sidebar-accent-foreground ${
@@ -31,6 +32,7 @@ const NavContent = ({ onLinkClick }: { onLinkClick?: () => void }) => {
     }`;
 
   const areManagementItemsVisible = visibleManagementNavItems.length > 0;
+  const areSettingsItemsVisible = visibleSettingsNavItems.length > 0;
 
   return (
     <>
@@ -71,6 +73,29 @@ const NavContent = ({ onLinkClick }: { onLinkClick?: () => void }) => {
           </nav>
         </>
       )}
+
+      {areSettingsItemsVisible && (
+        <>
+          <div className="mt-4 px-4 lg:px-6">
+            <h3 className="mb-2 text-xs font-semibold uppercase text-sidebar-foreground/70 tracking-wider">
+              Settings
+            </h3>
+          </div>
+          <nav className="grid items-start px-2 text-sm font-medium lg:px-4">
+            {visibleSettingsNavItems.map((item) => (
+              <NavLink
+                key={item.to}
+                to={item.to}
+                onClick={onLinkClick}
+                className={navLinkClassName}
+              >
+                <item.icon className="h-4 w-4" />
+                {item.label}
+              </NavLink>
+            ))}
+          </nav>
+        </>
+      )}
     </>
   );
 };
@@ -96,7 +121,6 @@ const Layout = () => {
   };
 
   const handleFormSubmit = (values: PostFormData) => {
-    // This will be handled by the ManageBlog component
     setIsAddBlogDialogOpen(false);
     navigate('/manage-blog', { state: { newPostData: values } });
   };
@@ -151,7 +175,6 @@ const Layout = () => {
               </SheetContent>
             </Sheet>
             <div className="w-full flex-1">
-              {/* Future content like breadcrumbs can go here */}
             </div>
             <ThemeToggle />
             {session ? (
@@ -207,8 +230,6 @@ const Layout = () => {
           </footer>
         </div>
       </div>
-
-      {/* Floating Action Buttons */}
       <div className="fixed bottom-6 left-6 flex flex-col gap-4 z-40">
         {session && (
           <Button
