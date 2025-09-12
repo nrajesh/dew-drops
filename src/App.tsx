@@ -17,6 +17,7 @@ import ProtectedRoute from "./components/ProtectedRoute";
 import { mainNavItems, managementNavItems } from "./config/navigation";
 import { useFeatureToggles } from "./contexts/FeatureToggleContext";
 import { Skeleton } from "./components/ui/skeleton";
+import Profile from "./pages/Profile";
 
 const App = () => {
   const { toggles, loading } = useFeatureToggles();
@@ -64,6 +65,7 @@ const App = () => {
               if (!Component) return null;
               return <Route key={item.to} path={item.to} element={<Component />} />;
             })}
+          <Route path="/profile" element={<Profile />} />
         </Route>
       </Route>
       <Route path="*" element={<NotFound />} />

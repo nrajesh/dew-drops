@@ -1,5 +1,5 @@
 import { NavLink, Outlet, Link } from "react-router-dom";
-import { Menu, LogIn, LogOut, Plus, Bot } from "lucide-react";
+import { Menu, LogIn, LogOut, Plus, Bot, User as UserIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger, SheetDescription } from "@/components/ui/sheet";
 import { ThemeToggle } from "./ThemeToggle";
@@ -15,6 +15,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { BlogForm, PostFormData } from "@/components/blog/BlogForm";
 import { useNavigate } from "react-router-dom";
 import Chat from "@/pages/Chat";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
 const NavContent = ({ onLinkClick }: { onLinkClick?: () => void }) => {
   const { toggles } = useFeatureToggles();
@@ -75,7 +77,7 @@ const NavContent = ({ onLinkClick }: { onLinkClick?: () => void }) => {
 
 const Layout = () => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const { session } = useAuth();
+  const { session, profile } = useAuth();
   const [isAddBlogDialogOpen, setIsAddBlogDialogOpen] = useState(false);
   const [isChatOpen, setIsChatOpen] = useState(false);
   const navigate = useNavigate();
@@ -98,6 +100,10 @@ const Layout = () => {
     setIsAddBlogDialogOpen(false);
     navigate('/manage-blog', { state: { newPostData: values } });
   };
+
+  const avatarFallback = profile?.first_name && profile?.last_name
+    ? `${profile.first_name.charAt(0)}${profile.last_name.charAt(0)}`
+    : profile?.first_name?.charAt(0) || <UserIcon className="h-5 w-5" />;
 
   return (
     <>
@@ -149,10 +155,31 @@ const Layout = () => {
             </div>
             <ThemeToggle />
             {session ? (
-              <Button variant="ghost" size="icon" onClick={handleLogout}>
-                <LogOut className="h-5 w-5" />
-                <span className="sr-only">Logout</span>
-              </Button>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" className="relative h-8 w-8 rounded-full">
+                    <Avatar className="h-8 w-8">
+                      <AvatarImage src={profile?.avatar_url || undefined} alt="User avatar" />
+                      <AvatarFallback>{avatarFallback}</AvatarFallback>
+                    </Avatar>
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuLabel>My Account</DropdownMenuLabel>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem asChild>
+                    <Link to="/profile">Profile</Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem asChild>
+                    <Link to="/feature-toggles">Settings</Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={handleLogout}>
+                    <LogOut className="mr-2 h-4 w-4" />
+                    <span>Logout</span>
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
             ) : (
               <Button variant="ghost" size="icon" asChild>
                 <Link to="/login">
