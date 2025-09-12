@@ -23,10 +23,31 @@ const generateContextFromData = async (): Promise<string> => {
     supabase.from('gallery_images').select('alt_text, tags').eq('published', true).limit(30),
   ]);
 
-  let context = "PORTFOLIO KNOWLEDGE BASE:\n\n";
+  let context = `
+PORTFOLIO KNOWLEDGE BASE:
+
+== ABOUT THE PORTFOLIO APPLICATION ==
+This is a personal portfolio and blog application designed to showcase work, thoughts, and travels.
+Key Features:
+- Dynamic Blog: A full-featured blog with Markdown support.
+- Photo Gallery: A gallery with automatic EXIF data extraction and AI-generated tags.
+- Interactive Travel Map: A map to pin travel destinations.
+- Contact Form: A secure, serverless contact form.
+- AI Chatbot: An integrated chatbot (the one you are using now) to answer questions about the portfolio.
+- Data Management: The administrator can export and import all portfolio data.
+- User Profile Management: The administrator can update their profile and password.
+- Feature Toggles: The administrator can enable or disable entire sections of the portfolio.
+- Light & Dark Mode: A theme toggle for user preference.
+- Fully Responsive: Designed for all devices.
+
+The tech stack includes React, Vite, TypeScript, Tailwind CSS, shadcn/ui, and Supabase for the backend (database, storage, and serverless functions). The AI features are powered by Google Gemini.
+
+The following sections contain the user's personal content available on the site.
+---
+`;
 
   if (postsRes.data && postsRes.data.length > 0) {
-    context += "== BLOG POSTS ==\n";
+    context += "\n\n== BLOG POSTS ==\n";
     postsRes.data.forEach((p: any) => {
       context += `Title: ${p.title}\nDescription: ${p.description}\nTags: ${p.tags?.join(', ') || 'N/A'}\n\n`;
     });
@@ -48,7 +69,7 @@ const generateContextFromData = async (): Promise<string> => {
     });
   }
 
-  return context;
+  return context.trim();
 };
 
 const ManageChatbot = () => {
