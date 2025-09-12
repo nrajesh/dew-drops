@@ -37,7 +37,7 @@ serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
     );
 
-    const tables = ['posts', 'gallery_images', 'travel_locations', 'feature_toggles'];
+    const tables = ['posts', 'gallery_images', 'travel_locations', 'feature_toggles', 'profiles'];
     const exportData: { [key: string]: any[] } = {};
 
     for (const table of tables) {
