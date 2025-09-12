@@ -1,5 +1,5 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.0';
+import { createClient, SupabaseClient } from 'https://esm.sh/@supabase/supabase-js@2.45.0';
 
 type SupabaseClient = ReturnType<typeof createClient>;
 
@@ -9,7 +9,8 @@ const corsHeaders = {
 };
 
 // Order matters for foreign key constraints: delete child tables before parent tables.
-const tablesInOrder = ['feature_toggles', 'gallery_images', 'travel_locations', 'posts', 'profiles'];
+// Exclude 'feature_toggles' and 'profiles' as requested
+const tablesInOrder = ['posts', 'travel_locations', 'gallery_images'];
 
 const wipeData = async (supabase: SupabaseClient) => {
   // Delete in reverse order to handle foreign key dependencies
@@ -37,7 +38,8 @@ serve(async (req) => {
     // 1. Create a client with the ANON key to verify the user's JWT
     const supabaseAuthClient = createClient(
       Deno.env.get('SUPABASE_URL')!,
-      Deno.env.get('SUPABASE_ANON_KEY')!
+      Deno.env.get('SUPABASE_ANON_KEY')!,
+      { auth: { persistSession: false } } // Crucial for stateless environments
     );
     
     const authHeader = req.headers.get('Authorization');
@@ -56,7 +58,8 @@ serve(async (req) => {
     // 2. Create an admin client with the SERVICE_ROLE_KEY to bypass RLS for data manipulation
     const supabaseAdmin = createClient(
       Deno.env.get('SUPABASE_URL')!,
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
+      { auth: { persistSession: false } } // Crucial for stateless environments
     );
 
     const importPayload = await req.json();

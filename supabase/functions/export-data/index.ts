@@ -15,7 +15,8 @@ serve(async (req) => {
     // 1. Create a client with the ANON key to verify the user's JWT
     const supabaseAuthClient = createClient(
       Deno.env.get('SUPABASE_URL')!,
-      Deno.env.get('SUPABASE_ANON_KEY')!
+      Deno.env.get('SUPABASE_ANON_KEY')!,
+      { auth: { persistSession: false } } // Crucial for stateless environments
     );
     
     const authHeader = req.headers.get('Authorization');
@@ -34,10 +35,12 @@ serve(async (req) => {
     // 2. Create an admin client with the SERVICE_ROLE_KEY to bypass RLS for a full export
     const supabaseAdmin = createClient(
       Deno.env.get('SUPABASE_URL')!,
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
+      { auth: { persistSession: false } } // Crucial for stateless environments
     );
 
-    const tables = ['posts', 'gallery_images', 'travel_locations', 'feature_toggles', 'profiles'];
+    // Exclude 'feature_toggles' and 'profiles' as requested
+    const tables = ['posts', 'gallery_images', 'travel_locations'];
     const exportData: { [key: string]: any[] } = {};
 
     for (const table of tables) {

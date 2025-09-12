@@ -9,7 +9,8 @@ const corsHeaders = {
 };
 
 // Order matters for foreign key constraints: delete child tables before parent tables.
-const tablesToReset = ['posts', 'travel_locations', 'gallery_images', 'profiles', 'feature_toggles'];
+// Exclude 'feature_toggles' and 'profiles' as requested
+const tablesToReset = ['posts', 'travel_locations', 'gallery_images'];
 
 const resetData = async (supabase: SupabaseClient) => {
   for (const table of [...tablesToReset].reverse()) { // Delete in reverse order to handle foreign key dependencies
@@ -27,7 +28,8 @@ serve(async (req) => {
     // 1. Create a client with the ANON key to verify the user's JWT
     const supabaseAuthClient = createClient(
       Deno.env.get('SUPABASE_URL')!,
-      Deno.env.get('SUPABASE_ANON_KEY')!
+      Deno.env.get('SUPABASE_ANON_KEY')!,
+      { auth: { persistSession: false } } // Crucial for stateless environments
     );
     
     const authHeader = req.headers.get('Authorization');
@@ -46,7 +48,8 @@ serve(async (req) => {
     // 2. Create an admin client with the SERVICE_ROLE_KEY to bypass RLS for data manipulation
     const supabaseAdmin = createClient(
       Deno.env.get('SUPABASE_URL')!,
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
+      { auth: { persistSession: false } } // Crucial for stateless environments
     );
 
     await resetData(supabaseAdmin);
