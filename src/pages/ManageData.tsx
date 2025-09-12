@@ -11,18 +11,6 @@ const ManageData = () => {
   const [isLoading, setIsLoading] = useState<string | null>(null);
   const [importFile, setImportFile] = useState<File | null>(null);
 
-  const handleFunctionError = async (error: any) => {
-    if (error.context) {
-      try {
-        const errorBody = await error.context.json();
-        return errorBody.error || error.message;
-      } catch (e) {
-        return error.message;
-      }
-    }
-    return error.message;
-  };
-
   const handleExport = async () => {
     setIsLoading("export");
     try {
@@ -40,8 +28,7 @@ const ManageData = () => {
       window.URL.revokeObjectURL(url);
       showSuccess("Data exported successfully.");
     } catch (err: any) {
-      const errorMessage = await handleFunctionError(err);
-      showError(`Export failed: ${errorMessage}`);
+      showError(`Export failed: ${err.message}`);
     } finally {
       setIsLoading(null);
     }
@@ -65,8 +52,7 @@ const ManageData = () => {
       showSuccess("Data imported successfully. The page will now reload.");
       setTimeout(() => window.location.reload(), 2000);
     } catch (err: any) {
-      const errorMessage = await handleFunctionError(err);
-      showError(`Import failed: ${errorMessage}`);
+      showError(`Import failed: ${err.message}`);
     } finally {
       setIsLoading(null);
       setImportFile(null);
@@ -81,8 +67,7 @@ const ManageData = () => {
       showSuccess("All data has been reset. The page will now reload.");
       setTimeout(() => window.location.reload(), 2000);
     } catch (err: any) {
-      const errorMessage = await handleFunctionError(err);
-      showError(`Reset failed: ${errorMessage}`);
+      showError(`Reset failed: ${err.message}`);
     } finally {
       setIsLoading(null);
     }

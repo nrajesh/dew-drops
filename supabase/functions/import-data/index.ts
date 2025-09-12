@@ -32,36 +32,27 @@ serve(async (req) => {
   }
 
   try {
-    // 1. Create a client with the ANON key to verify the user's JWT
-    const supabaseAuthClient = createClient(
+    const supabase = createClient(
       Deno.env.get('SUPABASE_URL')!,
-      Deno.env.get('SUPABASE_ANON_KEY')!
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
+      { auth: { persistSession: false } }
     );
-    
-    const authHeader = req.headers.get('Authorization');
-    if (!authHeader) throw new Error('Missing Authorization header');
+
+    const authHeader = req.headers.get('Authorization')!;
     const jwt = authHeader.replace('Bearer ', '');
-    
-    const { data: { user }, error: userError } = await supabaseAuthClient.auth.getUser(jwt);
-    if (userError || !user) {
-      console.error('Auth error:', userError);
+    const { data: { user } } = await supabase.auth.getUser(jwt);
+
+    if (!user) {
       return new Response(JSON.stringify({ error: 'Unauthorized' }), {
         status: 401,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
 
-    // 2. Create an admin client with the SERVICE_ROLE_KEY to perform the import
-    const supabaseAdmin = createClient(
-      Deno.env.get('SUPABASE_URL')!,
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
-      { auth: { persistSession: false } }
-    );
-
     const importPayload = await req.json();
 
-    await wipeData(supabaseAdmin);
-    await importData(supabaseAdmin, importPayload);
+    await wipeData(supabase);
+    await importData(supabase, importPayload);
 
     return new Response(JSON.stringify({ message: 'Import successful' }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
