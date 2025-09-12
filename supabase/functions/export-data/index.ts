@@ -12,25 +12,36 @@ serve(async (req) => {
   }
 
   try {
-    const supabase = createClient(
+    // 1. Create a client with the ANON key to verify the user's JWT
+    const supabaseAuthClient = createClient(
       Deno.env.get('SUPABASE_URL')!,
-      Deno.env.get('SUPABASE_ANON_KEY')!,
-      { global: { headers: { Authorization: req.headers.get('Authorization')! } } }
+      Deno.env.get('SUPABASE_ANON_KEY')!
     );
-
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) {
+    
+    const authHeader = req.headers.get('Authorization');
+    if (!authHeader) throw new Error('Missing Authorization header');
+    const jwt = authHeader.replace('Bearer ', '');
+    
+    const { data: { user }, error: userError } = await supabaseAuthClient.auth.getUser(jwt);
+    if (userError || !user) {
+      console.error('Auth error:', userError);
       return new Response(JSON.stringify({ error: 'Unauthorized' }), {
         status: 401,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
 
+    // 2. Create an admin client with the SERVICE_ROLE_KEY to bypass RLS for a full export
+    const supabaseAdmin = createClient(
+      Deno.env.get('SUPABASE_URL')!,
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
+    );
+
     const tables = ['posts', 'gallery_images', 'travel_locations', 'feature_toggles'];
     const exportData: { [key: string]: any[] } = {};
 
     for (const table of tables) {
-      const { data, error } = await supabase.from(table).select('*');
+      const { data, error } = await supabaseAdmin.from(table).select('*');
       if (error) throw error;
       exportData[table] = data;
     }
