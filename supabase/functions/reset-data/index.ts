@@ -23,16 +23,14 @@ serve(async (req) => {
   }
 
   try {
-    const supabase = createClient(
-      Deno.env.get('SUPABASE_URL')!,
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
-      { auth: { persistSession: false } }
-    );
-
+    // 1. Authenticate user with the ANON key
     const authHeader = req.headers.get('Authorization')!;
-    const jwt = authHeader.replace('Bearer ', '');
-    const { data: { user } } = await supabase.auth.getUser(jwt);
-
+    const supabaseAuthClient = createClient(
+      Deno.env.get('SUPABASE_URL')!,
+      Deno.env.get('SUPABASE_ANON_KEY')!,
+      { global: { headers: { Authorization: authHeader } } }
+    );
+    const { data: { user } } = await supabaseAuthClient.auth.getUser();
     if (!user) {
       return new Response(JSON.stringify({ error: 'Unauthorized' }), {
         status: 401,
@@ -40,7 +38,14 @@ serve(async (req) => {
       });
     }
 
-    await resetData(supabase);
+    // 2. Create an admin client with the SERVICE_ROLE_KEY to perform the reset
+    const supabaseAdmin = createClient(
+      Deno.env.get('SUPABASE_URL')!,
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
+      { auth: { persistSession: false } }
+    );
+
+    await resetData(supabaseAdmin);
 
     return new Response(JSON.stringify({ message: 'Reset successful' }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },

@@ -12,13 +12,14 @@ serve(async (req) => {
   }
 
   try {
-    const supabase = createClient(
+    // 1. Authenticate user with the ANON key
+    const authHeader = req.headers.get('Authorization')!;
+    const supabaseAuthClient = createClient(
       Deno.env.get('SUPABASE_URL')!,
       Deno.env.get('SUPABASE_ANON_KEY')!,
-      { global: { headers: { Authorization: req.headers.get('Authorization')! } } }
+      { global: { headers: { Authorization: authHeader } } }
     );
-
-    const { data: { user } } = await supabase.auth.getUser();
+    const { data: { user } } = await supabaseAuthClient.auth.getUser();
     if (!user) {
       return new Response(JSON.stringify({ error: 'Unauthorized' }), {
         status: 401,
@@ -26,11 +27,17 @@ serve(async (req) => {
       });
     }
 
+    // 2. Create an admin client with the SERVICE_ROLE_KEY to bypass RLS for a full export
+    const supabaseAdmin = createClient(
+      Deno.env.get('SUPABASE_URL')!,
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
+    );
+
     const tables = ['posts', 'gallery_images', 'travel_locations', 'feature_toggles'];
     const exportData: { [key: string]: any[] } = {};
 
     for (const table of tables) {
-      const { data, error } = await supabase.from(table).select('*');
+      const { data, error } = await supabaseAdmin.from(table).select('*');
       if (error) throw error;
       exportData[table] = data;
     }

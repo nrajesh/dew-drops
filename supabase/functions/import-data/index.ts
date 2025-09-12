@@ -32,16 +32,14 @@ serve(async (req) => {
   }
 
   try {
-    const supabase = createClient(
-      Deno.env.get('SUPABASE_URL')!,
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
-      { auth: { persistSession: false } }
-    );
-
+    // 1. Authenticate user with the ANON key
     const authHeader = req.headers.get('Authorization')!;
-    const jwt = authHeader.replace('Bearer ', '');
-    const { data: { user } } = await supabase.auth.getUser(jwt);
-
+    const supabaseAuthClient = createClient(
+      Deno.env.get('SUPABASE_URL')!,
+      Deno.env.get('SUPABASE_ANON_KEY')!,
+      { global: { headers: { Authorization: authHeader } } }
+    );
+    const { data: { user } } = await supabaseAuthClient.auth.getUser();
     if (!user) {
       return new Response(JSON.stringify({ error: 'Unauthorized' }), {
         status: 401,
@@ -49,10 +47,17 @@ serve(async (req) => {
       });
     }
 
+    // 2. Create an admin client with the SERVICE_ROLE_KEY to perform the import
+    const supabaseAdmin = createClient(
+      Deno.env.get('SUPABASE_URL')!,
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
+      { auth: { persistSession: false } }
+    );
+
     const importPayload = await req.json();
 
-    await wipeData(supabase);
-    await importData(supabase, importPayload);
+    await wipeData(supabaseAdmin);
+    await importData(supabaseAdmin, importPayload);
 
     return new Response(JSON.stringify({ message: 'Import successful' }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
