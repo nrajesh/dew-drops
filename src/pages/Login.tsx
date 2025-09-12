@@ -22,7 +22,16 @@ const Login = () => {
         <CardContent>
           <Auth
             supabaseClient={supabase}
-            appearance={{ theme: ThemeSupa }}
+            appearance={{
+              theme: ThemeSupa,
+              variables: {
+                default: {
+                  colors: {
+                    inputText: "white",
+                  },
+                },
+              },
+            }}
             providers={[]}
             theme="dark"
             view="sign_in"
