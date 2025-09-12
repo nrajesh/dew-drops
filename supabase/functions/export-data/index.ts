@@ -40,7 +40,7 @@ serve(async (req) => {
     );
 
     // Only export content tables
-    const tables = ['posts', 'gallery_images', 'travel_locations'];
+    const tables = ['posts', 'gallery_images', 'travel_locations', 'chatbot_knowledge'];
     const exportData: { [key: string]: any[] } = {};
 
     for (const table of tables) {

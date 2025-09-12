@@ -9,7 +9,7 @@ const corsHeaders = {
 };
 
 // Only import/wipe content tables.
-const tablesInOrder = ['gallery_images', 'travel_locations', 'posts'];
+const tablesInOrder = ['chatbot_knowledge', 'gallery_images', 'travel_locations', 'posts'];
 
 const wipeData = async (supabase: SupabaseClient) => {
   // Delete in reverse order to handle foreign key dependencies

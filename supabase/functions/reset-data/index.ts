@@ -8,16 +8,20 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-// Only reset content tables, leaving profiles and settings untouched.
-const tablesToReset = ['posts', 'travel_locations', 'gallery_images'];
-
 const resetData = async (supabase: SupabaseClient) => {
   // Delete in an order that respects foreign key constraints (posts may reference gallery_images).
-  const deletionOrder = ['posts', 'travel_locations', 'gallery_images'];
+  const deletionOrder = ['posts', 'travel_locations', 'gallery_images', 'chatbot_knowledge'];
   for (const table of deletionOrder) {
     const { error } = await supabase.from(table).delete().neq('id', '00000000-0000-0000-0000-000000000000');
     if (error) throw new Error(`Failed to reset ${table}: ${error.message}`);
   }
+
+  // Re-initialize the chatbot knowledge base with the default placeholder.
+  const { error: insertError } = await supabase.from('chatbot_knowledge').insert({
+    id: 1,
+    content: 'This is the knowledge base for the AI chatbot. Click "Generate from Portfolio" to automatically populate this with your latest content, or write your own from scratch.'
+  });
+  if (insertError) throw new Error(`Failed to re-initialize chatbot_knowledge: ${insertError.message}`);
 };
 
 serve(async (req) => {

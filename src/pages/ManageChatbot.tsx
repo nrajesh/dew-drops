@@ -71,7 +71,7 @@ const ManageChatbot = () => {
         .eq("id", 1)
         .single();
 
-      if (error) {
+      if (error && error.code !== 'PGRST116') { // Ignore "0 rows" error
         showError("Failed to load knowledge base.");
         console.error(error);
       } else if (data) {
@@ -107,12 +107,12 @@ const ManageChatbot = () => {
     const toastId = showLoading("Saving knowledge base...");
     const { error } = await supabase
       .from("chatbot_knowledge")
-      .update({
+      .upsert({
+        id: 1,
         content: values.content,
         user_id: user.id,
         updated_at: new Date().toISOString(),
-      })
-      .eq("id", 1);
+      });
 
     dismissToast(toastId);
     if (error) {
