@@ -289,7 +289,7 @@ const ManageGallery = () => {
     } else {
       dismissToast(toastId);
       showSuccess(`Image ${newPublishedStatus ? "published" : "unpublished"}.`);
-      setImages(images.map(i => i.id === image.id ? { ...i, published: newPublishedStatus } : i));
+      setImages(images.map(i => i.id === image.id ? { ...i, published: newPublishedStatus, _cacheKey: Date.now() } : i));
     }
   };
 

@@ -19,12 +19,14 @@ interface ManagedImageProps {
 
 export const ManagedImage = ({ image, isSelected, onSelect, onTogglePublish, onEdit }: ManagedImageProps) => {
   const [imageUrl, setImageUrl] = useState<string | null>(null);
-  const prevPublishedState = useRef(image.published);
 
   useEffect(() => {
     let isMounted = true;
 
     const generateUrl = async () => {
+      // Always start fresh
+      if (isMounted) setImageUrl(null);
+
       if (image.published) {
         const { data } = supabase.storage.from('gallery').getPublicUrl(image.file_name, {
           transform: {
@@ -33,15 +35,10 @@ export const ManagedImage = ({ image, isSelected, onSelect, onTogglePublish, onE
             resize: 'cover',
           },
         });
-
-        // Check if the image was *just* published in this render cycle.
-        const justPublished = !prevPublishedState.current && image.published;
         
-        // If it was just published, add a cache-busting timestamp to the URL.
-        // This forces the CDN to fetch the new, public version instead of a stale, forbidden one.
-        const finalUrl = justPublished
-          ? `${data.publicUrl}?t=${new Date().getTime()}`
-          : data.publicUrl;
+        // The cache key from the parent component ensures this effect re-runs on status change.
+        // The timestamp here ensures the URL is unique, busting any CDN cache.
+        const finalUrl = `${data.publicUrl}?t=${image._cacheKey || new Date().getTime()}`;
 
         if (isMounted) {
           setImageUrl(finalUrl);
@@ -66,8 +63,6 @@ export const ManagedImage = ({ image, isSelected, onSelect, onTogglePublish, onE
           }
         }
       }
-      // After the effect runs, update the ref to the current state for the next render.
-      prevPublishedState.current = image.published;
     };
 
     generateUrl();
@@ -75,7 +70,7 @@ export const ManagedImage = ({ image, isSelected, onSelect, onTogglePublish, onE
     return () => {
       isMounted = false;
     };
-  }, [image.file_name, image.published]);
+  }, [image.file_name, image.published, image._cacheKey]);
 
   return (
     <Card className="flex flex-col">
