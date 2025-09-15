@@ -27,26 +27,16 @@ export const ManagedImage = ({ image, isSelected, onSelect, onTogglePublish, onE
       if (isMounted) setImageUrl(null);
 
       if (image.published) {
-        const { data } = supabase.storage.from('gallery').getPublicUrl(image.file_name, {
-          transform: {
-            width: 200,
-            height: 200,
-            resize: 'cover',
-          },
-        });
+        // Get the public URL without any transformations.
+        const { data } = supabase.storage.from('gallery').getPublicUrl(image.file_name);
         if (isMounted) {
           setImageUrl(data.publicUrl);
         }
       } else {
+        // Get a temporary signed URL for the private image, also without transformations.
         const { data, error } = await supabase.storage
           .from('gallery')
-          .createSignedUrl(image.file_name, 60 * 5, { // 5-minute expiry
-            transform: {
-              width: 200,
-              height: 200,
-              resize: 'cover',
-            },
-          });
+          .createSignedUrl(image.file_name, 60 * 5); // 5-minute expiry
 
         if (isMounted) {
           if (error) {
