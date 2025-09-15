@@ -46,9 +46,16 @@ const Gallery = () => {
     fetchImages();
   }, [fetchImages]);
 
-  const deviceMakes = useMemo(() => Array.from(
-    new Set(allImages.map(img => img.exif_data?.Make).filter(Boolean) as string[])
-  ).sort(), [allImages]);
+  const deviceMakes = useMemo(() => {
+    const makes = allImages.map(img => {
+      const make = img.exif_data?.Make;
+      if (typeof make === 'object' && make !== null && 'description' in make) {
+        return make.description;
+      }
+      return make;
+    }).filter(Boolean) as string[];
+    return Array.from(new Set(makes)).sort();
+  }, [allImages]);
 
   const filteredImages = useMemo(() => {
     if (debouncedSearchTerm) {
@@ -74,7 +81,9 @@ const Gallery = () => {
     }
 
     return allImages.filter(image => {
-      const makeFilter = activeMake === 'all' || image.exif_data?.Make === activeMake;
+      const makeValue = image.exif_data?.Make;
+      const makeString = typeof makeValue === 'object' && makeValue !== null && 'description' in makeValue ? makeValue.description : makeValue;
+      const makeFilter = activeMake === 'all' || makeString === activeMake;
       return makeFilter;
     });
   }, [allImages, activeMake, debouncedSearchTerm]);

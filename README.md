@@ -70,6 +70,9 @@ The gallery management page uses a two-tab system—**Published** and **Unpublis
     *   The **"Published"** tab displays a grid of all your live gallery images.
     *   **Individual Actions:** Each image has a switch to quickly publish/unpublish it and an "Edit" button to update its alt text and tags.
     *   **Bulk Actions:** Select multiple images to perform actions on them at once: Unpublish, Generate AI Tags, Download, or Delete.
+4.  **Interactive Lightbox:**
+    *   Clicking on any image (in either tab) opens it in a beautiful, full-screen lightbox.
+    *   Controls for navigation, closing, and viewing EXIF data appear when you tap or click the image and fade out automatically.
 
 ### 🗺️ Managing the Travel Map
 

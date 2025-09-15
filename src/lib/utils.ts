@@ -6,29 +6,49 @@ export function cn(...inputs: ClassValue[]) {
 }
 
 export function sanitizeFileName(fileName: string): string {
-  // Decode URI components to handle encoded characters like %20
-  const decodedName = decodeURIComponent(fileName);
+  let decodedName = fileName;
+  try {
+    // Attempt to decode, as filenames from some sources might be URI encoded.
+    decodedName = decodeURIComponent(fileName);
+  } catch (e) {
+    // Ignore error if the filename is not a valid URI component.
+  }
 
-  // Replace spaces and other whitespace with a single underscore
-  const withUnderscores = decodedName.replace(/\s+/g, '_');
+  // Normalize to NFD (Normalization Form Canonical Decomposition).
+  // This separates base characters from their diacritical marks (e.g., "é" becomes "e" + "´").
+  const normalized = decodedName.normalize('NFD');
 
-  // Remove characters that are invalid in filenames on most OSes.
-  // The characters are: / \ : * ? " < > |
-  // Also remove control characters from the ASCII range.
-  const sanitized = withUnderscores.replace(/[\\/:\*\?"<>\|]/g, '').replace(/[\x00-\x1f\x7f]/g, '');
+  // Remove the diacritical marks.
+  const withoutDiacritics = normalized.replace(/[\u0300-\u036f]/g, '');
 
-  // Trim leading/trailing underscores or dots that might result from sanitization
-  const trimmed = sanitized.replace(/^[_.]+|[_.]+$/g, '');
+  // Replace whitespace with a single underscore.
+  const withUnderscores = withoutDiacritics.replace(/\s+/g, '_');
 
-  // Convert to NFC form to handle combining characters, which is good practice for file systems.
-  const normalized = trimmed.normalize('NFC');
+  // Remove any character that is not a letter, number, underscore, dot, or hyphen.
+  // This is a very safe character set for filenames.
+  const sanitized = withUnderscores.replace(/[^a-zA-Z0-9_.-]/g, '');
 
-  return normalized;
+  // Remove leading/trailing underscores or dots.
+  const finalName = sanitized.replace(/^[_.]+|[_.]+$/g, '');
+
+  // Ensure the filename is not empty after sanitization.
+  return finalName || "sanitized_file";
 }
 
 export function generateAltTextFromFileName(fileName: string): string {
   if (!fileName) return "";
-  // Get the last part of the path, remove the user_id/timestamp prefix, remove extension, and replace underscores with spaces.
-  const originalFileName = fileName.split('/').pop()?.split('_').slice(1).join('_') || fileName;
+  
+  // Get the part of the filename after the last '/'
+  const namePart = fileName.split('/').pop() || fileName;
+  
+  // Find the first underscore (which separates the timestamp from the original name)
+  const firstUnderscoreIndex = namePart.indexOf('_');
+  
+  // If an underscore is found, take the substring after it. Otherwise, use the whole name part.
+  const originalFileName = firstUnderscoreIndex !== -1 
+    ? namePart.substring(firstUnderscoreIndex + 1) 
+    : namePart;
+    
+  // Remove the file extension and replace underscores with spaces.
   return originalFileName.replace(/\.[^/.]+$/, "").replace(/_/g, ' ');
 }
