@@ -26,6 +26,7 @@ import {
 import { useAuth } from "@/contexts/AuthContext";
 import { sanitizeFileName } from "@/lib/utils";
 import ExifReader from 'exifreader';
+import imageCompression from 'browser-image-compression';
 import { Checkbox } from "@/components/ui/checkbox";
 import { ManagementPagination } from "@/components/ManagementPagination";
 import { usePaginationNavigation } from "@/hooks/usePaginationNavigation";
@@ -125,7 +126,7 @@ const ManageGallery = () => {
     }
   
     setIsUploading(true);
-    const toastId = showLoading(`Uploading ${selectedFiles.length} file(s)...`);
+    const toastId = showLoading(`Preparing ${selectedFiles.length} file(s)...`);
   
     const filesToUpload = Array.from(selectedFiles);
     let metadataMap = new Map<string, { alt_text: string; tags: string[] }>();
@@ -153,7 +154,14 @@ const ManageGallery = () => {
     const imageFiles = filesToUpload.filter(f => f.type.startsWith('image/'));
   
     const uploadPromises = imageFiles.map(async (file) => {
-      const sanitizedName = sanitizeFileName(file.name);
+      const compressionOptions = {
+        maxSizeMB: 2,
+        maxWidthOrHeight: 1920,
+        useWebWorker: true,
+      };
+      const compressedFile = await imageCompression(file, compressionOptions);
+
+      const sanitizedName = sanitizeFileName(compressedFile.name);
       const fileName = `${user.id}/${Date.now()}_${sanitizedName}`;
       const originalFileName = file.name;
       const preloadedMeta = metadataMap.get(originalFileName);
@@ -182,7 +190,7 @@ const ManageGallery = () => {
         console.warn(`Could not read EXIF data for ${file.name}:`, error);
       }
   
-      const { error: uploadError } = await supabase.storage.from("gallery").upload(fileName, file, { cacheControl: '31536000', upsert: false });
+      const { error: uploadError } = await supabase.storage.from("gallery").upload(fileName, compressedFile, { cacheControl: '31536000', upsert: false });
       if (uploadError) throw new Error(`Failed to upload ${file.name}: ${uploadError.message}`);
       
       const { data: { publicUrl } } = supabase.storage.from("gallery").getPublicUrl(fileName);
@@ -204,9 +212,27 @@ const ManageGallery = () => {
     });
   
     try {
-      await Promise.all(uploadPromises);
-      updateToastSuccess(toastId, `${imageFiles.length} image(s) uploaded successfully!`);
-      loadImages();
+      const results = await Promise.allSettled(uploadPromises);
+      const successfulUploads = results.filter(r => r.status === 'fulfilled').length;
+      const failedUploads = results.filter(r => r.status === 'rejected');
+
+      if (failedUploads.length > 0) {
+        console.error("Some uploads failed:", failedUploads.map(r => (r as PromiseRejectedResult).reason));
+      }
+
+      if (successfulUploads > 0 && failedUploads.length === 0) {
+        updateToastSuccess(toastId, `${successfulUploads} image(s) uploaded successfully!`);
+      } else if (successfulUploads > 0 && failedUploads.length > 0) {
+        updateToastError(toastId, `${successfulUploads} succeeded, but ${failedUploads.length} failed. Check console for details.`);
+      } else if (successfulUploads === 0 && failedUploads.length > 0) {
+        updateToastError(toastId, `All ${failedUploads.length} uploads failed. Check console for details.`);
+      } else {
+        dismissToast(toastId);
+      }
+
+      if (successfulUploads > 0) {
+        loadImages();
+      }
     } catch (error: any) {
       updateToastError(toastId, error.message);
     } finally {
