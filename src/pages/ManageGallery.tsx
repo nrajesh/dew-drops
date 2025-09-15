@@ -1,12 +1,11 @@
 import { useState, useEffect, useMemo, useRef } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import * as z from "zod"; // Added missing import
+import * as z from "zod";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
-import { AspectRatio } from "@/components/ui/aspect-ratio";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { supabase } from "@/integrations/supabase/client";
@@ -28,7 +27,6 @@ import { useAuth } from "@/contexts/AuthContext";
 import { sanitizeFileName } from "@/lib/utils";
 import ExifReader from 'exifreader';
 import { Checkbox } from "@/components/ui/checkbox";
-import { Switch } from "@/components/ui/switch";
 import { ManagementPagination } from "@/components/ManagementPagination";
 import { usePaginationNavigation } from "@/hooks/usePaginationNavigation";
 import {
@@ -44,6 +42,7 @@ import {
   handleGenerateTags,
   handleBulkDownload,
 } from "@/components/gallery/GalleryManagementUtils.ts";
+import { ManagedImage } from "@/components/gallery/ManagedImage";
 
 const editSchema = z.object({
   alt_text: z.string().min(3, "Alt text must be at least 3 characters.").max(200, "Alt text cannot exceed 200 characters."),
@@ -111,17 +110,6 @@ const ManageGallery = () => {
     setCurrentPage(1);
   };
 
-  const getThumbnailUrl = (fileName: string) => {
-    const { data } = supabase.storage.from('gallery').getPublicUrl(fileName, {
-      transform: {
-        width: 200,
-        height: 200,
-        resize: 'cover',
-      },
-    });
-    return data.publicUrl;
-  };
-
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setSelectedFiles(e.target.files);
   };
@@ -137,7 +125,7 @@ const ManageGallery = () => {
     }
   
     setIsUploading(true);
-    const toastId = showLoading(`Preparing ${selectedFiles.length} file(s)...`);
+    const toastId = showLoading(`Uploading ${selectedFiles.length} file(s)...`);
   
     const filesToUpload = Array.from(selectedFiles);
     let metadataMap = new Map<string, { alt_text: string; tags: string[] }>();
@@ -157,16 +145,12 @@ const ManageGallery = () => {
             }
           }
         }
-        dismissToast(toastId);
-        showSuccess("Found and processed metadata.json.");
       } catch (e) {
-        dismissToast(toastId);
         showError("Could not parse metadata.json. Proceeding without it.");
       }
     }
   
     const imageFiles = filesToUpload.filter(f => f.type.startsWith('image/'));
-    const uploadToastId = showLoading(`Uploading ${imageFiles.length} image(s)...`);
   
     const uploadPromises = imageFiles.map(async (file) => {
       const sanitizedName = sanitizeFileName(file.name);
@@ -221,11 +205,11 @@ const ManageGallery = () => {
   
     try {
       await Promise.all(uploadPromises);
-      dismissToast(uploadToastId);
+      dismissToast(toastId);
       showSuccess(`${imageFiles.length} image(s) uploaded successfully!`);
       loadImages();
     } catch (error: any) {
-      dismissToast(uploadToastId);
+      dismissToast(toastId);
       showError(error.message);
     } finally {
       setIsUploading(false);
@@ -471,39 +455,14 @@ const ManageGallery = () => {
                 </div>
                 <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
                   {paginatedImages.map((image) => (
-                    <Card key={image.id} className="flex flex-col">
-                      <CardContent className="p-0">
-                        <AspectRatio ratio={1}>
-                          <img
-                            src={getThumbnailUrl(image.file_name)}
-                            alt={image.alt_text || "Gallery image"}
-                            className="rounded-t-lg object-cover w-full h-full"
-                          />
-                        </AspectRatio>
-                      </CardContent>
-                      <CardFooter className="p-2 flex-col items-start flex-grow justify-between">
-                        <p className="text-xs text-muted-foreground truncate w-full h-8">
-                          {image.alt_text}
-                        </p>
-                        <div className="flex justify-between w-full items-center mt-1">
-                          <Checkbox
-                            id={`select-${image.id}`}
-                            checked={selectedImages.has(image.id)}
-                            onCheckedChange={() => handleSelectImage(image.id)}
-                          />
-                          <div className="flex gap-1 items-center">
-                            <Switch
-                              checked={image.published}
-                              onCheckedChange={() => handleTogglePublish(image)}
-                              aria-label="Publish status"
-                            />
-                            <Button variant="ghost" size="sm" onClick={() => setEditingImage(image)}>
-                              <Edit className="h-3 w-3 mr-1" /> Edit
-                            </Button>
-                          </div>
-                        </div>
-                      </CardFooter>
-                    </Card>
+                    <ManagedImage
+                      key={image.id}
+                      image={image}
+                      isSelected={selectedImages.has(image.id)}
+                      onSelect={handleSelectImage}
+                      onTogglePublish={handleTogglePublish}
+                      onEdit={setEditingImage}
+                    />
                   ))}
                 </div>
               </>
