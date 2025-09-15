@@ -99,9 +99,7 @@ const Gallery = () => {
   }, [activeMake, debouncedSearchTerm]);
 
   const getThumbnailUrl = (fileName: string) => {
-    const { data } = supabase.storage.from('gallery').getPublicUrl(fileName, {
-      transform: { width: 400, height: 300, resize: 'cover' },
-    });
+    const { data } = supabase.storage.from('gallery').getPublicUrl(fileName);
     return data.publicUrl;
   };
 

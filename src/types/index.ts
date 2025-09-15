@@ -38,3 +38,11 @@ export interface GalleryImage {
   published: boolean;
   tags: string[] | null;
 }
+
+export interface Profile {
+  id: string;
+  updated_at: string | null;
+  first_name: string | null;
+  last_name: string | null;
+  avatar_url: string | null;
+}
