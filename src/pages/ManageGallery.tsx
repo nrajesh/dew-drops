@@ -347,6 +347,7 @@ const ManageGallery = () => {
                           onPublish={handleTogglePublish}
                           onEdit={setEditingImage}
                           onView={(img) => openLightbox(img, 'unpublished')}
+                          isBulkActionMode={selectedImages.size > 0}
                         />
                       ))}
                     </div>
