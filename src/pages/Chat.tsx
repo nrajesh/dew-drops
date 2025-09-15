@@ -65,7 +65,16 @@ const Chat = () => {
       setMessages((prev) => [...prev, assistantMessage]);
     } catch (error: any) {
       console.error("Error fetching chat response:", error);
-      const errorMessage: Message = { role: "assistant", content: `Sorry, an error occurred: ${error.message}` };
+      let displayMessage = `Sorry, an error occurred: ${error.message}`;
+
+      // Check for specific Gemini API overload error
+      if (error.message && error.message.includes("503") && error.message.includes("The model is overloaded")) {
+        displayMessage = "I am currently responding to multiple users. I hope we can connect again later!";
+      } else if (error.message && error.message.includes("400") && error.message.includes("API key not valid")) {
+        displayMessage = "It seems there's an issue with the API key. Please check the configuration.";
+      }
+      
+      const errorMessage: Message = { role: "assistant", content: displayMessage };
       setMessages((prev) => [...prev, errorMessage]);
     } finally {
       setIsLoading(false);
