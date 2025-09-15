@@ -6,29 +6,42 @@ export function cn(...inputs: ClassValue[]) {
 }
 
 export function sanitizeFileName(fileName: string): string {
-  // Decode URI components to handle encoded characters like %20
-  const decodedName = decodeURIComponent(fileName);
+  let decodedName = fileName;
+  try {
+    // Attempt to decode, as filenames from some sources might be URI encoded.
+    decodedName = decodeURIComponent(fileName);
+  } catch (e) {
+    // Ignore error if the filename is not a valid URI component (e.g., contains '%').
+  }
 
-  // Replace spaces and other whitespace with a single underscore
-  const withUnderscores = decodedName.replace(/\s+/g, '_');
+  // Normalize Unicode to handle characters like "é" consistently.
+  const normalized = decodedName.normalize('NFC');
 
-  // Remove characters that are invalid in filenames on most OSes.
-  // The characters are: / \ : * ? " < > |
-  // Also remove control characters from the ASCII range.
-  const sanitized = withUnderscores.replace(/[\\/:\*\?"<>\|]/g, '').replace(/[\x00-\x1f\x7f]/g, '');
+  // Replace whitespace with a single underscore.
+  const withUnderscores = normalized.replace(/\s+/g, '_');
 
-  // Trim leading/trailing underscores or dots that might result from sanitization
-  const trimmed = sanitized.replace(/^[_.]+|[_.]+$/g, '');
+  // Remove characters invalid in most file systems and control characters.
+  // Invalid chars: / \ : * ? " < > |
+  const sanitized = withUnderscores.replace(/[\\/:\*\?"<>\|]|[\x00-\x1f\x7f]/g, '');
 
-  // Convert to NFC form to handle combining characters, which is good practice for file systems.
-  const normalized = trimmed.normalize('NFC');
-
-  return normalized;
+  // Remove leading/trailing underscores or dots.
+  return sanitized.replace(/^[_.]+|[_.]+$/g, '');
 }
 
 export function generateAltTextFromFileName(fileName: string): string {
   if (!fileName) return "";
-  // Get the last part of the path, remove the user_id/timestamp prefix, remove extension, and replace underscores with spaces.
-  const originalFileName = fileName.split('/').pop()?.split('_').slice(1).join('_') || fileName;
+  
+  // Get the part of the filename after the last '/'
+  const namePart = fileName.split('/').pop() || fileName;
+  
+  // Find the first underscore (which separates the timestamp from the original name)
+  const firstUnderscoreIndex = namePart.indexOf('_');
+  
+  // If an underscore is found, take the substring after it. Otherwise, use the whole name part.
+  const originalFileName = firstUnderscoreIndex !== -1 
+    ? namePart.substring(firstUnderscoreIndex + 1) 
+    : namePart;
+    
+  // Remove the file extension and replace underscores with spaces.
   return originalFileName.replace(/\.[^/.]+$/, "").replace(/_/g, ' ');
 }
