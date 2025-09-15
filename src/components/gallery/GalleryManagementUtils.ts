@@ -21,7 +21,9 @@ export const handleDelete = async (imageIds: string[], allImages: GalleryImage[]
   const toastId = showLoading(`Deleting ${imageIds.length} image(s)...`);
   try {
     const deletePromises = imageIds.map(id => 
-      supabase.rpc('delete_gallery_image', { image_id: id })
+      supabase.functions.invoke('delete-gallery-image', {
+        body: { imageId: id },
+      })
     );
 
     const results = await Promise.all(deletePromises);
