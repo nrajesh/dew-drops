@@ -67,36 +67,64 @@ export const useBlogManagement = () => {
       showError("You must be logged in to manage blog posts.");
       return;
     }
-
+  
     const toastId = showLoading(editingPost ? "Updating post..." : "Adding new post...");
-
+  
     let description = values.description;
     if (!description || description.trim() === '') {
       description = extractDescriptionFromContent(values.content);
     }
-
+  
     const content = ensureContentHasTripleBackticks(values.content);
-
+  
     const postData = {
       ...values,
       description: description,
       content: content,
       user_id: user.id,
     };
-
-    const { error } = editingPost
-      ? await supabase.from("posts").update(postData).eq("id", editingPost.id)
-      : await supabase.from("posts").insert(postData);
-
-    dismissToast(toastId);
-    if (error) {
-      showError(error.message);
+  
+    const updateLocalTags = (newTags: string[]) => {
+      setUniqueTags(prevTags => {
+        const tagSet = new Set([...prevTags, ...newTags]);
+        return Array.from(tagSet).sort();
+      });
+    };
+  
+    if (editingPost) {
+      const { data: updatedPost, error } = await supabase
+        .from("posts")
+        .update(postData)
+        .eq("id", editingPost.id)
+        .select()
+        .single();
+  
+      dismissToast(toastId);
+      if (error) {
+        showError(error.message);
+      } else if (updatedPost) {
+        showSuccess(`Post updated successfully!`);
+        setPosts(prevPosts => prevPosts.map(p => p.id === updatedPost.id ? updatedPost : p));
+        setEditingPost(null);
+        updateLocalTags(postData.tags || []);
+      }
     } else {
-      showSuccess(`Post ${editingPost ? "updated" : "added"} successfully!`);
-      setEditingPost(null);
-      loadData();
+      const { data: newPost, error } = await supabase
+        .from("posts")
+        .insert(postData)
+        .select()
+        .single();
+  
+      dismissToast(toastId);
+      if (error) {
+        showError(error.message);
+      } else if (newPost) {
+        showSuccess(`Post added successfully!`);
+        setPosts(prevPosts => [newPost, ...prevPosts].sort((a, b) => new Date(b.published_at || 0).getTime() - new Date(a.published_at || 0).getTime()));
+        updateLocalTags(postData.tags || []);
+      }
     }
-  }, [user, editingPost, loadData]);
+  }, [user, editingPost]);
 
   useEffect(() => {
     if (location.state?.newPostData) {
