@@ -53,10 +53,21 @@ This section guides you through updating the different parts of your portfolio. 
 
 ### 🖼️ Managing the Photo Gallery
 
-1.  **Navigate:** Go to the **Manage Gallery** page.
-2.  **Upload:** Use the upload form to add new images. The system will automatically attempt to extract EXIF data (camera model, date taken, etc.).
-3.  **AI Tagging:** Use the "Generate Tags" bulk action to have an AI analyze your selected images and create relevant search keywords.
-4.  **Metadata Import/Export:** For bulk uploads, you can manage image metadata (alt text and tags) using a `metadata.json` file. Use the "Download Selected" action to get a ZIP file containing your images and a corresponding `metadata.json` file.
+The gallery management page uses a two-tab system—**Published** and **Unpublished**—to give you precise control over your public gallery.
+
+1.  **Navigate:** Go to the **Manage Gallery** page from the sidebar.
+2.  **Upload Workflow:**
+    *   Use the upload form to add one or more images. You can also include a `metadata.json` file in your selection to bulk-apply alt text and tags.
+    *   Uploaded images automatically appear in the **"Unpublished"** tab, where they are not yet visible to the public.
+    *   In the "Unpublished" tab, you can preview each image and publish it with a single click.
+3.  **Managing Published Images:**
+    *   The **"Published"** tab displays a grid of all your live gallery images.
+    *   **Individual Actions:** Each image has a switch to quickly publish/unpublish it and an "Edit" button to open a dialog where you can update its alt text and tags. If you save with an empty alt text, a descriptive one is automatically generated from the file name.
+    *   **Bulk Actions:** Select multiple images to perform actions on them at once:
+        *   **Unpublish Selected:** Move images back to the "Unpublished" tab.
+        *   **Generate Tags:** Use AI to analyze the selected images and create relevant search keywords.
+        *   **Download Selected:** Export the selected images and a `metadata.json` file as a single ZIP archive, perfect for backups.
+        *   **Delete Selected:** Permanently delete images and their associated data.
 
 ### 🗺️ Managing the Travel Map
 

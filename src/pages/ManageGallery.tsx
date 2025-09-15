@@ -47,7 +47,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { UnpublishedList } from "@/components/gallery/UnpublishedList";
 
 const editSchema = z.object({
-  alt_text: z.string().min(3, "Alt text must be at least 3 characters.").max(200, "Alt text cannot exceed 200 characters."),
+  alt_text: z.string().max(200, "Alt text cannot exceed 200 characters."),
   tags: z.string().optional(),
 });
 
@@ -136,8 +136,14 @@ const ManageGallery = () => {
     if (!editingImage) return;
     const toastId = showLoading("Updating image data...");
     try {
+      let finalAltText = values.alt_text;
+      if (!finalAltText || finalAltText.trim() === '') {
+        const originalFileName = editingImage.file_name.split('/').pop()?.split('_').slice(1).join('_') || editingImage.file_name;
+        finalAltText = originalFileName.replace(/\.[^/.]+$/, "").replace(/_/g, ' ');
+      }
+
       const tagsArray = values.tags?.split(',').map(t => t.trim()).filter(Boolean) || [];
-      const { error } = await supabase.from("gallery_images").update({ alt_text: values.alt_text, tags: tagsArray }).eq("id", editingImage.id);
+      const { error } = await supabase.from("gallery_images").update({ alt_text: finalAltText, tags: tagsArray }).eq("id", editingImage.id);
       if (error) throw error;
       dismissToast(toastId);
       showSuccess("Image data updated successfully!");
@@ -212,7 +218,20 @@ const ManageGallery = () => {
             <CardDescription>Select one or more images to upload. They will appear in the "Unpublished" tab.</CardDescription>
           </CardHeader>
           <CardContent>
-            {/* Upload form remains the same */}
+            <div className="flex items-center gap-4">
+              <Input
+                id="file-input"
+                type="file"
+                multiple
+                accept="image/jpeg,image/png,image/tiff,application/json"
+                onChange={handleFileChange}
+                className="flex-grow"
+              />
+              <Button onClick={handleUpload} disabled={isUploading || !selectedFiles}>
+                <Upload className="h-4 w-4 mr-2" />
+                {isUploading ? "Uploading..." : "Upload"}
+              </Button>
+            </div>
           </CardContent>
         </Card>
 
@@ -223,8 +242,58 @@ const ManageGallery = () => {
           </TabsList>
           <TabsContent value="published">
             <Card>
-              <CardHeader>
-                {/* Header with bulk actions */}
+              <CardHeader className="flex flex-row items-center justify-between">
+                <div>
+                  <CardTitle>Published Images</CardTitle>
+                  <CardDescription>These images are visible on your public gallery. Select images to perform bulk actions.</CardDescription>
+                </div>
+                <div className="flex gap-2">
+                  {selectedImages.size > 0 && (
+                    <>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="outline">
+                            Bulk Actions ({selectedImages.size})
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem onClick={() => handleBulkPublishWrapper(false)}>
+                            Unpublish Selected
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={handleGenerateTagsWrapper}>
+                            Generate Tags
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={handleBulkDownloadWrapper}>
+                            <Download className="h-4 w-4 mr-2" />
+                            Download Selected
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                      <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                          <Button variant="destructive">
+                            <Trash2 className="h-4 w-4 mr-2" />
+                            Delete ({selectedImages.size})
+                          </Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                          <AlertDialogHeader>
+                            <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                            <AlertDialogDescription>
+                              This will permanently delete the {selectedImages.size} selected image(s). This action cannot be undone.
+                            </AlertDialogDescription>
+                          </AlertDialogHeader>
+                          <AlertDialogFooter>
+                            <AlertDialogCancel>Cancel</AlertDialogCancel>
+                            <AlertDialogAction onClick={() => handleDeleteWrapper(Array.from(selectedImages))}>
+                              Delete
+                            </AlertDialogAction>
+                          </AlertDialogFooter>
+                        </AlertDialogContent>
+                      </AlertDialog>
+                    </>
+                  )}
+                </div>
               </CardHeader>
               <CardContent>
                 {isLoading ? <p>Loading...</p> : publishedImages.length > 0 ? (
@@ -261,7 +330,54 @@ const ManageGallery = () => {
       </div>
 
       <Dialog open={!!editingImage} onOpenChange={(isOpen) => !isOpen && setEditingImage(null)}>
-        {/* Edit Dialog remains the same */}
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Edit Image Data</DialogTitle>
+            <DialogDescription>
+              Update the alt text and tags for this image.
+            </DialogDescription>
+          </DialogHeader>
+          <Form {...form}>
+            <form onSubmit={form.handleSubmit(handleUpdateImageData)} className="space-y-4">
+              <FormField
+                control={form.control}
+                name="alt_text"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Alt Text</FormLabel>
+                    <FormControl>
+                      <Textarea
+                        placeholder="e.g., A beautiful sunset over the mountains"
+                        {...field}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="tags"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Tags (comma-separated)</FormLabel>
+                    <FormControl>
+                      <Input
+                        placeholder="e.g., nature, mountains, sunset"
+                        {...field}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <DialogFooter>
+                <Button type="button" variant="outline" onClick={() => setEditingImage(null)}>Cancel</Button>
+                <Button type="submit">Save Changes</Button>
+              </DialogFooter>
+            </form>
+          </Form>
+        </DialogContent>
       </Dialog>
     </>
   );
