@@ -30,3 +30,10 @@ export function sanitizeFileName(fileName: string): string {
 
   return asciiNormalized;
 }
+
+export function generateAltTextFromFileName(fileName: string): string {
+  if (!fileName) return "";
+  // Get the last part of the path, remove the user_id/timestamp prefix, remove extension, and replace underscores with spaces.
+  const originalFileName = fileName.split('/').pop()?.split('_').slice(1).join('_') || fileName;
+  return originalFileName.replace(/\.[^/.]+$/, "").replace(/_/g, ' ');
+}

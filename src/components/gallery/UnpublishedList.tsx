@@ -8,9 +8,10 @@ import { Eye, CheckCircle } from "lucide-react";
 interface UnpublishedListProps {
   images: GalleryImage[];
   onPublish: (image: GalleryImage) => void;
+  onUpdate: () => void;
 }
 
-export const UnpublishedList = ({ images, onPublish }: UnpublishedListProps) => {
+export const UnpublishedList = ({ images, onPublish, onUpdate }: UnpublishedListProps) => {
   const [selectedImage, setSelectedImage] = useState<GalleryImage | null>(null);
 
   if (images.length === 0) {
@@ -61,6 +62,7 @@ export const UnpublishedList = ({ images, onPublish }: UnpublishedListProps) => 
         onNavigate={() => {}}
         hasNext={false}
         hasPrev={false}
+        onUpdate={onUpdate}
       />
     </>
   );

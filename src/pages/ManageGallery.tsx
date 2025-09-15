@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useRef } from "react";
+import { useMemo, useRef, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -9,9 +9,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter }
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { supabase } from "@/integrations/supabase/client";
-import { showSuccess, showError, showLoading, dismissToast, updateToastSuccess, updateToastError, updateToastLoading } from "@/utils/toast";
+import { showSuccess, showError, showLoading, dismissToast } from "@/utils/toast";
 import { Upload, Trash2, Edit, Download } from "lucide-react";
-import type { GalleryImage } from "@/types";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -23,9 +22,6 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { useAuth } from "@/contexts/AuthContext";
-import { sanitizeFileName } from "@/lib/utils";
-import imageCompression from 'browser-image-compression';
 import { Checkbox } from "@/components/ui/checkbox";
 import { ManagementPagination } from "@/components/ManagementPagination";
 import { usePaginationNavigation } from "@/hooks/usePaginationNavigation";
@@ -35,16 +31,11 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import {
-  fetchImages,
-  handleDelete,
-  handleBulkPublish,
-  handleGenerateTags,
-  handleBulkDownload,
-} from "@/components/gallery/GalleryManagementUtils.ts";
 import { ManagedImage } from "@/components/gallery/ManagedImage";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { UnpublishedList } from "@/components/gallery/UnpublishedList";
+import { useGalleryManagement } from "@/hooks/useGalleryManagement";
+import { generateAltTextFromFileName } from "@/lib/utils";
 
 const editSchema = z.object({
   alt_text: z.string().max(200, "Alt text cannot exceed 200 characters."),
@@ -52,18 +43,31 @@ const editSchema = z.object({
 });
 
 const ManageGallery = () => {
-  const { user } = useAuth();
-  const [allImages, setAllImages] = useState<GalleryImage[]>([]);
-  const [selectedFiles, setSelectedFiles] = useState<FileList | null>(null);
-  const [isUploading, setIsUploading] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
-  const [selectedImages, setSelectedImages] = useState(new Set<string>());
-  const [editingImage, setEditingImage] = useState<GalleryImage | null>(null);
+  const {
+    allImages,
+    selectedFiles,
+    isUploading,
+    isLoading,
+    selectedImages,
+    editingImage,
+    currentPage,
+    imagesPerPage,
+    loadImages,
+    setSelectedFiles,
+    setEditingImage,
+    handleUpload,
+    handleDeleteWrapper,
+    handleTogglePublish,
+    handleBulkPublishWrapper,
+    handleGenerateTagsWrapper,
+    handleBulkDownloadWrapper,
+    handleSelectImage,
+    handleSelectAll,
+    setCurrentPage,
+    setImagesPerPage,
+  } = useGalleryManagement();
+
   const containerRef = useRef<HTMLDivElement>(null);
-
-  const [currentPage, setCurrentPage] = useState(1);
-  const [imagesPerPage, setImagesPerPage] = useState(10);
-
   const form = useForm<z.infer<typeof editSchema>>({
     resolver: zodResolver(editSchema),
     defaultValues: { alt_text: "", tags: "" },
@@ -71,23 +75,12 @@ const ManageGallery = () => {
 
   useEffect(() => {
     if (editingImage) {
-      form.reset({ 
+      form.reset({
         alt_text: editingImage.alt_text || '',
         tags: editingImage.tags?.join(', ') || '',
       });
     }
   }, [editingImage, form]);
-
-  useEffect(() => {
-    loadImages();
-  }, []);
-
-  const loadImages = async () => {
-    setIsLoading(true);
-    const fetchedImages = await fetchImages();
-    setAllImages(fetchedImages);
-    setIsLoading(false);
-  };
 
   const publishedImages = useMemo(() => allImages.filter(img => img.published), [allImages]);
   const unpublishedImages = useMemo(() => allImages.filter(img => !img.published), [allImages]);
@@ -107,39 +100,13 @@ const ManageGallery = () => {
     enabled: !editingImage,
   });
 
-  const handleItemsPerPageChange = (value: number) => {
-    setImagesPerPage(value);
-    setCurrentPage(1);
-  };
-
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setSelectedFiles(e.target.files);
-  };
-
-  const handleUpload = async () => {
-    if (!selectedFiles || selectedFiles.length === 0 || !user) return;
-    setIsUploading(true);
-    const toastId = showLoading(`Uploading ${selectedFiles.length} file(s)...`);
-    // ... [rest of upload logic remains the same]
-    setIsUploading(false);
-    loadImages();
-  };
-
-  const handleDeleteWrapper = async (imageIds: string[]) => {
-    if (await handleDelete(imageIds, allImages)) {
-      setSelectedImages(new Set());
-      loadImages();
-    }
-  };
-
   const handleUpdateImageData = async (values: z.infer<typeof editSchema>) => {
     if (!editingImage) return;
     const toastId = showLoading("Updating image data...");
     try {
       let finalAltText = values.alt_text;
       if (!finalAltText || finalAltText.trim() === '') {
-        const originalFileName = editingImage.file_name.split('/').pop()?.split('_').slice(1).join('_') || editingImage.file_name;
-        finalAltText = originalFileName.replace(/\.[^/.]+$/, "").replace(/_/g, ' ');
+        finalAltText = generateAltTextFromFileName(editingImage.file_name);
       }
 
       const tagsArray = values.tags?.split(',').map(t => t.trim()).filter(Boolean) || [];
@@ -153,58 +120,6 @@ const ManageGallery = () => {
       dismissToast(toastId);
       showError(`Update failed: ${error.message}`);
     }
-  };
-
-  const handleSelectImage = (id: string) => {
-    const newSelection = new Set(selectedImages);
-    newSelection.has(id) ? newSelection.delete(id) : newSelection.add(id);
-    setSelectedImages(newSelection);
-  };
-
-  const handleSelectAll = (checked: boolean) => {
-    const pageIds = new Set(paginatedPublishedImages.map(i => i.id));
-    if (checked) {
-      setSelectedImages(prev => new Set([...prev, ...pageIds]));
-    } else {
-      setSelectedImages(prev => {
-        const newSet = new Set(prev);
-        pageIds.forEach(id => newSet.delete(id));
-        return newSet;
-      });
-    }
-  };
-
-  const handleTogglePublish = async (image: GalleryImage) => {
-    const newPublishedStatus = !image.published;
-    const toastId = showLoading(newPublishedStatus ? "Publishing..." : "Unpublishing...");
-    const { error } = await supabase.from("gallery_images").update({ published: newPublishedStatus }).eq("id", image.id);
-    if (error) {
-      dismissToast(toastId);
-      showError(`Failed to update status: ${error.message}`);
-    } else {
-      dismissToast(toastId);
-      showSuccess(`Image ${newPublishedStatus ? "published" : "unpublished"}.`);
-      loadImages();
-    }
-  };
-
-  const handleBulkPublishWrapper = async (publishStatus: boolean) => {
-    if (await handleBulkPublish(selectedImages, publishStatus)) {
-      setSelectedImages(new Set());
-      loadImages();
-    }
-  };
-
-  const handleGenerateTagsWrapper = async () => {
-    if ((await handleGenerateTags(selectedImages, allImages)) > 0) {
-      loadImages();
-    }
-    setSelectedImages(new Set());
-  };
-
-  const handleBulkDownloadWrapper = async () => {
-    await handleBulkDownload(selectedImages, allImages);
-    setSelectedImages(new Set());
   };
 
   const allOnPageSelected = paginatedPublishedImages.length > 0 && paginatedPublishedImages.every(i => selectedImages.has(i.id));
@@ -224,7 +139,7 @@ const ManageGallery = () => {
                 type="file"
                 multiple
                 accept="image/jpeg,image/png,image/tiff,application/json"
-                onChange={handleFileChange}
+                onChange={(e) => setSelectedFiles(e.target.files)}
                 className="flex-grow"
               />
               <Button onClick={handleUpload} disabled={isUploading || !selectedFiles}>
@@ -299,7 +214,7 @@ const ManageGallery = () => {
                 {isLoading ? <p>Loading...</p> : publishedImages.length > 0 ? (
                   <>
                     <div className="flex items-center space-x-2 mb-4 pb-4 border-b">
-                      <Checkbox id="select-all" checked={allOnPageSelected} onCheckedChange={handleSelectAll} disabled={paginatedPublishedImages.length === 0} />
+                      <Checkbox id="select-all" checked={allOnPageSelected} onCheckedChange={(checked) => handleSelectAll(Boolean(checked), paginatedPublishedImages)} disabled={paginatedPublishedImages.length === 0} />
                       <label htmlFor="select-all">Select All on Page</label>
                     </div>
                     <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
@@ -311,7 +226,7 @@ const ManageGallery = () => {
                 ) : <p className="text-center py-8">No published images.</p>}
               </CardContent>
               <CardFooter>
-                <ManagementPagination currentPage={currentPage} totalPages={totalPages} onPageChange={setCurrentPage} itemsPerPage={imagesPerPage} onItemsPerPageChange={handleItemsPerPageChange} totalItems={publishedImages.length} />
+                <ManagementPagination currentPage={currentPage} totalPages={totalPages} onPageChange={setCurrentPage} itemsPerPage={imagesPerPage} onItemsPerPageChange={setImagesPerPage} totalItems={publishedImages.length} />
               </CardFooter>
             </Card>
           </TabsContent>
@@ -322,7 +237,7 @@ const ManageGallery = () => {
                 <CardDescription>These images are not visible on your public gallery. Click "Publish" to make them live.</CardDescription>
               </CardHeader>
               <CardContent>
-                <UnpublishedList images={unpublishedImages} onPublish={handleTogglePublish} />
+                <UnpublishedList images={unpublishedImages} onPublish={handleTogglePublish} onUpdate={loadImages} />
               </CardContent>
             </Card>
           </TabsContent>

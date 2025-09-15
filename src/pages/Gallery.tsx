@@ -1,16 +1,15 @@
 import { Card, CardContent } from "@/components/ui/card";
 import { AspectRatio } from "@/components/ui/aspect-ratio";
-import { useEffect, useState, useMemo, useRef, lazy, Suspense, ComponentType } from "react";
+import { useEffect, useState, useMemo, useRef, lazy, Suspense, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import type { GalleryImage } from "@/types";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Input } from "@/components/ui/input";
-import { Search, Image as ImageIcon, AlertTriangle, FileText, Camera, Tag } from "lucide-react";
+import { Search } from "lucide-react";
 import { useDebounce } from "@/hooks/useDebounce";
 import { PaginationControls } from "@/components/PaginationControls";
 import { usePaginationNavigation } from "@/hooks/usePaginationNavigation";
 import { Button } from "@/components/ui/button";
-import { showError } from "@/utils/toast";
 
 const LazyImageLightbox = lazy(() => import("@/components/ImageLightbox").then(module => ({ default: module.ImageLightbox })));
 
@@ -27,25 +26,25 @@ const Gallery = () => {
 
   const debouncedSearchTerm = useDebounce(searchTerm, 500);
 
-  useEffect(() => {
-    const fetchImages = async () => {
-      setLoading(true);
-      const { data, error } = await supabase
-        .from("gallery_images")
-        .select("*")
-        .eq("published", true)
-        .order("created_at", { ascending: false });
+  const fetchImages = useCallback(async () => {
+    setLoading(true);
+    const { data, error } = await supabase
+      .from("gallery_images")
+      .select("*")
+      .eq("published", true)
+      .order("created_at", { ascending: false });
 
-      if (error) {
-        console.error("Error fetching gallery images:", error);
-      } else {
-        setAllImages(data as GalleryImage[]);
-      }
-      setLoading(false);
-    };
-
-    fetchImages();
+    if (error) {
+      console.error("Error fetching gallery images:", error);
+    } else {
+      setAllImages(data as GalleryImage[]);
+    }
+    setLoading(false);
   }, []);
+
+  useEffect(() => {
+    fetchImages();
+  }, [fetchImages]);
 
   const deviceMakes = useMemo(() => Array.from(
     new Set(allImages.map(img => img.exif_data?.Make).filter(Boolean) as string[])
@@ -197,6 +196,7 @@ const Gallery = () => {
           onNavigate={handleNavigate}
           hasNext={filteredImages.length > 1}
           hasPrev={filteredImages.length > 1}
+          onUpdate={fetchImages}
         />
       </Suspense>
     </>
