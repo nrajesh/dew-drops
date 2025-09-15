@@ -130,22 +130,35 @@ const ManageGallery = () => {
         <Card>
           <CardHeader>
             <CardTitle>Upload to Gallery</CardTitle>
-            <CardDescription>Select one or more images to upload. They will appear in the "Unpublished" tab.</CardDescription>
+            <CardDescription>Select images to upload. You can also include a `metadata.json` file to apply alt text and tags automatically.</CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="flex items-center gap-4">
-              <Input
-                id="file-input"
-                type="file"
-                multiple
-                accept="image/jpeg,image/png,image/tiff,application/json"
-                onChange={(e) => setSelectedFiles(e.target.files)}
-                className="flex-grow"
-              />
-              <Button onClick={handleUpload} disabled={isUploading || !selectedFiles}>
-                <Upload className="h-4 w-4 mr-2" />
-                {isUploading ? "Uploading..." : "Upload"}
-              </Button>
+            <div className="space-y-4">
+              <div className="flex items-center justify-between p-3 bg-muted rounded-md">
+                <p className="text-sm text-muted-foreground">
+                  Need a template for your metadata?
+                </p>
+                <Button asChild variant="secondary" size="sm">
+                  <a href="/sample-metadata.json" download>
+                    <Download className="h-4 w-4 mr-2" />
+                    Download Sample
+                  </a>
+                </Button>
+              </div>
+              <div className="flex items-center gap-4">
+                <Input
+                  id="file-input"
+                  type="file"
+                  multiple
+                  accept="image/jpeg,image/png,image/tiff,application/json"
+                  onChange={(e) => setSelectedFiles(e.target.files)}
+                  className="flex-grow"
+                />
+                <Button onClick={handleUpload} disabled={isUploading || !selectedFiles}>
+                  <Upload className="h-4 w-4 mr-2" />
+                  {isUploading ? "Uploading..." : "Upload"}
+                </Button>
+              </div>
             </div>
           </CardContent>
         </Card>

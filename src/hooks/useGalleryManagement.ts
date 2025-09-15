@@ -42,48 +42,77 @@ export const useGalleryManagement = () => {
     const toastId = showLoading(`Preparing ${selectedFiles.length} file(s)...`);
 
     const files = Array.from(selectedFiles);
-    let successfulUploads = 0;
+    let metadataMap = new Map<string, { alt_text: string; tags: string[] }>();
 
-    for (let i = 0; i < files.length; i++) {
-      const file = files[i];
-      updateToastLoading(toastId, `Uploading ${i + 1} of ${files.length}: ${file.name}`);
-      try {
-        const compressedFile = await imageCompression(file, {
-          maxSizeMB: 1,
-          maxWidthOrHeight: 1920,
-          useWebWorker: true,
-        });
+    const metadataFile = files.find(f => f.name.toLowerCase() === 'metadata.json');
+    const imageFiles = files.filter(f => f.name.toLowerCase() !== 'metadata.json');
 
-        const sanitizedName = sanitizeFileName(compressedFile.name);
-        const fileName = `${user.id}/${Date.now()}_${sanitizedName}`;
-
-        const { error: uploadError } = await supabase.storage
-          .from('gallery')
-          .upload(fileName, compressedFile);
-
-        if (uploadError) throw uploadError;
-
-        const { data: { publicUrl } } = supabase.storage.from('gallery').getPublicUrl(fileName);
-
-        const { error: dbError } = await supabase.from('gallery_images').insert({
-          user_id: user.id,
-          file_name: fileName,
-          image_url: publicUrl,
-          published: false,
-        });
-
-        if (dbError) throw dbError;
-        successfulUploads++;
-      } catch (error: any) {
-        updateToastError(toastId, `Failed to upload ${file.name}: ${error.message}`);
-        await new Promise(resolve => setTimeout(resolve, 2000));
-      }
+    if (metadataFile) {
+        try {
+            const metadataContent = await metadataFile.text();
+            const metadataArray = JSON.parse(metadataContent);
+            if (Array.isArray(metadataArray)) {
+                metadataArray.forEach(item => {
+                    if (item.fileName) {
+                        metadataMap.set(item.fileName, {
+                            alt_text: item.alt_text || '',
+                            tags: item.tags || [],
+                        });
+                    }
+                });
+                showSuccess("Found and processed metadata.json.");
+            }
+        } catch (e) {
+            showError("Could not parse metadata.json. Uploading images without metadata.");
+        }
     }
 
-    if (successfulUploads === files.length) {
-      updateToastSuccess(toastId, "All files uploaded successfully!");
+    let successfulUploads = 0;
+
+    for (let i = 0; i < imageFiles.length; i++) {
+        const file = imageFiles[i];
+        updateToastLoading(toastId, `Uploading ${i + 1} of ${imageFiles.length}: ${file.name}`);
+        try {
+            const compressedFile = await imageCompression(file, {
+                maxSizeMB: 1,
+                maxWidthOrHeight: 1920,
+                useWebWorker: true,
+            });
+
+            const sanitizedName = sanitizeFileName(compressedFile.name);
+            const fileName = `${user.id}/${Date.now()}_${sanitizedName}`;
+
+            const { error: uploadError } = await supabase.storage
+                .from('gallery')
+                .upload(fileName, compressedFile);
+
+            if (uploadError) throw uploadError;
+
+            const { data: { publicUrl } } = supabase.storage.from('gallery').getPublicUrl(fileName);
+
+            const metadata = metadataMap.get(file.name);
+
+            const { error: dbError } = await supabase.from('gallery_images').insert({
+                user_id: user.id,
+                file_name: fileName,
+                image_url: publicUrl,
+                published: false,
+                alt_text: metadata?.alt_text,
+                tags: metadata?.tags,
+            });
+
+            if (dbError) throw dbError;
+            successfulUploads++;
+        } catch (error: any) {
+            updateToastError(toastId, `Failed to upload ${file.name}: ${error.message}`);
+            await new Promise(resolve => setTimeout(resolve, 2000));
+        }
+    }
+
+    if (successfulUploads === imageFiles.length) {
+        updateToastSuccess(toastId, "All files uploaded successfully!");
     } else {
-      showError(`${successfulUploads} of ${files.length} files uploaded. Check console for errors.`);
+        showError(`${successfulUploads} of ${imageFiles.length} files uploaded. Check console for errors.`);
     }
 
     setIsUploading(false);
