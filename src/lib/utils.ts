@@ -11,21 +11,28 @@ export function sanitizeFileName(fileName: string): string {
     // Attempt to decode, as filenames from some sources might be URI encoded.
     decodedName = decodeURIComponent(fileName);
   } catch (e) {
-    // Ignore error if the filename is not a valid URI component (e.g., contains '%').
+    // Ignore error if the filename is not a valid URI component.
   }
 
-  // Normalize Unicode to handle characters like "é" consistently.
-  const normalized = decodedName.normalize('NFC');
+  // Normalize to NFD (Normalization Form Canonical Decomposition).
+  // This separates base characters from their diacritical marks (e.g., "é" becomes "e" + "´").
+  const normalized = decodedName.normalize('NFD');
+
+  // Remove the diacritical marks.
+  const withoutDiacritics = normalized.replace(/[\u0300-\u036f]/g, '');
 
   // Replace whitespace with a single underscore.
-  const withUnderscores = normalized.replace(/\s+/g, '_');
+  const withUnderscores = withoutDiacritics.replace(/\s+/g, '_');
 
-  // Remove characters invalid in most file systems and control characters.
-  // Invalid chars: / \ : * ? " < > |
-  const sanitized = withUnderscores.replace(/[\\/:\*\?"<>\|]|[\x00-\x1f\x7f]/g, '');
+  // Remove any character that is not a letter, number, underscore, dot, or hyphen.
+  // This is a very safe character set for filenames.
+  const sanitized = withUnderscores.replace(/[^a-zA-Z0-9_.-]/g, '');
 
   // Remove leading/trailing underscores or dots.
-  return sanitized.replace(/^[_.]+|[_.]+$/g, '');
+  const finalName = sanitized.replace(/^[_.]+|[_.]+$/g, '');
+
+  // Ensure the filename is not empty after sanitization.
+  return finalName || "sanitized_file";
 }
 
 export function generateAltTextFromFileName(fileName: string): string {
