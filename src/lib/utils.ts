@@ -20,13 +20,15 @@ export function sanitizeFileName(fileName: string): string {
   // Trim leading/trailing underscores or dots that might result from sanitization
   const trimmed = sanitized.replace(/^[_.]+|[_.]+$/g, '');
 
-  // Convert to NFC form to handle combining characters
+  // Convert to NFC form to handle combining characters, which is good practice for file systems.
   const normalized = trimmed.normalize('NFC');
 
-  // Replace any remaining special characters with their closest ASCII equivalents
-  const asciiNormalized = normalized.replace(/[^\x00-\x7F]/g, function(char) {
-    return char.charCodeAt(0).toString(16).padStart(4, '0');
-  });
+  return normalized;
+}
 
-  return asciiNormalized;
+export function generateAltTextFromFileName(fileName: string): string {
+  if (!fileName) return "";
+  // Get the last part of the path, remove the user_id/timestamp prefix, remove extension, and replace underscores with spaces.
+  const originalFileName = fileName.split('/').pop()?.split('_').slice(1).join('_') || fileName;
+  return originalFileName.replace(/\.[^/.]+$/, "").replace(/_/g, ' ');
 }

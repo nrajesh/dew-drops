@@ -1,0 +1,12 @@
+[
+  {
+    "fileName": "your-image-name.jpg",
+    "alt_text": "A descriptive alt text for the image.",
+    "tags": ["tag1", "tag2", "example"]
+  },
+  {
+    "fileName": "another-photo.png",
+    "alt_text": "Description for the second photo.",
+    "tags": ["photo", "sample"]
+  }
+]

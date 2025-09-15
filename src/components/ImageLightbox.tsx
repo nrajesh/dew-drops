@@ -6,8 +6,8 @@ import { CardDescription, CardHeader, CardTitle } from "./ui/card";
 import { Textarea } from "./ui/textarea";
 import { Button } from "./ui/button";
 import { useAuth } from "@/contexts/AuthContext";
-import { showSuccess, showError, showLoading, dismissToast } from "@/utils/toast";
-import { supabase } from "@/integrations/supabase/client";
+import { updateImageAltText } from "./gallery/GalleryManagementUtils";
+import { generateAltTextFromFileName } from "@/lib/utils";
 
 interface ImageLightboxProps {
   image: GalleryImage | null;
@@ -15,6 +15,7 @@ interface ImageLightboxProps {
   onNavigate: (direction: 'prev' | 'next') => void;
   hasNext: boolean;
   hasPrev: boolean;
+  onUpdate: () => void; // Callback to refresh gallery data
 }
 
 const backdropVariants: Variants = {
@@ -75,7 +76,7 @@ const ExifDisplay = ({ data }: { data: Record<string, any> }) => {
   );
 };
 
-export const ImageLightbox = ({ image, onClose, onNavigate, hasNext, hasPrev }: ImageLightboxProps) => {
+export const ImageLightbox = ({ image, onClose, onNavigate, hasNext, hasPrev, onUpdate }: ImageLightboxProps) => {
   const [showExif, setShowExif] = useState(false);
   const [touchStart, setTouchStart] = useState<number | null>(null);
   const [touchEnd, setTouchEnd] = useState<number | null>(null);
@@ -103,14 +104,12 @@ export const ImageLightbox = ({ image, onClose, onNavigate, hasNext, hasPrev }: 
     };
   }, [onClose, onNavigate, hasNext, hasPrev, showExif]);
 
-  // Reset EXIF view when image changes
   useEffect(() => {
     setShowExif(false);
     setAltText(image?.alt_text || "");
   }, [image]);
 
-  const exifData = image?.exif_data;
-  const captionText = image?.alt_text || (image?.file_name ? image.file_name.split('_').slice(1).join('_').replace(/\.[^/.]+$/, "").replace(/[^\w\s]/g, '') : "");
+  const captionText = image?.alt_text || generateAltTextFromFileName(image?.file_name || "");
   const showCaption = captionText && !/\.(jpe?g|png|tiff|gif)$/i.test(captionText);
 
   const minSwipeDistance = 50;
@@ -138,18 +137,9 @@ export const ImageLightbox = ({ image, onClose, onNavigate, hasNext, hasPrev }: 
 
   const handleAltTextUpdate = async () => {
     if (!image || !session) return;
-
-    const toastId = showLoading("Updating alt text...");
-    const { error } = await supabase
-      .from("gallery_images")
-      .update({ alt_text: altText })
-      .eq("id", image.id);
-
-    dismissToast(toastId);
-    if (error) {
-      showError(`Update failed: ${error.message}`);
-    } else {
-      showSuccess("Alt text updated successfully!");
+    const success = await updateImageAltText(image.id, altText);
+    if (success) {
+      onUpdate(); // Trigger data refresh in parent component
     }
   };
 
@@ -168,7 +158,6 @@ export const ImageLightbox = ({ image, onClose, onNavigate, hasNext, hasPrev }: 
           onTouchMove={onTouchMove}
           onTouchEnd={onTouchEnd}
         >
-          {/* Navigation and Close Buttons */}
           {hasPrev && (
             <button
               onClick={(e) => { e.stopPropagation(); onNavigate('prev'); }}
@@ -195,8 +184,7 @@ export const ImageLightbox = ({ image, onClose, onNavigate, hasNext, hasPrev }: 
             <X size={32} />
           </button>
 
-          {/* EXIF Info Button */}
-          {exifData && Object.keys(exifData).length > 0 && (
+          {image.exif_data && Object.keys(image.exif_data).length > 0 && (
             <button
               onClick={(e) => { e.stopPropagation(); setShowExif(true); }}
               className="absolute top-4 left-4 text-white/80 hover:text-white transition-colors z-20"
@@ -206,7 +194,6 @@ export const ImageLightbox = ({ image, onClose, onNavigate, hasNext, hasPrev }: 
             </button>
           )}
 
-          {/* Main Image and Description */}
           <motion.div
             className="relative max-w-4xl w-full flex flex-col items-center gap-2"
             onClick={(e) => e.stopPropagation()}
@@ -240,9 +227,8 @@ export const ImageLightbox = ({ image, onClose, onNavigate, hasNext, hasPrev }: 
             )}
           </motion.div>
 
-          {/* EXIF Overlay */}
           <AnimatePresence>
-            {showExif && exifData && (
+            {showExif && image.exif_data && (
               <motion.div
                 className="absolute inset-0 z-30 flex items-center justify-center p-4"
                 initial={{ opacity: 0 }}
@@ -272,7 +258,7 @@ export const ImageLightbox = ({ image, onClose, onNavigate, hasNext, hasPrev }: 
                   >
                     <X size={20} />
                   </button>
-                  <ExifDisplay data={exifData} />
+                  <ExifDisplay data={image.exif_data} />
                 </motion.div>
               </motion.div>
             )}

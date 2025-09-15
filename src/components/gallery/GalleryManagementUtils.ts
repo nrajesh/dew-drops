@@ -17,6 +17,23 @@ export const fetchImages = async (): Promise<GalleryImage[]> => {
   return data as GalleryImage[];
 };
 
+export const updateImageAltText = async (imageId: string, altText: string): Promise<boolean> => {
+  const toastId = showLoading("Updating alt text...");
+  const { error } = await supabase
+    .from("gallery_images")
+    .update({ alt_text: altText })
+    .eq("id", imageId);
+
+  dismissToast(toastId);
+  if (error) {
+    showError(`Update failed: ${error.message}`);
+    return false;
+  } else {
+    showSuccess("Alt text updated successfully!");
+    return true;
+  }
+};
+
 export const handleDelete = async (imageIds: string[], allImages: GalleryImage[]): Promise<boolean> => {
   const toastId = showLoading(`Deleting ${imageIds.length} image(s)...`);
   try {

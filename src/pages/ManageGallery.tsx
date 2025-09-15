@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useRef } from "react";
+import { useMemo, useRef, useEffect, useState, Suspense, lazy } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -9,9 +9,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter }
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { supabase } from "@/integrations/supabase/client";
-import { showSuccess, showError, showLoading, dismissToast, updateToastSuccess, updateToastError, updateToastLoading } from "@/utils/toast";
+import { showSuccess, showError, showLoading, dismissToast } from "@/utils/toast";
 import { Upload, Trash2, Edit, Download } from "lucide-react";
-import type { GalleryImage } from "@/types";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -23,9 +22,6 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { useAuth } from "@/contexts/AuthContext";
-import { sanitizeFileName } from "@/lib/utils";
-import imageCompression from 'browser-image-compression';
 import { Checkbox } from "@/components/ui/checkbox";
 import { ManagementPagination } from "@/components/ManagementPagination";
 import { usePaginationNavigation } from "@/hooks/usePaginationNavigation";
@@ -35,16 +31,14 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import {
-  fetchImages,
-  handleDelete,
-  handleBulkPublish,
-  handleGenerateTags,
-  handleBulkDownload,
-} from "@/components/gallery/GalleryManagementUtils.ts";
 import { ManagedImage } from "@/components/gallery/ManagedImage";
+import { UnpublishedImageListItem } from "@/components/gallery/UnpublishedImageListItem";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { UnpublishedList } from "@/components/gallery/UnpublishedList";
+import { useGalleryManagement } from "@/hooks/useGalleryManagement";
+import { generateAltTextFromFileName } from "@/lib/utils";
+import type { GalleryImage } from "@/types";
+
+const LazyImageLightbox = lazy(() => import("@/components/ImageLightbox").then(module => ({ default: module.ImageLightbox })));
 
 const editSchema = z.object({
   alt_text: z.string().max(200, "Alt text cannot exceed 200 characters."),
@@ -52,17 +46,41 @@ const editSchema = z.object({
 });
 
 const ManageGallery = () => {
-  const { user } = useAuth();
-  const [allImages, setAllImages] = useState<GalleryImage[]>([]);
-  const [selectedFiles, setSelectedFiles] = useState<FileList | null>(null);
-  const [isUploading, setIsUploading] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
-  const [selectedImages, setSelectedImages] = useState(new Set<string>());
-  const [editingImage, setEditingImage] = useState<GalleryImage | null>(null);
-  const containerRef = useRef<HTMLDivElement>(null);
+  const {
+    allImages,
+    selectedFiles,
+    isUploading,
+    isLoading,
+    selectedImages,
+    editingImage,
+    currentPage,
+    unpublishedCurrentPage,
+    imagesPerPage,
+    loadImages,
+    setSelectedFiles,
+    setEditingImage,
+    handleUpload,
+    handleDeleteWrapper,
+    handleTogglePublish,
+    handleBulkPublishWrapper,
+    handleGenerateTagsWrapper,
+    handleBulkDownloadWrapper,
+    handleSelectImage,
+    handleSelectAll,
+    setCurrentPage,
+    setUnpublishedCurrentPage,
+    setImagesPerPage,
+    publishedImages,
+    unpublishedImages,
+    paginatedPublishedImages,
+    paginatedUnpublishedImages,
+    totalPages,
+    unpublishedTotalPages,
+  } = useGalleryManagement();
 
-  const [currentPage, setCurrentPage] = useState(1);
-  const [imagesPerPage, setImagesPerPage] = useState(10);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [lightboxImageIndex, setLightboxImageIndex] = useState<number | null>(null);
+  const [activeLightboxList, setActiveLightboxList] = useState<'published' | 'unpublished' | null>(null);
 
   const form = useForm<z.infer<typeof editSchema>>({
     resolver: zodResolver(editSchema),
@@ -71,66 +89,20 @@ const ManageGallery = () => {
 
   useEffect(() => {
     if (editingImage) {
-      form.reset({ 
+      form.reset({
         alt_text: editingImage.alt_text || '',
         tags: editingImage.tags?.join(', ') || '',
       });
     }
   }, [editingImage, form]);
 
-  useEffect(() => {
-    loadImages();
-  }, []);
-
-  const loadImages = async () => {
-    setIsLoading(true);
-    const fetchedImages = await fetchImages();
-    setAllImages(fetchedImages);
-    setIsLoading(false);
-  };
-
-  const publishedImages = useMemo(() => allImages.filter(img => img.published), [allImages]);
-  const unpublishedImages = useMemo(() => allImages.filter(img => !img.published), [allImages]);
-
-  const paginatedPublishedImages = useMemo(() => {
-    const startIndex = (currentPage - 1) * imagesPerPage;
-    return publishedImages.slice(startIndex, startIndex + imagesPerPage);
-  }, [publishedImages, currentPage, imagesPerPage]);
-
-  const totalPages = Math.ceil(publishedImages.length / imagesPerPage);
-
   usePaginationNavigation({
     currentPage,
     totalPages,
     onPageChange: setCurrentPage,
     targetRef: containerRef,
-    enabled: !editingImage,
+    enabled: !editingImage && lightboxImageIndex === null,
   });
-
-  const handleItemsPerPageChange = (value: number) => {
-    setImagesPerPage(value);
-    setCurrentPage(1);
-  };
-
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setSelectedFiles(e.target.files);
-  };
-
-  const handleUpload = async () => {
-    if (!selectedFiles || selectedFiles.length === 0 || !user) return;
-    setIsUploading(true);
-    const toastId = showLoading(`Uploading ${selectedFiles.length} file(s)...`);
-    // ... [rest of upload logic remains the same]
-    setIsUploading(false);
-    loadImages();
-  };
-
-  const handleDeleteWrapper = async (imageIds: string[]) => {
-    if (await handleDelete(imageIds, allImages)) {
-      setSelectedImages(new Set());
-      loadImages();
-    }
-  };
 
   const handleUpdateImageData = async (values: z.infer<typeof editSchema>) => {
     if (!editingImage) return;
@@ -138,8 +110,7 @@ const ManageGallery = () => {
     try {
       let finalAltText = values.alt_text;
       if (!finalAltText || finalAltText.trim() === '') {
-        const originalFileName = editingImage.file_name.split('/').pop()?.split('_').slice(1).join('_') || editingImage.file_name;
-        finalAltText = originalFileName.replace(/\.[^/.]+$/, "").replace(/_/g, ' ');
+        finalAltText = generateAltTextFromFileName(editingImage.file_name);
       }
 
       const tagsArray = values.tags?.split(',').map(t => t.trim()).filter(Boolean) || [];
@@ -155,59 +126,35 @@ const ManageGallery = () => {
     }
   };
 
-  const handleSelectImage = (id: string) => {
-    const newSelection = new Set(selectedImages);
-    newSelection.has(id) ? newSelection.delete(id) : newSelection.add(id);
-    setSelectedImages(newSelection);
+  const openLightbox = (image: GalleryImage, listType: 'published' | 'unpublished') => {
+    const list = listType === 'published' ? publishedImages : unpublishedImages;
+    const index = list.findIndex(img => img.id === image.id);
+    if (index !== -1) {
+      setActiveLightboxList(listType);
+      setLightboxImageIndex(index);
+    }
   };
 
-  const handleSelectAll = (checked: boolean) => {
-    const pageIds = new Set(paginatedPublishedImages.map(i => i.id));
-    if (checked) {
-      setSelectedImages(prev => new Set([...prev, ...pageIds]));
+  const closeLightbox = () => {
+    setLightboxImageIndex(null);
+    setActiveLightboxList(null);
+  };
+
+  const navigateLightbox = (direction: 'next' | 'prev') => {
+    if (lightboxImageIndex === null || !activeLightboxList) return;
+    const list = activeLightboxList === 'published' ? publishedImages : unpublishedImages;
+    if (direction === 'next') {
+      setLightboxImageIndex((prevIndex) => (prevIndex! + 1) % list.length);
     } else {
-      setSelectedImages(prev => {
-        const newSet = new Set(prev);
-        pageIds.forEach(id => newSet.delete(id));
-        return newSet;
-      });
+      setLightboxImageIndex((prevIndex) => (prevIndex! - 1 + list.length) % list.length);
     }
   };
 
-  const handleTogglePublish = async (image: GalleryImage) => {
-    const newPublishedStatus = !image.published;
-    const toastId = showLoading(newPublishedStatus ? "Publishing..." : "Unpublishing...");
-    const { error } = await supabase.from("gallery_images").update({ published: newPublishedStatus }).eq("id", image.id);
-    if (error) {
-      dismissToast(toastId);
-      showError(`Failed to update status: ${error.message}`);
-    } else {
-      dismissToast(toastId);
-      showSuccess(`Image ${newPublishedStatus ? "published" : "unpublished"}.`);
-      loadImages();
-    }
-  };
+  const lightboxList = activeLightboxList === 'published' ? publishedImages : unpublishedImages;
+  const lightboxImage = lightboxImageIndex !== null ? lightboxList[lightboxImageIndex] : null;
 
-  const handleBulkPublishWrapper = async (publishStatus: boolean) => {
-    if (await handleBulkPublish(selectedImages, publishStatus)) {
-      setSelectedImages(new Set());
-      loadImages();
-    }
-  };
-
-  const handleGenerateTagsWrapper = async () => {
-    if ((await handleGenerateTags(selectedImages, allImages)) > 0) {
-      loadImages();
-    }
-    setSelectedImages(new Set());
-  };
-
-  const handleBulkDownloadWrapper = async () => {
-    await handleBulkDownload(selectedImages, allImages);
-    setSelectedImages(new Set());
-  };
-
-  const allOnPageSelected = paginatedPublishedImages.length > 0 && paginatedPublishedImages.every(i => selectedImages.has(i.id));
+  const allPublishedOnPageSelected = paginatedPublishedImages.length > 0 && paginatedPublishedImages.every(i => selectedImages.has(i.id));
+  const allUnpublishedOnPageSelected = paginatedUnpublishedImages.length > 0 && paginatedUnpublishedImages.every(i => selectedImages.has(i.id));
 
   return (
     <>
@@ -215,30 +162,43 @@ const ManageGallery = () => {
         <Card>
           <CardHeader>
             <CardTitle>Upload to Gallery</CardTitle>
-            <CardDescription>Select one or more images to upload. They will appear in the "Unpublished" tab.</CardDescription>
+            <CardDescription>Select images to upload. You can also include a `.json` file (like the sample) to apply alt text and tags automatically.</CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="flex items-center gap-4">
-              <Input
-                id="file-input"
-                type="file"
-                multiple
-                accept="image/jpeg,image/png,image/tiff,application/json"
-                onChange={handleFileChange}
-                className="flex-grow"
-              />
-              <Button onClick={handleUpload} disabled={isUploading || !selectedFiles}>
-                <Upload className="h-4 w-4 mr-2" />
-                {isUploading ? "Uploading..." : "Upload"}
-              </Button>
+            <div className="space-y-4">
+              <div className="flex items-center justify-between p-3 bg-muted rounded-md">
+                <p className="text-sm text-muted-foreground">
+                  Need a template for your metadata?
+                </p>
+                <Button asChild variant="secondary" size="sm">
+                  <a href="/sample-metadata.json" download>
+                    <Download className="h-4 w-4 mr-2" />
+                    Download Sample
+                  </a>
+                </Button>
+              </div>
+              <div className="flex items-center gap-4">
+                <Input
+                  id="file-input"
+                  type="file"
+                  multiple
+                  accept="image/jpeg,image/png,image/tiff,application/json"
+                  onChange={(e) => setSelectedFiles(e.target.files)}
+                  className="flex-grow"
+                />
+                <Button onClick={handleUpload} disabled={isUploading || !selectedFiles}>
+                  <Upload className="h-4 w-4 mr-2" />
+                  {isUploading ? "Uploading..." : "Upload"}
+                </Button>
+              </div>
             </div>
           </CardContent>
         </Card>
 
         <Tabs defaultValue="published">
           <TabsList className="grid w-full grid-cols-2">
-            <TabsTrigger value="published">Published ({publishedImages.length})</TabsTrigger>
-            <TabsTrigger value="unpublished">Unpublished ({unpublishedImages.length})</TabsTrigger>
+            <TabsTrigger value="published" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">Published ({publishedImages.length})</TabsTrigger>
+            <TabsTrigger value="unpublished" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">Unpublished ({unpublishedImages.length})</TabsTrigger>
           </TabsList>
           <TabsContent value="published">
             <Card>
@@ -299,31 +259,107 @@ const ManageGallery = () => {
                 {isLoading ? <p>Loading...</p> : publishedImages.length > 0 ? (
                   <>
                     <div className="flex items-center space-x-2 mb-4 pb-4 border-b">
-                      <Checkbox id="select-all" checked={allOnPageSelected} onCheckedChange={handleSelectAll} disabled={paginatedPublishedImages.length === 0} />
+                      <Checkbox id="select-all" checked={allPublishedOnPageSelected} onCheckedChange={(checked) => handleSelectAll(Boolean(checked), paginatedPublishedImages)} disabled={paginatedPublishedImages.length === 0} />
                       <label htmlFor="select-all">Select All on Page</label>
                     </div>
                     <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
                       {paginatedPublishedImages.map((image) => (
-                        <ManagedImage key={image.id} image={image} isSelected={selectedImages.has(image.id)} onSelect={handleSelectImage} onTogglePublish={handleTogglePublish} onEdit={setEditingImage} />
+                        <ManagedImage key={image.id} image={image} isSelected={selectedImages.has(image.id)} onSelect={handleSelectImage} onTogglePublish={handleTogglePublish} onEdit={setEditingImage} onView={(img) => openLightbox(img, 'published')} />
                       ))}
                     </div>
                   </>
                 ) : <p className="text-center py-8">No published images.</p>}
               </CardContent>
               <CardFooter>
-                <ManagementPagination currentPage={currentPage} totalPages={totalPages} onPageChange={setCurrentPage} itemsPerPage={imagesPerPage} onItemsPerPageChange={handleItemsPerPageChange} totalItems={publishedImages.length} />
+                <ManagementPagination currentPage={currentPage} totalPages={totalPages} onPageChange={setCurrentPage} itemsPerPage={imagesPerPage} onItemsPerPageChange={setImagesPerPage} totalItems={publishedImages.length} />
               </CardFooter>
             </Card>
           </TabsContent>
           <TabsContent value="unpublished">
             <Card>
-              <CardHeader>
-                <CardTitle>Unpublished Images</CardTitle>
-                <CardDescription>These images are not visible on your public gallery. Click "Publish" to make them live.</CardDescription>
+              <CardHeader className="flex flex-row items-center justify-between">
+                <div>
+                  <CardTitle>Unpublished Images</CardTitle>
+                  <CardDescription>These images are not visible on your public gallery. Select images to perform bulk actions.</CardDescription>
+                </div>
+                <div className="flex gap-2">
+                  {selectedImages.size > 0 && (
+                    <>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="outline">
+                            Bulk Actions ({selectedImages.size})
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem onClick={() => handleBulkPublishWrapper(true)}>
+                            Publish Selected
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={handleGenerateTagsWrapper}>
+                            Generate Tags
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={handleBulkDownloadWrapper}>
+                            <Download className="h-4 w-4 mr-2" />
+                            Download Selected
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                      <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                          <Button variant="destructive">
+                            <Trash2 className="h-4 w-4 mr-2" />
+                            Delete ({selectedImages.size})
+                          </Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                          <AlertDialogHeader>
+                            <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                            <AlertDialogDescription>
+                              This will permanently delete the {selectedImages.size} selected image(s). This action cannot be undone.
+                            </AlertDialogDescription>
+                          </AlertDialogHeader>
+                          <AlertDialogFooter>
+                            <AlertDialogCancel>Cancel</AlertDialogCancel>
+                            <AlertDialogAction onClick={() => handleDeleteWrapper(Array.from(selectedImages))}>
+                              Delete
+                            </AlertDialogAction>
+                          </AlertDialogFooter>
+                        </AlertDialogContent>
+                      </AlertDialog>
+                    </>
+                  )}
+                </div>
               </CardHeader>
               <CardContent>
-                <UnpublishedList images={unpublishedImages} onPublish={handleTogglePublish} />
+                {isLoading ? <p>Loading...</p> : unpublishedImages.length > 0 ? (
+                  <>
+                    <div className="flex items-center space-x-2 mb-4 pb-4 border-b">
+                      <Checkbox id="select-all-unpublished" checked={allUnpublishedOnPageSelected} onCheckedChange={(checked) => handleSelectAll(Boolean(checked), paginatedUnpublishedImages)} disabled={paginatedUnpublishedImages.length === 0} />
+                      <label htmlFor="select-all-unpublished">Select All on Page</label>
+                    </div>
+                    <div className="space-y-2">
+                      {paginatedUnpublishedImages.map((image) => (
+                        <UnpublishedImageListItem
+                          key={image.id}
+                          image={image}
+                          isSelected={selectedImages.has(image.id)}
+                          onSelect={handleSelectImage}
+                          onPublish={handleTogglePublish}
+                          onEdit={setEditingImage}
+                          onView={(img) => openLightbox(img, 'unpublished')}
+                        />
+                      ))}
+                    </div>
+                  </>
+                ) : (
+                  <div className="text-center py-10 border-dashed border-2 rounded-lg bg-muted">
+                    <p className="text-muted-foreground">No unpublished images found.</p>
+                  </div>
+                )}
               </CardContent>
+              <CardFooter>
+                <ManagementPagination currentPage={unpublishedCurrentPage} totalPages={unpublishedTotalPages} onPageChange={setUnpublishedCurrentPage} itemsPerPage={imagesPerPage} onItemsPerPageChange={setImagesPerPage} totalItems={unpublishedImages.length} />
+              </CardFooter>
             </Card>
           </TabsContent>
         </Tabs>
@@ -379,6 +415,16 @@ const ManageGallery = () => {
           </Form>
         </DialogContent>
       </Dialog>
+      <Suspense fallback={null}>
+        <LazyImageLightbox
+          image={lightboxImage}
+          onClose={closeLightbox}
+          onNavigate={navigateLightbox}
+          hasNext={lightboxList.length > 1}
+          hasPrev={lightboxList.length > 1}
+          onUpdate={loadImages}
+        />
+      </Suspense>
     </>
   );
 };
