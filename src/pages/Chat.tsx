@@ -3,8 +3,9 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Send, Bot, User as UserIcon, Loader2, AlertTriangle } from "lucide-react";
-import { useChatbotKnowledge } from "@/hooks/useChatbotKnowledge"; // Changed import
+import { useChatbotKnowledge } from "@/hooks/useChatbotKnowledge";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { supabase } from "@/integrations/supabase/client";
 
 interface Message {
   role: "user" | "assistant";
@@ -15,11 +16,15 @@ const Chat = () => {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
-  // Removed apiKeyError state as Gemini is no longer used
-  const { knowledge, loading: knowledgeLoading, error: knowledgeError } = useChatbotKnowledge(); // Changed hook
+  const [apiKeyError, setApiKeyError] = useState(false);
+  const { knowledge, loading: knowledgeLoading, error: knowledgeError } = useChatbotKnowledge();
   const scrollAreaRef = useRef<HTMLDivElement>(null);
 
-  // Removed useEffect for initGemini
+  useEffect(() => {
+    setMessages([
+      { role: "assistant", content: "Hello! How can I help you learn more about this portfolio?" }
+    ]);
+  }, []);
 
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -34,31 +39,22 @@ const Chat = () => {
       if (knowledgeError) throw new Error(knowledgeError);
       if (!knowledge) throw new Error("Knowledge base is not available.");
 
-      // Simple local response logic
-      let botResponseContent: string;
-      const lowerCaseInput = input.toLowerCase();
-      const lowerCaseKnowledge = knowledge.toLowerCase();
+      const { data, error } = await supabase.functions.invoke('chat-with-knowledge', {
+        body: { query: input, knowledge },
+      });
 
-      if (lowerCaseInput.includes("hello") || lowerCaseInput.includes("hi")) {
-        botResponseContent = "Hello there! How can I help you today?";
-      } else if (lowerCaseInput.includes("blog") && lowerCaseKnowledge.includes("blog post")) {
-        botResponseContent = "I have information about blog posts. What specifically would you like to know?";
-      } else if (lowerCaseInput.includes("gallery") && lowerCaseKnowledge.includes("gallery image")) {
-        botResponseContent = "I have details about gallery images. Feel free to ask!";
-      } else if (lowerCaseInput.includes("travel") && lowerCaseKnowledge.includes("travel location")) {
-        botResponseContent = "I can tell you about travel locations. What's on your mind?";
-      } else if (lowerCaseKnowledge.includes(lowerCaseInput)) {
-        // A very basic keyword match
-        botResponseContent = "Based on my knowledge, here's what I found: " + knowledge.split('\n\n').filter(s => s.toLowerCase().includes(lowerCaseInput)).join('\n\n');
-        if (botResponseContent.length > 200) { // Truncate long responses
-          botResponseContent = botResponseContent.substring(0, 200) + "... (For more details, please browse the relevant section of the portfolio.)";
+      if (error) {
+        const errorBody = await error.context.json();
+        if (errorBody.error && errorBody.error.includes('GEMINI_API_KEY')) {
+          setApiKeyError(true);
+          throw new Error("The Gemini API key is missing. The site administrator needs to configure it in the Supabase project settings.");
         }
-      } else {
-        botResponseContent = "I don't have specific information about that in my current knowledge base. Please try asking about blog posts, gallery images, or travel locations.";
+        throw new Error(errorBody.error || error.message);
       }
 
-      const assistantMessage: Message = { role: "assistant", content: botResponseContent };
+      const assistantMessage: Message = { role: "assistant", content: data.response };
       setMessages((prev) => [...prev, assistantMessage]);
+
     } catch (error: any) {
       console.error("Error generating chat response:", error);
       const errorMessage: Message = { role: "assistant", content: `Sorry, an error occurred: ${error.message}. Please try again.` };
@@ -74,7 +70,20 @@ const Chat = () => {
     }
   }, [messages]);
 
-  // Removed apiKeyError check, replaced with knowledgeError
+  if (apiKeyError) {
+    return (
+      <div className="p-4">
+        <Alert variant="destructive">
+          <AlertTriangle className="h-4 w-4" />
+          <AlertTitle>Configuration Error</AlertTitle>
+          <AlertDescription>
+            The Gemini API key is missing. The site administrator needs to add the <code>GEMINI_API_KEY</code> secret in the Supabase project settings for the chatbot to function.
+          </AlertDescription>
+        </Alert>
+      </div>
+    );
+  }
+
   if (knowledgeError) {
     return (
       <div className="p-4">
