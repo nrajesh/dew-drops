@@ -52,8 +52,13 @@ const ExifDisplay = ({ data }: { data: Record<string, any> }) => {
 
   const entries = Object.entries(relevantTags)
     .map(([key, { label, icon }]) => {
-      const value = data[key];
-      return value ? { label, value, icon } : null;
+      const exifTag = data[key];
+      if (!exifTag) return null;
+
+      // The value is often in the 'description' property of the EXIF tag object.
+      const value = (typeof exifTag === 'object' && exifTag.description) ? exifTag.description : exifTag;
+      
+      return { label, value, icon };
     })
     .filter((item): item is { label: string; value: any; icon: JSX.Element } => item !== null);
 
