@@ -20,26 +20,17 @@ export const fetchImages = async (): Promise<GalleryImage[]> => {
 export const handleDelete = async (imageIds: string[], allImages: GalleryImage[]): Promise<boolean> => {
   const toastId = showLoading(`Deleting ${imageIds.length} image(s)...`);
   try {
-    const imagesToDelete = allImages.filter(img => imageIds.includes(img.id));
-    const fileNamesToDelete = imagesToDelete.map(img => img.file_name);
+    const deletePromises = imageIds.map(id => 
+      supabase.rpc('delete_gallery_image', { image_id: id })
+    );
 
-    if (fileNamesToDelete.length > 0) {
-      const { error: storageError } = await supabase.storage
-        .from("gallery")
-        .remove(fileNamesToDelete);
+    const results = await Promise.all(deletePromises);
 
-      if (storageError && storageError.message !== 'The resource was not found') {
-        throw new Error(`Storage error: ${storageError.message}`);
-      }
-    }
+    const errors = results.filter(res => res.error);
 
-    const { error: dbError } = await supabase
-      .from("gallery_images")
-      .delete()
-      .in("id", imageIds);
-
-    if (dbError) {
-      throw new Error(`Database error: ${dbError.message}`);
+    if (errors.length > 0) {
+      const errorMessages = errors.map(e => e.error!.message).join(', ');
+      throw new Error(`Some images could not be deleted: ${errorMessages}`);
     }
 
     dismissToast(toastId);
