@@ -1,4 +1,4 @@
-import { useMemo, useRef, useEffect } from "react";
+import { useMemo, useRef, useEffect, useState, Suspense, lazy } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -32,9 +32,13 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { ManagedImage } from "@/components/gallery/ManagedImage";
+import { UnpublishedImageListItem } from "@/components/gallery/UnpublishedImageListItem";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useGalleryManagement } from "@/hooks/useGalleryManagement";
 import { generateAltTextFromFileName } from "@/lib/utils";
+import type { GalleryImage } from "@/types";
+
+const LazyImageLightbox = lazy(() => import("@/components/ImageLightbox").then(module => ({ default: module.ImageLightbox })));
 
 const editSchema = z.object({
   alt_text: z.string().max(200, "Alt text cannot exceed 200 characters."),
@@ -75,6 +79,9 @@ const ManageGallery = () => {
   } = useGalleryManagement();
 
   const containerRef = useRef<HTMLDivElement>(null);
+  const [lightboxImageIndex, setLightboxImageIndex] = useState<number | null>(null);
+  const [activeLightboxList, setActiveLightboxList] = useState<'published' | 'unpublished' | null>(null);
+
   const form = useForm<z.infer<typeof editSchema>>({
     resolver: zodResolver(editSchema),
     defaultValues: { alt_text: "", tags: "" },
@@ -94,7 +101,7 @@ const ManageGallery = () => {
     totalPages,
     onPageChange: setCurrentPage,
     targetRef: containerRef,
-    enabled: !editingImage,
+    enabled: !editingImage && lightboxImageIndex === null,
   });
 
   const handleUpdateImageData = async (values: z.infer<typeof editSchema>) => {
@@ -118,6 +125,33 @@ const ManageGallery = () => {
       showError(`Update failed: ${error.message}`);
     }
   };
+
+  const openLightbox = (image: GalleryImage, listType: 'published' | 'unpublished') => {
+    const list = listType === 'published' ? publishedImages : unpublishedImages;
+    const index = list.findIndex(img => img.id === image.id);
+    if (index !== -1) {
+      setActiveLightboxList(listType);
+      setLightboxImageIndex(index);
+    }
+  };
+
+  const closeLightbox = () => {
+    setLightboxImageIndex(null);
+    setActiveLightboxList(null);
+  };
+
+  const navigateLightbox = (direction: 'next' | 'prev') => {
+    if (lightboxImageIndex === null || !activeLightboxList) return;
+    const list = activeLightboxList === 'published' ? publishedImages : unpublishedImages;
+    if (direction === 'next') {
+      setLightboxImageIndex((prevIndex) => (prevIndex! + 1) % list.length);
+    } else {
+      setLightboxImageIndex((prevIndex) => (prevIndex! - 1 + list.length) % list.length);
+    }
+  };
+
+  const lightboxList = activeLightboxList === 'published' ? publishedImages : unpublishedImages;
+  const lightboxImage = lightboxImageIndex !== null ? lightboxList[lightboxImageIndex] : null;
 
   const allPublishedOnPageSelected = paginatedPublishedImages.length > 0 && paginatedPublishedImages.every(i => selectedImages.has(i.id));
   const allUnpublishedOnPageSelected = paginatedUnpublishedImages.length > 0 && paginatedUnpublishedImages.every(i => selectedImages.has(i.id));
@@ -230,7 +264,7 @@ const ManageGallery = () => {
                     </div>
                     <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
                       {paginatedPublishedImages.map((image) => (
-                        <ManagedImage key={image.id} image={image} isSelected={selectedImages.has(image.id)} onSelect={handleSelectImage} onTogglePublish={handleTogglePublish} onEdit={setEditingImage} />
+                        <ManagedImage key={image.id} image={image} isSelected={selectedImages.has(image.id)} onSelect={handleSelectImage} onTogglePublish={handleTogglePublish} onEdit={setEditingImage} onView={(img) => openLightbox(img, 'published')} />
                       ))}
                     </div>
                   </>
@@ -303,9 +337,17 @@ const ManageGallery = () => {
                       <Checkbox id="select-all-unpublished" checked={allUnpublishedOnPageSelected} onCheckedChange={(checked) => handleSelectAll(Boolean(checked), paginatedUnpublishedImages)} disabled={paginatedUnpublishedImages.length === 0} />
                       <label htmlFor="select-all-unpublished">Select All on Page</label>
                     </div>
-                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+                    <div className="space-y-2">
                       {paginatedUnpublishedImages.map((image) => (
-                        <ManagedImage key={image.id} image={image} isSelected={selectedImages.has(image.id)} onSelect={handleSelectImage} onTogglePublish={handleTogglePublish} onEdit={setEditingImage} />
+                        <UnpublishedImageListItem
+                          key={image.id}
+                          image={image}
+                          isSelected={selectedImages.has(image.id)}
+                          onSelect={handleSelectImage}
+                          onPublish={handleTogglePublish}
+                          onEdit={setEditingImage}
+                          onView={(img) => openLightbox(img, 'unpublished')}
+                        />
                       ))}
                     </div>
                   </>
@@ -373,6 +415,16 @@ const ManageGallery = () => {
           </Form>
         </DialogContent>
       </Dialog>
+      <Suspense fallback={null}>
+        <LazyImageLightbox
+          image={lightboxImage}
+          onClose={closeLightbox}
+          onNavigate={navigateLightbox}
+          hasNext={lightboxList.length > 1}
+          hasPrev={lightboxList.length > 1}
+          onUpdate={loadImages}
+        />
+      </Suspense>
     </>
   );
 };

@@ -15,9 +15,10 @@ interface ManagedImageProps {
   onSelect: (id: string) => void;
   onTogglePublish: (image: GalleryImage) => void;
   onEdit: (image: GalleryImage) => void;
+  onView: (image: GalleryImage) => void;
 }
 
-export const ManagedImage = ({ image, isSelected, onSelect, onTogglePublish, onEdit }: ManagedImageProps) => {
+export const ManagedImage = ({ image, isSelected, onSelect, onTogglePublish, onEdit, onView }: ManagedImageProps) => {
   const [imageUrl, setImageUrl] = useState<string | null>(null);
 
   useEffect(() => {
@@ -27,16 +28,14 @@ export const ManagedImage = ({ image, isSelected, onSelect, onTogglePublish, onE
       if (isMounted) setImageUrl(null);
 
       if (image.published) {
-        // Get the public URL without any transformations.
         const { data } = supabase.storage.from('gallery').getPublicUrl(image.file_name);
         if (isMounted) {
           setImageUrl(data.publicUrl);
         }
       } else {
-        // Get a temporary signed URL for the private image, also without transformations.
         const { data, error } = await supabase.storage
           .from('gallery')
-          .createSignedUrl(image.file_name, 60 * 5); // 5-minute expiry
+          .createSignedUrl(image.file_name, 60 * 5);
 
         if (isMounted) {
           if (error) {
@@ -56,7 +55,7 @@ export const ManagedImage = ({ image, isSelected, onSelect, onTogglePublish, onE
   }, [image.file_name, image.published]);
 
   return (
-    <Card className="flex flex-col">
+    <Card className="flex flex-col cursor-pointer" onClick={() => onView(image)}>
       <CardContent className="p-0">
         <AspectRatio ratio={1}>
           {imageUrl ? (
@@ -74,7 +73,7 @@ export const ManagedImage = ({ image, isSelected, onSelect, onTogglePublish, onE
         <p className="text-xs text-muted-foreground truncate w-full h-8">
           {image.alt_text}
         </p>
-        <div className="flex justify-between w-full items-center mt-1">
+        <div className="flex justify-between w-full items-center mt-1" onClick={(e) => e.stopPropagation()}>
           <Checkbox
             id={`select-${image.id}`}
             checked={isSelected}
