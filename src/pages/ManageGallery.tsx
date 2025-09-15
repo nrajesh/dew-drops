@@ -25,8 +25,6 @@ import {
 } from "@/components/ui/alert-dialog";
 import { useAuth } from "@/contexts/AuthContext";
 import { sanitizeFileName } from "@/lib/utils";
-import ExifReader from 'exifreader';
-import imageCompression from 'browser-image-compression';
 import { Checkbox } from "@/components/ui/checkbox";
 import { ManagementPagination } from "@/components/ManagementPagination";
 import { usePaginationNavigation } from "@/hooks/usePaginationNavigation";
@@ -126,7 +124,7 @@ const ManageGallery = () => {
     }
   
     setIsUploading(true);
-    const toastId = showLoading(`Preparing ${selectedFiles.length} file(s)...`);
+    const toastId = showLoading(`Uploading ${selectedFiles.length} file(s)...`);
   
     const filesToUpload = Array.from(selectedFiles);
     let metadataMap = new Map<string, { alt_text: string; tags: string[] }>();
@@ -154,43 +152,12 @@ const ManageGallery = () => {
     const imageFiles = filesToUpload.filter(f => f.type.startsWith('image/'));
   
     const uploadPromises = imageFiles.map(async (file) => {
-      const compressionOptions = {
-        maxSizeMB: 2,
-        maxWidthOrHeight: 1920,
-        useWebWorker: true,
-      };
-      const compressedFile = await imageCompression(file, compressionOptions);
-
-      const sanitizedName = sanitizeFileName(compressedFile.name);
+      const sanitizedName = sanitizeFileName(file.name);
       const fileName = `${user.id}/${Date.now()}_${sanitizedName}`;
       const originalFileName = file.name;
       const preloadedMeta = metadataMap.get(originalFileName);
   
-      const fileBuffer = await file.arrayBuffer();
-      let exifData: Record<string, any> | null = null;
-      try {
-        const tags = ExifReader.load(fileBuffer);
-        const cleanExif: Record<string, any> = {};
-        for (const key in tags) {
-          if (Object.prototype.hasOwnProperty.call(tags, key)) {
-            if (key === 'MakerNote' || key === 'UserComment' || key === 'thumbnail') continue;
-            const tagValue = tags[key];
-            if (tagValue && typeof tagValue.description !== 'undefined') {
-              const description = tagValue.description;
-              if (typeof description === 'string') {
-                cleanExif[key] = description.replace(/,/g, '.').replace(/[^\w\s.:/-]/g, '');
-              } else if (typeof description === 'number') {
-                cleanExif[key] = description;
-              }
-            }
-          }
-        }
-        exifData = cleanExif;
-      } catch (error) {
-        console.warn(`Could not read EXIF data for ${file.name}:`, error);
-      }
-  
-      const { error: uploadError } = await supabase.storage.from("gallery").upload(fileName, compressedFile, { cacheControl: '31536000', upsert: false });
+      const { error: uploadError } = await supabase.storage.from("gallery").upload(fileName, file, { cacheControl: '31536000', upsert: false });
       if (uploadError) throw new Error(`Failed to upload ${file.name}: ${uploadError.message}`);
       
       const { data: { publicUrl } } = supabase.storage.from("gallery").getPublicUrl(fileName);
@@ -201,7 +168,7 @@ const ManageGallery = () => {
         tags: preloadedMeta?.tags || null,
         file_name: fileName,
         user_id: user.id,
-        exif_data: exifData,
+        exif_data: null, // Skip EXIF reading for faster uploads
         published: false,
       });
   
