@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Send, Bot, User as UserIcon, Loader2, AlertTriangle } from "lucide-react";
-import { usePortfolioContext } from "@/hooks/usePortfolioContext";
+import { useChatbotKnowledge } from "@/hooks/useChatbotKnowledge"; // Changed import
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
 interface Message {
@@ -11,31 +11,19 @@ interface Message {
   content: string;
 }
 
-let sendMessageToGemini: (message: string) => Promise<string>;
-
 const Chat = () => {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
-  const [apiKeyError, setApiKeyError] = useState<string | null>(null);
-  const { context, loading: contextLoading, error: contextError } = usePortfolioContext();
+  // Removed apiKeyError state as Gemini is no longer used
+  const { knowledge, loading: knowledgeLoading, error: knowledgeError } = useChatbotKnowledge(); // Changed hook
   const scrollAreaRef = useRef<HTMLDivElement>(null);
 
-  useEffect(() => {
-    const initGemini = async () => {
-      try {
-        const module = await import('@/integrations/gemini/client');
-        sendMessageToGemini = module.sendMessageToGemini;
-      } catch (error: any) {
-        setApiKeyError(error.message);
-      }
-    };
-    initGemini();
-  }, []);
+  // Removed useEffect for initGemini
 
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!input.trim() || isLoading || contextLoading) return;
+    if (!input.trim() || isLoading || knowledgeLoading) return;
 
     const userMessage: Message = { role: "user", content: input };
     setMessages((prev) => [...prev, userMessage]);
@@ -43,38 +31,37 @@ const Chat = () => {
     setIsLoading(true);
 
     try {
-      if (contextError) throw new Error(contextError);
-      if (!context) throw new Error("Knowledge base is not available.");
-      if (!sendMessageToGemini) throw new Error("Chat client is not initialized.");
+      if (knowledgeError) throw new Error(knowledgeError);
+      if (!knowledge) throw new Error("Knowledge base is not available.");
 
-      const systemPrompt = `You are a helpful assistant for a personal portfolio website.
-      Use ONLY the following context to answer the user's question.
-      Be friendly, concise, and helpful. If the answer is not in the context, say you don't have that information. Do not make things up.
+      // Simple local response logic
+      let botResponseContent: string;
+      const lowerCaseInput = input.toLowerCase();
+      const lowerCaseKnowledge = knowledge.toLowerCase();
 
-      CONTEXT:
-      ---
-      ${context}
-      ---
+      if (lowerCaseInput.includes("hello") || lowerCaseInput.includes("hi")) {
+        botResponseContent = "Hello there! How can I help you today?";
+      } else if (lowerCaseInput.includes("blog") && lowerCaseKnowledge.includes("blog post")) {
+        botResponseContent = "I have information about blog posts. What specifically would you like to know?";
+      } else if (lowerCaseInput.includes("gallery") && lowerCaseKnowledge.includes("gallery image")) {
+        botResponseContent = "I have details about gallery images. Feel free to ask!";
+      } else if (lowerCaseInput.includes("travel") && lowerCaseKnowledge.includes("travel location")) {
+        botResponseContent = "I can tell you about travel locations. What's on your mind?";
+      } else if (lowerCaseKnowledge.includes(lowerCaseInput)) {
+        // A very basic keyword match
+        botResponseContent = "Based on my knowledge, here's what I found: " + knowledge.split('\n\n').filter(s => s.toLowerCase().includes(lowerCaseInput)).join('\n\n');
+        if (botResponseContent.length > 200) { // Truncate long responses
+          botResponseContent = botResponseContent.substring(0, 200) + "... (For more details, please browse the relevant section of the portfolio.)";
+        }
+      } else {
+        botResponseContent = "I don't have specific information about that in my current knowledge base. Please try asking about blog posts, gallery images, or travel locations.";
+      }
 
-      QUESTION:
-      ${input}
-      `;
-
-      const response = await sendMessageToGemini(systemPrompt);
-      const assistantMessage: Message = { role: "assistant", content: response };
+      const assistantMessage: Message = { role: "assistant", content: botResponseContent };
       setMessages((prev) => [...prev, assistantMessage]);
     } catch (error: any) {
-      console.error("Error fetching chat response:", error);
-      let displayMessage = `Sorry, an error occurred: ${error.message}`;
-
-      // Check for specific Gemini API overload error
-      if (error.message && error.message.includes("503") && error.message.includes("The model is overloaded")) {
-        displayMessage = "I am currently responding to multiple users. I hope we can connect again later!";
-      } else if (error.message && error.message.includes("400") && error.message.includes("API key not valid")) {
-        displayMessage = "It seems there's an issue with the API key. Please check the configuration.";
-      }
-      
-      const errorMessage: Message = { role: "assistant", content: displayMessage };
+      console.error("Error generating chat response:", error);
+      const errorMessage: Message = { role: "assistant", content: `Sorry, an error occurred: ${error.message}. Please try again.` };
       setMessages((prev) => [...prev, errorMessage]);
     } finally {
       setIsLoading(false);
@@ -87,14 +74,15 @@ const Chat = () => {
     }
   }, [messages]);
 
-  if (apiKeyError) {
+  // Removed apiKeyError check, replaced with knowledgeError
+  if (knowledgeError) {
     return (
       <div className="p-4">
         <Alert variant="destructive">
           <AlertTriangle className="h-4 w-4" />
-          <AlertTitle>Configuration Error</AlertTitle>
+          <AlertTitle>Knowledge Base Error</AlertTitle>
           <AlertDescription>
-            The chatbot is not configured correctly. Please ensure the <code>VITE_GEMINI_API_KEY</code> is set in your environment variables.
+            The chatbot's knowledge base could not be loaded. Please try refreshing the page.
           </AlertDescription>
         </Alert>
       </div>
@@ -136,9 +124,9 @@ const Chat = () => {
             value={input}
             onChange={(e) => setInput(e.target.value)}
             placeholder="Ask about my projects, travel, or photos..."
-            disabled={isLoading || contextLoading}
+            disabled={isLoading || knowledgeLoading}
           />
-          <Button type="submit" disabled={isLoading || contextLoading || !input.trim()}>
+          <Button type="submit" disabled={isLoading || knowledgeLoading || !input.trim()}>
             <Send className="h-4 w-4" />
             <span className="sr-only">Send</span>
           </Button>
