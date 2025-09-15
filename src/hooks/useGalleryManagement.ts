@@ -12,6 +12,7 @@ import {
 } from "@/components/gallery/GalleryManagementUtils.ts";
 import { sanitizeFileName } from "@/lib/utils";
 import imageCompression from 'browser-image-compression';
+import ExifReader from 'exifreader';
 
 export const useGalleryManagement = () => {
   const { user } = useAuth();
@@ -73,6 +74,13 @@ export const useGalleryManagement = () => {
         const file = imageFiles[i];
         updateToastLoading(toastId, `Uploading ${i + 1} of ${imageFiles.length}: ${file.name}`);
         try {
+            const exifData = await ExifReader.load(file);
+            delete exifData['MakerNote'];
+            delete exifData['UserComment'];
+            if (exifData.thumbnail) {
+              delete exifData.thumbnail;
+            }
+
             const compressedFile = await imageCompression(file, {
                 maxSizeMB: 1,
                 maxWidthOrHeight: 1920,
@@ -99,6 +107,7 @@ export const useGalleryManagement = () => {
                 published: false,
                 alt_text: metadata?.alt_text,
                 tags: metadata?.tags,
+                exif_data: exifData,
             });
 
             if (dbError) throw dbError;
