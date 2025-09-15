@@ -19,30 +19,36 @@ This README provides a comprehensive guide to understanding, customizing, and ma
 -   **Light & Dark Mode:** A sleek theme toggle for user preference.
 -   **Fully Responsive:** Designed to look great on all devices, from desktops to mobile phones.
 
-## 🚀 Tech Stack & Technical Decisions
+---
 
-This portfolio is built with a selection of modern tools chosen for their performance, developer experience, and scalability.
+## 🛠️ Setting Up Your Environment
 
-| Category          | Technology                                                              | Reason                                                                                             |
-| :---------------- | :---------------------------------------------------------------------- | :------------------------------------------------------------------------------------------------- |
-| **Frontend**      | [React](https://react.dev/) & [Vite](https://vitejs.dev/)               | A fast, modern, and robust foundation for building user interfaces.                                |
-| **Language**      | [TypeScript](https://www.typescriptlang.org/)                           | Adds static typing to JavaScript, improving code quality and reducing bugs.                        |
-| **Styling**       | [Tailwind CSS](https://tailwindcss.com/)                                | A utility-first CSS framework for rapid, responsive UI development without leaving your HTML.      |
-| **UI Components** | [shadcn/ui](https://ui.shadcn.com/)                                     | A collection of beautifully designed, accessible, and unstyled components that you can own and customize. |
-| **Backend**       | [Supabase](https://supabase.com/)                                       | The open-source Firebase alternative. Used for:                                                    |
-|                   | &nbsp;&nbsp;&nbsp;**Database**                                          | A PostgreSQL database for storing blog posts, gallery metadata, travel locations, and chatbot knowledge. |
-|                   | &nbsp;&nbsp;&nbsp;**Storage**                                           | For hosting user-uploaded images for the gallery and map markers.                                  |
-|                   | &nbsp;&nbsp;&nbsp;**Edge Functions**                                    | Serverless functions for backend logic, like the contact form, data management, and AI image tagging. |
-| **AI**            | [Google Gemini](https://ai.google.dev/)                                 | Powers the conversational AI chatbot feature and image embedding generation.                      |
-| **Routing**       | [React Router](https://reactrouter.com/)                                | The standard for declarative routing in React applications.                                        |
-| **Forms**         | [React Hook Form](https://react-hook-form.com/) & [Zod](https://zod.dev/) | A powerful combination for building performant, type-safe, and validated forms.                    |
-| **Icons**         | [Lucide React](https://lucide.dev/)                                     | A beautiful and consistent open-source icon set.                                                   |
+To use features like the map, AI chatbot, and contact form, you need to provide a few API keys.
+
+### Client-Side Environment Variables
+
+These keys are used in the browser. You should create a `.env` file in the root of your project and add the following variables:
+
+-   `VITE_MAPBOX_ACCESS_TOKEN`: Your access token from [Mapbox](https://www.mapbox.com/), required for the Travel Map.
+-   `VITE_GEMINI_API_KEY`: Your API key from [Google AI Studio](https://aistudio.google.com/), required for the AI Chatbot and AI-powered image tagging.
+-   `VITE_ALLOWED_EMAIL`: The single email address that is permitted to sign in to the admin dashboard.
+
+*Note: Your Supabase URL and Publishable Key are already pre-configured in the code.*
+
+### Server-Side Secrets (Supabase)
+
+These keys are stored securely in your Supabase project dashboard and are used by the serverless Edge Functions.
+
+1.  Navigate to your Supabase Project Dashboard.
+2.  Go to **Settings** -> **Edge Functions**.
+3.  Under **Manage Secrets**, add the following:
+    -   `RESEND_API_KEY`: Your API key from [Resend](https://resend.com/), required for the Contact Form to send emails.
 
 ---
 
-## 🛠️ Customizing Your Portfolio
+## 🗂️ Managing Your Portfolio Content
 
-This section guides you through updating the different parts of your portfolio. Most content can be managed directly through the "Management" and "Settings" sections of the application's sidebar.
+All content can be managed directly through the "Management" and "Settings" sections of the application's sidebar after you log in.
 
 ### 📝 Managing Blog Posts
 
@@ -58,16 +64,12 @@ The gallery management page uses a two-tab system—**Published** and **Unpublis
 1.  **Navigate:** Go to the **Manage Gallery** page from the sidebar.
 2.  **Upload Workflow:**
     *   Use the upload form to add one or more images. You can also include a `metadata.json` file in your selection to bulk-apply alt text and tags.
-    *   Uploaded images automatically appear in the **"Unpublished"** tab, where they are not yet visible to the public.
-    *   In the "Unpublished" tab, you can preview each image and publish it with a single click.
+    *   Uploaded images automatically appear in the **"Unpublished"** tab as a list. This list view is designed for efficiency, allowing you to quickly manage many new uploads without loading all the thumbnails.
+    *   In the "Unpublished" tab, you can preview each image in a lightbox and publish it with a single click.
 3.  **Managing Published Images:**
     *   The **"Published"** tab displays a grid of all your live gallery images.
-    *   **Individual Actions:** Each image has a switch to quickly publish/unpublish it and an "Edit" button to open a dialog where you can update its alt text and tags. If you save with an empty alt text, a descriptive one is automatically generated from the file name.
-    *   **Bulk Actions:** Select multiple images to perform actions on them at once:
-        *   **Unpublish Selected:** Move images back to the "Unpublished" tab.
-        *   **Generate Tags:** Use AI to analyze the selected images and create relevant search keywords.
-        *   **Download Selected:** Export the selected images and a `metadata.json` file as a single ZIP archive, perfect for backups.
-        *   **Delete Selected:** Permanently delete images and their associated data.
+    *   **Individual Actions:** Each image has a switch to quickly publish/unpublish it and an "Edit" button to update its alt text and tags.
+    *   **Bulk Actions:** Select multiple images to perform actions on them at once: Unpublish, Generate AI Tags, Download, or Delete.
 
 ### 🗺️ Managing the Travel Map
 
@@ -78,33 +80,27 @@ The gallery management page uses a two-tab system—**Published** and **Unpublis
 
 ### 🤖 Managing the AI Chatbot
 
-You have full control over the chatbot's knowledge and behavior through a simple interface.
-
 1.  **Navigate:** Go to the **Chatbot Knowledge** page from the sidebar under "Settings".
-2.  **Edit Knowledge:** The large text area contains the entire "context" or "knowledge base" the AI uses to answer questions. You can edit this text directly to add, remove, or change information.
-3.  **Auto-Generate:** Click the **"Generate from Portfolio"** button to automatically create a new knowledge base from your latest published blog posts, travel locations, and gallery image descriptions. This is a great way to quickly update the chatbot after adding new content.
+2.  **Edit Knowledge:** The large text area contains the entire "knowledge base" the AI uses to answer questions. You can edit this text directly.
+3.  **Auto-Generate:** Click the **"Generate from Portfolio"** button to automatically create a new knowledge base from your latest published content.
 4.  **Save:** Click "Save Knowledge Base" to apply your changes.
 
 ### ⚙️ Managing Your Data
 
-For backups and migrations, you can manage all your portfolio's content data at once.
-
 1.  **Navigate:** Go to the **Manage Data** page under "Settings".
 2.  **Export:** Download a complete backup of your posts, gallery metadata, travel locations, and chatbot knowledge in a single JSON file.
 3.  **Import:** **(Destructive)** Upload a backup JSON file to restore your portfolio. This will delete all existing data first.
-4.  **Reset:** **(Destructive)** Permanently delete all content from your portfolio and reset it to a clean state.
+4.  **Reset:** **(Destructive)** Permanently delete all content from your portfolio.
 
 ### 👤 Managing Your Profile
 
 1.  **Navigate:** Go to the **User Profile** page under "Settings".
-2.  **Update Info:** Change your first name, last name, and avatar. The avatar can be set from a URL or by uploading a file.
+2.  **Update Info:** Change your first name, last name, and avatar.
 3.  **Change Password:** Securely update your administrator password.
 
 ### 📧 Configuring the Contact Form
 
-The contact form uses a Supabase Edge Function to send emails via the Resend service.
-
-1.  **API Key Requirement:** For the form to work, you must set your `RESEND_API_KEY` as a secret in your Supabase project settings.
+1.  **API Key:** Ensure your `RESEND_API_KEY` is set as a secret in your Supabase project (see "Setting Up Your Environment").
 2.  **Email Configuration:**
     *   Open the file: `supabase/functions/send-contact-email/index.ts`.
     *   Update the `TO_EMAIL` constant to your personal email address.
@@ -112,25 +108,32 @@ The contact form uses a Supabase Edge Function to send emails via the Resend ser
 
 ---
 
-## 📂 Project Structure
+## 🚀 Tech Stack & Backend Overview
 
-A brief overview of the most important files and directories.
+This portfolio is built with a selection of modern tools chosen for their performance, developer experience, and scalability.
 
-```
-/
-├── public/           # Static assets
-├── src/
-│   ├── components/   # Reusable React components
-│   ├── contexts/     # React Context providers (Auth, Features)
-│   ├── hooks/        # Custom React hooks
-│   ├── integrations/ # Supabase & Gemini client setup
-│   ├── pages/        # Page components for each route
-│   ├── types/        # TypeScript type definitions
-│   ├── App.tsx       # Main application component with routing
-│   └── main.tsx      # Application entry point
-├── supabase/
-│   └── functions/    # Supabase Edge Functions
-└── README.md         # This file
-```
+| Category          | Technology                                                              |
+| :---------------- | :---------------------------------------------------------------------- |
+| **Frontend**      | [React](https://react.dev/) & [Vite](https://vitejs.dev/)               |
+| **Language**      | [TypeScript](https://www.typescriptlang.org/)                           |
+| **Styling**       | [Tailwind CSS](https://tailwindcss.com/)                                |
+| **UI Components** | [shadcn/ui](https://ui.shadcn.com/)                                     |
+| **Backend**       | [Supabase](https://supabase.com/)                                       |
+| **AI**            | [Google Gemini](https://ai.google.dev/)                                 |
+| **Routing**       | [React Router](https://reactrouter.com/)                                |
+| **Forms**         | [React Hook Form](https://react-hook-form.com/) & [Zod](https://zod.dev/) |
+| **Icons**         | [Lucide React](https://lucide.dev/)                                     |
 
-Thank you for using this portfolio template. Happy coding!
+### Supabase Backend
+
+Supabase provides the entire backend for this application, including:
+
+-   **PostgreSQL Database:** A robust database stores all your content. The key tables are:
+    -   `posts`: Stores blog articles.
+    -   `gallery_images`: Stores metadata for uploaded photos.
+    -   `travel_locations`: Stores data for map pins.
+    -   `profiles`: Stores administrator user profile information.
+    -   `feature_toggles`: Controls which site features are active.
+    -   `chatbot_knowledge`: Stores the context for the AI assistant.
+-   **Storage:** Manages all user-uploaded files for the gallery and map markers.
+-   **Edge Functions:** Serverless functions handle backend logic for the contact form, data management, and AI image tagging.
