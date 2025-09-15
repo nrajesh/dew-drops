@@ -9,7 +9,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter }
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { supabase } from "@/integrations/supabase/client";
-import { showSuccess, showError, showLoading, dismissToast, updateToastSuccess, updateToastError } from "@/utils/toast";
+import { showSuccess, showError, showLoading, dismissToast, updateToastSuccess, updateToastError, updateToastLoading } from "@/utils/toast";
 import { Upload, Trash2, Edit, Download } from "lucide-react";
 import type { GalleryImage } from "@/types";
 import {
@@ -125,7 +125,7 @@ const ManageGallery = () => {
     }
   
     setIsUploading(true);
-    const toastId = showLoading(`Compressing and uploading ${selectedFiles.length} file(s)...`);
+    const toastId = showLoading(`Preparing to upload ${selectedFiles.length} file(s)...`);
   
     const filesToUpload = Array.from(selectedFiles);
     let metadataMap = new Map<string, { alt_text: string; tags: string[] }>();
@@ -151,71 +151,69 @@ const ManageGallery = () => {
     }
   
     const imageFiles = filesToUpload.filter(f => f.type.startsWith('image/'));
-  
-    const uploadPromises = imageFiles.map(async (file) => {
-      const compressionOptions = {
-        maxSizeMB: 2,
-        maxWidthOrHeight: 1920,
-        useWebWorker: true,
-      };
-      const compressedFile = await imageCompression(file, compressionOptions);
+    let successfulUploads = 0;
+    let failedUploads = 0;
 
-      const sanitizedName = sanitizeFileName(compressedFile.name);
-      const fileName = `${user.id}/${Date.now()}_${sanitizedName}`;
-      const originalFileName = file.name;
-      const preloadedMeta = metadataMap.get(originalFileName);
-  
-      const { error: uploadError } = await supabase.storage.from("gallery").upload(fileName, compressedFile, { cacheControl: '31536000', upsert: false });
-      if (uploadError) throw new Error(`Failed to upload ${file.name}: ${uploadError.message}`);
-      
-      const { data: { publicUrl } } = supabase.storage.from("gallery").getPublicUrl(fileName);
-  
-      const { error: dbError } = await supabase.from("gallery_images").insert({
-        image_url: publicUrl,
-        alt_text: preloadedMeta?.alt_text || "",
-        tags: preloadedMeta?.tags || null,
-        file_name: fileName,
-        user_id: user.id,
-        exif_data: null,
-        published: false,
-      });
-  
-      if (dbError) {
-        await supabase.storage.from("gallery").remove([fileName]);
-        throw new Error(`Failed to save ${file.name} to database: ${dbError.message}`);
-      }
-    });
-  
-    try {
-      const results = await Promise.allSettled(uploadPromises);
-      const successfulUploads = results.filter(r => r.status === 'fulfilled').length;
-      const failedUploads = results.filter(r => r.status === 'rejected');
+    for (const [index, file] of imageFiles.entries()) {
+      try {
+        updateToastLoading(toastId, `Uploading ${index + 1} of ${imageFiles.length}: ${file.name}`);
+        
+        const compressionOptions = {
+          maxSizeMB: 2,
+          maxWidthOrHeight: 1920,
+          useWebWorker: true,
+        };
+        const compressedFile = await imageCompression(file, compressionOptions);
 
-      if (failedUploads.length > 0) {
-        console.error("Some uploads failed:", failedUploads.map(r => (r as PromiseRejectedResult).reason));
+        const sanitizedName = sanitizeFileName(compressedFile.name);
+        const fileName = `${user.id}/${Date.now()}_${sanitizedName}`;
+        const originalFileName = file.name;
+        const preloadedMeta = metadataMap.get(originalFileName);
+    
+        const { error: uploadError } = await supabase.storage.from("gallery").upload(fileName, compressedFile, { cacheControl: '31536000', upsert: false });
+        if (uploadError) throw new Error(`Failed to upload ${file.name}: ${uploadError.message}`);
+        
+        const { data: { publicUrl } } = supabase.storage.from("gallery").getPublicUrl(fileName);
+    
+        const { error: dbError } = await supabase.from("gallery_images").insert({
+          image_url: publicUrl,
+          alt_text: preloadedMeta?.alt_text || "",
+          tags: preloadedMeta?.tags || null,
+          file_name: fileName,
+          user_id: user.id,
+          exif_data: null,
+          published: false,
+        });
+    
+        if (dbError) {
+          await supabase.storage.from("gallery").remove([fileName]);
+          throw new Error(`Failed to save ${file.name} to database: ${dbError.message}`);
+        }
+        successfulUploads++;
+      } catch (error) {
+        console.error(`Failed to process ${file.name}:`, error);
+        failedUploads++;
       }
-
-      if (successfulUploads > 0 && failedUploads.length === 0) {
-        updateToastSuccess(toastId, `${successfulUploads} image(s) uploaded successfully!`);
-      } else if (successfulUploads > 0 && failedUploads.length > 0) {
-        updateToastError(toastId, `${successfulUploads} succeeded, but ${failedUploads.length} failed. Check console for details.`);
-      } else if (successfulUploads === 0 && failedUploads.length > 0) {
-        updateToastError(toastId, `All ${failedUploads.length} uploads failed. Check console for details.`);
-      } else {
-        dismissToast(toastId);
-      }
-
-      if (successfulUploads > 0) {
-        loadImages();
-      }
-    } catch (error: any) {
-      updateToastError(toastId, error.message);
-    } finally {
-      setIsUploading(false);
-      setSelectedFiles(null);
-      const fileInput = document.getElementById('file-input') as HTMLInputElement;
-      if (fileInput) fileInput.value = '';
     }
+  
+    if (successfulUploads > 0 && failedUploads === 0) {
+      updateToastSuccess(toastId, `${successfulUploads} image(s) uploaded successfully!`);
+    } else if (successfulUploads > 0 && failedUploads > 0) {
+      updateToastError(toastId, `${successfulUploads} succeeded, but ${failedUploads} failed. Check console for details.`);
+    } else if (successfulUploads === 0 && failedUploads > 0) {
+      updateToastError(toastId, `All ${failedUploads} uploads failed. Check console for details.`);
+    } else {
+      dismissToast(toastId);
+    }
+
+    if (successfulUploads > 0) {
+      loadImages();
+    }
+
+    setIsUploading(false);
+    setSelectedFiles(null);
+    const fileInput = document.getElementById('file-input') as HTMLInputElement;
+    if (fileInput) fileInput.value = '';
   };
 
   const handleDeleteWrapper = async (imageIds: string[]) => {
