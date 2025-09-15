@@ -9,7 +9,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter }
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { supabase } from "@/integrations/supabase/client";
-import { showSuccess, showError, showLoading, dismissToast } from "@/utils/toast";
+import { showSuccess, showError, showLoading, dismissToast, updateToastSuccess, updateToastError } from "@/utils/toast";
 import { Upload, Trash2, Edit, Download } from "lucide-react";
 import type { GalleryImage } from "@/types";
 import {
@@ -205,12 +205,10 @@ const ManageGallery = () => {
   
     try {
       await Promise.all(uploadPromises);
-      dismissToast(toastId);
-      showSuccess(`${imageFiles.length} image(s) uploaded successfully!`);
+      updateToastSuccess(toastId, `${imageFiles.length} image(s) uploaded successfully!`);
       loadImages();
     } catch (error: any) {
-      dismissToast(toastId);
-      showError(error.message);
+      updateToastError(toastId, error.message);
     } finally {
       setIsUploading(false);
       setSelectedFiles(null);
