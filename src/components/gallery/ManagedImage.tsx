@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import type { GalleryImage } from '@/types';
 import { Card, CardContent, CardFooter } from '@/components/ui/card';
@@ -24,7 +24,6 @@ export const ManagedImage = ({ image, isSelected, onSelect, onTogglePublish, onE
     let isMounted = true;
 
     const generateUrl = async () => {
-      // Always start fresh
       if (isMounted) setImageUrl(null);
 
       if (image.published) {
@@ -35,16 +34,10 @@ export const ManagedImage = ({ image, isSelected, onSelect, onTogglePublish, onE
             resize: 'cover',
           },
         });
-        
-        // The cache key from the parent component ensures this effect re-runs on status change.
-        // The timestamp here ensures the URL is unique, busting any CDN cache.
-        const finalUrl = `${data.publicUrl}?t=${image._cacheKey || new Date().getTime()}`;
-
         if (isMounted) {
-          setImageUrl(finalUrl);
+          setImageUrl(data.publicUrl);
         }
       } else {
-        // For unpublished images, generate a temporary signed URL to view them securely.
         const { data, error } = await supabase.storage
           .from('gallery')
           .createSignedUrl(image.file_name, 60 * 5, { // 5-minute expiry
@@ -70,7 +63,7 @@ export const ManagedImage = ({ image, isSelected, onSelect, onTogglePublish, onE
     return () => {
       isMounted = false;
     };
-  }, [image.file_name, image.published, image._cacheKey]);
+  }, [image.file_name, image.published]);
 
   return (
     <Card className="flex flex-col">

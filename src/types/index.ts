@@ -37,7 +37,6 @@ export interface GalleryImage {
   exif_data: Record<string, any> | null;
   published: boolean;
   tags: string[] | null;
-  _cacheKey?: number;
 }
 
 export interface Profile {
