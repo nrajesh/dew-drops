@@ -201,7 +201,10 @@ const ManageGallery = () => {
       const { error: uploadError } = await supabase.storage.from("gallery").upload(fileName, file, { cacheControl: '31536000', upsert: false });
       if (uploadError) throw new Error(`Failed to upload ${file.name}: ${uploadError.message}`);
   
+      const { data: { publicUrl } } = supabase.storage.from("gallery").getPublicUrl(fileName);
+  
       const { error: dbError } = await supabase.from("gallery_images").insert({
+        image_url: publicUrl,
         alt_text: preloadedMeta?.alt_text || "",
         tags: preloadedMeta?.tags || null,
         file_name: fileName,

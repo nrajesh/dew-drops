@@ -84,18 +84,17 @@ const Post = () => {
 
       const { data: currentPostData, error: currentPostError } = await supabase
         .from('posts')
-        .select('*, gallery_images(file_name)')
+        .select('*, gallery_images(image_url)')
         .eq('id', id)
         .single();
 
       if (currentPostError) {
         console.error('Error fetching post:', currentPostError);
       } else {
-        const fetchedPost = currentPostData as PostType & { gallery_images?: { file_name: string } };
+        const fetchedPost = currentPostData as PostType & { gallery_images?: GalleryImage };
         setPost(fetchedPost);
-        if (fetchedPost.cover_image_id && fetchedPost.gallery_images?.file_name) {
-          const { data: urlData } = supabase.storage.from('gallery').getPublicUrl(fetchedPost.gallery_images.file_name);
-          setCoverImageUrl(urlData.publicUrl);
+        if (fetchedPost.cover_image_id && fetchedPost.gallery_images) {
+          setCoverImageUrl(fetchedPost.gallery_images.image_url);
         } else {
           setCoverImageUrl(null);
         }
@@ -113,7 +112,7 @@ const Post = () => {
     };
 
     const fetchGalleryImages = async () => {
-      const { data, error } = await supabase.from("gallery_images").select("*").order("created_at", { ascending: false });
+      const { data, error } = await supabase.from("gallery_images").select("id, image_url, alt_text").order("created_at", { ascending: false });
       if (error) {
         console.error("Error fetching gallery images:", error);
       } else {
@@ -230,18 +229,17 @@ const Post = () => {
       // Refresh the post data
       const { data: updatedPostData, error: updatedPostError } = await supabase
         .from('posts')
-        .select('*, gallery_images(file_name)')
+        .select('*, gallery_images(image_url)')
         .eq('id', post.id)
         .single();
 
       if (updatedPostError) {
         console.error('Error fetching updated post:', updatedPostError);
       } else {
-        const updatedPost = updatedPostData as PostType & { gallery_images?: { file_name: string } };
+        const updatedPost = updatedPostData as PostType & { gallery_images?: GalleryImage };
         setPost(updatedPost);
-        if (updatedPost.cover_image_id && updatedPost.gallery_images?.file_name) {
-          const { data: urlData } = supabase.storage.from('gallery').getPublicUrl(updatedPost.gallery_images.file_name);
-          setCoverImageUrl(urlData.publicUrl);
+        if (updatedPost.cover_image_id && updatedPost.gallery_images) {
+          setCoverImageUrl(updatedPost.gallery_images.image_url);
         } else {
           setCoverImageUrl(null);
         }

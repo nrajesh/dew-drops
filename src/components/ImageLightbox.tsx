@@ -153,12 +153,6 @@ export const ImageLightbox = ({ image, onClose, onNavigate, hasNext, hasPrev }: 
     }
   };
 
-  const getFullImageUrl = (fileName: string | undefined) => {
-    if (!fileName) return "";
-    const { data } = supabase.storage.from('gallery').getPublicUrl(fileName);
-    return data.publicUrl;
-  };
-
   return (
     <AnimatePresence>
       {image && (
@@ -220,7 +214,7 @@ export const ImageLightbox = ({ image, onClose, onNavigate, hasNext, hasPrev }: 
             key={image.id}
           >
             <img
-              src={getFullImageUrl(image.file_name)}
+              src={image.image_url}
               alt={image.alt_text || "Enlarged gallery image"}
               className="w-full h-auto object-contain max-h-[85vh] rounded-lg shadow-2xl"
             />

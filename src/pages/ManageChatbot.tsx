@@ -18,7 +18,7 @@ const formSchema = z.object({
 
 const generateContextFromData = async (): Promise<string> => {
   const [postsRes, locationsRes, imagesRes] = await Promise.all([
-    supabase.from('posts').select('title, description, tags, published_at').eq('published', true).order('published_at', { ascending: false }).limit(20),
+    supabase.from('posts').select('title, description, tags').eq('published', true).limit(20),
     supabase.from('travel_locations').select('title, name, description').eq('published', true).limit(20),
     supabase.from('gallery_images').select('alt_text, tags').eq('published', true).limit(30),
   ]);
@@ -49,8 +49,7 @@ The following sections contain the user's personal content available on the site
   if (postsRes.data && postsRes.data.length > 0) {
     context += "\n\n== BLOG POSTS ==\n";
     postsRes.data.forEach((p: any) => {
-      const publishedDate = p.published_at ? new Date(p.published_at).toDateString() : 'N/A';
-      context += `Title: ${p.title}\nPublished Date: ${publishedDate}\nDescription: ${p.description}\nTags: ${p.tags?.join(', ') || 'N/A'}\n\n`;
+      context += `Title: ${p.title}\nDescription: ${p.description}\nTags: ${p.tags?.join(', ') || 'N/A'}\n\n`;
     });
   }
 
