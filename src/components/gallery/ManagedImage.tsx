@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import type { GalleryImage } from '@/types';
 import { Card, CardContent, CardFooter } from '@/components/ui/card';
@@ -19,21 +19,35 @@ interface ManagedImageProps {
 
 export const ManagedImage = ({ image, isSelected, onSelect, onTogglePublish, onEdit }: ManagedImageProps) => {
   const [imageUrl, setImageUrl] = useState<string | null>(null);
+  const prevPublishedState = useRef(image.published);
 
   useEffect(() => {
-    if (image.published) {
-      // For published images, use the fast, cacheable public URL with a transform.
-      const { data } = supabase.storage.from('gallery').getPublicUrl(image.file_name, {
-        transform: {
-          width: 200,
-          height: 200,
-          resize: 'cover',
-        },
-      });
-      setImageUrl(data.publicUrl);
-    } else {
-      // For unpublished images, generate a temporary signed URL to view them securely.
-      const generateSignedUrl = async () => {
+    let isMounted = true;
+
+    const generateUrl = async () => {
+      if (image.published) {
+        const { data } = supabase.storage.from('gallery').getPublicUrl(image.file_name, {
+          transform: {
+            width: 200,
+            height: 200,
+            resize: 'cover',
+          },
+        });
+
+        // Check if the image was *just* published in this render cycle.
+        const justPublished = !prevPublishedState.current && image.published;
+        
+        // If it was just published, add a cache-busting timestamp to the URL.
+        // This forces the CDN to fetch the new, public version instead of a stale, forbidden one.
+        const finalUrl = justPublished
+          ? `${data.publicUrl}?t=${new Date().getTime()}`
+          : data.publicUrl;
+
+        if (isMounted) {
+          setImageUrl(finalUrl);
+        }
+      } else {
+        // For unpublished images, generate a temporary signed URL to view them securely.
         const { data, error } = await supabase.storage
           .from('gallery')
           .createSignedUrl(image.file_name, 60 * 5, { // 5-minute expiry
@@ -44,14 +58,23 @@ export const ManagedImage = ({ image, isSelected, onSelect, onTogglePublish, onE
             },
           });
 
-        if (error) {
-          console.error('Error generating signed URL:', error);
-        } else {
-          setImageUrl(data.signedUrl);
+        if (isMounted) {
+          if (error) {
+            console.error('Error generating signed URL:', error);
+          } else {
+            setImageUrl(data.signedUrl);
+          }
         }
-      };
-      generateSignedUrl();
-    }
+      }
+      // After the effect runs, update the ref to the current state for the next render.
+      prevPublishedState.current = image.published;
+    };
+
+    generateUrl();
+
+    return () => {
+      isMounted = false;
+    };
   }, [image.file_name, image.published]);
 
   return (
