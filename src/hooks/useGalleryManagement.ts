@@ -14,6 +14,32 @@ import { sanitizeFileName } from "@/lib/utils";
 import imageCompression from 'browser-image-compression';
 import ExifReader from 'exifreader';
 
+const sanitizeForJson = (obj: any) => {
+  const seen = new WeakSet();
+  const replacer = (key: string, value: any) => {
+    if (typeof value === 'object' && value !== null) {
+      if (seen.has(value)) {
+        return; // Circular reference found, discard key
+      }
+      seen.add(value);
+    }
+    if (typeof value === 'string') {
+      // Remove null characters and other non-printable control characters that can break JSON parsing
+      // eslint-disable-next-line no-control-regex
+      return value.replace(/[\x00-\x1f\x7f-\x9f]/g, '');
+    }
+    return value;
+  };
+
+  try {
+    // Stringify with the replacer and then parse back to get a clean object
+    return JSON.parse(JSON.stringify(obj, replacer));
+  } catch (e) {
+    console.error("Failed to sanitize object for JSON, returning empty object.", e);
+    return {};
+  }
+};
+
 export const useGalleryManagement = () => {
   const { user } = useAuth();
   const [allImages, setAllImages] = useState<GalleryImage[]>([]);
@@ -95,7 +121,7 @@ export const useGalleryManagement = () => {
               delete rawExif['MakerNote'];
               delete rawExif['UserComment'];
               if (rawExif.thumbnail) delete rawExif.thumbnail;
-              exifData = rawExif;
+              exifData = sanitizeForJson(rawExif);
             } catch (exifError: any) {
               console.warn(`Could not read EXIF data for ${file.name}: ${exifError.message}. Proceeding without it.`);
             }
