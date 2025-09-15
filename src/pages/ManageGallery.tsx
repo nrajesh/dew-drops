@@ -130,7 +130,7 @@ const ManageGallery = () => {
         <Card>
           <CardHeader>
             <CardTitle>Upload to Gallery</CardTitle>
-            <CardDescription>Select images to upload. You can also include a `metadata.json` file to apply alt text and tags automatically.</CardDescription>
+            <CardDescription>Select images to upload. You can also include a `.json` file (like the sample) to apply alt text and tags automatically.</CardDescription>
           </CardHeader>
           <CardContent>
             <div className="space-y-4">

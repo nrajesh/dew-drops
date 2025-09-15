@@ -44,8 +44,8 @@ export const useGalleryManagement = () => {
     const files = Array.from(selectedFiles);
     let metadataMap = new Map<string, { alt_text: string; tags: string[] }>();
 
-    const metadataFile = files.find(f => f.name.toLowerCase() === 'metadata.json');
-    const imageFiles = files.filter(f => f.name.toLowerCase() !== 'metadata.json');
+    const metadataFile = files.find(f => f.name.toLowerCase().endsWith('.json'));
+    const imageFiles = files.filter(f => !f.name.toLowerCase().endsWith('.json'));
 
     if (metadataFile) {
         try {
@@ -60,10 +60,10 @@ export const useGalleryManagement = () => {
                         });
                     }
                 });
-                showSuccess("Found and processed metadata.json.");
+                showSuccess(`Found and processed ${metadataFile.name}.`);
             }
         } catch (e) {
-            showError("Could not parse metadata.json. Uploading images without metadata.");
+            showError(`Could not parse ${metadataFile.name}. Uploading images without metadata.`);
         }
     }
 
