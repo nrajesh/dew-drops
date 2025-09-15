@@ -84,17 +84,18 @@ const Post = () => {
 
       const { data: currentPostData, error: currentPostError } = await supabase
         .from('posts')
-        .select('*, gallery_images(image_url)')
+        .select('*, gallery_images(file_name)')
         .eq('id', id)
         .single();
 
       if (currentPostError) {
         console.error('Error fetching post:', currentPostError);
       } else {
-        const fetchedPost = currentPostData as PostType & { gallery_images?: GalleryImage };
+        const fetchedPost = currentPostData as PostType & { gallery_images?: { file_name: string } };
         setPost(fetchedPost);
-        if (fetchedPost.cover_image_id && fetchedPost.gallery_images) {
-          setCoverImageUrl(fetchedPost.gallery_images.image_url);
+        if (fetchedPost.cover_image_id && fetchedPost.gallery_images?.file_name) {
+          const { data: urlData } = supabase.storage.from('gallery').getPublicUrl(fetchedPost.gallery_images.file_name);
+          setCoverImageUrl(urlData.publicUrl);
         } else {
           setCoverImageUrl(null);
         }
@@ -229,17 +230,18 @@ const Post = () => {
       // Refresh the post data
       const { data: updatedPostData, error: updatedPostError } = await supabase
         .from('posts')
-        .select('*, gallery_images(image_url)')
+        .select('*, gallery_images(file_name)')
         .eq('id', post.id)
         .single();
 
       if (updatedPostError) {
         console.error('Error fetching updated post:', updatedPostError);
       } else {
-        const updatedPost = updatedPostData as PostType & { gallery_images?: GalleryImage };
+        const updatedPost = updatedPostData as PostType & { gallery_images?: { file_name: string } };
         setPost(updatedPost);
-        if (updatedPost.cover_image_id && updatedPost.gallery_images) {
-          setCoverImageUrl(updatedPost.gallery_images.image_url);
+        if (updatedPost.cover_image_id && updatedPost.gallery_images?.file_name) {
+          const { data: urlData } = supabase.storage.from('gallery').getPublicUrl(updatedPost.gallery_images.file_name);
+          setCoverImageUrl(urlData.publicUrl);
         } else {
           setCoverImageUrl(null);
         }
