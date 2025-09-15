@@ -163,8 +163,8 @@ const ManageGallery = () => {
 
         <Tabs defaultValue="published">
           <TabsList className="grid w-full grid-cols-2">
-            <TabsTrigger value="published">Published ({publishedImages.length})</TabsTrigger>
-            <TabsTrigger value="unpublished">Unpublished ({unpublishedImages.length})</TabsTrigger>
+            <TabsTrigger value="published" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">Published ({publishedImages.length})</TabsTrigger>
+            <TabsTrigger value="unpublished" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">Unpublished ({unpublishedImages.length})</TabsTrigger>
           </TabsList>
           <TabsContent value="published">
             <Card>
