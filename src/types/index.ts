@@ -29,7 +29,6 @@ export interface TravelLocation {
 
 export interface GalleryImage {
   id: string;
-  image_url: string;
   alt_text: string | null;
   file_name: string;
   created_at: string;

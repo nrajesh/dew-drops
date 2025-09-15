@@ -113,7 +113,7 @@ const Post = () => {
     };
 
     const fetchGalleryImages = async () => {
-      const { data, error } = await supabase.from("gallery_images").select("id, image_url, alt_text").order("created_at", { ascending: false });
+      const { data, error } = await supabase.from("gallery_images").select("*").order("created_at", { ascending: false });
       if (error) {
         console.error("Error fetching gallery images:", error);
       } else {
