@@ -170,7 +170,7 @@ const ManageGallery = () => {
   
     const uploadPromises = imageFiles.map(async (file) => {
       const sanitizedName = sanitizeFileName(file.name);
-      const fileName = `${Date.now()}_${sanitizedName}`;
+      const fileName = `${user.id}/${Date.now()}_${sanitizedName}`;
       const originalFileName = file.name;
       const preloadedMeta = metadataMap.get(originalFileName);
   
