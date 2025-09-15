@@ -21,28 +21,38 @@ export const ManagedImage = ({ image, isSelected, onSelect, onTogglePublish, onE
   const [imageUrl, setImageUrl] = useState<string | null>(null);
 
   useEffect(() => {
-    const generateSignedUrl = async () => {
-      // Signed URLs are needed to view images that are not yet published.
-      // We create a short-lived (5 minute) URL to securely access the thumbnail.
-      const { data, error } = await supabase.storage
-        .from('gallery')
-        .createSignedUrl(image.file_name, 60 * 5, {
-          transform: {
-            width: 200,
-            height: 200,
-            resize: 'cover',
-          },
-        });
+    if (image.published) {
+      // For published images, use the fast, cacheable public URL with a transform.
+      const { data } = supabase.storage.from('gallery').getPublicUrl(image.file_name, {
+        transform: {
+          width: 200,
+          height: 200,
+          resize: 'cover',
+        },
+      });
+      setImageUrl(data.publicUrl);
+    } else {
+      // For unpublished images, generate a temporary signed URL to view them securely.
+      const generateSignedUrl = async () => {
+        const { data, error } = await supabase.storage
+          .from('gallery')
+          .createSignedUrl(image.file_name, 60 * 5, { // 5-minute expiry
+            transform: {
+              width: 200,
+              height: 200,
+              resize: 'cover',
+            },
+          });
 
-      if (error) {
-        console.error('Error generating signed URL:', error);
-      } else {
-        setImageUrl(data.signedUrl);
-      }
-    };
-
-    generateSignedUrl();
-  }, [image.file_name]);
+        if (error) {
+          console.error('Error generating signed URL:', error);
+        } else {
+          setImageUrl(data.signedUrl);
+        }
+      };
+      generateSignedUrl();
+    }
+  }, [image.file_name, image.published]);
 
   return (
     <Card className="flex flex-col">
