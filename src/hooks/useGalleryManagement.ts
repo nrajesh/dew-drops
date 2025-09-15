@@ -89,10 +89,16 @@ export const useGalleryManagement = () => {
           const file = imageFiles[i];
           updateToastLoading(toastId, `Uploading ${i + 1} of ${imageFiles.length}: ${file.name}`);
           try {
-            const exifData = await ExifReader.load(file);
-            delete exifData['MakerNote'];
-            delete exifData['UserComment'];
-            if (exifData.thumbnail) delete exifData.thumbnail;
+            let exifData = {}; // Default to empty object
+            try {
+              const rawExif = await ExifReader.load(file);
+              delete rawExif['MakerNote'];
+              delete rawExif['UserComment'];
+              if (rawExif.thumbnail) delete rawExif.thumbnail;
+              exifData = rawExif;
+            } catch (exifError: any) {
+              console.warn(`Could not read EXIF data for ${file.name}: ${exifError.message}. Proceeding without it.`);
+            }
 
             const compressedFile = await imageCompression(file, { maxSizeMB: 1, maxWidthOrHeight: 1920, useWebWorker: true });
             const sanitizedName = sanitizeFileName(compressedFile.name);
