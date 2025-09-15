@@ -33,7 +33,6 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { ManagedImage } from "@/components/gallery/ManagedImage";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { UnpublishedList } from "@/components/gallery/UnpublishedList";
 import { useGalleryManagement } from "@/hooks/useGalleryManagement";
 import { generateAltTextFromFileName } from "@/lib/utils";
 
@@ -51,6 +50,7 @@ const ManageGallery = () => {
     selectedImages,
     editingImage,
     currentPage,
+    unpublishedCurrentPage,
     imagesPerPage,
     loadImages,
     setSelectedFiles,
@@ -64,7 +64,14 @@ const ManageGallery = () => {
     handleSelectImage,
     handleSelectAll,
     setCurrentPage,
+    setUnpublishedCurrentPage,
     setImagesPerPage,
+    publishedImages,
+    unpublishedImages,
+    paginatedPublishedImages,
+    paginatedUnpublishedImages,
+    totalPages,
+    unpublishedTotalPages,
   } = useGalleryManagement();
 
   const containerRef = useRef<HTMLDivElement>(null);
@@ -81,16 +88,6 @@ const ManageGallery = () => {
       });
     }
   }, [editingImage, form]);
-
-  const publishedImages = useMemo(() => allImages.filter(img => img.published), [allImages]);
-  const unpublishedImages = useMemo(() => allImages.filter(img => !img.published), [allImages]);
-
-  const paginatedPublishedImages = useMemo(() => {
-    const startIndex = (currentPage - 1) * imagesPerPage;
-    return publishedImages.slice(startIndex, startIndex + imagesPerPage);
-  }, [publishedImages, currentPage, imagesPerPage]);
-
-  const totalPages = Math.ceil(publishedImages.length / imagesPerPage);
 
   usePaginationNavigation({
     currentPage,
@@ -122,7 +119,8 @@ const ManageGallery = () => {
     }
   };
 
-  const allOnPageSelected = paginatedPublishedImages.length > 0 && paginatedPublishedImages.every(i => selectedImages.has(i.id));
+  const allPublishedOnPageSelected = paginatedPublishedImages.length > 0 && paginatedPublishedImages.every(i => selectedImages.has(i.id));
+  const allUnpublishedOnPageSelected = paginatedUnpublishedImages.length > 0 && paginatedUnpublishedImages.every(i => selectedImages.has(i.id));
 
   return (
     <>
@@ -227,7 +225,7 @@ const ManageGallery = () => {
                 {isLoading ? <p>Loading...</p> : publishedImages.length > 0 ? (
                   <>
                     <div className="flex items-center space-x-2 mb-4 pb-4 border-b">
-                      <Checkbox id="select-all" checked={allOnPageSelected} onCheckedChange={(checked) => handleSelectAll(Boolean(checked), paginatedPublishedImages)} disabled={paginatedPublishedImages.length === 0} />
+                      <Checkbox id="select-all" checked={allPublishedOnPageSelected} onCheckedChange={(checked) => handleSelectAll(Boolean(checked), paginatedPublishedImages)} disabled={paginatedPublishedImages.length === 0} />
                       <label htmlFor="select-all">Select All on Page</label>
                     </div>
                     <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
@@ -245,13 +243,81 @@ const ManageGallery = () => {
           </TabsContent>
           <TabsContent value="unpublished">
             <Card>
-              <CardHeader>
-                <CardTitle>Unpublished Images</CardTitle>
-                <CardDescription>These images are not visible on your public gallery. Click "Publish" to make them live.</CardDescription>
+              <CardHeader className="flex flex-row items-center justify-between">
+                <div>
+                  <CardTitle>Unpublished Images</CardTitle>
+                  <CardDescription>These images are not visible on your public gallery. Select images to perform bulk actions.</CardDescription>
+                </div>
+                <div className="flex gap-2">
+                  {selectedImages.size > 0 && (
+                    <>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="outline">
+                            Bulk Actions ({selectedImages.size})
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem onClick={() => handleBulkPublishWrapper(true)}>
+                            Publish Selected
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={handleGenerateTagsWrapper}>
+                            Generate Tags
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={handleBulkDownloadWrapper}>
+                            <Download className="h-4 w-4 mr-2" />
+                            Download Selected
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                      <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                          <Button variant="destructive">
+                            <Trash2 className="h-4 w-4 mr-2" />
+                            Delete ({selectedImages.size})
+                          </Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                          <AlertDialogHeader>
+                            <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                            <AlertDialogDescription>
+                              This will permanently delete the {selectedImages.size} selected image(s). This action cannot be undone.
+                            </AlertDialogDescription>
+                          </AlertDialogHeader>
+                          <AlertDialogFooter>
+                            <AlertDialogCancel>Cancel</AlertDialogCancel>
+                            <AlertDialogAction onClick={() => handleDeleteWrapper(Array.from(selectedImages))}>
+                              Delete
+                            </AlertDialogAction>
+                          </AlertDialogFooter>
+                        </AlertDialogContent>
+                      </AlertDialog>
+                    </>
+                  )}
+                </div>
               </CardHeader>
               <CardContent>
-                <UnpublishedList images={unpublishedImages} onPublish={handleTogglePublish} onUpdate={loadImages} />
+                {isLoading ? <p>Loading...</p> : unpublishedImages.length > 0 ? (
+                  <>
+                    <div className="flex items-center space-x-2 mb-4 pb-4 border-b">
+                      <Checkbox id="select-all-unpublished" checked={allUnpublishedOnPageSelected} onCheckedChange={(checked) => handleSelectAll(Boolean(checked), paginatedUnpublishedImages)} disabled={paginatedUnpublishedImages.length === 0} />
+                      <label htmlFor="select-all-unpublished">Select All on Page</label>
+                    </div>
+                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+                      {paginatedUnpublishedImages.map((image) => (
+                        <ManagedImage key={image.id} image={image} isSelected={selectedImages.has(image.id)} onSelect={handleSelectImage} onTogglePublish={handleTogglePublish} onEdit={setEditingImage} />
+                      ))}
+                    </div>
+                  </>
+                ) : (
+                  <div className="text-center py-10 border-dashed border-2 rounded-lg bg-muted">
+                    <p className="text-muted-foreground">No unpublished images found.</p>
+                  </div>
+                )}
               </CardContent>
+              <CardFooter>
+                <ManagementPagination currentPage={unpublishedCurrentPage} totalPages={unpublishedTotalPages} onPageChange={setUnpublishedCurrentPage} itemsPerPage={imagesPerPage} onItemsPerPageChange={setImagesPerPage} totalItems={unpublishedImages.length} />
+              </CardFooter>
             </Card>
           </TabsContent>
         </Tabs>

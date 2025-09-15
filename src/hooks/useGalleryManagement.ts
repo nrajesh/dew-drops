@@ -24,6 +24,7 @@ export const useGalleryManagement = () => {
   const [editingImage, setEditingImage] = useState<GalleryImage | null>(null);
 
   const [currentPage, setCurrentPage] = useState(1);
+  const [unpublishedCurrentPage, setUnpublishedCurrentPage] = useState(1);
   const [imagesPerPage, setImagesPerPage] = useState(10);
 
   const loadImages = useCallback(async () => {
@@ -36,6 +37,22 @@ export const useGalleryManagement = () => {
   useEffect(() => {
     loadImages();
   }, [loadImages]);
+
+  const publishedImages = useMemo(() => allImages.filter(img => img.published), [allImages]);
+  const unpublishedImages = useMemo(() => allImages.filter(img => !img.published), [allImages]);
+
+  const paginatedPublishedImages = useMemo(() => {
+    const startIndex = (currentPage - 1) * imagesPerPage;
+    return publishedImages.slice(startIndex, startIndex + imagesPerPage);
+  }, [publishedImages, currentPage, imagesPerPage]);
+
+  const paginatedUnpublishedImages = useMemo(() => {
+    const startIndex = (unpublishedCurrentPage - 1) * imagesPerPage;
+    return unpublishedImages.slice(startIndex, startIndex + imagesPerPage);
+  }, [unpublishedImages, unpublishedCurrentPage, imagesPerPage]);
+
+  const totalPages = Math.ceil(publishedImages.length / imagesPerPage);
+  const unpublishedTotalPages = Math.ceil(unpublishedImages.length / imagesPerPage);
 
   const handleUpload = useCallback(async () => {
     if (!selectedFiles || selectedFiles.length === 0 || !user) return;
@@ -228,6 +245,7 @@ export const useGalleryManagement = () => {
     selectedImages,
     editingImage,
     currentPage,
+    unpublishedCurrentPage,
     imagesPerPage,
     loadImages,
     setSelectedFiles,
@@ -241,6 +259,13 @@ export const useGalleryManagement = () => {
     handleSelectImage,
     handleSelectAll,
     setCurrentPage,
+    setUnpublishedCurrentPage,
     setImagesPerPage,
+    publishedImages,
+    unpublishedImages,
+    paginatedPublishedImages,
+    paginatedUnpublishedImages,
+    totalPages,
+    unpublishedTotalPages,
   };
 };
