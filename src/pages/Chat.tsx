@@ -3,32 +3,39 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Send, Bot, User as UserIcon, Loader2, AlertTriangle } from "lucide-react";
-import { useChatbotKnowledge } from "@/hooks/useChatbotKnowledge";
+import { usePortfolioContext } from "@/hooks/usePortfolioContext";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { supabase } from "@/integrations/supabase/client";
 
 interface Message {
   role: "user" | "assistant";
   content: string;
 }
 
+let sendMessageToGemini: (message: string) => Promise<string>;
+
 const Chat = () => {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
-  const [apiKeyError, setApiKeyError] = useState(false);
-  const { knowledge, loading: knowledgeLoading, error: knowledgeError } = useChatbotKnowledge();
+  const [apiKeyError, setApiKeyError] = useState<string | null>(null);
+  const { context, loading: contextLoading, error: contextError } = usePortfolioContext();
   const scrollAreaRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    setMessages([
-      { role: "assistant", content: "Hello! How can I help you learn more about this portfolio?" }
-    ]);
+    const initGemini = async () => {
+      try {
+        const module = await import('@/integrations/gemini/client');
+        sendMessageToGemini = module.sendMessageToGemini;
+      } catch (error: any) {
+        setApiKeyError(error.message);
+      }
+    };
+    initGemini();
   }, []);
 
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!input.trim() || isLoading || knowledgeLoading) return;
+    if (!input.trim() || isLoading || contextLoading) return;
 
     const userMessage: Message = { role: "user", content: input };
     setMessages((prev) => [...prev, userMessage]);
@@ -36,28 +43,29 @@ const Chat = () => {
     setIsLoading(true);
 
     try {
-      if (knowledgeError) throw new Error(knowledgeError);
-      if (!knowledge) throw new Error("Knowledge base is not available.");
+      if (contextError) throw new Error(contextError);
+      if (!context) throw new Error("Knowledge base is not available.");
+      if (!sendMessageToGemini) throw new Error("Chat client is not initialized.");
 
-      const { data, error } = await supabase.functions.invoke('chat-with-knowledge', {
-        body: { query: input, knowledge },
-      });
+      const systemPrompt = `You are a helpful assistant for a personal portfolio website.
+      Use ONLY the following context to answer the user's question.
+      Be friendly, concise, and helpful. If the answer is not in the context, say you don't have that information. Do not make things up.
 
-      if (error) {
-        const errorBody = await error.context.json();
-        if (errorBody.error && errorBody.error.includes('GEMINI_API_KEY')) {
-          setApiKeyError(true);
-          throw new Error("The Gemini API key is missing. The site administrator needs to configure it in the Supabase project settings.");
-        }
-        throw new Error(errorBody.error || error.message);
-      }
+      CONTEXT:
+      ---
+      ${context}
+      ---
 
-      const assistantMessage: Message = { role: "assistant", content: data.response };
+      QUESTION:
+      ${input}
+      `;
+
+      const response = await sendMessageToGemini(systemPrompt);
+      const assistantMessage: Message = { role: "assistant", content: response };
       setMessages((prev) => [...prev, assistantMessage]);
-
     } catch (error: any) {
-      console.error("Error generating chat response:", error);
-      const errorMessage: Message = { role: "assistant", content: `Sorry, an error occurred: ${error.message}. Please try again.` };
+      console.error("Error fetching chat response:", error);
+      const errorMessage: Message = { role: "assistant", content: `Sorry, an error occurred: ${error.message}` };
       setMessages((prev) => [...prev, errorMessage]);
     } finally {
       setIsLoading(false);
@@ -77,21 +85,7 @@ const Chat = () => {
           <AlertTriangle className="h-4 w-4" />
           <AlertTitle>Configuration Error</AlertTitle>
           <AlertDescription>
-            The Gemini API key is missing. The site administrator needs to add the <code>GEMINI_API_KEY</code> secret in the Supabase project settings for the chatbot to function.
-          </AlertDescription>
-        </Alert>
-      </div>
-    );
-  }
-
-  if (knowledgeError) {
-    return (
-      <div className="p-4">
-        <Alert variant="destructive">
-          <AlertTriangle className="h-4 w-4" />
-          <AlertTitle>Knowledge Base Error</AlertTitle>
-          <AlertDescription>
-            The chatbot's knowledge base could not be loaded. Please try refreshing the page.
+            The chatbot is not configured correctly. Please ensure the <code>VITE_GEMINI_API_KEY</code> is set in your environment variables.
           </AlertDescription>
         </Alert>
       </div>
@@ -133,9 +127,9 @@ const Chat = () => {
             value={input}
             onChange={(e) => setInput(e.target.value)}
             placeholder="Ask about my projects, travel, or photos..."
-            disabled={isLoading || knowledgeLoading}
+            disabled={isLoading || contextLoading}
           />
-          <Button type="submit" disabled={isLoading || knowledgeLoading || !input.trim()}>
+          <Button type="submit" disabled={isLoading || contextLoading || !input.trim()}>
             <Send className="h-4 w-4" />
             <span className="sr-only">Send</span>
           </Button>
