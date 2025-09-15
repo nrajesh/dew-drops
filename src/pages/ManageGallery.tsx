@@ -25,6 +25,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { useAuth } from "@/contexts/AuthContext";
 import { sanitizeFileName } from "@/lib/utils";
+import imageCompression from 'browser-image-compression';
 import { Checkbox } from "@/components/ui/checkbox";
 import { ManagementPagination } from "@/components/ManagementPagination";
 import { usePaginationNavigation } from "@/hooks/usePaginationNavigation";
@@ -124,7 +125,7 @@ const ManageGallery = () => {
     }
   
     setIsUploading(true);
-    const toastId = showLoading(`Uploading ${selectedFiles.length} file(s)...`);
+    const toastId = showLoading(`Compressing and uploading ${selectedFiles.length} file(s)...`);
   
     const filesToUpload = Array.from(selectedFiles);
     let metadataMap = new Map<string, { alt_text: string; tags: string[] }>();
@@ -152,12 +153,19 @@ const ManageGallery = () => {
     const imageFiles = filesToUpload.filter(f => f.type.startsWith('image/'));
   
     const uploadPromises = imageFiles.map(async (file) => {
-      const sanitizedName = sanitizeFileName(file.name);
+      const compressionOptions = {
+        maxSizeMB: 2,
+        maxWidthOrHeight: 1920,
+        useWebWorker: true,
+      };
+      const compressedFile = await imageCompression(file, compressionOptions);
+
+      const sanitizedName = sanitizeFileName(compressedFile.name);
       const fileName = `${user.id}/${Date.now()}_${sanitizedName}`;
       const originalFileName = file.name;
       const preloadedMeta = metadataMap.get(originalFileName);
   
-      const { error: uploadError } = await supabase.storage.from("gallery").upload(fileName, file, { cacheControl: '31536000', upsert: false });
+      const { error: uploadError } = await supabase.storage.from("gallery").upload(fileName, compressedFile, { cacheControl: '31536000', upsert: false });
       if (uploadError) throw new Error(`Failed to upload ${file.name}: ${uploadError.message}`);
       
       const { data: { publicUrl } } = supabase.storage.from("gallery").getPublicUrl(fileName);
@@ -168,7 +176,7 @@ const ManageGallery = () => {
         tags: preloadedMeta?.tags || null,
         file_name: fileName,
         user_id: user.id,
-        exif_data: null, // Skip EXIF reading for faster uploads
+        exif_data: null,
         published: false,
       });
   
