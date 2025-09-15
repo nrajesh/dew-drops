@@ -47,7 +47,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { UnpublishedList } from "@/components/gallery/UnpublishedList";
 
 const editSchema = z.object({
-  alt_text: z.string().min(3, "Alt text must be at least 3 characters.").max(200, "Alt text cannot exceed 200 characters."),
+  alt_text: z.string().max(200, "Alt text cannot exceed 200 characters."),
   tags: z.string().optional(),
 });
 
@@ -136,8 +136,14 @@ const ManageGallery = () => {
     if (!editingImage) return;
     const toastId = showLoading("Updating image data...");
     try {
+      let finalAltText = values.alt_text;
+      if (!finalAltText || finalAltText.trim() === '') {
+        const originalFileName = editingImage.file_name.split('/').pop()?.split('_').slice(1).join('_') || editingImage.file_name;
+        finalAltText = originalFileName.replace(/\.[^/.]+$/, "").replace(/_/g, ' ');
+      }
+
       const tagsArray = values.tags?.split(',').map(t => t.trim()).filter(Boolean) || [];
-      const { error } = await supabase.from("gallery_images").update({ alt_text: values.alt_text, tags: tagsArray }).eq("id", editingImage.id);
+      const { error } = await supabase.from("gallery_images").update({ alt_text: finalAltText, tags: tagsArray }).eq("id", editingImage.id);
       if (error) throw error;
       dismissToast(toastId);
       showSuccess("Image data updated successfully!");
