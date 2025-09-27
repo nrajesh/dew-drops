@@ -104,7 +104,7 @@ const Travel = () => {
         <div className="text-center">
           <h1 className="text-3xl font-bold">Travel Map</h1>
           <p className="text-muted-foreground">
-            Explore my travels on the map below, or click a card to learn more.
+            The world as I've seen it.
           </p>
         </div>
 
