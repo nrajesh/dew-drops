@@ -307,7 +307,7 @@ const CurriculumVitae = () => {
               <CardContent className="flex flex-wrap gap-2">
                 {interests.map((interest: ResumeInterest, index: number) => (
                   <Badge key={index} variant="secondary" className="px-3 py-1">
-                    {interest.name}
+                    {interest.name} ({[interest.keywords]})
                   </Badge>
                 ))}
               </CardContent>
