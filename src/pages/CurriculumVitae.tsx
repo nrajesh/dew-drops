@@ -7,7 +7,7 @@ import type { JsonResume, ResumeWork, ResumeEducation, ResumeSkill } from "@/typ
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 
-const RESUME_URL = "https://gist.github.com/nrajesh/773fb6b9372c3c44e08a47fea36644f9/raw/";
+const RESUME_URL = "https://gist.githubusercontent.com/nrajesh/773fb6b9372c3c44e08a47fea36644f9/raw/resume.json";
 
 const CurriculumVitae = () => {
   const [resume, setResume] = useState<JsonResume | null>(null);
