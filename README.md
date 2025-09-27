@@ -31,6 +31,7 @@ These keys are used in the browser. You should create a `.env` file in the root 
 
 -   `VITE_MAPBOX_ACCESS_TOKEN`: Your access token from [Mapbox](https://www.mapbox.com/), required for the Travel Map.
 -   `VITE_GEMINI_API_KEY`: Your API key from [Google AI Studio](https://aistudio.google.com/), required for the AI Chatbot and AI-powered image tagging.
+-   `VITE_GEMINI_MODEL_NAME`: The name of the Gemini model to use (e.g., `"gemini-pro"` or `"gemini-1.5-flash"`).
 -   `VITE_ALLOWED_EMAIL`: The single email address that is permitted to sign in to the admin dashboard.
 
 *Note: Your Supabase URL and Publishable Key are already pre-configured in the code.*
@@ -43,6 +44,7 @@ These keys are stored securely in your Supabase project dashboard and are used b
 2.  Go to **Settings** -> **Edge Functions**.
 3.  Under **Manage Secrets**, add the following:
     -   `RESEND_API_KEY`: Your API key from [Resend](https://resend.com/), required for the Contact Form to send emails.
+    -   `GEMINI_MODEL_NAME`: The name of the Gemini model to use for server-side functions (e.g., `"gemini-pro"` or `"gemini-1.5-flash"`).
 
 ---
 
@@ -73,6 +75,7 @@ The gallery management page uses a two-tab system—**Published** and **Unpublis
 4.  **Interactive Lightbox:**
     *   Clicking on any image (in either tab) opens it in a beautiful, full-screen lightbox.
     *   Controls for navigation, closing, and viewing EXIF data appear when you tap or click the image and fade out automatically.
+    *   **Enhanced Search:** The public gallery search now includes matching hits from image tags, alt text, filenames, and EXIF data.
 
 ### 🗺️ Managing the Travel Map
 
@@ -85,7 +88,7 @@ The gallery management page uses a two-tab system—**Published** and **Unpublis
 
 1.  **Navigate:** Go to the **Chatbot Knowledge** page from the sidebar under "Settings".
 2.  **Edit Knowledge:** The large text area contains the entire "knowledge base" the AI uses to answer questions. You can edit this text directly.
-3.  **Auto-Generate:** Click the **"Generate from Portfolio"** button to automatically create a new knowledge base from your latest published content.
+3.  **Auto-Generate:** Click the **"Generate from Portfolio"** button to automatically create a new knowledge base from your latest published content, including details about the updated gallery features.
 4.  **Save:** Click "Save Knowledge Base" to apply your changes.
 
 ### ⚙️ Managing Your Data
@@ -97,9 +100,9 @@ The gallery management page uses a two-tab system—**Published** and **Unpublis
 
 ### 👤 Managing Your Profile
 
-1.  **Navigate:** Go to the **User Profile** page under "Settings".
-2.  **Update Info:** Change your first name, last name, and avatar.
-3.  **Change Password:** Securely update your administrator password.
+11. **Navigate:** Go to the **User Profile** page under "Settings".
+12. **Update Info:** Change your first name, last name, and avatar.
+13. **Change Password:** Securely update your administrator password.
 
 ### 📧 Configuring the Contact Form
 

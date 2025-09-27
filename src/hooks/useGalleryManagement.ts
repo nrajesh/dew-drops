@@ -10,35 +10,7 @@ import {
   handleGenerateTags,
   handleBulkDownload,
 } from "@/components/gallery/GalleryManagementUtils.ts";
-import { sanitizeFileName } from "@/lib/utils";
-import imageCompression from 'browser-image-compression';
-import ExifReader from 'exifreader';
-
-const sanitizeForJson = (obj: any) => {
-  const seen = new WeakSet();
-  const replacer = (key: string, value: any) => {
-    if (typeof value === 'object' && value !== null) {
-      if (seen.has(value)) {
-        return; // Circular reference found, discard key
-      }
-      seen.add(value);
-    }
-    if (typeof value === 'string') {
-      // Remove null characters and other non-printable control characters that can break JSON parsing
-      // eslint-disable-next-line no-control-regex
-      return value.replace(/[\x00-\x1f\x7f-\x9f]/g, '');
-    }
-    return value;
-  };
-
-  try {
-    // Stringify with the replacer and then parse back to get a clean object
-    return JSON.parse(JSON.stringify(obj, replacer));
-  } catch (e) {
-    console.error("Failed to sanitize object for JSON, returning empty object.", e);
-    return {};
-  }
-};
+import { processImageUploads, processMetadataUpdate } from "@/components/gallery/GalleryUploadUtils"; // Import new utilities
 
 export const useGalleryManagement = () => {
   const { user } = useAuth();
@@ -90,109 +62,41 @@ export const useGalleryManagement = () => {
       const metadataFile = files.find(f => f.name.toLowerCase().endsWith('.json'));
       const imageFiles = files.filter(f => !f.name.toLowerCase().endsWith('.json'));
 
-      if (imageFiles.length > 0) {
-        // --- Image Upload Logic ---
-        let metadataMap = new Map<string, { alt_text: string; tags: string[] }>();
-        if (metadataFile) {
-          try {
-            const metadataContent = await metadataFile.text();
-            const metadataArray = JSON.parse(metadataContent);
-            if (Array.isArray(metadataArray)) {
-              metadataArray.forEach(item => {
-                if (item.fileName) {
-                  metadataMap.set(item.fileName, { alt_text: item.alt_text || '', tags: item.tags || [] });
-                }
-              });
-              showSuccess(`Found and processed ${metadataFile.name}.`);
-            }
-          } catch (e) {
-            showError(`Could not parse ${metadataFile.name}. Uploading images without metadata.`);
-          }
-        }
-
-        let successfulUploads = 0;
-        for (let i = 0; i < imageFiles.length; i++) {
-          const file = imageFiles[i];
-          updateToastLoading(toastId, `Uploading ${i + 1} of ${imageFiles.length}: ${file.name}`);
-          try {
-            let exifData = {}; // Default to empty object
-            try {
-              const rawExif = await ExifReader.load(file);
-              delete rawExif['MakerNote'];
-              delete rawExif['UserComment'];
-              if (rawExif.thumbnail) delete rawExif.thumbnail;
-              exifData = sanitizeForJson(rawExif);
-            } catch (exifError: any) {
-              console.warn(`Could not read EXIF data for ${file.name}: ${exifError.message}. Proceeding without it.`);
-            }
-
-            const compressedFile = await imageCompression(file, { maxSizeMB: 1, maxWidthOrHeight: 1920, useWebWorker: true });
-            const sanitizedName = sanitizeFileName(compressedFile.name);
-            const fileName = `${user.id}/${Date.now()}_${sanitizedName}`;
-
-            const { error: uploadError } = await supabase.storage.from('gallery').upload(fileName, compressedFile);
-            if (uploadError) throw uploadError;
-
-            const { data: { publicUrl } } = supabase.storage.from('gallery').getPublicUrl(fileName);
-            const metadata = metadataMap.get(file.name);
-
-            const { error: dbError } = await supabase.from('gallery_images').insert({
-              user_id: user.id,
-              file_name: fileName,
-              image_url: publicUrl,
-              published: false,
-              alt_text: metadata?.alt_text,
-              tags: metadata?.tags,
-              exif_data: exifData,
+      let metadataMap = new Map<string, { alt_text: string; tags: string[] }>();
+      if (metadataFile) {
+        try {
+          const metadataContent = await metadataFile.text();
+          const metadataArray = JSON.parse(metadataContent);
+          if (Array.isArray(metadataArray)) {
+            metadataArray.forEach(item => {
+              if (item.fileName) {
+                metadataMap.set(item.fileName, { alt_text: item.alt_text || '', tags: item.tags || [] });
+              }
             });
-            if (dbError) throw dbError;
-            successfulUploads++;
-          } catch (error: any) {
-            updateToastError(toastId, `Failed to upload ${file.name}: ${error.message}`);
-            await new Promise(resolve => setTimeout(resolve, 2000));
+            showSuccess(`Found and processed ${metadataFile.name}.`);
           }
+        } catch (e) {
+          showError(`Could not parse ${metadataFile.name}. Uploading images without metadata.`);
         }
-        if (successfulUploads === imageFiles.length) {
+      }
+
+      if (imageFiles.length > 0) {
+        const { successfulUploads, totalImageFiles, failedFiles } = await processImageUploads(imageFiles, metadataMap, user.id, toastId);
+        if (successfulUploads === totalImageFiles) {
           updateToastSuccess(toastId, "All files uploaded successfully!");
         } else {
-          showError(`${successfulUploads} of ${imageFiles.length} files uploaded. Check console for errors.`);
+          showError(`${successfulUploads} of ${totalImageFiles} files uploaded. Check console for errors.`);
+          console.error("Failed image uploads:", failedFiles);
         }
-
       } else if (metadataFile) {
-        // --- Metadata-Only Update Logic ---
-        updateToastLoading(toastId, `Applying metadata from ${metadataFile.name}...`);
-        const metadataContent = await metadataFile.text();
-        const metadataArray = JSON.parse(metadataContent);
-        let updatedCount = 0;
-        let notFoundCount = 0;
-
-        const updatePromises = metadataArray.map(async (meta: any) => {
-          if (!meta.fileName) return;
-          const sanitizedMetaFileName = sanitizeFileName(meta.fileName);
-          const existingImage = allImages.find(img => img.file_name.endsWith(`_${sanitizedMetaFileName}`));
-
-          if (existingImage) {
-            const updatePayload: { alt_text?: string; tags?: string[] } = {};
-            if (typeof meta.alt_text === 'string') updatePayload.alt_text = meta.alt_text;
-            if (Array.isArray(meta.tags)) updatePayload.tags = meta.tags;
-
-            if (Object.keys(updatePayload).length > 0) {
-              const { error } = await supabase.from('gallery_images').update(updatePayload).eq('id', existingImage.id);
-              if (error) {
-                console.error(`Failed to update ${meta.fileName}:`, error);
-              } else {
-                updatedCount++;
-              }
-            }
-          } else {
-            notFoundCount++;
-          }
-        });
-
-        await Promise.all(updatePromises);
+        const { updatedCount, notFoundCount, failedUpdates } = await processMetadataUpdate(metadataFile, allImages, toastId);
         let summary = `${updatedCount} image(s) updated successfully.`;
         if (notFoundCount > 0) {
           summary += ` ${notFoundCount} file name(s) in your JSON did not match any existing images.`;
+        }
+        if (failedUpdates.length > 0) {
+          summary += ` ${failedUpdates.length} updates failed. Check console for errors.`;
+          console.error("Failed metadata updates:", failedUpdates);
         }
         updateToastSuccess(toastId, summary);
       } else {

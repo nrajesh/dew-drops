@@ -76,7 +76,12 @@ const Gallery = () => {
             }
           }
         }
-        return filenameMatch || altTextMatch || exifMatch;
+        // New: Check for matches in tags
+        const tagsMatch = image.tags?.some(tag =>
+          searchTerms.some(term => tag.toLowerCase().includes(term))
+        ) || false;
+
+        return filenameMatch || altTextMatch || exifMatch || tagsMatch;
       });
     }
 
@@ -136,7 +141,7 @@ const Gallery = () => {
               <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
               <Input
                 type="search"
-                placeholder="Search descriptions..."
+                placeholder="Search descriptions, tags, or filenames..."
                 className="pl-8 w-full"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}

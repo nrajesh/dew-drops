@@ -31,8 +31,8 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { ManagedImage } from "@/components/gallery/ManagedImage";
 import { UnpublishedImageListItem } from "@/components/gallery/UnpublishedImageListItem";
+import { PublishedImageListItem } from "@/components/gallery/PublishedImageListItem"; // Import the new component
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useGalleryManagement } from "@/hooks/useGalleryManagement";
 import { generateAltTextFromFileName } from "@/lib/utils";
@@ -262,9 +262,18 @@ const ManageGallery = () => {
                       <Checkbox id="select-all" checked={allPublishedOnPageSelected} onCheckedChange={(checked) => handleSelectAll(Boolean(checked), paginatedPublishedImages)} disabled={paginatedPublishedImages.length === 0} />
                       <label htmlFor="select-all">Select All on Page</label>
                     </div>
-                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+                    <div className="space-y-2"> {/* Changed from grid to space-y-2 for list layout */}
                       {paginatedPublishedImages.map((image) => (
-                        <ManagedImage key={image.id} image={image} isSelected={selectedImages.has(image.id)} onSelect={handleSelectImage} onTogglePublish={handleTogglePublish} onEdit={setEditingImage} onView={(img) => openLightbox(img, 'published')} />
+                        <PublishedImageListItem
+                          key={image.id}
+                          image={image}
+                          isSelected={selectedImages.has(image.id)}
+                          onSelect={handleSelectImage}
+                          onTogglePublish={handleTogglePublish}
+                          onEdit={setEditingImage}
+                          onView={(img) => openLightbox(img, 'published')}
+                          isBulkActionMode={selectedImages.size > 0}
+                        />
                       ))}
                     </div>
                   </>

@@ -22,6 +22,25 @@ serve(async (req) => {
     return new Response(null, { headers: corsHeaders })
   }
 
+  const GEMINI_API_KEY = Deno.env.get('GEMINI_API_KEY');
+  const GEMINI_MODEL_NAME = Deno.env.get('GEMINI_MODEL_NAME');
+
+  if (!GEMINI_API_KEY) {
+    console.error('Missing GEMINI_API_KEY secret in Supabase project');
+    return new Response(JSON.stringify({ error: 'AI service is not configured: Missing API Key.' }), {
+      status: 500,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    });
+  }
+
+  if (!GEMINI_MODEL_NAME) {
+    console.error('Missing GEMINI_MODEL_NAME secret in Supabase project');
+    return new Response(JSON.stringify({ error: 'AI service is not configured: Missing Gemini Model Name.' }), {
+      status: 500,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    });
+  }
+
   try {
     const { fileName } = await req.json()
     if (!fileName) {
@@ -45,8 +64,8 @@ serve(async (req) => {
     const imageBase64 = bufferToBase64(imageBuffer);
     const mimeType = fileData.type;
 
-    const genAI = new GoogleGenerativeAI(Deno.env.get('GEMINI_API_KEY')!);
-    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+    const genAI = new GoogleGenerativeAI(GEMINI_API_KEY);
+    const model = genAI.getGenerativeModel({ model: GEMINI_MODEL_NAME });
 
     const prompt = "Analyze this image and provide a comma-separated list of 5-10 relevant keywords for search purposes. Only return the keywords, nothing else. Example: 'nature, mountain, lake, sunset, landscape'";
 
