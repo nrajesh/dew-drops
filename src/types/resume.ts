@@ -22,6 +22,8 @@ export interface ResumeBasics {
 
 export interface ResumeWork {
   company: string;
+  name: string;
+  location: string;
   position: string;
   website?: string;
   startDate: string;

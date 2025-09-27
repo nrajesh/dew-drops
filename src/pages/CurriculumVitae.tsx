@@ -137,7 +137,7 @@ const CurriculumVitae = () => {
                 <p className="text-sm text-muted-foreground">
                   {formatDate(job.startDate)} – {job.endDate ? formatDate(job.endDate) : "Present"}
                 </p>
-                {job.summary && <p className="mt-2 text-sm">{job.summary}</p>}
+                {job.summary && <p className="text-sm">{job.summary}</p>}
                 {job.highlights && job.highlights.length > 0 && (
                   <ul className="list-disc list-inside text-sm text-muted-foreground mt-2 space-y-1">
                     {job.highlights.map((highlight, hIndex) => (

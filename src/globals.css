@@ -35,6 +35,10 @@
     --sidebar-accent-foreground: 222.2 47.4% 11.2%;
     --sidebar-border: 214.3 31.8% 91.4%;
     --sidebar-ring: 217 91% 60%;
+
+    /* Font Settings Variables */
+    --base-font-size: 1rem;
+    --base-line-height: 1.5;
   }
 
   .dark {
@@ -77,6 +81,8 @@
   }
   body {
     @apply bg-background text-foreground;
+    font-size: var(--base-font-size);
+    line-height: var(--base-line-height);
   }
 }
 

@@ -9,6 +9,7 @@ import { BrowserRouter } from "react-router-dom";
 import { SpeedInsights } from "@vercel/speed-insights/react";
 import { AuthProvider } from "./contexts/AuthContext.tsx";
 import { FeatureToggleProvider } from "./contexts/FeatureToggleContext.tsx";
+import { FontSettingsProvider } from "./contexts/FontSettingsContext.tsx"; // Import the new provider
 
 const queryClient = new QueryClient();
 
@@ -32,10 +33,12 @@ createRoot(document.getElementById("root")!).render(
         <QueryClientProvider client={queryClient}>
           <AuthProvider>
             <FeatureToggleProvider>
-              <TooltipProvider>
-                <App />
-                <SpeedInsights />
-              </TooltipProvider>
+              <FontSettingsProvider> {/* Wrap with FontSettingsProvider */}
+                <TooltipProvider>
+                  <App />
+                  <SpeedInsights />
+                </TooltipProvider>
+              </FontSettingsProvider>
             </FeatureToggleProvider>
           </AuthProvider>
         </QueryClientProvider>
