@@ -9,6 +9,7 @@ import { sanitizeFileName } from "@/lib/utils";
 import {
   fetchLocations,
   fetchBlogPosts,
+  geocodeLocation,
   processUploads,
   handleBulkDelete,
   handleBulkPublish,
@@ -80,28 +81,9 @@ export const useTravelManagement = (containerRef: React.RefObject<HTMLDivElement
       let { latitude: currentLatitude, longitude: currentLongitude } = values;
 
       if ((currentLatitude === undefined || currentLongitude === undefined) && values.name) {
-        const geocodeToastId = showLoading(`Finding coordinates for ${values.name}...`);
-        try {
-          const { data, error } = await supabase.functions.invoke('geocode-location', {
-            body: { locationName: values.name },
-          });
-
-          if (error) {
-            const errorBody = await error.context.json();
-            throw new Error(errorBody.error || error.message);
-          }
-          
-          if (data?.error) {
-            throw new Error(data.error);
-          }
-
-          currentLatitude = data.latitude;
-          currentLongitude = data.longitude;
-          dismissToast(geocodeToastId);
-        } catch (geoError) {
-          dismissToast(geocodeToastId);
-          throw geoError; // Re-throw to be caught by the main catch block
-        }
+        const { latitude, longitude } = await geocodeLocation(values.name);
+        currentLatitude = latitude;
+        currentLongitude = longitude;
       }
 
       if (currentLatitude === undefined || currentLongitude === undefined) {
@@ -241,26 +223,9 @@ export const useTravelManagement = (containerRef: React.RefObject<HTMLDivElement
           let longitude: number | undefined = row.longitude ? parseFloat(row.longitude) : undefined;
 
           if ((latitude === undefined || longitude === undefined) && row.name) {
-            const geocodeToastId = showLoading(`Finding coordinates for ${row.name}...`);
-            try {
-              const { data, error } = await supabase.functions.invoke('geocode-location', {
-                body: { locationName: row.name },
-              });
-
-              if (error) {
-                const errorBody = await error.context.json();
-                throw new Error(errorBody.error || error.message);
-              }
-              
-              if (data?.error) {
-                throw new Error(data.error);
-              }
-
-              latitude = data.latitude;
-              longitude = data.longitude;
-            } finally {
-              dismissToast(geocodeToastId);
-            }
+            const { latitude: geoLat, longitude: geoLon } = await geocodeLocation(row.name);
+            latitude = geoLat;
+            longitude = geoLon;
           }
           if (latitude === undefined || longitude === undefined) throw new Error(`Could not determine coordinates for "${row.name}".`);
 

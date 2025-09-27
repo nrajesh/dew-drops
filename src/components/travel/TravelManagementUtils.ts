@@ -26,7 +26,7 @@ export const fetchBlogPosts = async (): Promise<Pick<Post, 'id' | 'title'>[]> =>
 
 export const geocodeLocation = async (locationName: string): Promise<{ latitude: number; longitude: number }> => {
   if (!MAPBOX_ACCESS_TOKEN) {
-    throw new Error("Mapbox access token is not configured.");
+    throw new Error("Mapbox access token is not configured. Please set VITE_MAPBOX_ACCESS_TOKEN in your .env file.");
   }
   const response = await fetch(
     `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(
