@@ -1,5 +1,5 @@
 import { NavLink, Outlet, Link } from "react-router-dom";
-import { Menu, LogIn, LogOut, Plus, Bot, User as UserIcon } from "lucide-react";
+import { Menu, LogIn, LogOut, Plus, Bot, User as UserIcon, Text } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger, SheetDescription } from "@/components/ui/sheet";
 import { ThemeToggle } from "./ThemeToggle";
@@ -17,6 +17,7 @@ import { useNavigate } from "react-router-dom";
 import Chat from "@/pages/Chat";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { FontSizeLineHeightSliders } from "./FontSizeLineHeightSliders"; // Import the new component
 
 const NavContent = ({ onLinkClick }: { onLinkClick?: () => void }) => {
   const { toggles } = useFeatureToggles();
@@ -132,7 +133,7 @@ const Layout = () => {
   return (
     <>
       <div className="grid min-h-screen w-full md:grid-cols-[220px_1fr] lg:grid-cols-[280px_1fr]">
-        <div className="hidden border-r bg-sidebar md:block">
+        <div className="hidden border-r bg-sidebar md:block print:hidden"> {/* Added print:hidden */}
           <div className="flex h-full max-h-screen flex-col">
             <div className="flex h-14 items-center border-b border-sidebar-border px-4 lg:h-[60px] lg:px-6">
               <NavLink to="/" className="flex items-center gap-2 font-semibold text-sidebar-foreground">
@@ -145,10 +146,10 @@ const Layout = () => {
           </div>
         </div>
         <div className="flex flex-col">
-          <header className="flex h-14 items-center gap-4 border-b bg-background px-4 md:px-6 lg:h-[60px]">
+          <header className="flex h-14 items-center gap-4 border-b bg-background px-4 md:px-6 lg:h-[60px] print:hidden"> {/* Added print:hidden */}
             <Sheet open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>
               <SheetTrigger asChild>
-                <Button variant="outline" size="icon" className="shrink-0 md:hidden">
+                <Button variant="outline" size="icon" className="shrink-0 md:hidden print:hidden">
                   <Menu className="h-5 w-5" />
                   <span className="sr-only">Toggle navigation menu</span>
                 </Button>
@@ -176,6 +177,19 @@ const Layout = () => {
             </Sheet>
             <div className="w-full flex-1">
             </div>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" size="icon" aria-label="Adjust font settings">
+                  <Text className="h-[1.2rem] w-[1.2rem]" />
+                  <span className="sr-only">Adjust font settings</span>
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-64">
+                <DropdownMenuLabel>Text Readability</DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                <FontSizeLineHeightSliders />
+              </DropdownMenuContent>
+            </DropdownMenu>
             <ThemeToggle />
             {session ? (
               <DropdownMenu>
@@ -215,7 +229,7 @@ const Layout = () => {
           <main className="flex-1 overflow-auto p-4 md:p-8">
             <Outlet />
           </main>
-          <footer className="border-t bg-background px-6 py-4">
+          <footer className="border-t bg-background px-6 py-4 print:hidden"> {/* Added print:hidden */}
             <div className="flex items-center justify-between text-sm text-muted-foreground">
               <p>&copy; {new Date().getFullYear()} My Portfolio. All rights reserved.</p>
               <div className="flex items-center gap-4">
@@ -230,7 +244,7 @@ const Layout = () => {
           </footer>
         </div>
       </div>
-      <div className="fixed bottom-6 left-6 flex flex-col gap-4 z-40">
+      <div className="fixed bottom-6 left-6 flex flex-col gap-4 z-40 print:hidden"> {/* Added print:hidden */}
         {session && (
           <Button
             variant="default"

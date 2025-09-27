@@ -15,6 +15,7 @@ import { AvatarModal } from "@/components/profile/AvatarModal";
 import { AccountActions } from "@/components/profile/AccountActions";
 import { showSuccess, showError } from "@/utils/toast";
 
+
 const profileFormSchema = z.object({
   first_name: z.string().min(1, "First name is required").max(50, "First name cannot exceed 50 characters"),
   last_name: z.string().min(1, "Last name is required").max(50, "Last name cannot exceed 50 characters"),
