@@ -112,3 +112,17 @@
 .mapboxgl-popup.custom-popup .mapboxgl-popup-close-button:hover {
   background-color: hsla(var(--primary-foreground), 0.1);
 }
+
+@media print {
+  .cv-collapsible-section[data-state="closed"] {
+    display: none !important;
+  }
+  /* Ensure the print button is hidden */
+  .print\:hidden {
+    display: none !important;
+  }
+  /* Force all collapsible sections to be open for printing by default if not explicitly closed */
+  .cv-collapsible-section[data-state="open"] .collapsible-content {
+    display: block !important;
+  }
+}

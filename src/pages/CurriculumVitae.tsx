@@ -147,7 +147,7 @@ const CurriculumVitae = () => {
 
       {work && work.length > 0 && (
         <Card>
-          <Collapsible open={isWorkOpen} onOpenChange={setIsWorkOpen}>
+          <Collapsible open={isWorkOpen} onOpenChange={setIsWorkOpen} className="cv-collapsible-section">
             <CardHeader>
               <CollapsibleTrigger asChild>
                 <Button variant="ghost" className="w-full justify-between p-0 hover:bg-transparent">
@@ -184,7 +184,7 @@ const CurriculumVitae = () => {
 
       {education && education.length > 0 && (
         <Card>
-          <Collapsible open={isEducationOpen} onOpenChange={setIsEducationOpen}>
+          <Collapsible open={isEducationOpen} onOpenChange={setIsEducationOpen} className="cv-collapsible-section">
             <CardHeader>
               <CollapsibleTrigger asChild>
                 <Button variant="ghost" className="w-full justify-between p-0 hover:bg-transparent">
@@ -218,7 +218,7 @@ const CurriculumVitae = () => {
 
       {skills && skills.length > 0 && (
         <Card>
-          <Collapsible open={isSkillsOpen} onOpenChange={setIsSkillsOpen}>
+          <Collapsible open={isSkillsOpen} onOpenChange={setIsSkillsOpen} className="cv-collapsible-section">
             <CardHeader>
               <CollapsibleTrigger asChild>
                 <Button variant="ghost" className="w-full justify-between p-0 hover:bg-transparent">
@@ -242,7 +242,7 @@ const CurriculumVitae = () => {
 
       {awards && awards.length > 0 && (
         <Card>
-          <Collapsible open={isAwardsOpen} onOpenChange={setIsAwardsOpen}>
+          <Collapsible open={isAwardsOpen} onOpenChange={setIsAwardsOpen} className="cv-collapsible-section">
             <CardHeader>
               <CollapsibleTrigger asChild>
                 <Button variant="ghost" className="w-full justify-between p-0 hover:bg-transparent">
@@ -270,7 +270,7 @@ const CurriculumVitae = () => {
 
       {languages && languages.length > 0 && (
         <Card>
-          <Collapsible open={isLanguagesOpen} onOpenChange={setIsLanguagesOpen}>
+          <Collapsible open={isLanguagesOpen} onOpenChange={setIsLanguagesOpen} className="cv-collapsible-section">
             <CardHeader>
               <CollapsibleTrigger asChild>
                 <Button variant="ghost" className="w-full justify-between p-0 hover:bg-transparent">
@@ -294,7 +294,7 @@ const CurriculumVitae = () => {
 
       {interests && interests.length > 0 && (
         <Card>
-          <Collapsible open={isInterestsOpen} onOpenChange={setIsInterestsOpen}>
+          <Collapsible open={isInterestsOpen} onOpenChange={setIsInterestsOpen} className="cv-collapsible-section">
             <CardHeader>
               <CollapsibleTrigger asChild>
                 <Button variant="ghost" className="w-full justify-between p-0 hover:bg-transparent">
@@ -318,7 +318,7 @@ const CurriculumVitae = () => {
 
       {publications && publications.length > 0 && (
         <Card>
-          <Collapsible open={isPublicationsOpen} onOpenChange={setIsPublicationsOpen}>
+          <Collapsible open={isPublicationsOpen} onOpenChange={setIsPublicationsOpen} className="cv-collapsible-section">
             <CardHeader>
               <CollapsibleTrigger asChild>
                 <Button variant="ghost" className="w-full justify-between p-0 hover:bg-transparent">
@@ -353,7 +353,7 @@ const CurriculumVitae = () => {
 
       {references && references.length > 0 && (
         <Card>
-          <Collapsible open={isReferencesOpen} onOpenChange={setIsReferencesOpen}>
+          <Collapsible open={isReferencesOpen} onOpenChange={setIsReferencesOpen} className="cv-collapsible-section">
             <CardHeader>
               <CollapsibleTrigger asChild>
                 <Button variant="ghost" className="w-full justify-between p-0 hover:bg-transparent">
