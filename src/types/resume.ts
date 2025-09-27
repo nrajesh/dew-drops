@@ -67,6 +67,7 @@ export interface ResumeInterest {
 
 export interface ResumePublication {
   name: string;
+  url: string;
   publisher: string;
   releaseDate: string;
   website?: string;

@@ -11,16 +11,20 @@ import { useAuth } from "@/contexts/AuthContext";
 import { showSuccess, showError, showLoading, dismissToast } from "@/utils/toast";
 import { Loader2, Sparkles } from "lucide-react";
 import type { Post, TravelLocation, GalleryImage } from "@/types";
+import type { JsonResume, ResumeWork, ResumeEducation, ResumeSkill, ResumeAward, ResumeLanguage, ResumeInterest, ResumePublication, ResumeReference } from "@/types/resume"; // Import all resume types
 
 const formSchema = z.object({
   content: z.string().min(10, "Knowledge base content must be at least 10 characters."),
 });
 
+const RESUME_URL = import.meta.env.VITE_RESUME_URL;
+
 const generateContextFromData = async (): Promise<string> => {
-  const [postsRes, locationsRes, imagesRes] = await Promise.all([
+  const [postsRes, locationsRes, imagesRes, resumeRes] = await Promise.all([
     supabase.from('posts').select('title, description, tags').eq('published', true).limit(20),
     supabase.from('travel_locations').select('title, name, description').eq('published', true).limit(20),
     supabase.from('gallery_images').select('alt_text, tags').eq('published', true).limit(30),
+    RESUME_URL ? fetch(RESUME_URL).then(res => res.ok ? res.json() : null).catch(e => { console.error("Failed to fetch resume for chatbot context:", e); return null; }) : Promise.resolve(null),
   ]);
 
   let context = `
@@ -33,14 +37,15 @@ Key Features:
 - Photo Gallery: A dynamic gallery with automatic EXIF data extraction, AI-generated tags, and a unified management interface with Published/Unpublished tabs. Gallery search now includes tags, alt text, filenames, and EXIF data.
 - Interactive Travel Map: A map to pin travel destinations, with bulk import/export and management features.
 - Contact Form: A secure, serverless contact form.
-- AI Chatbot: An integrated chatbot (the one you are using now) to answer questions about the portfolio, using an editable knowledge base.
+- AI Chatbot: An integrated chatbot (the one you are using now) to answer questions about the portfolio, using an editable knowledge base. It includes an auto-generate feature to populate the knowledge base from your content.
 - Comprehensive Data Management: The administrator can export and import all portfolio data.
 - User Profile Management: The administrator can update their profile and password.
 - Feature Toggles: The administrator can enable or disable entire sections of the portfolio.
 - Light & Dark Mode: A theme toggle for user preference.
+- Text Readability Controls: Users can adjust base font size and line spacing for a personalized reading experience.
 - Fully Responsive: Designed for all devices.
 - Enhanced Navigation: All content pages are paginated and can be navigated using keyboard arrows or swipe gestures on mobile.
-- CV/Portfolio Page: A dedicated page to display a professional curriculum vitae, with collapsible sections for easy viewing and printing.
+- CV/Portfolio Page: A dedicated page to display a professional curriculum vitae, with collapsible sections for easy viewing and printing. The content for this page is fetched from a public JSON Resume Gist.
 
 The tech stack includes React, Vite, TypeScript, Tailwind CSS, shadcn/ui, and Supabase for the backend (database, storage, and serverless functions). The AI features are powered by Google Gemini.
 
@@ -69,6 +74,97 @@ The following sections contain the user's personal content available on the site
         context += `Image Description: ${i.alt_text}\nTags: ${i.tags?.join(', ') || 'N/A'}\n\n`;
       }
     });
+  }
+
+  if (resumeRes) {
+    const resumeData: JsonResume = resumeRes;
+    context += "\n\n== CURRICULUM VITAE (PORTFOLIO) ==\n";
+    if (resumeData.basics) {
+      context += `Name: ${resumeData.basics.name}\n`;
+      context += `Title: ${resumeData.basics.label}\n`;
+      if (resumeData.basics.summary) context += `Summary: ${resumeData.basics.summary}\n`;
+      if (resumeData.basics.email) context += `Email: ${resumeData.basics.email}\n`;
+      if (resumeData.basics.phone) context += `Phone: ${resumeData.basics.phone}\n`;
+      if (resumeData.basics.url) context += `Website: ${resumeData.basics.url}\n`;
+      if (resumeData.basics.location?.city) context += `Location: ${resumeData.basics.location.city}, ${resumeData.basics.location.countryCode}\n`;
+      
+      if (resumeData.basics.profiles && resumeData.basics.profiles.length > 0) {
+        context += "\nSocial Profiles:\n";
+        resumeData.basics.profiles.forEach((profile) => {
+          context += `- ${profile.network}: ${profile.url}\n`;
+        });
+      }
+    }
+    if (resumeData.work && resumeData.work.length > 0) {
+      context += "\nWork Experience:\n";
+      resumeData.work.forEach((job: ResumeWork) => {
+        context += `- ${job.position} at ${job.company} (${job.startDate} - ${job.endDate || 'Present'})\n`;
+        if (job.location) context += `  Location: ${job.location}\n`;
+        if (job.summary) context += `  Summary: ${job.summary}\n`;
+        if (job.highlights && job.highlights.length > 0) {
+          context += `  Highlights: ${job.highlights.join('; ')}\n`;
+        }
+      });
+    }
+    if (resumeData.education && resumeData.education.length > 0) {
+      context += "\nEducation:\n";
+      resumeData.education.forEach((edu: ResumeEducation) => {
+        context += `- ${edu.studyType} in ${edu.area} from ${edu.institution} (${edu.startDate} - ${edu.endDate || 'Present'})\n`;
+        if (edu.gpa) context += `  GPA: ${edu.gpa}\n`;
+        if (edu.courses && edu.courses.length > 0) {
+          context += `  Courses: ${edu.courses.join(', ')}\n`;
+        }
+      });
+    }
+    if (resumeData.skills && resumeData.skills.length > 0) {
+      context += "\nSkills:\n";
+      resumeData.skills.forEach((skill: ResumeSkill) => {
+        context += `- ${skill.name} (Level: ${skill.level || 'N/A'})`;
+        if (skill.keywords && skill.keywords.length > 0) {
+          context += ` Keywords: ${skill.keywords.join(', ')}\n`;
+        } else {
+          context += '\n';
+        }
+      });
+    }
+    if (resumeData.awards && resumeData.awards.length > 0) {
+      context += "\nAwards:\n";
+      resumeData.awards.forEach((award: ResumeAward) => {
+        context += `- ${award.title} from ${award.awarder} on ${award.date}\n`;
+        if (award.summary) context += `  Summary: ${award.summary}\n`;
+      });
+    }
+    if (resumeData.publications && resumeData.publications.length > 0) {
+      context += "\nPublications:\n";
+      resumeData.publications.forEach((pub: ResumePublication) => {
+        context += `- ${pub.name} by ${pub.publisher} (${pub.releaseDate})\n`;
+        if (pub.website) context += `  Link: ${pub.website}\n`;
+        if (pub.summary) context += `  Summary: ${pub.summary}\n`;
+      });
+    }
+    if (resumeData.languages && resumeData.languages.length > 0) {
+      context += "\nLanguages:\n";
+      resumeData.languages.forEach((lang: ResumeLanguage) => {
+        context += `- ${lang.language} (Fluency: ${lang.fluency})\n`;
+      });
+    }
+    if (resumeData.interests && resumeData.interests.length > 0) {
+      context += "\nInterests:\n";
+      resumeData.interests.forEach((interest: ResumeInterest) => {
+        context += `- ${interest.name}`;
+        if (interest.keywords && interest.keywords.length > 0) {
+          context += ` Keywords: ${interest.keywords.join(', ')}\n`;
+        } else {
+          context += '\n';
+        }
+      });
+    }
+    if (resumeData.references && resumeData.references.length > 0) {
+      context += "\nReferences:\n";
+      resumeData.references.forEach((ref: ResumeReference) => {
+        context += `- ${ref.name}: ${ref.reference}\n`;
+      });
+    }
   }
 
   return context.trim();
