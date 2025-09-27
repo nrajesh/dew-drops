@@ -10,6 +10,7 @@ import { useDebounce } from "@/hooks/useDebounce";
 import { PaginationControls } from "@/components/PaginationControls";
 import { usePaginationNavigation } from "@/hooks/usePaginationNavigation";
 import { Button } from "@/components/ui/button";
+import { searchImagesByMetadata } from "@/utils/embeddings"; // Import the utility function
 
 const LazyImageLightbox = lazy(() => import("@/components/ImageLightbox").then(module => ({ default: module.ImageLightbox })));
 
@@ -17,6 +18,7 @@ const IMAGES_PER_PAGE = 9;
 
 const Gallery = () => {
   const [allImages, setAllImages] = useState<GalleryImage[]>([]);
+  const [displayImages, setDisplayImages] = useState<GalleryImage[]>([]); // Images currently being displayed after filtering/search
   const [loading, setLoading] = useState(true);
   const [selectedImageIndex, setSelectedImageIndex] = useState<number | null>(null);
   const [activeMake, setActiveMake] = useState<string | 'all'>('all');
@@ -36,8 +38,12 @@ const Gallery = () => {
 
     if (error) {
       console.error("Error fetching gallery images:", error);
+      setAllImages([]);
+      setDisplayImages([]);
     } else {
       setAllImages(data as GalleryImage[]);
+      // Initial display of all images
+      setDisplayImages(data as GalleryImage[]);
     }
     setLoading(false);
   }, []);
@@ -45,6 +51,29 @@ const Gallery = () => {
   useEffect(() => {
     fetchImages();
   }, [fetchImages]);
+
+  // Effect to handle filtering/searching
+  useEffect(() => {
+    const applyFiltersAndSearch = async () => {
+      let currentFilteredImages = allImages;
+
+      if (debouncedSearchTerm) {
+        currentFilteredImages = await searchImagesByMetadata(debouncedSearchTerm, allImages);
+      } else {
+        currentFilteredImages = allImages.filter(image => {
+          const makeValue = image.exif_data?.Make;
+          const makeString = typeof makeValue === 'object' && makeValue !== null && 'description' in makeValue ? makeValue.description : makeValue;
+          const makeFilter = activeMake === 'all' || makeString === activeMake;
+          return makeFilter;
+        });
+      }
+      setDisplayImages(currentFilteredImages);
+      setCurrentPage(1); // Reset to first page on filter/search change
+    };
+
+    applyFiltersAndSearch();
+  }, [allImages, activeMake, debouncedSearchTerm]);
+
 
   const deviceMakes = useMemo(() => {
     const makes = allImages.map(img => {
@@ -57,44 +86,8 @@ const Gallery = () => {
     return Array.from(new Set(makes)).sort();
   }, [allImages]);
 
-  const filteredImages = useMemo(() => {
-    if (debouncedSearchTerm) {
-      const lowerSearchTerm = debouncedSearchTerm.toLowerCase();
-      const searchTerms = lowerSearchTerm.split(/\s+/).filter(term => term.length > 0);
-
-      return allImages.filter(image => {
-        const filenameMatch = searchTerms.some(term =>
-          image.file_name.toLowerCase().includes(term)
-        );
-        const altTextMatch = image.alt_text?.toLowerCase().includes(lowerSearchTerm) || false;
-        let exifMatch = false;
-        if (image.exif_data) {
-          for (const value of Object.values(image.exif_data)) {
-            if (String(value).toLowerCase().includes(lowerSearchTerm)) {
-              exifMatch = true;
-              break;
-            }
-          }
-        }
-        // New: Check for matches in tags
-        const tagsMatch = image.tags?.some(tag =>
-          searchTerms.some(term => tag.toLowerCase().includes(term))
-        ) || false;
-
-        return filenameMatch || altTextMatch || exifMatch || tagsMatch;
-      });
-    }
-
-    return allImages.filter(image => {
-      const makeValue = image.exif_data?.Make;
-      const makeString = typeof makeValue === 'object' && makeValue !== null && 'description' in makeValue ? makeValue.description : makeValue;
-      const makeFilter = activeMake === 'all' || makeString === activeMake;
-      return makeFilter;
-    });
-  }, [allImages, activeMake, debouncedSearchTerm]);
-
-  const totalPages = Math.ceil(filteredImages.length / IMAGES_PER_PAGE);
-  const paginatedImages = filteredImages.slice(
+  const totalPages = Math.ceil(displayImages.length / IMAGES_PER_PAGE);
+  const paginatedImages = displayImages.slice(
     (currentPage - 1) * IMAGES_PER_PAGE,
     currentPage * IMAGES_PER_PAGE
   );
@@ -107,25 +100,21 @@ const Gallery = () => {
     enabled: selectedImageIndex === null,
   });
 
-  useEffect(() => {
-    setCurrentPage(1);
-  }, [activeMake, debouncedSearchTerm]);
-
   const getThumbnailUrl = (fileName: string) => {
     const { data } = supabase.storage.from('gallery').getPublicUrl(fileName);
     return data.publicUrl;
   };
 
   const handleNavigate = (direction: 'prev' | 'next') => {
-    if (selectedImageIndex === null || filteredImages.length < 2) return;
+    if (selectedImageIndex === null || displayImages.length < 2) return;
     if (direction === 'next') {
-      setSelectedImageIndex((prevIndex) => (prevIndex! + 1) % filteredImages.length);
+      setSelectedImageIndex((prevIndex) => (prevIndex! + 1) % displayImages.length);
     } else {
-      setSelectedImageIndex((prevIndex) => (prevIndex! - 1 + filteredImages.length) % filteredImages.length);
+      setSelectedImageIndex((prevIndex) => (prevIndex! - 1 + displayImages.length) % displayImages.length);
     }
   };
 
-  const selectedImage = selectedImageIndex !== null ? filteredImages[selectedImageIndex] : null;
+  const selectedImage = selectedImageIndex !== null ? displayImages[selectedImageIndex] : null;
 
   return (
     <>
@@ -177,7 +166,7 @@ const Gallery = () => {
                   key={image.id}
                   className="overflow-hidden group cursor-pointer"
                   onClick={() => {
-                    const globalIndex = filteredImages.findIndex(img => img.id === image.id);
+                    const globalIndex = displayImages.findIndex(img => img.id === image.id);
                     setSelectedImageIndex(globalIndex);
                   }}
                 >
@@ -208,8 +197,8 @@ const Gallery = () => {
           image={selectedImage}
           onClose={() => setSelectedImageIndex(null)}
           onNavigate={handleNavigate}
-          hasNext={filteredImages.length > 1}
-          hasPrev={filteredImages.length > 1}
+          hasNext={displayImages.length > 1}
+          hasPrev={displayImages.length > 1}
           onUpdate={fetchImages}
         />
       </Suspense>

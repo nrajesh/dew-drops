@@ -8,15 +8,17 @@ This README provides a comprehensive guide to understanding, customizing, and ma
 
 -   **Core Home Page:** A permanent landing page that always remains active as the main entry point to your site.
 -   **Dynamic Blog:** A full-featured blog powered by a Supabase database, with Markdown support and bulk management capabilities.
--   **Photo Gallery:** A dynamic gallery with automatic EXIF data extraction, managed via Supabase Storage, enhanced with AI-generated tags and bulk actions.
+-   **Photo Gallery:** A dynamic gallery with automatic EXIF data extraction, managed via Supabase Storage, enhanced with AI-generated tags and a unified management interface (Published/Unpublished tabs). The public gallery search now includes matching hits from image tags, alt text, filenames, and EXIF data.
 -   **Interactive Travel Map:** Pin your travel destinations on a world map, with bulk import/export and management features.
 -   **Contact Form:** A secure, serverless contact form that sends emails directly to you.
--   **AI Chatbot:** An integrated chatbot powered by Google Gemini that uses an editable knowledge base to provide intelligent answers about your portfolio.
--   **Comprehensive Data Management:** Export your entire portfolio to a single JSON file for backup, or import a backup to restore your site.
+-   **AI Chatbot:** An integrated chatbot powered by Google Gemini that uses an editable knowledge base to provide intelligent answers about your portfolio. It also includes an auto-generate feature to populate the knowledge base from your content.
+-   **Comprehensive Data Management:** Export your entire portfolio to a single JSON file for backup, or import a backup to restore your site. You can also reset all data.
 -   **User Profile Management:** Securely update your administrator profile information, avatar, and change your password.
 -   **Feature Toggles:** A settings page to enable or disable entire sections of the portfolio.
 -   **Enhanced Navigation:** All content pages are paginated and can be navigated using keyboard arrows or swipe gestures on mobile.
 -   **Light & Dark Mode:** A sleek theme toggle for user preference.
+-   **Text Readability Controls:** Adjust base font size and line spacing for a personalized reading experience.
+-   **CV/Portfolio Page:** A dedicated page to display a professional curriculum vitae, with collapsible sections for easy viewing and print-friendly formatting.
 -   **Fully Responsive:** Designed to look great on all devices, from desktops to mobile phones.
 
 ---
@@ -91,6 +93,13 @@ The gallery management page uses a two-tab system—**Published** and **Unpublis
 3.  **Auto-Generate:** Click the **"Generate from Portfolio"** button to automatically create a new knowledge base from your latest published content, including details about the updated gallery features.
 4.  **Save:** Click "Save Knowledge Base" to apply your changes.
 
+### 📄 Managing Your CV/Portfolio Page
+
+1.  **Navigate:** Go to the **Portfolio** page from the main navigation.
+2.  **Content Source:** The content for this page is fetched from a public JSON Resume Gist. You can update the `RESUME_URL` constant in `src/pages/CurriculumVitae.tsx` to point to your own JSON Resume file.
+3.  **Collapsible Sections:** Each section (Work Experience, Education, Skills, etc.) is collapsible for easier viewing.
+4.  **Print to PDF:** Use the "Print to PDF" button to generate a clean, print-friendly version of your CV. Collapsed sections will not be included in the printout.
+
 ### ⚙️ Managing Your Data
 
 1.  **Navigate:** Go to the **Manage Data** page under "Settings".
@@ -100,9 +109,14 @@ The gallery management page uses a two-tab system—**Published** and **Unpublis
 
 ### 👤 Managing Your Profile
 
-11. **Navigate:** Go to the **User Profile** page under "Settings".
-12. **Update Info:** Change your first name, last name, and avatar.
-13. **Change Password:** Securely update your administrator password.
+1.  **Navigate:** Go to the **User Profile** page under "Settings".
+2.  **Update Info:** Change your first name, last name, and avatar.
+3.  **Change Password:** Securely update your administrator password.
+
+### 🔠 Adjusting Text Readability
+
+1.  **Access:** Click the "Text" icon in the header navigation.
+2.  **Adjust Sliders:** Use the sliders to change the base font size and line spacing across the entire application to suit your preference.
 
 ### 📧 Configuring the Contact Form
 

@@ -18,6 +18,7 @@ import { MultiSelectPopover } from "@/components/MultiSelectPopover";
 import type { GalleryImage, Post } from "@/types";
 import { useEffect } from "react";
 import { Checkbox } from "../ui/checkbox";
+import { extractDescriptionFromContent, ensureContentHasTripleBackticks } from "@/components/blog/BlogManagementUtils"; // Import utility functions
 
 const postSchema = z.object({
   title: z.string().min(3, { message: "Title must be at least 3 characters." }),
@@ -89,34 +90,13 @@ export const BlogForm = ({ editingPost, galleryImages, uniqueTags, onSubmit, onC
     // Auto-fill description if it's blank
     let description = values.description;
     if (!description || description.trim() === '') {
-      // Extract the first 5 lines from the content
-      const contentLines = values.content.split('\n');
-      let extractedDescription = '';
-
-      // Find the first code block
-      const codeBlockRegex = /```([\s\S]*?)```/;
-      const match = values.content.match(codeBlockRegex);
-
-      if (match && match[1]) {
-        // If there's a code block, use the first 5 lines of the code block
-        const codeBlockLines = match[1].split('\n');
-        extractedDescription = codeBlockLines.slice(0, 5).join('\n').trim();
-      } else {
-        // If no code block, use the first 5 lines of the content
-        extractedDescription = contentLines.slice(0, 5).join('\n').trim();
-      }
-
-      // Trim to 500 characters max
-      if (extractedDescription.length > 500) {
-        extractedDescription = extractedDescription.substring(0, 497) + '...';
-      }
-
-      description = extractedDescription;
+      description = extractDescriptionFromContent(values.content);
     }
 
     onSubmit({
       ...values,
-      description: description
+      description: description,
+      content: ensureContentHasTripleBackticks(values.content) // Ensure content has triple backticks
     });
   };
 

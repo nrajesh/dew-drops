@@ -33,13 +33,14 @@ Key Features:
 - Photo Gallery: A dynamic gallery with automatic EXIF data extraction, AI-generated tags, and a unified management interface with Published/Unpublished tabs. Gallery search now includes tags, alt text, filenames, and EXIF data.
 - Interactive Travel Map: A map to pin travel destinations, with bulk import/export and management features.
 - Contact Form: A secure, serverless contact form.
-- AI Chatbot: An integrated chatbot (the one you are using now) to answer questions about the portfolio.
+- AI Chatbot: An integrated chatbot (the one you are using now) to answer questions about the portfolio, using an editable knowledge base.
 - Comprehensive Data Management: The administrator can export and import all portfolio data.
 - User Profile Management: The administrator can update their profile and password.
 - Feature Toggles: The administrator can enable or disable entire sections of the portfolio.
 - Light & Dark Mode: A theme toggle for user preference.
 - Fully Responsive: Designed for all devices.
 - Enhanced Navigation: All content pages are paginated and can be navigated using keyboard arrows or swipe gestures on mobile.
+- CV/Portfolio Page: A dedicated page to display a professional curriculum vitae, with collapsible sections for easy viewing and printing.
 
 The tech stack includes React, Vite, TypeScript, Tailwind CSS, shadcn/ui, and Supabase for the backend (database, storage, and serverless functions). The AI features are powered by Google Gemini.
 
