@@ -133,7 +133,7 @@ const Layout = () => {
   return (
     <>
       <div className="grid min-h-screen w-full md:grid-cols-[220px_1fr] lg:grid-cols-[280px_1fr]">
-        <div className="hidden border-r bg-sidebar md:block">
+        <div className="hidden border-r bg-sidebar md:block print:hidden"> {/* Added print:hidden */}
           <div className="flex h-full max-h-screen flex-col">
             <div className="flex h-14 items-center border-b border-sidebar-border px-4 lg:h-[60px] lg:px-6">
               <NavLink to="/" className="flex items-center gap-2 font-semibold text-sidebar-foreground">
@@ -146,10 +146,10 @@ const Layout = () => {
           </div>
         </div>
         <div className="flex flex-col">
-          <header className="flex h-14 items-center gap-4 border-b bg-background px-4 md:px-6 lg:h-[60px]">
+          <header className="flex h-14 items-center gap-4 border-b bg-background px-4 md:px-6 lg:h-[60px] print:hidden"> {/* Added print:hidden */}
             <Sheet open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>
               <SheetTrigger asChild>
-                <Button variant="outline" size="icon" className="shrink-0 md:hidden">
+                <Button variant="outline" size="icon" className="shrink-0 md:hidden print:hidden">
                   <Menu className="h-5 w-5" />
                   <span className="sr-only">Toggle navigation menu</span>
                 </Button>
@@ -229,7 +229,7 @@ const Layout = () => {
           <main className="flex-1 overflow-auto p-4 md:p-8">
             <Outlet />
           </main>
-          <footer className="border-t bg-background px-6 py-4">
+          <footer className="border-t bg-background px-6 py-4 print:hidden"> {/* Added print:hidden */}
             <div className="flex items-center justify-between text-sm text-muted-foreground">
               <p>&copy; {new Date().getFullYear()} My Portfolio. All rights reserved.</p>
               <div className="flex items-center gap-4">
@@ -244,7 +244,7 @@ const Layout = () => {
           </footer>
         </div>
       </div>
-      <div className="fixed bottom-6 left-6 flex flex-col gap-4 z-40">
+      <div className="fixed bottom-6 left-6 flex flex-col gap-4 z-40 print:hidden"> {/* Added print:hidden */}
         {session && (
           <Button
             variant="default"

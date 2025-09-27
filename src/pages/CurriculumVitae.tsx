@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Terminal, Mail, Phone, Globe, MapPin, Briefcase, GraduationCap, Zap, Link as LinkIcon, Award, Languages, Heart, BookOpen, Users, Printer, ChevronDown } from "lucide-react";
+import { Terminal, Mail, Phone, Globe, MapPin, Briefcase, GraduationCap, Zap, Link as LinkIcon, Award, Languages, Heart, BookOpen, Users, Printer, ChevronDown, Linkedin } from "lucide-react";
 import type { JsonResume, ResumeWork, ResumeEducation, ResumeSkill, ResumeAward, ResumeLanguage, ResumeInterest, ResumePublication, ResumeReference } from "@/types/resume";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
@@ -57,6 +57,13 @@ const CurriculumVitae = () => {
     }
   };
 
+  const handlePrint = () => {
+    const originalTitle = document.title;
+    document.title = `${resume?.basics.name || "Rajesh Narayanan"}-Resume.pdf`;
+    window.print();
+    document.title = originalTitle;
+  };
+
   if (loading) {
     return (
       <div className="max-w-4xl mx-auto space-y-6">
@@ -91,7 +98,7 @@ const CurriculumVitae = () => {
   return (
     <div className="max-w-4xl mx-auto space-y-8">
       <div className="flex justify-end print:hidden mb-4">
-        <Button onClick={() => window.print()} className="flex items-center gap-2">
+        <Button onClick={handlePrint} className="flex items-center gap-2">
           <Printer className="h-4 w-4" /> Print to PDF
         </Button>
       </div>
@@ -129,11 +136,16 @@ const CurriculumVitae = () => {
             </div>
             {basics.profiles && basics.profiles.length > 0 && (
               <div className="flex flex-wrap justify-center sm:justify-start gap-2 mt-4">
-                {basics.profiles.map((profile, index) => (
-                  <a key={index} href={profile.url} target="_blank" rel="noopener noreferrer" className="text-sm text-primary hover:underline">
-                    {profile.network}
-                  </a>
-                ))}
+                {basics.profiles.map((profile, index) => {
+                  const isLinkedIn = profile.network.toLowerCase() === 'linkedin';
+                  const displayUrl = isLinkedIn ? 'https://linkedin.com/in/nrajesh' : profile.url;
+                  return (
+                    <a key={index} href={displayUrl} target="_blank" rel="noopener noreferrer" className="text-sm text-primary hover:underline flex items-center gap-1">
+                      {isLinkedIn ? <Linkedin className="h-4 w-4" /> : <LinkIcon className="h-4 w-4" />}
+                      {profile.network}
+                    </a>
+                  );
+                })}
               </div>
             )}
           </div>

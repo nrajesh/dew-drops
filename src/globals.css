@@ -125,4 +125,9 @@
   .cv-collapsible-section[data-state="open"] .collapsible-content {
     display: block !important;
   }
+  /* Ensure Card borders are visible and remove shadows for print */
+  .card {
+    border: 1px solid hsl(var(--border)) !important;
+    box-shadow: none !important;
+  }
 }
