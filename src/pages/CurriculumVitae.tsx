@@ -10,7 +10,7 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/component
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
-const RESUME_URL = "https://gist.githubusercontent.com/nrajesh/773fb6b9372c3c44e08a47fea36644f9/raw/6a76161e02160b3b2a61b1be3d225c0a99e505cc/resume.json";
+const RESUME_URL = import.meta.env.VITE_RESUME_URL;
 
 const CurriculumVitae = () => {
   const [resume, setResume] = useState<JsonResume | null>(null);
@@ -30,6 +30,11 @@ const CurriculumVitae = () => {
 
   useEffect(() => {
     const fetchResume = async () => {
+      if (!RESUME_URL) {
+        setError("VITE_RESUME_URL environment variable is not set.");
+        setLoading(false);
+        return;
+      }
       try {
         const response = await fetch(RESUME_URL);
         if (!response.ok) {
@@ -82,7 +87,7 @@ const CurriculumVitae = () => {
           <Terminal className="h-4 w-4" />
           <AlertTitle>Error loading CV</AlertTitle>
           <AlertDescription>
-            {error} Please check the Gist URL or your network connection.
+            {error} Please ensure <code>VITE_RESUME_URL</code> is set correctly in your environment variables and points to a valid JSON Resume Gist.
           </AlertDescription>
         </Alert>
       </div>

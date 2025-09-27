@@ -17,15 +17,14 @@ const formSchema = z.object({
   content: z.string().min(10, "Knowledge base content must be at least 10 characters."),
 });
 
-// Corrected RESUME_URL to match CurriculumVitae.tsx
-const RESUME_URL = "https://gist.githubusercontent.com/nrajesh/773fb6b9372c3c44e08a47fea36644f9/raw/6a76161e02160b3b2a61b1be3d225c0a99e505cc/resume.json";
+const RESUME_URL = import.meta.env.VITE_RESUME_URL;
 
 const generateContextFromData = async (): Promise<string> => {
   const [postsRes, locationsRes, imagesRes, resumeRes] = await Promise.all([
     supabase.from('posts').select('title, description, tags').eq('published', true).limit(20),
     supabase.from('travel_locations').select('title, name, description').eq('published', true).limit(20),
     supabase.from('gallery_images').select('alt_text, tags').eq('published', true).limit(30),
-    fetch(RESUME_URL).then(res => res.ok ? res.json() : null).catch(e => { console.error("Failed to fetch resume for chatbot context:", e); return null; }),
+    RESUME_URL ? fetch(RESUME_URL).then(res => res.ok ? res.json() : null).catch(e => { console.error("Failed to fetch resume for chatbot context:", e); return null; }) : Promise.resolve(null),
   ]);
 
   let context = `

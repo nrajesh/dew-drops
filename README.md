@@ -35,6 +35,7 @@ These keys are used in the browser. You should create a `.env` file in the root 
 -   `VITE_GEMINI_API_KEY`: Your API key from [Google AI Studio](https://aistudio.google.com/), required for the AI Chatbot and AI-powered image tagging.
 -   `VITE_GEMINI_MODEL_NAME`: The name of the Gemini model to use (e.g., `"gemini-pro"` or `"gemini-1.5-flash"`).
 -   `VITE_ALLOWED_EMAIL`: The single email address that is permitted to sign in to the admin dashboard.
+-   `VITE_RESUME_URL`: The URL to your public JSON Resume Gist, required for the Portfolio (CV) page and for the chatbot to generate knowledge about your CV.
 
 *Note: Your Supabase URL and Publishable Key are already pre-configured in the code.*
 
@@ -96,7 +97,7 @@ The gallery management page uses a two-tab system—**Published** and **Unpublis
 ### 📄 Managing Your CV/Portfolio Page
 
 1.  **Navigate:** Go to the **Portfolio** page from the main navigation.
-2.  **Content Source:** The content for this page is fetched from a public JSON Resume Gist. You can update the `RESUME_URL` constant in `src/pages/CurriculumVitae.tsx` to point to your own JSON Resume file.
+2.  **Content Source:** The content for this page is fetched from the URL specified in your `VITE_RESUME_URL` environment variable. Update this variable to point to your own JSON Resume file.
 3.  **Collapsible Sections:** Each section (Work Experience, Education, Skills, etc.) is collapsible for easier viewing.
 4.  **Print to PDF:** Use the "Print to PDF" button to generate a clean, print-friendly version of your CV. Collapsed sections will not be included in the printout.
 
