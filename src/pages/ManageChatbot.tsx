@@ -17,7 +17,8 @@ const formSchema = z.object({
   content: z.string().min(10, "Knowledge base content must be at least 10 characters."),
 });
 
-const RESUME_URL = "https://gist.githubusercontent.com/nrajesh/773fb6b9372c3c44e08a47fea36644f/raw/resume.json"; // Ensure this matches the URL in CurriculumVitae.tsx
+// Corrected RESUME_URL to match CurriculumVitae.tsx
+const RESUME_URL = "https://gist.githubusercontent.com/nrajesh/773fb6b9372c3c44e08a47fea36644f9/raw/6a76161e02160b3b2a61b1be3d225c0a99e505cc/resume.json";
 
 const generateContextFromData = async (): Promise<string> => {
   const [postsRes, locationsRes, imagesRes, resumeRes] = await Promise.all([
