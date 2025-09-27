@@ -91,7 +91,7 @@ const Blog = () => {
       <div className="flex-grow space-y-6">
         <div className="text-center">
           <h1 className="text-3xl font-bold">Blog</h1>
-          <p className="text-muted-foreground">My thoughts on design, development, and more.</p>
+          <p className="text-muted-foreground">My thought archive.</p>
         </div>
 
         <div className="flex flex-col sm:flex-row gap-4 justify-center">
