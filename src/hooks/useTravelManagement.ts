@@ -77,8 +77,7 @@ export const useTravelManagement = (containerRef: React.RefObject<HTMLDivElement
     const toastId = showLoading(editingLocation ? "Updating location..." : "Adding new location...");
     
     try {
-      let currentLatitude: number | undefined = values.latitude === '' ? undefined : values.latitude;
-      let currentLongitude: number | undefined = values.longitude === '' ? undefined : values.longitude;
+      let { latitude: currentLatitude, longitude: currentLongitude } = values;
 
       if ((currentLatitude === undefined || currentLongitude === undefined) && values.name) {
         const geocodeToastId = showLoading(`Finding coordinates for ${values.name}...`);

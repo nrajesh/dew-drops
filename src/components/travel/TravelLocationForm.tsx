@@ -25,8 +25,14 @@ const locationSchema = z.object({
   title: z.string().min(3, { message: "Title must be at least 3 characters." }),
   description: z.string().max(500, { message: "Description cannot be more than 500 characters." }).optional(),
   name: z.string().min(3, { message: "Place name must be at least 3 characters." }),
-  latitude: z.coerce.number().min(-90).max(90).optional().or(z.literal('')),
-  longitude: z.coerce.number().min(-180).max(180).optional().or(z.literal('')),
+  latitude: z.preprocess(
+    (val) => (val === "" ? undefined : val),
+    z.coerce.number({ invalid_type_error: "Must be a number" }).min(-90).max(90).optional()
+  ),
+  longitude: z.preprocess(
+    (val) => (val === "" ? undefined : val),
+    z.coerce.number({ invalid_type_error: "Must be a number" }).min(-180).max(180).optional()
+  ),
   blog_url: z.string().optional().nullable(),
   image: z.instanceof(FileList).optional(),
   published: z.boolean().default(false),
@@ -59,8 +65,8 @@ export const TravelLocationForm = ({
       title: "",
       description: "",
       name: "",
-      latitude: "",
-      longitude: "",
+      latitude: undefined,
+      longitude: undefined,
       blog_url: null,
       published: false,
     },
@@ -82,8 +88,8 @@ export const TravelLocationForm = ({
         title: "",
         description: "",
         name: "",
-        latitude: "",
-        longitude: "",
+        latitude: undefined,
+        longitude: undefined,
         blog_url: null,
         published: false,
       });
@@ -112,10 +118,10 @@ export const TravelLocationForm = ({
             )}/>
             <div className="grid grid-cols-2 gap-4">
               <FormField control={form.control} name="latitude" render={({ field }) => (
-                <FormItem><FormLabel>Latitude (Optional)</FormLabel><FormControl><Input type="number" step="any" placeholder="Auto-detected" {...field} /></FormControl><FormMessage /></FormItem>
+                <FormItem><FormLabel>Latitude (Optional)</FormLabel><FormControl><Input type="number" step="any" placeholder="Auto-detected" {...field} value={field.value ?? ''} /></FormControl><FormMessage /></FormItem>
               )}/>
               <FormField control={form.control} name="longitude" render={({ field }) => (
-                <FormItem><FormLabel>Longitude (Optional)</FormLabel><FormControl><Input type="number" step="any" placeholder="Auto-detected" {...field} /></FormControl><FormMessage /></FormItem>
+                <FormItem><FormLabel>Longitude (Optional)</FormLabel><FormControl><Input type="number" step="any" placeholder="Auto-detected" {...field} value={field.value ?? ''} /></FormControl><FormMessage /></FormItem>
               )}/>
             </div>
             <FormField control={form.control} name="blog_url" render={({ field }) => (
