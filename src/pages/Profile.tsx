@@ -14,7 +14,7 @@ import { PasswordForm } from "@/components/profile/PasswordForm";
 import { AvatarModal } from "@/components/profile/AvatarModal";
 import { AccountActions } from "@/components/profile/AccountActions";
 import { showSuccess, showError } from "@/utils/toast";
-import { FontSettingsControl } from "@/components/FontSettingsControl"; // Import the new component
+
 
 const profileFormSchema = z.object({
   first_name: z.string().min(1, "First name is required").max(50, "First name cannot exceed 50 characters"),
@@ -115,10 +115,6 @@ const Profile = () => {
           setIsAvatarModalOpen={setIsAvatarModalOpen}
         />
         <PasswordForm />
-      </div>
-
-      <div className="max-w-4xl mx-auto mt-6">
-        <FontSettingsControl /> {/* New component added here */}
       </div>
 
       <div className="max-w-4xl mx-auto mt-6">

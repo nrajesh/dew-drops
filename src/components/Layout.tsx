@@ -1,5 +1,5 @@
 import { NavLink, Outlet, Link } from "react-router-dom";
-import { Menu, LogIn, LogOut, Plus, Bot, User as UserIcon } from "lucide-react";
+import { Menu, LogIn, LogOut, Plus, Bot, User as UserIcon, Text } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger, SheetDescription } from "@/components/ui/sheet";
 import { ThemeToggle } from "./ThemeToggle";
@@ -17,6 +17,7 @@ import { useNavigate } from "react-router-dom";
 import Chat from "@/pages/Chat";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { FontSizeLineHeightSliders } from "./FontSizeLineHeightSliders"; // Import the new component
 
 const NavContent = ({ onLinkClick }: { onLinkClick?: () => void }) => {
   const { toggles } = useFeatureToggles();
@@ -176,6 +177,19 @@ const Layout = () => {
             </Sheet>
             <div className="w-full flex-1">
             </div>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" size="icon" aria-label="Adjust font settings">
+                  <Text className="h-[1.2rem] w-[1.2rem]" />
+                  <span className="sr-only">Adjust font settings</span>
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-64">
+                <DropdownMenuLabel>Text Readability</DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                <FontSizeLineHeightSliders />
+              </DropdownMenuContent>
+            </DropdownMenu>
             <ThemeToggle />
             {session ? (
               <DropdownMenu>
