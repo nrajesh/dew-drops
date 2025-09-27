@@ -130,23 +130,25 @@ const CurriculumVitae = () => {
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-primary"><Briefcase className="h-5 w-5" /> Work Experience</CardTitle>
           </CardHeader>
-          <CardContent className="space-y-6">
-            {work.map((job: ResumeWork, index: number) => (
-              <div key={index} className="border-b pb-4 last:border-b-0 last:pb-0">
-                <h3 className="text-lg font-semibold">{job.position} at {job.name} ({job.location})</h3>
-                <p className="text-sm text-muted-foreground">
-                  {formatDate(job.startDate)} – {job.endDate ? formatDate(job.endDate) : "Present"}
-                </p>
-                {job.summary && <p className="text-sm">{job.summary}</p>}
-                {job.highlights && job.highlights.length > 0 && (
-                  <ul className="list-disc list-inside text-sm text-muted-foreground mt-2 space-y-1">
-                    {job.highlights.map((highlight, hIndex) => (
-                      <li key={hIndex}>{highlight}</li>
-                    ))}
-                  </ul>
-                )}
-              </div>
-            ))}
+          <CardContent>
+            <div className="prose dark:prose-invert max-w-none space-y-6">
+              {work.map((job: ResumeWork, index: number) => (
+                <div key={index} className="border-b pb-4 last:border-b-0 last:pb-0">
+                  <h3 className="text-lg font-semibold">{job.position} at {job.company}</h3>
+                  <p className="text-sm text-muted-foreground">
+                    {formatDate(job.startDate)} – {job.endDate ? formatDate(job.endDate) : "Present"}
+                  </p>
+                  {job.summary && <p className="text-sm">{job.summary}</p>}
+                  {job.highlights && job.highlights.length > 0 && (
+                    <ul className="list-disc list-inside text-sm text-muted-foreground mt-2 space-y-1">
+                      {job.highlights.map((highlight, hIndex) => (
+                        <li key={hIndex}>{highlight}</li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
+              ))}
+            </div>
           </CardContent>
         </Card>
       )}
@@ -156,20 +158,22 @@ const CurriculumVitae = () => {
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-primary"><GraduationCap className="h-5 w-5" /> Education</CardTitle>
           </CardHeader>
-          <CardContent className="space-y-6">
-            {education.map((edu: ResumeEducation, index: number) => (
-              <div key={index} className="border-b pb-4 last:border-b-0 last:pb-0">
-                <h3 className="text-lg font-semibold">{edu.institution}</h3>
-                <p className="text-sm text-muted-foreground">{edu.studyType} in {edu.area}</p>
-                <p className="text-sm text-muted-foreground">
-                  {formatDate(edu.startDate)} – {edu.endDate ? formatDate(edu.endDate) : "Present"}
-                </p>
-                {edu.gpa && <p className="text-sm">GPA: {edu.gpa}</p>}
-                {edu.courses && edu.courses.length > 0 && (
-                  <p className="text-xs text-muted-foreground mt-2">Courses: {edu.courses.join(', ')}</p>
-                )}
-              </div>
-            ))}
+          <CardContent>
+            <div className="prose dark:prose-invert max-w-none space-y-6">
+              {education.map((edu: ResumeEducation, index: number) => (
+                <div key={index} className="border-b pb-4 last:border-b-0 last:pb-0">
+                  <h3 className="text-lg font-semibold">{edu.institution}</h3>
+                  <p className="text-sm text-muted-foreground">{edu.studyType} in {edu.area}</p>
+                  <p className="text-sm text-muted-foreground">
+                    {formatDate(edu.startDate)} – {edu.endDate ? formatDate(edu.endDate) : "Present"}
+                  </p>
+                  {edu.gpa && <p className="text-sm">GPA: {edu.gpa}</p>}
+                  {edu.courses && edu.courses.length > 0 && (
+                    <p className="text-xs text-muted-foreground mt-2">Courses: {edu.courses.join(', ')}</p>
+                  )}
+                </div>
+              ))}
+            </div>
           </CardContent>
         </Card>
       )}
