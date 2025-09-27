@@ -10,7 +10,7 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/component
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
-const RESUME_URL = "https://gist.githubusercontent.com/nrajesh/773fb6b9372c3c44e08a47fea36644f9/raw/resume.json";
+const RESUME_URL = "https://gist.githubusercontent.com/nrajesh/773fb6b9372c3c44e08a47fea36644f/raw/resume.json";
 
 const CurriculumVitae = () => {
   const [resume, setResume] = useState<JsonResume | null>(null);
@@ -346,11 +346,13 @@ const CurriculumVitae = () => {
                   {publications.map((pub: ResumePublication, index: number) => (
                     <div key={index} className="border-b pb-4 last:border-b-0 last:pb-0">
                       <h3 className="text-lg font-semibold">
-                        {pub.name}
-                        {pub.website && (
-                          <a href={pub.website} target="_blank" rel="noopener noreferrer" className="ml-2 text-primary hover:underline text-sm">
-                            <LinkIcon className="h-4 w-4 inline-block mr-1" />
+                        {pub.website ? (
+                          <a href={pub.website} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline flex items-center">
+                            {pub.name}
+                            <LinkIcon className="h-4 w-4 inline-block ml-2" />
                           </a>
+                        ) : (
+                          pub.name
                         )}
                       </h3>
                       <p className="text-muted-foreground">{pub.publisher} - {formatDate(pub.releaseDate)}</p>
