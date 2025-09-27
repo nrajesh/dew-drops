@@ -1,14 +1,18 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
 
 const API_KEY = import.meta.env.VITE_GEMINI_API_KEY;
+const MODEL_NAME = import.meta.env.VITE_GEMINI_MODEL_NAME;
 
 if (!API_KEY) {
-  // This error is caught by the Chat component, which will display a helpful message.
   throw new Error("VITE_GEMINI_API_KEY is not set.");
 }
 
+if (!MODEL_NAME) {
+  throw new Error("VITE_GEMINI_MODEL_NAME is not set. Please specify a Gemini model (e.g., 'gemini-pro').");
+}
+
 const genAI = new GoogleGenerativeAI(API_KEY);
-const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+const model = genAI.getGenerativeModel({ model: MODEL_NAME });
 
 export const sendMessageToGemini = async (message: string) => {
   try {
@@ -18,7 +22,6 @@ export const sendMessageToGemini = async (message: string) => {
     return text;
   } catch (error) {
     console.error("Error sending message to Gemini:", error);
-    // Re-throw the original error for better handling in calling component
     throw error;
   }
 };

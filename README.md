@@ -31,6 +31,7 @@ These keys are used in the browser. You should create a `.env` file in the root 
 
 -   `VITE_MAPBOX_ACCESS_TOKEN`: Your access token from [Mapbox](https://www.mapbox.com/), required for the Travel Map.
 -   `VITE_GEMINI_API_KEY`: Your API key from [Google AI Studio](https://aistudio.google.com/), required for the AI Chatbot and AI-powered image tagging.
+-   `VITE_GEMINI_MODEL_NAME`: The name of the Gemini model to use (e.g., `"gemini-pro"` or `"gemini-1.5-flash"`).
 -   `VITE_ALLOWED_EMAIL`: The single email address that is permitted to sign in to the admin dashboard.
 
 *Note: Your Supabase URL and Publishable Key are already pre-configured in the code.*
@@ -43,6 +44,7 @@ These keys are stored securely in your Supabase project dashboard and are used b
 2.  Go to **Settings** -> **Edge Functions**.
 3.  Under **Manage Secrets**, add the following:
     -   `RESEND_API_KEY`: Your API key from [Resend](https://resend.com/), required for the Contact Form to send emails.
+    -   `GEMINI_MODEL_NAME`: The name of the Gemini model to use for server-side functions (e.g., `"gemini-pro"` or `"gemini-1.5-flash"`).
 
 ---
 
