@@ -10,7 +10,7 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/component
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
-const RESUME_URL = "https://gist.githubusercontent.com/nrajesh/773fb6b9372c3c44e08a47fea36644f/raw/resume.json";
+const RESUME_URL = "https://gist.githubusercontent.com/nrajesh/773fb6b9372c3c44e08a47fea36644f9/raw/6a76161e02160b3b2a61b1be3d225c0a99e505cc/resume.json";
 
 const CurriculumVitae = () => {
   const [resume, setResume] = useState<JsonResume | null>(null);
