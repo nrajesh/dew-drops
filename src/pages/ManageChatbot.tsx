@@ -85,6 +85,13 @@ The following sections contain the user's personal content available on the site
       if (resumeData.basics.summary) context += `Summary: ${resumeData.basics.summary}\n`;
       if (resumeData.basics.email) context += `Email: ${resumeData.basics.email}\n`;
       if (resumeData.basics.location?.city) context += `Location: ${resumeData.basics.location.city}, ${resumeData.basics.location.countryCode}\n`;
+      
+      if (resumeData.basics.profiles && resumeData.basics.profiles.length > 0) {
+        context += "\nSocial Profiles:\n";
+        resumeData.basics.profiles.forEach((profile) => {
+          context += `- ${profile.network}: ${profile.url}\n`;
+        });
+      }
     }
     if (resumeData.work && resumeData.work.length > 0) {
       context += "\nWork Experience:\n";
