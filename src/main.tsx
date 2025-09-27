@@ -7,9 +7,10 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter } from "react-router-dom";
 import { SpeedInsights } from "@vercel/speed-insights/react";
+import { Analytics } from "@vercel/analytics/react"; // Import Vercel Analytics
 import { AuthProvider } from "./contexts/AuthContext.tsx";
 import { FeatureToggleProvider } from "./contexts/FeatureToggleContext.tsx";
-import { FontSettingsProvider } from "./contexts/FontSettingsContext.tsx"; // Import the new provider
+import { FontSettingsProvider } from "./contexts/FontSettingsContext.tsx";
 
 const queryClient = new QueryClient();
 
@@ -33,10 +34,11 @@ createRoot(document.getElementById("root")!).render(
         <QueryClientProvider client={queryClient}>
           <AuthProvider>
             <FeatureToggleProvider>
-              <FontSettingsProvider> {/* Wrap with FontSettingsProvider */}
+              <FontSettingsProvider>
                 <TooltipProvider>
                   <App />
                   <SpeedInsights />
+                  <Analytics /> {/* Add Vercel Analytics component */}
                 </TooltipProvider>
               </FontSettingsProvider>
             </FeatureToggleProvider>
