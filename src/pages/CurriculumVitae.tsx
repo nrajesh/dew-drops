@@ -347,7 +347,7 @@ const CurriculumVitae = () => {
                     <div key={index} className="border-b pb-4 last:border-b-0 last:pb-0">
                       <h3 className="text-lg font-semibold">
                         {pub.website ? (
-                          <a href={pub.website} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline flex items-center">
+                          <a href={pub.url} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline flex items-center">
                             {pub.name}
                             <LinkIcon className="h-4 w-4 inline-block ml-2" />
                           </a>
