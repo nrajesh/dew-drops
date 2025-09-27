@@ -133,7 +133,7 @@ const CurriculumVitae = () => {
           <CardContent className="space-y-6">
             {work.map((job: ResumeWork, index: number) => (
               <div key={index} className="border-b pb-4 last:border-b-0 last:pb-0">
-                <h3 className="text-lg font-semibold">{job.position} at {job.company}</h3>
+                <h3 className="text-lg font-semibold">{job.position} at {job.name} ({job.location}) </h3>
                 <p className="text-sm text-muted-foreground">
                   {formatDate(job.startDate)} – {job.endDate ? formatDate(job.endDate) : "Present"}
                 </p>
