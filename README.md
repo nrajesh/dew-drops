@@ -75,6 +75,7 @@ The gallery management page uses a two-tab system—**Published** and **Unpublis
 4.  **Interactive Lightbox:**
     *   Clicking on any image (in either tab) opens it in a beautiful, full-screen lightbox.
     *   Controls for navigation, closing, and viewing EXIF data appear when you tap or click the image and fade out automatically.
+    *   **Enhanced Search:** The public gallery search now includes matching hits from image tags, alt text, filenames, and EXIF data.
 
 ### 🗺️ Managing the Travel Map
 
@@ -87,7 +88,7 @@ The gallery management page uses a two-tab system—**Published** and **Unpublis
 
 1.  **Navigate:** Go to the **Chatbot Knowledge** page from the sidebar under "Settings".
 2.  **Edit Knowledge:** The large text area contains the entire "knowledge base" the AI uses to answer questions. You can edit this text directly.
-3.  **Auto-Generate:** Click the **"Generate from Portfolio"** button to automatically create a new knowledge base from your latest published content.
+3.  **Auto-Generate:** Click the **"Generate from Portfolio"** button to automatically create a new knowledge base from your latest published content, including details about the updated gallery features.
 4.  **Save:** Click "Save Knowledge Base" to apply your changes.
 
 ### ⚙️ Managing Your Data
@@ -99,9 +100,9 @@ The gallery management page uses a two-tab system—**Published** and **Unpublis
 
 ### 👤 Managing Your Profile
 
-1.  **Navigate:** Go to the **User Profile** page under "Settings".
-2.  **Update Info:** Change your first name, last name, and avatar.
-3.  **Change Password:** Securely update your administrator password.
+11. **Navigate:** Go to the **User Profile** page under "Settings".
+12. **Update Info:** Change your first name, last name, and avatar.
+13. **Change Password:** Securely update your administrator password.
 
 ### 📧 Configuring the Contact Form
 
