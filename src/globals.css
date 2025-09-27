@@ -160,4 +160,11 @@
     border: 1px solid hsl(var(--border)) !important;
     box-shadow: none !important;
   }
+
+  /* Allow CV content to expand to full page width */
+  .max-w-4xl.mx-auto {
+    max-width: 100% !important;
+    margin-left: 0 !important;
+    margin-right: 0 !important;
+  }
 }
