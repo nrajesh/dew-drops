@@ -97,8 +97,8 @@ const CurriculumVitae = () => {
 
   return (
     <div className="max-w-4xl mx-auto space-y-8">
-      <div className="flex flex-col sm:flex-row justify-end items-end sm:items-center gap-2 print:hidden mb-4">
-        <p className="text-sm text-muted-foreground">Collapsed sections will not be printed.</p>
+      <div className="flex flex-col sm:flex-row justify-end items-end sm:items-center gap-2 print:hidden mb-4 group">
+        <p className="text-sm text-muted-foreground opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200">Collapsed sections will not be printed.</p>
         <Button onClick={handlePrint} className="flex items-center gap-2">
           <Printer className="h-4 w-4" /> Print to PDF
         </Button>
