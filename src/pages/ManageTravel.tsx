@@ -40,7 +40,6 @@ import { parseCsv } from "@/utils/csv.ts";
 import {
   fetchLocations,
   fetchBlogPosts,
-  geocodeLocation,
   processUploads,
   handleBulkDelete,
   handleBulkPublish,
@@ -117,9 +116,21 @@ const ManageTravel = () => {
       if ((currentLatitude === undefined || currentLongitude === undefined) && values.name) {
         const geocodeToastId = showLoading(`Finding coordinates for ${values.name}...`);
         try {
-          const coords = await geocodeLocation(values.name);
-          currentLatitude = coords.latitude;
-          currentLongitude = coords.longitude;
+          const { data, error } = await supabase.functions.invoke('geocode-location', {
+            body: { locationName: values.name },
+          });
+
+          if (error) {
+            const errorBody = await error.context.json();
+            throw new Error(errorBody.error || error.message);
+          }
+          
+          if (data?.error) {
+            throw new Error(data.error);
+          }
+
+          currentLatitude = data.latitude;
+          currentLongitude = data.longitude;
         } finally {
           dismissToast(geocodeToastId);
         }
@@ -262,9 +273,26 @@ const ManageTravel = () => {
           let longitude: number | undefined = row.longitude ? parseFloat(row.longitude) : undefined;
 
           if ((latitude === undefined || longitude === undefined) && row.name) {
-            const coords = await geocodeLocation(row.name);
-            latitude = coords.latitude;
-            longitude = coords.longitude;
+            const geocodeToastId = showLoading(`Finding coordinates for ${row.name}...`);
+            try {
+              const { data, error } = await supabase.functions.invoke('geocode-location', {
+                body: { locationName: row.name },
+              });
+
+              if (error) {
+                const errorBody = await error.context.json();
+                throw new Error(errorBody.error || error.message);
+              }
+              
+              if (data?.error) {
+                throw new Error(data.error);
+              }
+
+              latitude = data.latitude;
+              longitude = data.longitude;
+            } finally {
+              dismissToast(geocodeToastId);
+            }
           }
           if (latitude === undefined || longitude === undefined) throw new Error(`Could not determine coordinates for "${row.name}".`);
 
