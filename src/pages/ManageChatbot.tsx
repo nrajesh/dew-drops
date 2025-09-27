@@ -11,16 +11,20 @@ import { useAuth } from "@/contexts/AuthContext";
 import { showSuccess, showError, showLoading, dismissToast } from "@/utils/toast";
 import { Loader2, Sparkles } from "lucide-react";
 import type { Post, TravelLocation, GalleryImage } from "@/types";
+import type { JsonResume, ResumeWork, ResumeEducation, ResumeSkill } from "@/types/resume"; // Import resume types
 
 const formSchema = z.object({
   content: z.string().min(10, "Knowledge base content must be at least 10 characters."),
 });
 
+const RESUME_URL = "https://gist.githubusercontent.com/nrajesh/773fb6b9372c3c44e08a47fea36644f/raw/resume.json"; // Ensure this matches the URL in CurriculumVitae.tsx
+
 const generateContextFromData = async (): Promise<string> => {
-  const [postsRes, locationsRes, imagesRes] = await Promise.all([
+  const [postsRes, locationsRes, imagesRes, resumeRes] = await Promise.all([
     supabase.from('posts').select('title, description, tags').eq('published', true).limit(20),
     supabase.from('travel_locations').select('title, name, description').eq('published', true).limit(20),
     supabase.from('gallery_images').select('alt_text, tags').eq('published', true).limit(30),
+    fetch(RESUME_URL).then(res => res.ok ? res.json() : null).catch(e => { console.error("Failed to fetch resume for chatbot context:", e); return null; }),
   ]);
 
   let context = `
@@ -33,14 +37,15 @@ Key Features:
 - Photo Gallery: A dynamic gallery with automatic EXIF data extraction, AI-generated tags, and a unified management interface with Published/Unpublished tabs. Gallery search now includes tags, alt text, filenames, and EXIF data.
 - Interactive Travel Map: A map to pin travel destinations, with bulk import/export and management features.
 - Contact Form: A secure, serverless contact form.
-- AI Chatbot: An integrated chatbot (the one you are using now) to answer questions about the portfolio, using an editable knowledge base.
+- AI Chatbot: An integrated chatbot (the one you are using now) to answer questions about the portfolio, using an editable knowledge base. It includes an auto-generate feature to populate the knowledge base from your content.
 - Comprehensive Data Management: The administrator can export and import all portfolio data.
 - User Profile Management: The administrator can update their profile and password.
 - Feature Toggles: The administrator can enable or disable entire sections of the portfolio.
 - Light & Dark Mode: A theme toggle for user preference.
+- Text Readability Controls: Users can adjust base font size and line spacing for a personalized reading experience.
 - Fully Responsive: Designed for all devices.
 - Enhanced Navigation: All content pages are paginated and can be navigated using keyboard arrows or swipe gestures on mobile.
-- CV/Portfolio Page: A dedicated page to display a professional curriculum vitae, with collapsible sections for easy viewing and printing.
+- CV/Portfolio Page: A dedicated page to display a professional curriculum vitae, with collapsible sections for easy viewing and printing. The content for this page is fetched from a public JSON Resume Gist.
 
 The tech stack includes React, Vite, TypeScript, Tailwind CSS, shadcn/ui, and Supabase for the backend (database, storage, and serverless functions). The AI features are powered by Google Gemini.
 
@@ -69,6 +74,34 @@ The following sections contain the user's personal content available on the site
         context += `Image Description: ${i.alt_text}\nTags: ${i.tags?.join(', ') || 'N/A'}\n\n`;
       }
     });
+  }
+
+  if (resumeRes) {
+    const resumeData: JsonResume = resumeRes;
+    context += "\n\n== CURRICULUM VITAE (PORTFOLIO) ==\n";
+    if (resumeData.basics) {
+      context += `Name: ${resumeData.basics.name}\n`;
+      context += `Title: ${resumeData.basics.label}\n`;
+      if (resumeData.basics.summary) context += `Summary: ${resumeData.basics.summary}\n`;
+      if (resumeData.basics.email) context += `Email: ${resumeData.basics.email}\n`;
+      if (resumeData.basics.location?.city) context += `Location: ${resumeData.basics.location.city}, ${resumeData.basics.location.countryCode}\n`;
+    }
+    if (resumeData.work && resumeData.work.length > 0) {
+      context += "\nWork Experience:\n";
+      resumeData.work.forEach((job: ResumeWork) => {
+        context += `- ${job.position} at ${job.company} (${job.startDate} - ${job.endDate || 'Present'})\n`;
+      });
+    }
+    if (resumeData.education && resumeData.education.length > 0) {
+      context += "\nEducation:\n";
+      resumeData.education.forEach((edu: ResumeEducation) => {
+        context += `- ${edu.studyType} in ${edu.area} from ${edu.institution} (${edu.startDate} - ${edu.endDate || 'Present'})\n`;
+      });
+    }
+    if (resumeData.skills && resumeData.skills.length > 0) {
+      context += "\nSkills:\n";
+      context += resumeData.skills.map((skill: ResumeSkill) => skill.name).join(', ') + '\n';
+    }
   }
 
   return context.trim();
