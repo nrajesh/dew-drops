@@ -48,10 +48,44 @@ export interface ResumeSkill {
   keywords?: string[];
 }
 
+export interface ResumeAward {
+  title: string;
+  date: string;
+  awarder: string;
+  summary?: string;
+}
+
+export interface ResumeLanguage {
+  language: string;
+  fluency: string;
+}
+
+export interface ResumeInterest {
+  name: string;
+  keywords?: string[];
+}
+
+export interface ResumePublication {
+  name: string;
+  publisher: string;
+  releaseDate: string;
+  website?: string;
+  summary?: string;
+}
+
+export interface ResumeReference {
+  name: string;
+  reference: string;
+}
+
 export interface JsonResume {
   basics: ResumeBasics;
   work?: ResumeWork[];
   education?: ResumeEducation[];
   skills?: ResumeSkill[];
-  // Add other sections as needed
+  awards?: ResumeAward[];
+  languages?: ResumeLanguage[];
+  interests?: ResumeInterest[];
+  publications?: ResumePublication[];
+  references?: ResumeReference[];
 }
