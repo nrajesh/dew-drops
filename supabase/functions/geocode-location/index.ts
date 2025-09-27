@@ -10,9 +10,10 @@ serve(async (req) => {
     return new Response(null, { headers: corsHeaders });
   }
 
-  const MAPBOX_ACCESS_TOKEN = Deno.env.get('VITE_MAPBOX_ACCESS_TOKEN'); // Using VITE_ prefix as it's a client-side env var
+  // Corrected: Server-side secrets are not prefixed with VITE_
+  const MAPBOX_ACCESS_TOKEN = Deno.env.get('MAPBOX_ACCESS_TOKEN');
   if (!MAPBOX_ACCESS_TOKEN) {
-    return new Response(JSON.stringify({ error: 'Mapbox access token is not configured.' }), {
+    return new Response(JSON.stringify({ error: 'Mapbox access token is not configured as a server-side secret.' }), {
       status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });

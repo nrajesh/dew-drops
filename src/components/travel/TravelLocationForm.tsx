@@ -20,8 +20,6 @@ import { Check, ChevronsUpDown } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { TravelLocation, Post } from "@/types";
 import { useEffect, useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
-import { toast } from "sonner";
 
 const locationSchema = z.object({
   title: z.string().min(3, { message: "Title must be at least 3 characters." }),
@@ -92,36 +90,6 @@ export const TravelLocationForm = ({
     }
   }, [editingLocation, form]);
 
-  const handleFormSubmit = async (values: LocationFormData) => {
-    let submissionValues = { ...values };
-
-    if ((!submissionValues.latitude || !submissionValues.longitude) && submissionValues.name) {
-      const geocodeToast = toast.loading(`Geocoding "${submissionValues.name}"...`);
-      try {
-        const { data, error } = await supabase.functions.invoke('geocode-location', {
-          body: { query: submissionValues.name },
-        });
-
-        if (error) throw error;
-
-        if (data && data.latitude && data.longitude) {
-          submissionValues.latitude = data.latitude;
-          submissionValues.longitude = data.longitude;
-          form.setValue('latitude', data.latitude);
-          form.setValue('longitude', data.longitude);
-          toast.success(`Geocoded "${submissionValues.name}" successfully.`, { id: geocodeToast });
-        } else {
-          toast.warning(`Could not find coordinates for "${submissionValues.name}". Please enter them manually.`, { id: geocodeToast });
-        }
-      } catch (error) {
-        console.error('Error geocoding location:', error);
-        toast.error('Failed to geocode location. Please check the place name or enter coordinates manually.', { id: geocodeToast });
-      }
-    }
-    
-    onSubmit(submissionValues);
-  };
-
   return (
     <Card>
       <CardHeader>
@@ -132,7 +100,7 @@ export const TravelLocationForm = ({
       </CardHeader>
       <CardContent>
         <Form {...form}>
-          <form onSubmit={form.handleSubmit(handleFormSubmit)} className="space-y-6">
+          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
             <FormField control={form.control} name="title" render={({ field }) => (
               <FormItem><FormLabel>Title</FormLabel><FormControl><Input placeholder="e.g., Eiffel Tower Trip" {...field} /></FormControl><FormMessage /></FormItem>
             )}/>
