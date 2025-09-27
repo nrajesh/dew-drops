@@ -11,7 +11,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { showSuccess, showError, showLoading, dismissToast } from "@/utils/toast";
 import { Loader2, Sparkles } from "lucide-react";
 import type { Post, TravelLocation, GalleryImage } from "@/types";
-import type { JsonResume, ResumeWork, ResumeEducation, ResumeSkill } from "@/types/resume"; // Import resume types
+import type { JsonResume, ResumeWork, ResumeEducation, ResumeSkill, ResumeAward, ResumeLanguage, ResumeInterest, ResumePublication, ResumeReference } from "@/types/resume"; // Import all resume types
 
 const formSchema = z.object({
   content: z.string().min(10, "Knowledge base content must be at least 10 characters."),
@@ -84,6 +84,8 @@ The following sections contain the user's personal content available on the site
       context += `Title: ${resumeData.basics.label}\n`;
       if (resumeData.basics.summary) context += `Summary: ${resumeData.basics.summary}\n`;
       if (resumeData.basics.email) context += `Email: ${resumeData.basics.email}\n`;
+      if (resumeData.basics.phone) context += `Phone: ${resumeData.basics.phone}\n`;
+      if (resumeData.basics.url) context += `Website: ${resumeData.basics.url}\n`;
       if (resumeData.basics.location?.city) context += `Location: ${resumeData.basics.location.city}, ${resumeData.basics.location.countryCode}\n`;
       
       if (resumeData.basics.profiles && resumeData.basics.profiles.length > 0) {
@@ -97,17 +99,71 @@ The following sections contain the user's personal content available on the site
       context += "\nWork Experience:\n";
       resumeData.work.forEach((job: ResumeWork) => {
         context += `- ${job.position} at ${job.company} (${job.startDate} - ${job.endDate || 'Present'})\n`;
+        if (job.location) context += `  Location: ${job.location}\n`;
+        if (job.summary) context += `  Summary: ${job.summary}\n`;
+        if (job.highlights && job.highlights.length > 0) {
+          context += `  Highlights: ${job.highlights.join('; ')}\n`;
+        }
       });
     }
     if (resumeData.education && resumeData.education.length > 0) {
       context += "\nEducation:\n";
       resumeData.education.forEach((edu: ResumeEducation) => {
         context += `- ${edu.studyType} in ${edu.area} from ${edu.institution} (${edu.startDate} - ${edu.endDate || 'Present'})\n`;
+        if (edu.gpa) context += `  GPA: ${edu.gpa}\n`;
+        if (edu.courses && edu.courses.length > 0) {
+          context += `  Courses: ${edu.courses.join(', ')}\n`;
+        }
       });
     }
     if (resumeData.skills && resumeData.skills.length > 0) {
       context += "\nSkills:\n";
-      context += resumeData.skills.map((skill: ResumeSkill) => skill.name).join(', ') + '\n';
+      resumeData.skills.forEach((skill: ResumeSkill) => {
+        context += `- ${skill.name} (Level: ${skill.level || 'N/A'})`;
+        if (skill.keywords && skill.keywords.length > 0) {
+          context += ` Keywords: ${skill.keywords.join(', ')}\n`;
+        } else {
+          context += '\n';
+        }
+      });
+    }
+    if (resumeData.awards && resumeData.awards.length > 0) {
+      context += "\nAwards:\n";
+      resumeData.awards.forEach((award: ResumeAward) => {
+        context += `- ${award.title} from ${award.awarder} on ${award.date}\n`;
+        if (award.summary) context += `  Summary: ${award.summary}\n`;
+      });
+    }
+    if (resumeData.publications && resumeData.publications.length > 0) {
+      context += "\nPublications:\n";
+      resumeData.publications.forEach((pub: ResumePublication) => {
+        context += `- ${pub.name} by ${pub.publisher} (${pub.releaseDate})\n`;
+        if (pub.website) context += `  Link: ${pub.website}\n`;
+        if (pub.summary) context += `  Summary: ${pub.summary}\n`;
+      });
+    }
+    if (resumeData.languages && resumeData.languages.length > 0) {
+      context += "\nLanguages:\n";
+      resumeData.languages.forEach((lang: ResumeLanguage) => {
+        context += `- ${lang.language} (Fluency: ${lang.fluency})\n`;
+      });
+    }
+    if (resumeData.interests && resumeData.interests.length > 0) {
+      context += "\nInterests:\n";
+      resumeData.interests.forEach((interest: ResumeInterest) => {
+        context += `- ${interest.name}`;
+        if (interest.keywords && interest.keywords.length > 0) {
+          context += ` Keywords: ${interest.keywords.join(', ')}\n`;
+        } else {
+          context += '\n';
+        }
+      });
+    }
+    if (resumeData.references && resumeData.references.length > 0) {
+      context += "\nReferences:\n";
+      resumeData.references.forEach((ref: ResumeReference) => {
+        context += `- ${ref.name}: ${ref.reference}\n`;
+      });
     }
   }
 
