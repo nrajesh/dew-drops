@@ -97,8 +97,10 @@ export const useTravelManagement = (containerRef: React.RefObject<HTMLDivElement
 
           currentLatitude = data.latitude;
           currentLongitude = data.longitude;
-        } finally {
           dismissToast(geocodeToastId);
+        } catch (geoError) {
+          dismissToast(geocodeToastId);
+          throw geoError; // Re-throw to be caught by the main catch block
         }
       }
 
