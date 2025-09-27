@@ -22,7 +22,7 @@ const PrivacyPolicy = () => {
               We only ask for personal information when we truly need it to provide a service to you. We collect it by fair and lawful means, with your knowledge and consent. We also let you know why we’re collecting it and how it will be used.
             </p>
             <p>
-              For example, when you use our contact form, we collect your name and email address so that we can reply to your message.
+              For example, when you use our contact form, we collect your name and email address so that we can reply to your message. We also use analytics services to understand how our website is used, which may collect anonymous data about your visit, such as pages viewed and time spent on the site.
             </p>
           </section>
 
