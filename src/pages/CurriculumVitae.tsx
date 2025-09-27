@@ -128,7 +128,7 @@ const CurriculumVitae = () => {
       {work && work.length > 0 && (
         <Card>
           <CardHeader>
-            <CardTitle className="flex items-center gap-2"><Briefcase className="h-5 w-5" /> Work Experience</CardTitle>
+            <CardTitle className="flex items-center gap-2 text-primary"><Briefcase className="h-5 w-5" /> Work Experience</CardTitle>
           </CardHeader>
           <CardContent className="space-y-6">
             {work.map((job: ResumeWork, index: number) => (
@@ -154,7 +154,7 @@ const CurriculumVitae = () => {
       {education && education.length > 0 && (
         <Card>
           <CardHeader>
-            <CardTitle className="flex items-center gap-2"><GraduationCap className="h-5 w-5" /> Education</CardTitle>
+            <CardTitle className="flex items-center gap-2 text-primary"><GraduationCap className="h-5 w-5" /> Education</CardTitle>
           </CardHeader>
           <CardContent className="space-y-6">
             {education.map((edu: ResumeEducation, index: number) => (
@@ -177,7 +177,7 @@ const CurriculumVitae = () => {
       {skills && skills.length > 0 && (
         <Card>
           <CardHeader>
-            <CardTitle className="flex items-center gap-2"><Zap className="h-5 w-5" /> Skills</CardTitle>
+            <CardTitle className="flex items-center gap-2 text-primary"><Zap className="h-5 w-5" /> Skills</CardTitle>
           </CardHeader>
           <CardContent className="flex flex-wrap gap-2">
             {skills.map((skill: ResumeSkill, index: number) => (
