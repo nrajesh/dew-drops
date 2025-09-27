@@ -26,13 +26,14 @@ const fetchToggles = async (): Promise<Toggles> => {
           [navFeatures.HOME]: true,
           [navFeatures.BLOG]: true,
           [navFeatures.GALLERY]: true,
+          [navFeatures.PORTFOLIO]: false, // New feature toggle, default to false
           [navFeatures.TRAVEL]: true,
           [navFeatures.CONTACT]: true,
           [navFeatures.CHATBOT]: false,
           [navFeatures.MANAGE_BLOG]: false,
           [navFeatures.MANAGE_GALLERY]: false,
           [navFeatures.MANAGE_TRAVEL]: false,
-          [navFeatures.FEATURE_TOGGLES]: true, // Changed to true
+          [navFeatures.FEATURE_TOGGLES]: true,
         };
       } catch (e) {
         console.error("Error constructing default toggles, navFeatures might be incomplete:", e);

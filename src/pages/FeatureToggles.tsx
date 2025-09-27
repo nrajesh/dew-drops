@@ -9,8 +9,9 @@ const featureDescriptions: Record<string, { title: string; description: string }
   [navFeatures.HOME]: { title: "Home Page", description: "The main landing page of your portfolio." },
   [navFeatures.BLOG]: { title: "Blog", description: "Your public blog section." },
   [navFeatures.GALLERY]: { title: "Gallery", description: "Your public photo gallery." },
+  [navFeatures.PORTFOLIO]: { title: "Portfolio (CV)", description: "Your online curriculum vitae page." }, // Added this line
   [navFeatures.TRAVEL]: { title: "Travel Map", description: "The interactive map of your travels." },
-  [navFeatures.CONTACT]: { title: "Contact", description: "The contact form page." }, // Added this line
+  [navFeatures.CONTACT]: { title: "Contact", description: "The contact form page." },
   [navFeatures.CHATBOT]: { title: "AI Chatbot", description: "The floating chatbot widget." },
   [navFeatures.MANAGE_BLOG]: { title: "Manage Blog", description: "The management page for blog posts." },
   [navFeatures.MANAGE_GALLERY]: { title: "Manage Gallery", description: "The management page for the photo gallery." },
