@@ -120,7 +120,7 @@ const CurriculumVitae = () => {
         </CardHeader>
         {basics.summary && (
           <CardContent>
-            <p className="text-muted-foreground leading-relaxed">{basics.summary}</p>
+            <p className="text-muted-foreground">{basics.summary}</p>
           </CardContent>
         )}
       </Card>
@@ -135,12 +135,12 @@ const CurriculumVitae = () => {
               {work.map((job: ResumeWork, index: number) => (
                 <div key={index} className="border-b pb-4 last:border-b-0 last:pb-0">
                   <h3 className="text-lg font-semibold">{job.position} at {job.company}</h3>
-                  <p className="text-sm text-muted-foreground">
+                  <p className="text-muted-foreground">
                     {formatDate(job.startDate)} – {job.endDate ? formatDate(job.endDate) : "Present"}
                   </p>
-                  {job.summary && <p className="text-sm">{job.summary}</p>}
+                  {job.summary && <p>{job.summary}</p>}
                   {job.highlights && job.highlights.length > 0 && (
-                    <ul className="list-disc list-inside text-sm text-muted-foreground mt-2 space-y-1">
+                    <ul className="list-disc list-inside text-muted-foreground mt-2 space-y-1">
                       {job.highlights.map((highlight, hIndex) => (
                         <li key={hIndex}>{highlight}</li>
                       ))}
@@ -163,11 +163,11 @@ const CurriculumVitae = () => {
               {education.map((edu: ResumeEducation, index: number) => (
                 <div key={index} className="border-b pb-4 last:border-b-0 last:pb-0">
                   <h3 className="text-lg font-semibold">{edu.institution}</h3>
-                  <p className="text-sm text-muted-foreground">{edu.studyType} in {edu.area}</p>
-                  <p className="text-sm text-muted-foreground">
+                  <p className="text-muted-foreground">{edu.studyType} in {edu.area}</p>
+                  <p className="text-muted-foreground">
                     {formatDate(edu.startDate)} – {edu.endDate ? formatDate(edu.endDate) : "Present"}
                   </p>
-                  {edu.gpa && <p className="text-sm">GPA: {edu.gpa}</p>}
+                  {edu.gpa && <p>GPA: {edu.gpa}</p>}
                   {edu.courses && edu.courses.length > 0 && (
                     <p className="text-xs text-muted-foreground mt-2">Courses: {edu.courses.join(', ')}</p>
                   )}
