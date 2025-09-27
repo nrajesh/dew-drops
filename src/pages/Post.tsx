@@ -13,6 +13,7 @@ import { BlogForm, PostFormData } from '@/components/blog/BlogForm';
 import { showSuccess, showError, showLoading, dismissToast } from '@/utils/toast';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
+import { extractDescriptionFromContent, ensureContentHasTripleBackticks } from "@/components/blog/BlogManagementUtils"; // Import utility functions
 
 const PLACEHOLDER_IMAGE_URL = "/gallery/placeholder.svg";
 
@@ -181,36 +182,10 @@ const Post = () => {
 
     let description = values.description;
     if (!description || description.trim() === '') {
-      // Extract the first 5 lines from the content
-      const contentLines = values.content.split('\n');
-      let extractedDescription = '';
-
-      // Find the first code block
-      const codeBlockRegex = /```([\s\S]*?)```/;
-      const match = values.content.match(codeBlockRegex);
-
-      if (match && match[1]) {
-        // If there's a code block, use the first 5 lines of the code block
-        const codeBlockLines = match[1].split('\n');
-        extractedDescription = codeBlockLines.slice(0, 5).join('\n').trim();
-      } else {
-        // If no code block, use the first 5 lines of the content
-        extractedDescription = contentLines.slice(0, 5).join('\n').trim();
-      }
-
-      // Trim to 500 characters max
-      if (extractedDescription.length > 500) {
-        extractedDescription = extractedDescription.substring(0, 497) + '...';
-      }
-
-      description = extractedDescription;
+      description = extractDescriptionFromContent(values.content);
     }
 
-    // Ensure content has triple backticks
-    let content = values.content;
-    if (!content.startsWith('```') || !content.endsWith('```')) {
-      content = '```\n' + content + '\n```';
-    }
+    const content = ensureContentHasTripleBackticks(values.content);
 
     const postData = {
       ...values,

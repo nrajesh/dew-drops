@@ -7,7 +7,7 @@ import { Textarea } from "./ui/textarea";
 import { Button } from "./ui/button";
 import { useAuth } from "@/contexts/AuthContext";
 import { updateImageAltText } from "./gallery/GalleryManagementUtils";
-import { generateAltTextFromFileName } from "@/lib/utils";
+import { generateAltTextFromFileName } from "@/lib/utils"; // Import utility function
 
 interface ImageLightboxProps {
   image: GalleryImage | null;

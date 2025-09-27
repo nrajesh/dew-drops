@@ -4,7 +4,6 @@ import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger, SheetDescription } from "@/components/ui/sheet";
 import { ThemeToggle } from "./ThemeToggle";
 import { useState } from "react";
-import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { mainNavItems, managementNavItems, navFeatures, settingsNavItems } from "@/config/navigation";
 import { useAuth } from "@/contexts/AuthContext";
@@ -269,8 +268,8 @@ const Layout = () => {
         )}
       </div>
 
-      <Toaster />
-      <Sonner />
+      {/* Removed Shadcn UI Toaster, keeping Sonner */}
+      <Sonner /> 
 
       <Dialog open={isAddBlogDialogOpen} onOpenChange={setIsAddBlogDialogOpen}>
         <DialogContent className="max-w-4xl w-[90vw] max-h-[90vh] overflow-y-auto">
