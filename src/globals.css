@@ -114,6 +114,16 @@
 }
 
 @media print {
+  @page {
+    size: A4;
+    margin: 1.5cm;
+  }
+
+  body {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
   /* Force light theme colors for printing */
   :root, .dark {
     --background: 210 40% 98% !important;
@@ -159,18 +169,24 @@
   .card {
     border: 1px solid hsl(var(--border)) !important;
     box-shadow: none !important;
+    page-break-inside: avoid;
   }
 
   /* Allow CV content to expand to full page width */
   .max-w-4xl.mx-auto {
     max-width: 100% !important;
-    margin-left: 0 !important;
-    margin-right: 0 !important;
-    width: 100% !important; /* Added for extra reinforcement */
+    margin: 0 !important;
+    padding: 0 !important;
+    width: 100% !important;
   }
 
   /* Override prose max-width for printing */
   .prose {
     max-width: none !important;
+  }
+
+  /* General print resets */
+  a[href]:after {
+    content: none !important;
   }
 }
