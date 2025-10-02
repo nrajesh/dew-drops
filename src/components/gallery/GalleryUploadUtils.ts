@@ -66,17 +66,29 @@ export const processImageUploads = async (
         console.warn(`Could not read EXIF data for ${file.name}: ${exifError.message}. Proceeding without it.`);
       }
 
-      const compressedFile = await imageCompression(file, { 
-        maxSizeMB: 1, 
-        maxWidthOrHeight: 1920, 
-        useWebWorker: true,
-        // @ts-ignore - undocumented option to preserve EXIF data
-        preserveExif: true,
-      });
-      const sanitizedName = sanitizeFileName(compressedFile.name);
+      let fileToUpload: File = file;
+      const ONE_MB = 1024 * 1024;
+      // Only compress if the file is an image and larger than 1MB
+      if (file.type.startsWith('image/') && file.size > ONE_MB) {
+        try {
+          fileToUpload = await imageCompression(file, { 
+            maxSizeMB: 1, 
+            maxWidthOrHeight: 1920, 
+            useWebWorker: true,
+            // @ts-ignore
+            preserveExif: true,
+          });
+        } catch (compressionError) {
+          console.error(`Image compression failed for ${file.name}, uploading original file.`, compressionError);
+          // If compression fails, fall back to uploading the original file.
+          fileToUpload = file;
+        }
+      }
+      
+      const sanitizedName = sanitizeFileName(file.name);
       const fileName = `${userId}/${Date.now()}_${sanitizedName}`;
 
-      const { error: uploadError } = await supabase.storage.from('gallery').upload(fileName, compressedFile);
+      const { error: uploadError } = await supabase.storage.from('gallery').upload(fileName, fileToUpload);
       if (uploadError) throw uploadError;
 
       const { data: { publicUrl } } = supabase.storage.from('gallery').getPublicUrl(fileName);
