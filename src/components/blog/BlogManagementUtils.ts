@@ -78,16 +78,17 @@ export const parseWordPressXml = async (xmlString: string): Promise<NewPost[]> =
     const content = turndownService.turndown(contentHtml);
 
     const categoryElements = item.querySelectorAll("category");
-    const tags: string[] = [];
+    const tagSet = new Set<string>();
     categoryElements.forEach(cat => {
       const domain = cat.getAttribute('domain');
       if (domain === 'category' || domain === 'post_tag') {
         const nicename = cat.getAttribute('nicename');
         if (nicename) {
-          tags.push(nicename);
+          tagSet.add(nicename);
         }
       }
     });
+    const tags = Array.from(tagSet);
 
     const cover_image_id: string | null = null;
     const youtube_video_id: string | null = null;
