@@ -66,7 +66,13 @@ export const processImageUploads = async (
         console.warn(`Could not read EXIF data for ${file.name}: ${exifError.message}. Proceeding without it.`);
       }
 
-      const compressedFile = await imageCompression(file, { maxSizeMB: 1, maxWidthOrHeight: 1920, useWebWorker: true });
+      const compressedFile = await imageCompression(file, { 
+        maxSizeMB: 1, 
+        maxWidthOrHeight: 1920, 
+        useWebWorker: true,
+        // @ts-ignore - undocumented option to preserve EXIF data
+        preserveExif: true,
+      });
       const sanitizedName = sanitizeFileName(compressedFile.name);
       const fileName = `${userId}/${Date.now()}_${sanitizedName}`;
 
