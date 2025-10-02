@@ -66,24 +66,8 @@ export const processImageUploads = async (
         console.warn(`Could not read EXIF data for ${file.name}: ${exifError.message}. Proceeding without it.`);
       }
 
-      let fileToUpload: File = file;
-      const ONE_MB = 1024 * 1024;
-      // Only compress if the file is an image and larger than 1MB
-      if (file.type.startsWith('image/') && file.size > ONE_MB) {
-        try {
-          fileToUpload = await imageCompression(file, { 
-            maxSizeMB: 1, 
-            maxWidthOrHeight: 1920, 
-            useWebWorker: true,
-            // @ts-ignore
-            preserveExif: true,
-          });
-        } catch (compressionError) {
-          console.error(`Image compression failed for ${file.name}, uploading original file.`, compressionError);
-          // If compression fails, fall back to uploading the original file.
-          fileToUpload = file;
-        }
-      }
+      // No more compression. Upload the original file to preserve all metadata.
+      const fileToUpload: File = file;
       
       const sanitizedName = sanitizeFileName(file.name);
       const fileName = `${userId}/${Date.now()}_${sanitizedName}`;
