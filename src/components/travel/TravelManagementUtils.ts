@@ -1,6 +1,6 @@
 import { supabase } from "@/integrations/supabase/client";
 import type { TravelLocation, Post } from "@/types";
-import { showSuccess, showError, showLoading, dismissToast } from "@/utils/toast";
+import { showSuccess, showError, showLoading, updateToastSuccess, updateToastError } from "@/utils/toast";
 import JSZip from 'jszip';
 
 const MAPBOX_ACCESS_TOKEN = import.meta.env.VITE_MAPBOX_ACCESS_TOKEN;
@@ -61,14 +61,10 @@ export const processUploads = async (userId: string, inserts: any[], updates: {e
           if (result.error) throw new Error(result.error.message);
       }
       
-      dismissToast(toastId);
-      if (inserts.length > 0 || updates.length > 0) {
-        showSuccess(`${inserts.length} new locations added, ${updates.length} locations updated.`);
-      }
+      updateToastSuccess(toastId, `${inserts.length} new locations added, ${updates.length} locations updated.`);
       return true;
   } catch (error: any) {
-      dismissToast(toastId);
-      showError(`Import failed: ${error.message}`);
+      updateToastError(toastId, `Import failed: ${error.message}`);
       return false;
   }
 };
@@ -93,12 +89,10 @@ export const handleBulkDelete = async (locationIds: Set<string>, allLocations: T
       const { error } = await supabase.from("travel_locations").delete().in("id", Array.from(locationIds));
       if (error) throw error;
 
-      dismissToast(toastId);
-      showError(`${locationIds.size} locations removed.`);
+      updateToastError(toastId, `${locationIds.size} locations removed.`);
       return true;
   } catch (error: any) {
-      dismissToast(toastId);
-      showError(error.message);
+      updateToastError(toastId, error.message);
       return false;
   }
 };
@@ -113,12 +107,10 @@ export const handleBulkPublish = async (locationIds: Set<string>, publishStatus:
 
     if (error) throw error;
 
-    dismissToast(toastId);
-    showSuccess(`${locationIds.size} location(s) ${publishStatus ? "published" : "unpublished"} successfully.`);
+    updateToastSuccess(toastId, `${locationIds.size} location(s) ${publishStatus ? "published" : "unpublished"} successfully.`);
     return true;
   } catch (error: any) {
-    dismissToast(toastId);
-    showError(`Failed to update status: ${error.message}`);
+    updateToastError(toastId, `Failed to update status: ${error.message}`);
     return false;
   }
 };
@@ -170,10 +162,8 @@ export const handleBulkDownload = async (locationIds: Set<string>, allLocations:
       document.body.removeChild(link);
       URL.revokeObjectURL(url);
 
-      dismissToast(toastId);
-      showSuccess(`${locationsToDownload.length} location(s) downloaded.`);
+      updateToastSuccess(toastId, `${locationsToDownload.length} location(s) downloaded.`);
   } catch (error: any) {
-      dismissToast(toastId);
-      showError(`Download failed: ${error.message}`);
+      updateToastError(toastId, `Download failed: ${error.message}`);
   }
 };

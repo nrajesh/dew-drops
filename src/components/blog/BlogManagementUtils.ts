@@ -1,6 +1,6 @@
 import { supabase } from "@/integrations/supabase/client";
 import type { Post, GalleryImage } from "@/types";
-import { showSuccess, showError, showLoading, dismissToast } from "@/utils/toast";
+import { showSuccess, showError, showLoading, updateToastSuccess, updateToastError } from "@/utils/toast";
 import TurndownService from "turndown";
 import JSZip from 'jszip';
 import { sanitizeFileName } from "@/lib/utils";
@@ -217,15 +217,10 @@ export const processUploads = async (userId: string, inserts: NewPost[], updates
       if (result.error) throw new Error(result.error.message);
     }
 
-    dismissToast(toastId);
-    if (inserts.length > 0 || updates.length > 0) {
-      showSuccess(`${inserts.length} new posts added, ${updates.length} posts updated.`);
-    }
-
+    updateToastSuccess(toastId, `${inserts.length} new posts added, ${updates.length} posts updated.`);
     return true;
   } catch (error: any) {
-    dismissToast(toastId);
-    showError(`Import failed: ${error.message}`);
+    updateToastError(toastId, `Import failed: ${error.message}`);
     return false;
   }
 };
@@ -233,12 +228,11 @@ export const processUploads = async (userId: string, inserts: NewPost[], updates
 export const handleBulkDelete = async (selectedPosts: Set<string>) => {
   const toastId = showLoading(`Deleting ${selectedPosts.size} posts...`);
   const { error } = await supabase.from("posts").delete().in("id", Array.from(selectedPosts));
-  dismissToast(toastId);
   if (error) {
-    showError(error.message);
+    updateToastError(toastId, error.message);
     return false;
   } else {
-    showError(`${selectedPosts.size} posts removed.`);
+    updateToastError(toastId, `${selectedPosts.size} posts removed.`);
     return true;
   }
 };
@@ -250,12 +244,11 @@ export const handleBulkTagUpdate = async (selectedPosts: Set<string>, tags: stri
     .update({ tags })
     .in("id", Array.from(selectedPosts));
 
-  dismissToast(toastId);
   if (error) {
-    showError(`Failed to update tags: ${error.message}`);
+    updateToastError(toastId, `Failed to update tags: ${error.message}`);
     return false;
   } else {
-    showSuccess("Tags updated successfully.");
+    updateToastSuccess(toastId, "Tags updated successfully.");
     return true;
   }
 };
@@ -268,12 +261,11 @@ export const handleBulkStatusChange = async (selectedPosts: Set<string>, publish
     .update({ published })
     .in("id", Array.from(selectedPosts));
 
-  dismissToast(toastId);
   if (error) {
-    showError(`Failed to update status: ${error.message}`);
+    updateToastError(toastId, `Failed to update status: ${error.message}`);
     return false;
   } else {
-    showSuccess(`Posts marked as ${status}.`);
+    updateToastSuccess(toastId, `Posts marked as ${status}.`);
     return true;
   }
 };
@@ -317,12 +309,10 @@ published: ${post.published}${tagsString}${coverImageIdString}${youtubeVideoIdSt
     document.body.removeChild(link);
     URL.revokeObjectURL(link.href);
 
-    dismissToast(toastId);
-    showSuccess(`${postsToDownload.length} post(s) downloaded.`);
+    updateToastSuccess(toastId, `${postsToDownload.length} post(s) downloaded.`);
     return true;
   } catch (error: any) {
-    dismissToast(toastId);
-    showError(`Download failed: ${error.message}`);
+    updateToastError(toastId, `Download failed: ${error.message}`);
     return false;
   }
 };
