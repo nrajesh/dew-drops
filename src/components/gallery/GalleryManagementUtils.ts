@@ -1,6 +1,6 @@
 import { supabase } from "@/integrations/supabase/client";
 import type { GalleryImage } from "@/types";
-import { showSuccess, showError, showLoading, dismissToast } from "@/utils/toast";
+import { showSuccess, showError, showLoading, updateToastSuccess, updateToastError } from "@/utils/toast";
 import JSZip from 'jszip';
 
 export const fetchImages = async (): Promise<GalleryImage[]> => {
@@ -24,12 +24,11 @@ export const updateImageAltText = async (imageId: string, altText: string): Prom
     .update({ alt_text: altText })
     .eq("id", imageId);
 
-  dismissToast(toastId);
   if (error) {
-    showError(`Update failed: ${error.message}`);
+    updateToastError(toastId, `Update failed: ${error.message}`);
     return false;
   } else {
-    showSuccess("Alt text updated successfully!");
+    updateToastSuccess(toastId, "Alt text updated successfully!");
     return true;
   }
 };
@@ -59,12 +58,10 @@ export const handleDelete = async (imageIds: string[], allImages: GalleryImage[]
       throw new Error(`Database error: ${dbError.message}`);
     }
 
-    dismissToast(toastId);
-    showError(`${imageIds.length} image(s) deleted successfully.`);
+    updateToastError(toastId, `${imageIds.length} image(s) deleted successfully.`);
     return true;
   } catch (error: any) {
-    dismissToast(toastId);
-    showError(error.message);
+    updateToastError(toastId, error.message);
     return false;
   }
 };
@@ -79,12 +76,10 @@ export const handleBulkPublish = async (imageIds: Set<string>, publishStatus: bo
 
     if (error) throw error;
 
-    dismissToast(toastId);
-    showSuccess(`${imageIds.size} image(s) ${publishStatus ? "published" : "unpublished"} successfully.`);
+    updateToastSuccess(toastId, `${imageIds.size} image(s) ${publishStatus ? "published" : "unpublished"} successfully.`);
     return true;
   } catch (error: any) {
-    dismissToast(toastId);
-    showError(`Failed to update status: ${error.message}`);
+    updateToastError(toastId, `Failed to update status: ${error.message}`);
     return false;
   }
 };
@@ -119,12 +114,14 @@ export const handleGenerateTags = async (imageIds: Set<string>, allImages: Galle
     }
   }
 
-  dismissToast(toastId);
-  if (successCount > 0) {
-    showSuccess(`${successCount} image(s) updated with new tags.`);
-  }
-  if (errorCount > 0) {
-    showError(`${errorCount} image(s) failed to process.`);
+  if (successCount > 0 && errorCount > 0) {
+    updateToastError(toastId, `Generated tags for ${successCount} images, but ${errorCount} failed.`);
+  } else if (successCount > 0) {
+    updateToastSuccess(toastId, `${successCount} image(s) updated with new tags.`);
+  } else if (errorCount > 0) {
+    updateToastError(toastId, `${errorCount} image(s) failed to process.`);
+  } else {
+    showError("No images were processed.");
   }
   return successCount;
 };
@@ -170,10 +167,8 @@ export const handleBulkDownload = async (imageIds: Set<string>, allImages: Galle
     document.body.removeChild(link);
     URL.revokeObjectURL(link.href);
 
-    dismissToast(toastId);
-    showSuccess(`${imagesToDownload.length} image(s) and metadata downloaded successfully.`);
+    updateToastSuccess(toastId, `${imagesToDownload.length} image(s) and metadata downloaded successfully.`);
   } catch (error: any) {
-    dismissToast(toastId);
-    showError(`Download failed: ${error.message}`);
+    updateToastError(toastId, `Download failed: ${error.message}`);
   }
 };

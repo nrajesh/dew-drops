@@ -66,11 +66,13 @@ export const processImageUploads = async (
         console.warn(`Could not read EXIF data for ${file.name}: ${exifError.message}. Proceeding without it.`);
       }
 
-      const compressedFile = await imageCompression(file, { maxSizeMB: 1, maxWidthOrHeight: 1920, useWebWorker: true });
-      const sanitizedName = sanitizeFileName(compressedFile.name);
+      // No more compression. Upload the original file to preserve all metadata.
+      const fileToUpload: File = file;
+      
+      const sanitizedName = sanitizeFileName(file.name);
       const fileName = `${userId}/${Date.now()}_${sanitizedName}`;
 
-      const { error: uploadError } = await supabase.storage.from('gallery').upload(fileName, compressedFile);
+      const { error: uploadError } = await supabase.storage.from('gallery').upload(fileName, fileToUpload);
       if (uploadError) throw uploadError;
 
       const { data: { publicUrl } } = supabase.storage.from('gallery').getPublicUrl(fileName);

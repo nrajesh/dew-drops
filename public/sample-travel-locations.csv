@@ -1,3 +1,3 @@
-"title";"name";"description";"latitude";"longitude";"marker_image_url";"blog_title"
-"Eiffel Tower Visit";"Paris, France";"A wonderful trip to see the iconic tower.";"48.8584";"2.2945";"";"My First Blog Post"
-"Statue of Liberty";"New York, USA";"Visited the famous landmark.";"40.6892";"-74.0445";"";""
+"title";"name";"description";"latitude";"longitude";"marker_image_url";"blog_title";"published"
+"Trip to the Alps";"Chamonix, France";"A beautiful trip to the French Alps, with stunning views of Mont Blanc.";"45.9237";"6.8694";"";"My Awesome Alps Adventure";"true"
+"Exploring Tokyo";"Tokyo, Japan";"Visited the bustling city of Tokyo, from Shibuya Crossing to ancient temples.";"35.6895";"139.6917";"";"";"false"
