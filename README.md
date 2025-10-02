@@ -8,7 +8,7 @@ This README provides a comprehensive guide to understanding, customizing, and ma
 
 -   **Core Home Page:** A permanent landing page that always remains active as the main entry point to your site.
 -   **Dynamic Blog:** A full-featured blog powered by a Supabase database, with Markdown support and bulk management capabilities.
--   **Photo Gallery:** A dynamic gallery with automatic EXIF data extraction, managed via Supabase Storage, enhanced with AI-generated tags and a unified management interface (Published/Unpublished tabs). The public gallery search now includes matching hits from image tags, alt text, filenames, and EXIF data.
+-   **Photo Gallery:** A dynamic gallery that preserves all original image metadata (EXIF, dimensions, color profiles) upon upload. It features automatic EXIF data extraction, AI-generated tags, and a unified management interface with Published/Unpublished tabs. The public gallery search is powerful, covering tags, alt text, filenames, and EXIF data.
 -   **Interactive Travel Map:** Pin your travel destinations on a world map, with bulk import/export and management features.
 -   **Contact Form:** A secure, serverless contact form that sends emails directly to you.
 -   **AI Chatbot:** An integrated chatbot powered by Google Gemini that uses an editable knowledge base to provide intelligent answers about your portfolio. It also includes an auto-generate feature to populate the knowledge base from your content.
@@ -68,7 +68,8 @@ The gallery management page uses a two-tab system—**Published** and **Unpublis
 
 1.  **Navigate:** Go to the **Manage Gallery** page from the sidebar.
 2.  **Upload Workflow:**
-    *   Use the upload form to add one or more images. You can also include a `metadata.json` file in your selection to bulk-apply alt text and tags.
+    *   Use the upload form to add one or more images. All original metadata (EXIF, dimensions, color profiles) is preserved.
+    *   You can also include a `metadata.json` file in your selection to bulk-apply alt text and tags.
     *   Uploaded images automatically appear in the **"Unpublished"** tab as a list. This list view is designed for efficiency, allowing you to quickly manage many new uploads without loading all the thumbnails.
     *   In the "Unpublished" tab, you can preview each image in a lightbox and publish it with a single click.
 3.  **Managing Published Images:**
@@ -91,7 +92,7 @@ The gallery management page uses a two-tab system—**Published** and **Unpublis
 
 1.  **Navigate:** Go to the **Chatbot Knowledge** page from the sidebar under "Settings".
 2.  **Edit Knowledge:** The large text area contains the entire "knowledge base" the AI uses to answer questions. You can edit this text directly.
-3.  **Auto-Generate:** Click the **"Generate from Portfolio"** button to automatically create a new knowledge base from your latest published content, including details about the updated gallery features.
+3.  **Auto-Generate:** Click the **"Generate from Portfolio"** button to automatically create a new knowledge base from your latest published content, including details about the updated gallery features and your CV.
 4.  **Save:** Click "Save Knowledge Base" to apply your changes.
 
 ### 📄 Managing Your CV/Portfolio Page
