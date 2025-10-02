@@ -150,9 +150,6 @@ export const handleBulkDownload = async (imageIds: Set<string>, allImages: Galle
           fileName: originalFileName,
           alt_text: image.alt_text,
           tags: image.tags,
-          published: image.published,
-          created_at: image.created_at,
-          exif_data: image.exif_data,
         });
       }
     });
