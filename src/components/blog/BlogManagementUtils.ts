@@ -76,7 +76,19 @@ export const parseWordPressXml = async (xmlString: string): Promise<NewPost[]> =
     contentHtml = contentHtml.replace(/<!--\s*(more|nextpage)\s*-->/gi, '');
 
     const content = turndownService.turndown(contentHtml);
-    const tags: string[] | null = null;
+
+    const categoryElements = item.querySelectorAll("category");
+    const tags: string[] = [];
+    categoryElements.forEach(cat => {
+      const domain = cat.getAttribute('domain');
+      if (domain === 'category' || domain === 'post_tag') {
+        const nicename = cat.getAttribute('nicename');
+        if (nicename) {
+          tags.push(nicename);
+        }
+      }
+    });
+
     const cover_image_id: string | null = null;
     const youtube_video_id: string | null = null;
 
@@ -93,7 +105,7 @@ export const parseWordPressXml = async (xmlString: string): Promise<NewPost[]> =
         content: finalContent,
         published_at: new Date(pubDate).toISOString(),
         published: status === 'publish',
-        tags,
+        tags: tags.length > 0 ? tags : null,
         cover_image_id,
         youtube_video_id,
       });
