@@ -5,38 +5,17 @@ import * as z from "zod";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { supabase } from "@/integrations/supabase/client";
 import { showSuccess, showError, showLoading, dismissToast } from "@/utils/toast";
-import { Upload, Trash2, Edit, Download } from "lucide-react";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from "@/components/ui/alert-dialog";
-import { Checkbox } from "@/components/ui/checkbox";
-import { ManagementPagination } from "@/components/ManagementPagination";
 import { usePaginationNavigation } from "@/hooks/usePaginationNavigation";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import { UnpublishedImageListItem } from "@/components/gallery/UnpublishedImageListItem";
-import { PublishedImageListItem } from "@/components/gallery/PublishedImageListItem"; // Import the new component
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useGalleryManagement } from "@/hooks/useGalleryManagement";
 import { generateAltTextFromFileName } from "@/lib/utils";
 import type { GalleryImage } from "@/types";
+import { ImageUploadCard } from "@/components/gallery/ImageUploadCard";
+import { ImageManagementCard } from "@/components/gallery/ImageManagementCard";
 
 const LazyImageLightbox = lazy(() => import("@/components/ImageLightbox").then(module => ({ default: module.ImageLightbox })));
 
@@ -47,7 +26,6 @@ const editSchema = z.object({
 
 const ManageGallery = () => {
   const {
-    allImages,
     selectedFiles,
     isUploading,
     isLoading,
@@ -153,47 +131,15 @@ const ManageGallery = () => {
   const lightboxList = activeLightboxList === 'published' ? publishedImages : unpublishedImages;
   const lightboxImage = lightboxImageIndex !== null ? lightboxList[lightboxImageIndex] : null;
 
-  const allPublishedOnPageSelected = paginatedPublishedImages.length > 0 && paginatedPublishedImages.every(i => selectedImages.has(i.id));
-  const allUnpublishedOnPageSelected = paginatedUnpublishedImages.length > 0 && paginatedUnpublishedImages.every(i => selectedImages.has(i.id));
-
   return (
     <>
       <div className="space-y-8" ref={containerRef}>
-        <Card>
-          <CardHeader>
-            <CardTitle>Upload to Gallery</CardTitle>
-            <CardDescription>Select images to upload. You can also include a `.json` file (like the sample) to apply alt text and tags automatically.</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              <div className="flex items-center justify-between p-3 bg-muted rounded-md">
-                <p className="text-sm text-muted-foreground">
-                  Need a template for your metadata?
-                </p>
-                <Button asChild variant="secondary" size="sm">
-                  <a href="/sample-metadata.json" download>
-                    <Download className="h-4 w-4 mr-2" />
-                    Download Sample
-                  </a>
-                </Button>
-              </div>
-              <div className="flex items-center gap-4">
-                <Input
-                  id="file-input"
-                  type="file"
-                  multiple
-                  accept="image/jpeg,image/png,image/tiff,application/json"
-                  onChange={(e) => setSelectedFiles(e.target.files)}
-                  className="flex-grow"
-                />
-                <Button onClick={handleUpload} disabled={isUploading || !selectedFiles}>
-                  <Upload className="h-4 w-4 mr-2" />
-                  {isUploading ? "Uploading..." : "Upload"}
-                </Button>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+        <ImageUploadCard
+          onFileChange={setSelectedFiles}
+          onUpload={handleUpload}
+          isUploading={isUploading}
+          selectedFiles={selectedFiles}
+        />
 
         <Tabs defaultValue="published">
           <TabsList className="grid w-full grid-cols-2">
@@ -201,176 +147,60 @@ const ManageGallery = () => {
             <TabsTrigger value="unpublished" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">Unpublished ({unpublishedImages.length})</TabsTrigger>
           </TabsList>
           <TabsContent value="published">
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between">
-                <div>
-                  <CardTitle>Published Images</CardTitle>
-                  <CardDescription>These images are visible on your public gallery. Select images to perform bulk actions.</CardDescription>
-                </div>
-                <div className="flex gap-2">
-                  {selectedImages.size > 0 && (
-                    <>
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button variant="outline">
-                            Bulk Actions ({selectedImages.size})
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          <DropdownMenuItem onClick={() => handleBulkPublishWrapper(false)}>
-                            Unpublish Selected
-                          </DropdownMenuItem>
-                          <DropdownMenuItem onClick={handleGenerateTagsWrapper}>
-                            Generate Tags
-                          </DropdownMenuItem>
-                          <DropdownMenuItem onClick={handleBulkDownloadWrapper}>
-                            <Download className="h-4 w-4 mr-2" />
-                            Download Selected
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                      <AlertDialog>
-                        <AlertDialogTrigger asChild>
-                          <Button variant="destructive">
-                            <Trash2 className="h-4 w-4 mr-2" />
-                            Delete ({selectedImages.size})
-                          </Button>
-                        </AlertDialogTrigger>
-                        <AlertDialogContent>
-                          <AlertDialogHeader>
-                            <AlertDialogTitle>Are you sure?</AlertDialogTitle>
-                            <AlertDialogDescription>
-                              This will permanently delete the {selectedImages.size} selected image(s). This action cannot be undone.
-                            </AlertDialogDescription>
-                          </AlertDialogHeader>
-                          <AlertDialogFooter>
-                            <AlertDialogCancel>Cancel</AlertDialogCancel>
-                            <AlertDialogAction onClick={() => handleDeleteWrapper(Array.from(selectedImages))}>
-                              Delete
-                            </AlertDialogAction>
-                          </AlertDialogFooter>
-                        </AlertDialogContent>
-                      </AlertDialog>
-                    </>
-                  )}
-                </div>
-              </CardHeader>
-              <CardContent>
-                {isLoading ? <p>Loading...</p> : publishedImages.length > 0 ? (
-                  <>
-                    <div className="flex items-center space-x-2 mb-4 pb-4 border-b">
-                      <Checkbox id="select-all" checked={allPublishedOnPageSelected} onCheckedChange={(checked) => handleSelectAll(Boolean(checked), paginatedPublishedImages)} disabled={paginatedPublishedImages.length === 0} />
-                      <label htmlFor="select-all">Select All on Page</label>
-                    </div>
-                    <div className="space-y-2"> {/* Changed from grid to space-y-2 for list layout */}
-                      {paginatedPublishedImages.map((image) => (
-                        <PublishedImageListItem
-                          key={image.id}
-                          image={image}
-                          isSelected={selectedImages.has(image.id)}
-                          onSelect={handleSelectImage}
-                          onTogglePublish={handleTogglePublish}
-                          onEdit={setEditingImage}
-                          onView={(img) => openLightbox(img, 'published')}
-                          isBulkActionMode={selectedImages.size > 0}
-                        />
-                      ))}
-                    </div>
-                  </>
-                ) : <p className="text-center py-8">No published images.</p>}
-              </CardContent>
-              <CardFooter>
-                <ManagementPagination currentPage={currentPage} totalPages={totalPages} onPageChange={setCurrentPage} itemsPerPage={imagesPerPage} onItemsPerPageChange={setImagesPerPage} totalItems={publishedImages.length} />
-              </CardFooter>
-            </Card>
+            <ImageManagementCard
+              title="Published Images"
+              description="These images are visible on your public gallery. Select images to perform bulk actions."
+              images={publishedImages}
+              paginatedImages={paginatedPublishedImages}
+              selectedImages={selectedImages}
+              isLoading={isLoading}
+              onSelectImage={handleSelectImage}
+              onSelectAll={handleSelectAll}
+              onEdit={setEditingImage}
+              onView={openLightbox}
+              onDelete={handleDeleteWrapper}
+              onBulkPublish={handleBulkPublishWrapper}
+              onGenerateTags={handleGenerateTagsWrapper}
+              onDownload={handleBulkDownloadWrapper}
+              onTogglePublish={handleTogglePublish}
+              paginationProps={{
+                currentPage,
+                totalPages,
+                onPageChange: setCurrentPage,
+                itemsPerPage: imagesPerPage,
+                onItemsPerPageChange: setImagesPerPage,
+                totalItems: publishedImages.length,
+              }}
+              listType="published"
+            />
           </TabsContent>
           <TabsContent value="unpublished">
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between">
-                <div>
-                  <CardTitle>Unpublished Images</CardTitle>
-                  <CardDescription>These images are not visible on your public gallery. Select images to perform bulk actions.</CardDescription>
-                </div>
-                <div className="flex gap-2">
-                  {selectedImages.size > 0 && (
-                    <>
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button variant="outline">
-                            Bulk Actions ({selectedImages.size})
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          <DropdownMenuItem onClick={() => handleBulkPublishWrapper(true)}>
-                            Publish Selected
-                          </DropdownMenuItem>
-                          <DropdownMenuItem onClick={handleGenerateTagsWrapper}>
-                            Generate Tags
-                          </DropdownMenuItem>
-                          <DropdownMenuItem onClick={handleBulkDownloadWrapper}>
-                            <Download className="h-4 w-4 mr-2" />
-                            Download Selected
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                      <AlertDialog>
-                        <AlertDialogTrigger asChild>
-                          <Button variant="destructive">
-                            <Trash2 className="h-4 w-4 mr-2" />
-                            Delete ({selectedImages.size})
-                          </Button>
-                        </AlertDialogTrigger>
-                        <AlertDialogContent>
-                          <AlertDialogHeader>
-                            <AlertDialogTitle>Are you sure?</AlertDialogTitle>
-                            <AlertDialogDescription>
-                              This will permanently delete the {selectedImages.size} selected image(s). This action cannot be undone.
-                            </AlertDialogDescription>
-                          </AlertDialogHeader>
-                          <AlertDialogFooter>
-                            <AlertDialogCancel>Cancel</AlertDialogCancel>
-                            <AlertDialogAction onClick={() => handleDeleteWrapper(Array.from(selectedImages))}>
-                              Delete
-                            </AlertDialogAction>
-                          </AlertDialogFooter>
-                        </AlertDialogContent>
-                      </AlertDialog>
-                    </>
-                  )}
-                </div>
-              </CardHeader>
-              <CardContent>
-                {isLoading ? <p>Loading...</p> : unpublishedImages.length > 0 ? (
-                  <>
-                    <div className="flex items-center space-x-2 mb-4 pb-4 border-b">
-                      <Checkbox id="select-all-unpublished" checked={allUnpublishedOnPageSelected} onCheckedChange={(checked) => handleSelectAll(Boolean(checked), paginatedUnpublishedImages)} disabled={paginatedUnpublishedImages.length === 0} />
-                      <label htmlFor="select-all-unpublished">Select All on Page</label>
-                    </div>
-                    <div className="space-y-2">
-                      {paginatedUnpublishedImages.map((image) => (
-                        <UnpublishedImageListItem
-                          key={image.id}
-                          image={image}
-                          isSelected={selectedImages.has(image.id)}
-                          onSelect={handleSelectImage}
-                          onPublish={handleTogglePublish}
-                          onEdit={setEditingImage}
-                          onView={(img) => openLightbox(img, 'unpublished')}
-                          isBulkActionMode={selectedImages.size > 0}
-                        />
-                      ))}
-                    </div>
-                  </>
-                ) : (
-                  <div className="text-center py-10 border-dashed border-2 rounded-lg bg-muted">
-                    <p className="text-muted-foreground">No unpublished images found.</p>
-                  </div>
-                )}
-              </CardContent>
-              <CardFooter>
-                <ManagementPagination currentPage={unpublishedCurrentPage} totalPages={unpublishedTotalPages} onPageChange={setUnpublishedCurrentPage} itemsPerPage={imagesPerPage} onItemsPerPageChange={setImagesPerPage} totalItems={unpublishedImages.length} />
-              </CardFooter>
-            </Card>
+            <ImageManagementCard
+              title="Unpublished Images"
+              description="These images are not visible on your public gallery. Select images to perform bulk actions."
+              images={unpublishedImages}
+              paginatedImages={paginatedUnpublishedImages}
+              selectedImages={selectedImages}
+              isLoading={isLoading}
+              onSelectImage={handleSelectImage}
+              onSelectAll={handleSelectAll}
+              onEdit={setEditingImage}
+              onView={openLightbox}
+              onDelete={handleDeleteWrapper}
+              onBulkPublish={handleBulkPublishWrapper}
+              onGenerateTags={handleGenerateTagsWrapper}
+              onDownload={handleBulkDownloadWrapper}
+              onTogglePublish={handleTogglePublish}
+              paginationProps={{
+                currentPage: unpublishedCurrentPage,
+                totalPages: unpublishedTotalPages,
+                onPageChange: setUnpublishedCurrentPage,
+                itemsPerPage: imagesPerPage,
+                onItemsPerPageChange: setImagesPerPage,
+                totalItems: unpublishedImages.length,
+              }}
+              listType="unpublished"
+            />
           </TabsContent>
         </Tabs>
       </div>
