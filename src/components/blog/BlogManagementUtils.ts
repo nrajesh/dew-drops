@@ -1,6 +1,6 @@
 import { supabase } from "@/integrations/supabase/client";
 import type { Post, GalleryImage } from "@/types";
-import { showSuccess, showError, showLoading, dismissToast } from "@/utils/toast";
+import { showSuccess, showError, showLoading, updateToastSuccess, updateToastError } from "@/utils/toast";
 import TurndownService from "turndown";
 import JSZip from 'jszip';
 import { sanitizeFileName } from "@/lib/utils";
@@ -59,24 +59,11 @@ export const ensureContentHasTripleBackticks = (content: string): string => {
   return content;
 };
 
-interface ParsedWordPressXML {
-  posts: {
-    title: string;
-    description: string;
-    content: string;
-    published_at: string;
-    categories: string[];
-    tags: string[];
-  }[];
-  categories: string[];
-}
-
-export const parseWordPressXml = async (xmlString: string): Promise<ParsedWordPressXML> => {
+export const parseWordPressXml = async (xmlString: string): Promise<NewPost[]> => {
   const parser = new DOMParser();
   const xmlDoc = parser.parseFromString(xmlString, "text/xml");
   const items = xmlDoc.querySelectorAll("item");
-  const posts: ParsedWordPressXML['posts'] = [];
-  const allCategories = new Set<string>();
+  const newPosts: NewPost[] = [];
   const turndownService = new TurndownService();
 
   items.forEach(item => {
@@ -92,21 +79,15 @@ export const parseWordPressXml = async (xmlString: string): Promise<ParsedWordPr
 
     const categoryElements = item.querySelectorAll("category");
     const tagSet = new Set<string>();
-    const categorySet = new Set<string>();
-
     categoryElements.forEach(cat => {
       const domain = cat.getAttribute('domain');
-      const nicename = cat.getAttribute('nicename');
-
-      if (domain === 'category' && nicename) {
-        categorySet.add(nicename);
-        allCategories.add(nicename);
-      } else if (domain === 'post_tag' && nicename) {
-        tagSet.add(nicename);
+      if (domain === 'category' || domain === 'post_tag') {
+        const nicename = cat.getAttribute('nicename');
+        if (nicename) {
+          tagSet.add(nicename);
+        }
       }
     });
-
-    const categories = Array.from(categorySet);
     const tags = Array.from(tagSet);
 
     const cover_image_id: string | null = null;
@@ -119,21 +100,19 @@ export const parseWordPressXml = async (xmlString: string): Promise<ParsedWordPr
     const finalContent = ensureContentHasTripleBackticks(content);
 
     if (title && finalContent) {
-      posts.push({
+      newPosts.push({
         title,
         description,
         content: finalContent,
         published_at: new Date(pubDate).toISOString(),
-        categories,
-        tags,
+        published: status === 'publish',
+        tags: tags.length > 0 ? tags : null,
+        cover_image_id,
+        youtube_video_id,
       });
     }
   });
-
-  return {
-    posts,
-    categories: Array.from(allCategories)
-  };
+  return newPosts;
 };
 
 export const parseMarkdownFile = async (file: File): Promise<NewPost> => {
@@ -238,12 +217,10 @@ export const processUploads = async (userId: string, inserts: NewPost[], updates
       if (result.error) throw new Error(result.error.message);
     }
 
-    dismissToast(toastId);
-    showSuccess(`${inserts.length} new posts added, ${updates.length} posts updated.`);
+    updateToastSuccess(toastId, `${inserts.length} new posts added, ${updates.length} posts updated.`);
     return true;
   } catch (error: any) {
-    dismissToast(toastId);
-    showError(`Import failed: ${error.message}`);
+    updateToastError(toastId, `Import failed: ${error.message}`);
     return false;
   }
 };
@@ -252,12 +229,10 @@ export const handleBulkDelete = async (selectedPosts: Set<string>) => {
   const toastId = showLoading(`Deleting ${selectedPosts.size} posts...`);
   const { error } = await supabase.from("posts").delete().in("id", Array.from(selectedPosts));
   if (error) {
-    dismissToast(toastId);
-    showError(error.message);
+    updateToastError(toastId, error.message);
     return false;
   } else {
-    dismissToast(toastId);
-    showSuccess(`${selectedPosts.size} posts removed.`);
+    updateToastError(toastId, `${selectedPosts.size} posts removed.`);
     return true;
   }
 };
@@ -270,12 +245,10 @@ export const handleBulkTagUpdate = async (selectedPosts: Set<string>, tags: stri
     .in("id", Array.from(selectedPosts));
 
   if (error) {
-    dismissToast(toastId);
-    showError(`Failed to update tags: ${error.message}`);
+    updateToastError(toastId, `Failed to update tags: ${error.message}`);
     return false;
   } else {
-    dismissToast(toastId);
-    showSuccess("Tags updated successfully.");
+    updateToastSuccess(toastId, "Tags updated successfully.");
     return true;
   }
 };
@@ -289,12 +262,10 @@ export const handleBulkStatusChange = async (selectedPosts: Set<string>, publish
     .in("id", Array.from(selectedPosts));
 
   if (error) {
-    dismissToast(toastId);
-    showError(`Failed to update status: ${error.message}`);
+    updateToastError(toastId, `Failed to update status: ${error.message}`);
     return false;
   } else {
-    dismissToast(toastId);
-    showSuccess(`Posts marked as ${status}.`);
+    updateToastSuccess(toastId, `Posts marked as ${status}.`);
     return true;
   }
 };
@@ -338,12 +309,10 @@ published: ${post.published}${tagsString}${coverImageIdString}${youtubeVideoIdSt
     document.body.removeChild(link);
     URL.revokeObjectURL(link.href);
 
-    dismissToast(toastId);
-    showSuccess(`${postsToDownload.length} post(s) downloaded.`);
+    updateToastSuccess(toastId, `${postsToDownload.length} post(s) downloaded.`);
     return true;
   } catch (error: any) {
-    dismissToast(toastId);
-    showError(`Download failed: ${error.message}`);
+    updateToastError(toastId, `Download failed: ${error.message}`);
     return false;
   }
 };

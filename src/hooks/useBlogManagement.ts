@@ -77,15 +77,11 @@ export const useBlogManagement = () => {
 
     const content = ensureContentHasTripleBackticks(values.content);
 
-    const postData: NewPost = {
-      title: values.title,
+    const postData = {
+      ...values,
       description: description,
       content: content,
-      published_at: values.published_at,
-      published: values.published,
-      tags: values.tags || [],
-      cover_image_id: values.cover_image_id || null,
-      youtube_video_id: values.youtube_video_id || null,
+      user_id: user.id,
     };
 
     const { error } = editingPost
@@ -120,17 +116,7 @@ export const useBlogManagement = () => {
       for (const file of Array.from(selectedFiles)) {
         if (file.type === "text/xml" || file.name.endsWith(".xml")) {
           const content = await file.text();
-          const parsedData = await parseWordPressXml(content);
-          allNewPosts.push(...parsedData.posts.map(post => ({
-            title: post.title,
-            description: post.description,
-            content: post.content,
-            published_at: post.published_at,
-            published: false, // Always import as draft
-            tags: post.tags,
-            cover_image_id: null,
-            youtube_video_id: null,
-          })));
+          allNewPosts.push(...await parseWordPressXml(content));
         } else if (file.type === "text/markdown" || file.name.endsWith(".md")) {
           allNewPosts.push(await parseMarkdownFile(file));
         }
@@ -138,7 +124,7 @@ export const useBlogManagement = () => {
 
       const uniqueNewPostsMap = new Map(allNewPosts.map(p => [p.title.toLowerCase(), p]));
       const existingPostsMap = new Map(posts.map(p => [p.title.toLowerCase(), p]));
-
+      
       const newPostsToInsert: NewPost[] = [];
       const potentialUpdates: { existingId: string; existingTitle: string; newData: NewPost }[] = [];
 
