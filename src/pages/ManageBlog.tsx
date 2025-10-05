@@ -1,4 +1,4 @@
-import { useRef } from "react";
+import { useRef, useState } from "react";
 import { PostList } from "../components/blog/PostList";
 import { BulkImport } from "../components/blog/BulkImport";
 import { UpdatePostsDialog } from "../components/blog/UpdatePostsDialog";
@@ -6,6 +6,7 @@ import { usePaginationNavigation } from "@/hooks/usePaginationNavigation";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { BlogForm } from "@/components/blog/BlogForm";
 import { useBlogManagement } from "@/hooks/useBlogManagement";
+import { parseWordPressXml } from "@/components/blog/BlogManagementUtils";
 
 const ManageBlog = () => {
   const {
@@ -42,6 +43,9 @@ const ManageBlog = () => {
   } = useBlogManagement();
 
   const containerRef = useRef<HTMLDivElement>(null);
+  const [categories, setCategories] = useState<string[]>([]);
+  const [showCategoryDialog, setShowCategoryDialog] = useState(false);
+  const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
 
   usePaginationNavigation({
     currentPage,
@@ -51,13 +55,50 @@ const ManageBlog = () => {
     enabled: !isUpdateDialogVisible && !editingPost,
   });
 
+  const handleFileChange = (files: FileList | null) => {
+    setSelectedFiles(files);
+    if (files && files.length > 0) {
+      const xmlFile = Array.from(files).find(f => f.type === "text/xml" || f.name.endsWith(".xml"));
+      if (xmlFile) {
+        processXmlFile(xmlFile);
+      }
+    }
+  };
+
+  const processXmlFile = async (file: File) => {
+    try {
+      const content = await file.text();
+      const { categories } = await parseWordPressXml(content);
+      if (categories.length > 0) {
+        setCategories(categories);
+        setShowCategoryDialog(true);
+      } else {
+        // If no categories found, proceed with normal upload
+        handleUpload();
+      }
+    } catch (error) {
+      console.error("Error processing XML file:", error);
+      // Fall back to normal upload if there's an error
+      handleUpload();
+    }
+  };
+
+  const handleCategorySelection = (selected: string[]) => {
+    setSelectedCategories(selected);
+    setShowCategoryDialog(false);
+    // Proceed with upload after category selection
+    handleUpload();
+  };
+
   return (
     <div className="space-y-8" ref={containerRef}>
       <BulkImport
-        onFileChange={setSelectedFiles}
+        onFileChange={handleFileChange}
         onUpload={handleUpload}
         isUploading={isUploading}
         selectedFiles={selectedFiles}
+        categories={categories}
+        onCategorySelection={handleCategorySelection}
       />
       <div className="w-full">
         <PostList
