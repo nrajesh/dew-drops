@@ -8,8 +8,10 @@ import { showError } from "@/utils/toast";
 import { useNavigate } from "react-router-dom";
 import { usePortfolioContext } from "@/hooks/usePortfolioContext";
 import { Loader2 } from "lucide-react";
-import { calculateWeightedMatchPercentage } from "@/utils/cosineSimilarity"; // Import the new utility
-import type { JsonResume } from "@/types/resume"; // Import JsonResume type
+import { calculateWeightedMatchPercentage } from "@/utils/cosineSimilarity";
+import type { JsonResume } from "@/types/resume";
+import { extractJobKeywords } from "@/integrations/gemini/client"; // Import the new Gemini function
+import ReactMarkdown from 'react-markdown'; // Import ReactMarkdown
 
 interface JobMatchPopupProps {
   isOpen: boolean;
@@ -41,12 +43,33 @@ export const JobMatchPopup = ({ isOpen, onOpenChange, onMatchRequest }: JobMatch
     setIsButtonEnabled(value.length >= 80);
   };
 
-  const generateReasoning = (totalPercentage: number, breakdown: { experience: number; education: number; skills: number }): string => {
+  const generateReasoning = (
+    totalPercentage: number,
+    breakdown: { experience: number; education: number; skills: number },
+    jobRequirements: string[],
+    cvSkills: string[]
+  ): string => {
     let reason = `This is a **${totalPercentage.toFixed(0)}%** overall match.`;
     reason += `\n\n**Breakdown:**\n`;
     reason += `- **Experience:** ${breakdown.experience.toFixed(0)}%\n`;
     reason += `- **Education:** ${breakdown.education.toFixed(0)}%\n`;
     reason += `- **Skills:** ${breakdown.skills.toFixed(0)}%\n\n`;
+
+    const jobReqSet = new Set(jobRequirements.map(s => s.toLowerCase()));
+    const cvSkillsSet = new Set(cvSkills.map(s => s.toLowerCase()));
+
+    const overlaps = Array.from(jobReqSet).filter(req => cvSkillsSet.has(req));
+    const missing = Array.from(jobReqSet).filter(req => !cvSkillsSet.has(req));
+
+    if (overlaps.length > 0) {
+      reason += `**Key Overlapping Skills/Requirements:**\n- ${overlaps.join(', ')}\n\n`;
+    }
+
+    if (missing.length > 0) {
+      reason += `**Missing Key Skills/Requirements:**\n- ${missing.join(', ')}\n\n`;
+      reason += `**Actionable Feedback:**\n`;
+      reason += `To improve alignment, consider highlighting experiences or projects where you've utilized these missing skills. If you have relevant experience not explicitly listed, ensure it's added to your CV. For skills you're developing, consider adding them to a "Learning" or "Future Skills" section, or gaining practical experience through projects.\n\n`;
+    }
 
     if (totalPercentage >= 70) {
       reason += `Rajesh's profile shows a strong alignment with the job's requirements, particularly in areas of experience.`;
@@ -72,7 +95,10 @@ export const JobMatchPopup = ({ isOpen, onOpenChange, onMatchRequest }: JobMatch
     setIsMatching(true);
 
     try {
-      // Prepare CV sections for weighted similarity
+      // Step 1: Extract job requirements using Gemini
+      const jobRequirements = await extractJobKeywords(jobDescription);
+
+      // Step 2: Prepare CV sections for weighted similarity
       const cvSections = {
         experience: resume.work?.map(w => `${w.position} at ${w.company} ${w.summary} ${w.highlights?.join(' ')}`).join(' ') || '',
         education: resume.education?.map(e => `${e.studyType} in ${e.area} from ${e.institution} ${e.courses?.join(' ')}`).join(' ') || '',
@@ -81,8 +107,16 @@ export const JobMatchPopup = ({ isOpen, onOpenChange, onMatchRequest }: JobMatch
 
       const { totalPercentage, breakdown } = calculateWeightedMatchPercentage(jobDescription, cvSections);
 
-      // Generate reasoning
-      const reasoning = generateReasoning(totalPercentage, breakdown);
+      // Step 3: Collect all skills from CV for direct comparison
+      const allCvSkills: string[] = [];
+      resume.skills?.forEach(s => {
+        allCvSkills.push(s.name);
+        s.keywords?.forEach(k => allCvSkills.push(k));
+      });
+      resume.work?.forEach(w => w.highlights?.forEach(h => allCvSkills.push(h))); // Also consider work highlights as skills
+
+      // Step 4: Generate reasoning with Markdown, overlaps, and feedback
+      const reasoning = generateReasoning(totalPercentage, breakdown, jobRequirements, allCvSkills);
 
       // Set the match result
       setMatchResult({ percentage: totalPercentage, reasoning, breakdown });
@@ -122,8 +156,8 @@ export const JobMatchPopup = ({ isOpen, onOpenChange, onMatchRequest }: JobMatch
                 <p className="text-4xl font-bold text-primary">{matchResult.percentage.toFixed(0)}%</p>
                 <p className="text-sm text-muted-foreground mt-1">Match Percentage</p>
               </div>
-              <div className="bg-muted p-4 rounded-lg whitespace-pre-wrap">
-                <p className="text-sm">{matchResult.reasoning}</p>
+              <div className="bg-muted p-4 rounded-lg whitespace-pre-wrap prose dark:prose-invert max-w-none">
+                <ReactMarkdown>{matchResult.reasoning}</ReactMarkdown>
               </div>
             </div>
           ) : (

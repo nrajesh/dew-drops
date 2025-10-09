@@ -6,8 +6,10 @@ import { Send, Bot, User as UserIcon, Loader2, AlertTriangle, X } from "lucide-r
 import { usePortfolioContext } from "@/hooks/usePortfolioContext";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { useNavigate } from "react-router-dom";
-import { calculateWeightedMatchPercentage } from "@/utils/cosineSimilarity"; // Import the new utility
-import type { JsonResume } from "@/types/resume"; // Import JsonResume type
+import { calculateWeightedMatchPercentage } from "@/utils/cosineSimilarity";
+import type { JsonResume } from "@/types/resume";
+import { extractJobKeywords } from "@/integrations/gemini/client"; // Import the new Gemini function
+import ReactMarkdown from 'react-markdown'; // Import ReactMarkdown
 
 interface Message {
   role: "user" | "assistant";
@@ -59,7 +61,10 @@ const Chat = ({ jobDescription, onClose }: ChatProps) => {
     setMessages([]);
 
     try {
-      // Prepare CV sections for weighted similarity
+      // Step 1: Extract job requirements using Gemini
+      const jobRequirements = await extractJobKeywords(description);
+
+      // Step 2: Prepare CV sections for weighted similarity
       const cvSections = {
         experience: resume.work?.map(w => `${w.position} at ${w.company} ${w.summary} ${w.highlights?.join(' ')}`).join(' ') || '',
         education: resume.education?.map(e => `${e.studyType} in ${e.area} from ${e.institution} ${e.courses?.join(' ')}`).join(' ') || '',
@@ -68,8 +73,16 @@ const Chat = ({ jobDescription, onClose }: ChatProps) => {
 
       const { totalPercentage, breakdown } = calculateWeightedMatchPercentage(description, cvSections);
 
-      // Generate reasoning using Gemini
-      const reasoning = await generateReasoning(description, chatbotKnowledge, totalPercentage, breakdown);
+      // Step 3: Collect all skills from CV for direct comparison
+      const allCvSkills: string[] = [];
+      resume.skills?.forEach(s => {
+        allCvSkills.push(s.name);
+        s.keywords?.forEach(k => allCvSkills.push(k));
+      });
+      resume.work?.forEach(w => w.highlights?.forEach(h => allCvSkills.push(h))); // Also consider work highlights as skills
+
+      // Step 4: Generate reasoning using Gemini with Markdown, overlaps, and feedback
+      const reasoning = await generateReasoning(description, chatbotKnowledge, totalPercentage, breakdown, jobRequirements, allCvSkills);
 
       // Add messages to the chat
       const newMessages: Message[] = [
@@ -87,14 +100,38 @@ const Chat = ({ jobDescription, onClose }: ChatProps) => {
     }
   };
 
-  const generateReasoning = async (description: string, context: string | null, totalPercentage: number, breakdown: { experience: number; education: number; skills: number }): Promise<string> => {
+  const generateReasoning = async (
+    description: string,
+    context: string | null,
+    totalPercentage: number,
+    breakdown: { experience: number; education: number; skills: number },
+    jobRequirements: string[],
+    cvSkills: string[]
+  ): Promise<string> => {
     if (!sendMessageToGemini) throw new Error("Chat client is not initialized.");
+
+    const jobReqSet = new Set(jobRequirements.map(s => s.toLowerCase()));
+    const cvSkillsSet = new Set(cvSkills.map(s => s.toLowerCase()));
+
+    const overlaps = Array.from(jobReqSet).filter(req => cvSkillsSet.has(req));
+    const missing = Array.from(jobReqSet).filter(req => !cvSkillsSet.has(req));
+
+    let feedback = "";
+    if (overlaps.length > 0) {
+      feedback += `**Key Overlapping Skills/Requirements:**\n- ${overlaps.join(', ')}\n\n`;
+    }
+    if (missing.length > 0) {
+      feedback += `**Missing Key Skills/Requirements:**\n- ${missing.join(', ')}\n\n`;
+      feedback += `**Actionable Feedback:**\nTo improve alignment, consider highlighting experiences or projects where you've utilized these missing skills. If you have relevant experience not explicitly listed, ensure it's added to your CV. For skills you're developing, consider adding them to a "Learning" or "Future Skills" section, or gaining practical experience through projects.\n\n`;
+    }
 
     const systemPrompt = `You are a world-class hiring manager analyzing a job description against a candidate's profile.
     Job Description: ${description}
     Candidate Profile (summary from CV and chatbot knowledge): ${context}
     Overall Match Percentage: ${totalPercentage.toFixed(0)}%
     Breakdown: Experience Match: ${breakdown.experience.toFixed(0)}%, Education Match: ${breakdown.education.toFixed(0)}%, Skills Match: ${breakdown.skills.toFixed(0)}%.
+    
+    ${feedback}
 
     Provide a concise reasoning (2-3 sentences) explaining why this is a ${totalPercentage.toFixed(0)}% match or why it isn't.
     If the match is high, highlight specific skills or experiences that align.
@@ -190,8 +227,8 @@ const Chat = ({ jobDescription, onClose }: ChatProps) => {
           {messages.map((message, index) => (
             <div key={index} className={`flex items-start gap-3 ${message.role === 'user' ? 'justify-end' : ''}`}>
               {message.role === 'assistant' && <Bot className="h-6 w-6 text-primary" />}
-              <div className={`rounded-lg p-3 max-w-[80%] ${message.role === 'user' ? 'bg-primary text-primary-foreground' : 'bg-muted'}`}>
-                <p className="text-sm whitespace-pre-wrap">{message.content}</p>
+              <div className={`rounded-lg p-3 max-w-[80%] ${message.role === 'user' ? 'bg-primary text-primary-foreground' : 'bg-muted'} prose dark:prose-invert max-w-none`}>
+                <ReactMarkdown>{message.content}</ReactMarkdown>
               </div>
               {message.role === 'user' && <UserIcon className="h-6 w-6" />}
             </div>
