@@ -15,15 +15,9 @@ export const generateCareerFitPdf = async (htmlContent: string, filename: string
   printContainer.style.padding = '1.5cm'; // Match @page margin
   document.body.appendChild(printContainer);
 
-  // Apply print-specific classes to the container
-  printContainer.classList.add('print-mode');
-
-  // Temporarily add dark class if needed for consistent rendering in dark mode
-  const isDarkMode = document.documentElement.classList.contains('dark');
-  if (isDarkMode) {
-    document.documentElement.classList.remove('dark');
-    printContainer.classList.add('force-light-mode'); // Custom class to force light mode styles
-  }
+  // Force light mode for the print container for html2canvas rendering
+  // This will apply the light theme CSS variables defined in :root
+  printContainer.classList.add('light'); // Add 'light' class to force light theme variables
 
   try {
     const canvas = await html2canvas(printContainer, {
@@ -32,7 +26,7 @@ export const generateCareerFitPdf = async (htmlContent: string, filename: string
       allowTaint: true,
       windowWidth: printContainer.scrollWidth,
       windowHeight: printContainer.scrollHeight,
-    } as any); // Cast to any to resolve TypeScript error
+    } as any);
 
     const imgData = canvas.toDataURL('image/png');
     const pdf = new jsPDF('p', 'mm', 'a4');
@@ -58,8 +52,6 @@ export const generateCareerFitPdf = async (htmlContent: string, filename: string
     alert("Failed to generate PDF. Please try again.");
   } finally {
     document.body.removeChild(printContainer);
-    if (isDarkMode) {
-      document.documentElement.classList.add('dark'); // Restore dark mode
-    }
+    // No need to restore dark mode on document.documentElement as it was never changed.
   }
 };

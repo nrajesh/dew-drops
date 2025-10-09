@@ -24,7 +24,6 @@
     --border: 214.3 31.8% 91.4%;
     --input: 214.3 31.8% 91.4%;
     --ring: 217 91% 60%;
-    --radius: 0.5rem;
 
     /* Sidebar variables for light theme */
     --sidebar-background: 210 40% 100%;
@@ -220,6 +219,12 @@
 
   .pdf-content-wrapper p {
     margin-bottom: 0.5rem;
+    page-break-inside: avoid; /* Prevent paragraphs from splitting */
+  }
+
+  .pdf-content-wrapper ul li,
+  .pdf-content-wrapper ol li {
+    page-break-inside: avoid; /* Prevent list items from splitting */
   }
 
   .pdf-content-wrapper a {
