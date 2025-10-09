@@ -205,7 +205,7 @@
   /* Specific styles for PDF content wrapper */
   .pdf-content-wrapper {
     font-family: sans-serif;
-    color: #000000 !important; /* Force black text for PDF */
+    color: hsl(var(--foreground)) !important; /* Force foreground color from light theme for PDF */
     line-height: 1.6;
   }
 
