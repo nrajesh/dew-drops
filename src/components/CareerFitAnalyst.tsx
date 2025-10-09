@@ -11,7 +11,7 @@ import { useJobMatching } from "@/hooks/useJobMatching";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { showError } from "@/utils/toast";
 import { Progress } from "@/components/ui/progress";
-import { downloadPdf } from "../utils/pdfGenerator"; // Changed to relative path
+import { downloadPdf } from "@/utils/pdfGenerator";
 
 // Helper function to limit gaps in markdown output
 const limitGapsInMarkdown = (markdown: string): string => {
@@ -184,8 +184,13 @@ export const CareerFitAnalyst = () => {
           <div className="space-y-4 mt-6">
             <ScrollArea className="h-64 bg-muted p-4 rounded-lg prose dark:prose-invert max-w-none career-fit-output">
               <div ref={contentRef} className="space-y-4">
-                <div className="flex justify-end mb-4">
-                  <Button onClick={handleDownloadPdf} variant="outline" size="sm">
+                <div className="flex justify-end mb-4 print:hidden">
+                  <Button
+                    onClick={handleDownloadPdf}
+                    variant="outline"
+                    size="sm"
+                    className="print:hidden"
+                  >
                     <Download className="mr-2 h-4 w-4" /> Download as PDF
                   </Button>
                 </div>

@@ -2,11 +2,31 @@ import html2canvas from 'html2canvas';
 import jsPDF from 'jspdf';
 
 export const downloadPdf = async (element: HTMLElement, filename: string) => {
-  const canvas = await html2canvas(element, {
-    scale: 2, // Increase scale for better resolution
-    useCORS: true, // Enable CORS if images are from external sources
-  } as any); // Cast to any to bypass type check
+  // Clone the element to avoid modifying the original DOM
+  const clone = element.cloneNode(true) as HTMLElement;
 
+  // Remove the print button from the clone
+  const printButton = clone.querySelector('.print\\:hidden');
+  if (printButton) {
+    printButton.remove();
+  }
+
+  // Add the clone to the body temporarily
+  document.body.appendChild(clone);
+
+  // Generate the canvas from the cloned element
+  const canvas = await html2canvas(clone, {
+    scale: 2,
+    useCORS: true,
+    logging: false,
+    allowTaint: true,
+    backgroundColor: '#ffffff', // Ensure white background
+  } as any);
+
+  // Remove the clone from the DOM
+  document.body.removeChild(clone);
+
+  // Create PDF
   const imgData = canvas.toDataURL('image/png');
   const pdf = new jsPDF({
     orientation: 'portrait',
