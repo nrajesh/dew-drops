@@ -8,7 +8,7 @@ import { showError } from "@/utils/toast"; // Added import for showError
 interface JobMatchResult {
   percentage: number;
   reasoning: string;
-  breakdown: { experience: number; education: number; skills: number };
+  breakdown: { experience: number; education: number; skills: number; languages: number }; // Updated breakdown
 }
 
 const analysisSteps = [

@@ -137,25 +137,26 @@ const calculateVectorCosineSimilarity = (vec1: number[], vec2: number[]): number
 /**
  * Calculates the weighted match percentage between a job description and structured CV sections.
  * @param jobDescription The job description text.
- * @param cvSections An object containing different sections of the CV (e.g., experience, education, skills).
+ * @param cvSections An object containing different sections of the CV (e.g., experience, education, skills, languages).
  * @returns An object with totalPercentage and a breakdown of match for each section.
  */
 export const calculateWeightedMatchPercentage = (
   jobDescription: string,
-  cvSections: { experience: string; education: string; skills: string; }
-): { totalPercentage: number; breakdown: { experience: number; education: number; skills: number } } => {
+  cvSections: { experience: string; education: string; skills: string; languages: string; }
+): { totalPercentage: number; breakdown: { experience: number; education: number; skills: number; languages: number } } => {
   const jobDescriptionTokens = tokenize(jobDescription);
 
   // Define weights for different sections
   const weights = {
-    experience: 0.70,
-    education: 0.20,
+    experience: 0.80,
     skills: 0.10,
+    education: 0.05,
+    languages: 0.05,
   };
 
   let totalWeightedSimilarity = 0;
   let totalWeight = 0;
-  const breakdown = { experience: 0, education: 0, skills: 0 };
+  const breakdown = { experience: 0, education: 0, skills: 0, languages: 0 };
 
   const allDocumentTokens: string[][] = [jobDescriptionTokens];
   const sectionTokens: Record<string, string[]> = {};
@@ -180,7 +181,7 @@ export const calculateWeightedMatchPercentage = (
   }
 
   if (vocabulary.size === 0) {
-    return { totalPercentage: 0, breakdown: { experience: 0, education: 0, skills: 0 } };
+    return { totalPercentage: 0, breakdown: { experience: 0, education: 0, skills: 0, languages: 0 } };
   }
 
   // Calculate global IDF across all documents/sections
@@ -209,7 +210,7 @@ export const calculateWeightedMatchPercentage = (
   }
 
   if (totalWeight === 0) {
-    return { totalPercentage: 0, breakdown: { experience: 0, education: 0, skills: 0 } };
+    return { totalPercentage: 0, breakdown: { experience: 0, education: 0, skills: 0, languages: 0 } };
   }
 
   const finalSimilarity = totalWeightedSimilarity / totalWeight;
