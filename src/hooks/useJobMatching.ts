@@ -51,7 +51,7 @@ export const useJobMatching = () => {
 
     setIsMatching(true);
     setMatchResult(null);
-    setCurrentStepIndex(0);
+    setCurrentStepIndex(0); // Reset step index for the start of analysisSteps
 
     try {
       const result = await generateJobMatchReasoning(
@@ -59,7 +59,7 @@ export const useJobMatching = () => {
         chatbotKnowledge,
         resume,
         sendMessageToGemini,
-        setCurrentStepIndex
+        setCurrentStepIndex // Pass the setter to update steps
       );
       setMatchResult(result);
       return result;
@@ -84,7 +84,7 @@ export const useJobMatching = () => {
       throw new Error(errorMessage);
     } finally {
       setIsMatching(false);
-      setCurrentStepIndex(0);
+      setCurrentStepIndex(0); // Reset for next analysis
     }
   }, [chatbotKnowledge, resume, contextError, contextLoading, geminiClientError]);
 
