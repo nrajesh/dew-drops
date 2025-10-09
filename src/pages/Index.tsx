@@ -16,7 +16,7 @@ const Index = () => {
           Welcome to My Creative Space
         </h1>
         <p className="max-w-[700px] text-muted-foreground md:text-xl">
-          A curated collection of professional work, personal projects and travels of Rajesh Narayanan. Explore my blog, watch my videos, and get in touch.
+          A curated collection of professional work, personal projects and travels of Rajesh Narayanan. Explore my portfolio, get to know a bit about my creative work, and get in touch.
         </p>
       </div>
       <div className="flex gap-4">
