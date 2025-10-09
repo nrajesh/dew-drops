@@ -16,6 +16,7 @@ import { cn, limitGapsInMarkdown, markdownToPlainText } from "@/lib/utils";
 import { analyzeAndTranslateJobDescription } from "@/utils/aiTextAnalysis";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
+import { supabase } from "@/integrations/supabase/client"; // Import supabase client
 
 const MIN_JOB_DESCRIPTION_LENGTH = 250;
 
@@ -152,13 +153,19 @@ export const CareerFitAnalyst = () => {
 
   const fetchJobDescriptionFromUrl = async (url: string): Promise<string> => {
     try {
-      const response = await fetch(url);
-      if (!response.ok) {
-        throw new Error(`Failed to fetch URL: ${response.status} ${response.statusText}`);
+      const { data, error } = await supabase.functions.invoke('fetch-url-content', {
+        body: { url },
+      });
+
+      if (error) {
+        throw new Error(error.message);
       }
-      return await response.text();
+      if (!data || !data.content) {
+        throw new Error("Failed to retrieve content from the URL.");
+      }
+      return data.content;
     } catch (error: any) {
-      throw new Error(`Error fetching job description from URL: ${error.message}`);
+      throw new Error(`Error fetching job description from URL via proxy: ${error.message}`);
     }
   };
 
