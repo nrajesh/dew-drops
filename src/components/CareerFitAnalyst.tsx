@@ -358,6 +358,9 @@ export const CareerFitAnalyst = () => {
                 <p className="text-sm text-muted-foreground mt-2">
                   {jobDescription.length}/{MIN_JOB_DESCRIPTION_LENGTH} characters minimum
                 </p>
+                <p className="text-sm text-muted-foreground mt-2">
+                  Matching job descriptions longer than 2000 characters in length or using an URL to match can take a several minutes to complete.
+                </p>
               </TabsContent>
               <TabsContent value="url">
                 <div className="flex items-center gap-2">
@@ -379,6 +382,9 @@ export const CareerFitAnalyst = () => {
                 <p className="text-sm text-muted-foreground mt-2">
                   Provide a URL where the job description is hosted.
                 </p>
+                <p className="text-sm text-muted-foreground mt-2">
+                  Matching job descriptions longer than 2000 characters in length or using an URL to match can take a several minutes to complete.
+                </p>
               </TabsContent>
             </Tabs>
 
@@ -389,7 +395,7 @@ export const CareerFitAnalyst = () => {
                 className="w-full"
               >
                 <Sparkles className="mr-2 h-4 w-4" />
-                Calculate Match Percentage
+                Match my Portfolio with your Job Description
               </Button>
             )}
 
