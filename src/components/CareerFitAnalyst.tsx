@@ -75,10 +75,12 @@ export const CareerFitAnalyst = () => {
   const [inputMethod, setInputMethod] = useState<"text" | "url">("text");
   const [isFetchingUrl, setIsFetchingUrl] = useState(false);
 
-  const [isEmailDialogOpen, setIsEmailDialogOpen] = useState(false);
+  const [isPreAnalysisEmailDialogOpen, setIsPreAnalysisEmailDialogOpen] = useState(false);
   const [recipientEmail, setRecipientEmail] = useState("");
   const [attachCv, setAttachCv] = useState(true);
   const [isSendingEmail, setIsSendingEmail] = useState(false);
+  const [pendingEmailDetails, setPendingEmailDetails] = useState<{ recipientEmail: string; attachCv: boolean; } | null>(null);
+
 
   const {
     isMatching,
@@ -178,7 +180,7 @@ export const CareerFitAnalyst = () => {
     }
   };
 
-  const handleSubmit = async () => {
+  const validateAndOpenEmailDialog = async () => {
     if (inputMethod === "text") {
       if (jobDescription.length < MIN_JOB_DESCRIPTION_LENGTH) {
         showError(`Please enter at least ${MIN_JOB_DESCRIPTION_LENGTH} characters for a meaningful match.`);
@@ -189,7 +191,6 @@ export const CareerFitAnalyst = () => {
         showError("Please enter a valid URL.");
         return;
       }
-      setIsFetchingUrl(true);
     }
 
     if (!resume) {
@@ -200,6 +201,12 @@ export const CareerFitAnalyst = () => {
       showError(contextError || geminiClientError || "An error occurred with the AI service or context loading.");
       return;
     }
+    setIsPreAnalysisEmailDialogOpen(true);
+  };
+
+  const startAnalysis = async (email: string, attach: boolean) => {
+    setIsPreAnalysisEmailDialogOpen(false);
+    setPendingEmailDetails({ recipientEmail: email, attachCv: attach });
 
     setIsPreProcessing(true);
     setDisplayStepIndex(0);
@@ -208,6 +215,7 @@ export const CareerFitAnalyst = () => {
       let textToAnalyze = jobDescription;
 
       if (inputMethod === "url") {
+        setIsFetchingUrl(true);
         textToAnalyze = await fetchJobDescriptionFromUrl(jobDescriptionUrl);
       }
 
@@ -223,6 +231,7 @@ export const CareerFitAnalyst = () => {
     } catch (error: any) {
       console.error("Error in pre-analysis or career fit analysis:", error);
       showError(error.message || "Sorry, an error occurred during job description validation or analysis. Please try again later.");
+      setPendingEmailDetails(null); // Clear pending email details on error
     } finally {
       setIsPreProcessing(false);
       setIsFetchingUrl(false);
@@ -238,19 +247,22 @@ export const CareerFitAnalyst = () => {
     setIsPreProcessing(false);
     setDisplayStepIndex(0);
     setOriginalLanguage(null);
+    setPendingEmailDetails(null); // Clear pending email details
+    setRecipientEmail(""); // Reset email input in dialog
+    setAttachCv(true); // Reset checkbox in dialog
   };
 
   const handleDownloadText = () => {
-    if (limitedReasoning) {
-      const plainTextContent = markdownToPlainText(limitedReasoning);
+    if (matchResult?.reasoning) { // Use full reasoning for download
+      const plainTextContent = markdownToPlainText(matchResult.reasoning);
       downloadTextFile(plainTextContent, "CareerFitAnalysis.txt");
     } else {
       showError("No analysis result to download.");
     }
   };
 
-  const handleEmailSend = async () => {
-    if (!recipientEmail || !matchResult || !resume) {
+  const handleEmailSend = async (email: string, attach: boolean, reasoning: string) => {
+    if (!email || !reasoning || (attach && !resume)) {
       showError("Please provide a valid email and ensure analysis results and resume are available.");
       return;
     }
@@ -260,15 +272,15 @@ export const CareerFitAnalyst = () => {
 
     try {
       let cvPdfBase64: string | undefined;
-      if (attachCv) {
-        cvPdfBase64 = await generateCvPdfBase64(resume);
+      if (attach) {
+        cvPdfBase64 = await generateCvPdfBase64(resume!);
       }
 
       const { error } = await supabase.functions.invoke('send-match-email', {
         body: {
-          recipientEmail,
-          matchReasoning: matchResult.reasoning, // Send full reasoning, not limited
-          attachCv,
+          recipientEmail: email,
+          matchReasoning: reasoning,
+          attachCv: attach,
           cvPdfBase64,
         },
       });
@@ -278,9 +290,7 @@ export const CareerFitAnalyst = () => {
       }
 
       showSuccess("Email sent successfully!");
-      setIsEmailDialogOpen(false);
-      setRecipientEmail("");
-      setAttachCv(true);
+      setPendingEmailDetails(null); // Clear pending details after successful send
     } catch (error: any) {
       console.error("Error sending email:", error);
       showError(`Failed to send email: ${error.message}`);
@@ -289,6 +299,12 @@ export const CareerFitAnalyst = () => {
       setIsSendingEmail(false);
     }
   };
+
+  useEffect(() => {
+    if (matchResult && pendingEmailDetails) {
+      handleEmailSend(pendingEmailDetails.recipientEmail, pendingEmailDetails.attachCv, matchResult.reasoning);
+    }
+  }, [matchResult, pendingEmailDetails, handleEmailSend]);
 
   const displayError = contextError || geminiClientError;
 
@@ -372,7 +388,7 @@ export const CareerFitAnalyst = () => {
                     disabled={!resume || !!displayError}
                   />
                   <Button
-                    onClick={handleSubmit}
+                    onClick={validateAndOpenEmailDialog}
                     disabled={!isButtonEnabled || !resume || !!displayError}
                   >
                     <LinkIcon className="mr-2 h-4 w-4" />
@@ -387,7 +403,7 @@ export const CareerFitAnalyst = () => {
 
             {!matchResult && inputMethod === "text" && (
               <Button
-                onClick={handleSubmit}
+                onClick={validateAndOpenEmailDialog}
                 disabled={!isButtonEnabled || !resume || !!displayError}
                 className="w-full"
               >
@@ -415,14 +431,6 @@ export const CareerFitAnalyst = () => {
               >
                 <Download className="mr-2 h-4 w-4" /> Download as Text
               </Button>
-              <Button
-                onClick={() => setIsEmailDialogOpen(true)}
-                variant="outline"
-                size="sm"
-                className="print:hidden"
-              >
-                <Mail className="mr-2 h-4 w-4" /> Email Results
-              </Button>
             </div>
             <ScrollArea className="h-64 bg-muted p-4 rounded-lg prose dark:prose-invert max-w-none career-fit-output">
               <div className="space-y-4">
@@ -433,7 +441,7 @@ export const CareerFitAnalyst = () => {
         )}
       </CardContent>
 
-      <Dialog open={isEmailDialogOpen} onOpenChange={setIsEmailDialogOpen}>
+      <Dialog open={isPreAnalysisEmailDialogOpen} onOpenChange={setIsPreAnalysisEmailDialogOpen}>
         <DialogContent className="sm:max-w-[425px]">
           <DialogHeader>
             <DialogTitle>Email Analysis Results</DialogTitle>
@@ -469,10 +477,10 @@ export const CareerFitAnalyst = () => {
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setIsEmailDialogOpen(false)} disabled={isSendingEmail}>Cancel</Button>
-            <Button onClick={handleEmailSend} disabled={isSendingEmail || !recipientEmail || !matchResult || (attachCv && !resume)}>
+            <Button variant="outline" onClick={() => setIsPreAnalysisEmailDialogOpen(false)} disabled={isSendingEmail}>Cancel</Button>
+            <Button onClick={() => startAnalysis(recipientEmail, attachCv)} disabled={isSendingEmail || !recipientEmail || !resume}>
               {isSendingEmail && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              Send Email
+              Start Analysis
             </Button>
           </DialogFooter>
         </DialogContent>
