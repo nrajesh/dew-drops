@@ -109,6 +109,7 @@ export const CareerFitAnalyst = () => {
 
   const handleDownloadText = () => {
     if (matchResult?.reasoning) {
+      // Use the full reasoning for download, not the displayedReasoning
       downloadTextFile(matchResult.reasoning, "CareerFitAnalysis.txt");
     } else {
       showError("No analysis result to download.");
@@ -118,7 +119,7 @@ export const CareerFitAnalyst = () => {
   const displayError = contextError || geminiClientError;
   const progressValue = totalSteps > 0 ? ((currentStepIndex + 1) / totalSteps) * 100 : 0;
 
-  // Apply the gap limiting logic here before rendering
+  // Apply the gap limiting logic here before rendering for display only
   const displayedReasoning = matchResult ? limitGapsInMarkdown(matchResult.reasoning) : '';
 
   return (
