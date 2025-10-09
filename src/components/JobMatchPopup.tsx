@@ -12,6 +12,7 @@ import { calculateCosineSimilarity } from "@/utils/cosineSimilarity"; // Import 
 import ReactMarkdown from 'react-markdown'; // Import ReactMarkdown
 import remarkGfm from 'remark-gfm'; // Import remarkGfm for GitHub Flavored Markdown
 import { ScrollArea } from "@/components/ui/scroll-area"; // Import ScrollArea
+import { Progress } from "@/components/ui/progress"; // Import Progress component
 
 let sendMessageToGemini: (message: string) => Promise<string>; // Declare Gemini function
 
@@ -26,6 +27,7 @@ export const JobMatchPopup = ({ isOpen, onOpenChange, onMatchRequest }: JobMatch
   const [isButtonEnabled, setIsButtonEnabled] = useState(false);
   const [isMatching, setIsMatching] = useState(false);
   const [matchResult, setMatchResult] = useState<{ percentage: number; reasoning: string } | null>(null);
+  const [progress, setProgress] = useState(0); // New state for progress
   const navigate = useNavigate();
   const { context, loading: contextLoading, error: contextError } = usePortfolioContext();
   const [apiKeyError, setApiKeyError] = useState<string | null>(null);
@@ -49,6 +51,7 @@ export const JobMatchPopup = ({ isOpen, onOpenChange, onMatchRequest }: JobMatch
       setIsButtonEnabled(false);
       setIsMatching(false);
       setMatchResult(null);
+      setProgress(0); // Reset progress
     }
   }, [isOpen]);
 
@@ -92,19 +95,23 @@ export const JobMatchPopup = ({ isOpen, onOpenChange, onMatchRequest }: JobMatch
     }
 
     setIsMatching(true);
+    setProgress(10); // Start progress
 
     try {
       // Calculate match percentage using cosine similarity
       const matchPercentage = calculateCosineSimilarity(jobDescription, context);
+      setProgress(50); // After client-side calculation
 
       // Generate reasoning using Gemini for keyword matching and gap analysis
       const reasoning = await generateReasoning(jobDescription, context, matchPercentage);
+      setProgress(100); // After AI response
 
       // Set the match result
       setMatchResult({ percentage: matchPercentage, reasoning });
     } catch (error: any) {
       console.error("Error in job matching:", error);
       showError("Sorry, an error occurred while analyzing the job description. Please try again later.");
+      setProgress(0); // Reset progress on error
     } finally {
       setIsMatching(false);
     }
@@ -120,6 +127,7 @@ export const JobMatchPopup = ({ isOpen, onOpenChange, onMatchRequest }: JobMatch
     setMatchResult(null);
     setJobDescription("");
     setIsButtonEnabled(false);
+    setProgress(0); // Reset progress
   };
 
   return (
@@ -132,7 +140,13 @@ export const JobMatchPopup = ({ isOpen, onOpenChange, onMatchRequest }: JobMatch
           </DialogDescription>
         </DialogHeader>
         <div className="py-4">
-          {matchResult ? (
+          {isMatching && !matchResult ? (
+            <div className="space-y-4 text-center">
+              <Loader2 className="mx-auto h-8 w-8 animate-spin text-primary" />
+              <p className="text-muted-foreground">Analyzing your job description...</p>
+              <Progress value={progress} className="w-full" />
+            </div>
+          ) : matchResult ? (
             <div className="space-y-4">
               <div className="text-center">
                 <p className="text-4xl font-bold text-primary">{matchResult.percentage.toFixed(0)}%</p>

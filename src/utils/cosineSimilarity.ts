@@ -77,6 +77,10 @@ const createTfidfVector = (
   const vector = new Array(vocabulary.size).fill(0);
   const totalTermsInDoc = tokens.length;
 
+  if (totalTermsInDoc === 0) { // Handle empty document tokens
+    return vector; // Return a zero vector
+  }
+
   vocabulary.forEach((index, term) => {
     // Calculate normalized TF: (term count in doc) / (total terms in doc)
     const tf = (tfMap.get(term) || 0) / totalTermsInDoc;
