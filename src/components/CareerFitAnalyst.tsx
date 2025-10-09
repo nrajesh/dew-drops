@@ -18,6 +18,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
 import { supabase } from "@/integrations/supabase/client"; // Import supabase client
 import { generateCareerFitPdf } from "@/utils/pdfGenerator"; // Import the new PDF utility
+import { marked } from 'marked'; // Import marked for markdown to HTML conversion
 
 const MIN_JOB_DESCRIPTION_LENGTH = 250;
 
@@ -249,6 +250,9 @@ export const CareerFitAnalyst = () => {
       return;
     }
 
+    // Convert markdown reasoning to HTML
+    const renderedMarkdownHtml = marked.parse(limitedReasoning);
+
     const contentToPrint = `
       <div class="pdf-content-wrapper">
         <h2 class="text-2xl font-bold mb-4">Job Description</h2>
@@ -257,7 +261,7 @@ export const CareerFitAnalyst = () => {
 
         <h2 class="text-2xl font-bold mb-4">Career Fit Analyst Result</h2>
         <div class="prose dark:prose-invert max-w-none career-fit-output">
-          ${limitedReasoning}
+          ${renderedMarkdownHtml}
         </div>
       </div>
     `;
@@ -367,7 +371,7 @@ export const CareerFitAnalyst = () => {
                 className="w-full"
               >
                 <Sparkles className="mr-2 h-4 w-4" />
-                Perform Profile Match Analysis
+                Calculate Match Percentage
               </Button>
             )}
 

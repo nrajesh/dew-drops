@@ -118,37 +118,13 @@ export const cleanJobDescriptionText = (text: string): string => {
   const doc = new DOMParser().parseFromString(text, 'text/html');
   let plainText = doc.body.textContent || "";
 
-  // 2. Replace multiple newlines with a single space, then normalize spaces
-  plainText = plainText.replace(/(\r\n|\n|\r){2,}/g, ' ').replace(/\s\s+/g, ' ').trim();
+  // 2. Replace all newlines with a single space, then normalize multiple spaces
+  plainText = plainText.replace(/(\r\n|\n|\r)/g, ' ').replace(/\s\s+/g, ' ').trim();
 
-  // 3. Remove single-word "paragraphs" (now single words separated by spaces)
-  // This regex looks for a single word followed by a space or end of string,
-  // and replaces it with just a space, effectively removing the single word.
-  // It's applied iteratively to catch cases where removing one single word
-  // might create another.
-  let cleanedText = plainText;
-  let prevLength = -1;
-  while (cleanedText.length !== prevLength) {
-    prevLength = cleanedText.length;
-    cleanedText = cleanedText.replace(/\b\w+\b(?=\s|$)/g, (match) => {
-      // Only remove if it's truly a standalone single word "paragraph"
-      // In a flattened string, this means a single word followed by a space or end of string
-      // and not part of a larger phrase.
-      // A simpler approach is to filter after splitting into "sentences" or meaningful chunks.
-      // For now, let's focus on removing single words that are isolated by significant whitespace.
-      // Re-evaluating: The previous regex was too aggressive. Let's split by sentence-like structures
-      // and then filter single words.
-      return match.length > 1 ? match : ''; // Keep words longer than 1 char
-    }).replace(/\s\s+/g, ' ').trim();
-  }
-  
-  // A more robust way to handle single-word paragraphs after flattening:
-  // Split by common sentence/phrase delimiters, then filter.
-  const sentences = cleanedText.split(/([.!?]\s*|\n\s*)/).filter(Boolean);
-  const filteredSentences = sentences.filter(sentence => {
-    const words = sentence.trim().split(/\s+/);
-    return words.length > 1 || words[0].length > 1; // Keep if more than one word, or if single word is long
-  });
-  
-  return filteredSentences.join(' ').replace(/\s\s+/g, ' ').trim();
+  // 3. Split the text into words and filter out single-character words or very short words
+  // This is a more direct way to remove "single word paragraphs" after flattening
+  const words = plainText.split(/\s+/);
+  const filteredWords = words.filter(word => word.length > 1); // Keep words longer than 1 character
+
+  return filteredWords.join(' ').trim();
 };
