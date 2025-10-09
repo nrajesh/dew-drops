@@ -19,6 +19,85 @@ const formSchema = z.object({
 
 const RESUME_URL = import.meta.env.VITE_RESUME_URL;
 
+// Helper function to format resume data
+const formatResumeData = (resumeData: JsonResume): string => {
+  let resumeContext = "\n\n== CURRICULUM VITAE (PORTFOLIO) ==\n";
+  if (resumeData.basics) {
+    resumeContext += `Name: ${resumeData.basics.name}\n`;
+    resumeContext += `Title: ${resumeData.basics.label}\n`;
+    if (resumeData.basics.summary) resumeContext += `Summary: ${resumeData.basics.summary}\n`;
+    if (resumeData.basics.email) resumeContext += `Email: ${resumeData.basics.email}\n`;
+    if (resumeData.basics.phone) resumeContext += `Phone: ${resumeData.basics.phone}\n`;
+    if (resumeData.basics.url) resumeContext += `Website: ${resumeData.basics.url}\n`;
+    if (resumeData.basics.location?.city) resumeContext += `Location: ${resumeData.basics.location.city}, ${resumeData.basics.location.countryCode}\n`;
+    
+    if (resumeData.basics.profiles && resumeData.basics.profiles.length > 0) {
+      resumeContext += "\nSocial Profiles:\n";
+      resumeData.basics.profiles.forEach((profile) => {
+        resumeContext += `- ${profile.network}: ${profile.url}\n`;
+      });
+    }
+  }
+  if (resumeData.work && resumeData.work.length > 0) {
+    resumeContext += "\nWork Experience:\n";
+    resumeContext += resumeData.work.map((job: ResumeWork) =>
+      `- ${job.position} at ${job.company} (${job.startDate} - ${job.endDate || 'Present'})${job.location ? `\n  Location: ${job.location}` : ''}${job.summary ? `\n  Summary: ${job.summary}` : ''}${job.highlights && job.highlights.length > 0 ? `\n  Highlights: ${job.highlights.join('; ')}` : ''}`
+    ).join('\n');
+    resumeContext += '\n';
+  }
+  if (resumeData.education && resumeData.education.length > 0) {
+    resumeContext += "\nEducation:\n";
+    resumeContext += resumeData.education.map((edu: ResumeEducation) =>
+      `- ${edu.studyType} in ${edu.area} from ${edu.institution} (${edu.startDate} - ${edu.endDate || 'Present'})${edu.gpa ? `\n  GPA: ${edu.gpa}` : ''}${edu.courses && edu.courses.length > 0 ? `\n  Courses: ${edu.courses.join(', ')}` : ''}`
+    ).join('\n');
+    resumeContext += '\n';
+  }
+  if (resumeData.skills && resumeData.skills.length > 0) {
+    resumeContext += "\nSkills:\n";
+    resumeContext += resumeData.skills.map((skill: ResumeSkill) =>
+      `- ${skill.name} (Level: ${skill.level || 'N/A'})${skill.keywords && skill.keywords.length > 0 ? ` Keywords: ${skill.keywords.join(', ')}` : ''}`
+    ).join('\n');
+    resumeContext += '\n';
+  }
+  if (resumeData.awards && resumeData.awards.length > 0) {
+    resumeContext += "\nAwards:\n";
+    resumeContext += resumeData.awards.map((award: ResumeAward) =>
+      `- ${award.title} from ${award.awarder} on ${award.date}${award.summary ? `\n  Summary: ${award.summary}` : ''}`
+    ).join('\n');
+    resumeContext += '\n';
+  }
+  if (resumeData.publications && resumeData.publications.length > 0) {
+    resumeContext += "\nPublications:\n";
+    resumeContext += resumeData.publications.map((pub: ResumePublication) =>
+      `- ${pub.name} by ${pub.publisher} (${pub.releaseDate})${pub.website ? `\n  Link: ${pub.website}` : ''}${pub.summary ? `\n  Summary: ${pub.summary}` : ''}`
+    ).join('\n');
+    resumeContext += '\n';
+  }
+  if (resumeData.languages && resumeData.languages.length > 0) {
+    resumeContext += "\nLanguages:\n";
+    resumeContext += resumeData.languages.map((lang: ResumeLanguage) =>
+      `- ${lang.language} (Fluency: ${lang.fluency})`
+    ).join('\n');
+    resumeContext += '\n';
+  }
+  if (resumeData.interests && resumeData.interests.length > 0) {
+    resumeContext += "\nInterests:\n";
+    resumeContext += resumeData.interests.map((interest: ResumeInterest) =>
+      `- ${interest.name}${interest.keywords && interest.keywords.length > 0 ? ` Keywords: ${interest.keywords.join(', ')}` : ''}`
+    ).join('\n');
+    resumeContext += '\n';
+  }
+  if (resumeData.references && resumeData.references.length > 0) {
+    resumeContext += "\nReferences:\n";
+    resumeContext += resumeData.references.map((ref: ResumeReference) =>
+      `- ${ref.name}: ${ref.reference}`
+    ).join('\n');
+    resumeContext += '\n';
+  }
+  return resumeContext;
+};
+
+
 const generateContextFromData = async (): Promise<string> => {
   const [postsRes, locationsRes, imagesRes, resumeRes] = await Promise.all([
     supabase.from('posts').select('title, description, tags').eq('published', true).limit(20),
@@ -55,116 +134,30 @@ The following sections contain the user's personal content available on the site
 
   if (postsRes.data && postsRes.data.length > 0) {
     context += "\n\n== BLOG POSTS ==\n";
-    postsRes.data.forEach((p: any) => {
-      context += `Title: ${p.title}\nDescription: ${p.description}\nTags: ${p.tags?.join(', ') || 'N/A'}\n\n`;
-    });
+    context += postsRes.data.map((p: Post) =>
+      `Title: ${p.title}\nDescription: ${p.description || 'N/A'}\nTags: ${p.tags?.join(', ') || 'N/A'}`
+    ).join('\n\n');
+    context += '\n';
   }
 
   if (locationsRes.data && locationsRes.data.length > 0) {
-    context += "== TRAVEL LOCATIONS ==\n";
-    locationsRes.data.forEach((l: any) => {
-      context += `Location: ${l.title} (${l.name})\nDescription: ${l.description}\n\n`;
-    });
+    context += "\n\n== TRAVEL LOCATIONS ==\n";
+    context += locationsRes.data.map((l: TravelLocation) =>
+      `Location: ${l.title} (${l.name})\nDescription: ${l.description || 'N/A'}`
+    ).join('\n\n');
+    context += '\n';
   }
 
   if (imagesRes.data && imagesRes.data.length > 0) {
-    context += "== GALLERY IMAGES ==\n";
-    imagesRes.data.forEach((i: any) => {
-      if (i.alt_text) {
-        context += `Image Description: ${i.alt_text}\nTags: ${i.tags?.join(', ') || 'N/A'}\n\n`;
-      }
-    });
+    context += "\n\n== GALLERY IMAGES ==\n";
+    context += imagesRes.data.map((i: GalleryImage) =>
+      `Image Description: ${i.alt_text || 'N/A'}\nTags: ${i.tags?.join(', ') || 'N/A'}`
+    ).join('\n\n');
+    context += '\n';
   }
 
   if (resumeRes) {
-    const resumeData: JsonResume = resumeRes;
-    context += "\n\n== CURRICULUM VITAE (PORTFOLIO) ==\n";
-    if (resumeData.basics) {
-      context += `Name: ${resumeData.basics.name}\n`;
-      context += `Title: ${resumeData.basics.label}\n`;
-      if (resumeData.basics.summary) context += `Summary: ${resumeData.basics.summary}\n`;
-      if (resumeData.basics.email) context += `Email: ${resumeData.basics.email}\n`;
-      if (resumeData.basics.phone) context += `Phone: ${resumeData.basics.phone}\n`;
-      if (resumeData.basics.url) context += `Website: ${resumeData.basics.url}\n`;
-      if (resumeData.basics.location?.city) context += `Location: ${resumeData.basics.location.city}, ${resumeData.basics.location.countryCode}\n`;
-      
-      if (resumeData.basics.profiles && resumeData.basics.profiles.length > 0) {
-        context += "\nSocial Profiles:\n";
-        resumeData.basics.profiles.forEach((profile) => {
-          context += `- ${profile.network}: ${profile.url}\n`;
-        });
-      }
-    }
-    if (resumeData.work && resumeData.work.length > 0) {
-      context += "\nWork Experience:\n";
-      resumeData.work.forEach((job: ResumeWork) => {
-        context += `- ${job.position} at ${job.company} (${job.startDate} - ${job.endDate || 'Present'})\n`;
-        if (job.location) context += `  Location: ${job.location}\n`;
-        if (job.summary) context += `  Summary: ${job.summary}\n`;
-        if (job.highlights && job.highlights.length > 0) {
-          context += `  Highlights: ${job.highlights.join('; ')}\n`;
-        }
-      });
-    }
-    if (resumeData.education && resumeData.education.length > 0) {
-      context += "\nEducation:\n";
-      resumeData.education.forEach((edu: ResumeEducation) => {
-        context += `- ${edu.studyType} in ${edu.area} from ${edu.institution} (${edu.startDate} - ${edu.endDate || 'Present'})\n`;
-        if (edu.gpa) context += `  GPA: ${edu.gpa}\n`;
-        if (edu.courses && edu.courses.length > 0) {
-          context += `  Courses: ${edu.courses.join(', ')}\n`;
-        }
-      });
-    }
-    if (resumeData.skills && resumeData.skills.length > 0) {
-      context += "\nSkills:\n";
-      resumeData.skills.forEach((skill: ResumeSkill) => {
-        context += `- ${skill.name} (Level: ${skill.level || 'N/A'})`;
-        if (skill.keywords && skill.keywords.length > 0) {
-          context += ` Keywords: ${skill.keywords.join(', ')}\n`;
-        } else {
-          context += '\n';
-        }
-      });
-    }
-    if (resumeData.awards && resumeData.awards.length > 0) {
-      context += "\nAwards:\n";
-      resumeData.awards.forEach((award: ResumeAward) => {
-        context += `- ${award.title} from ${award.awarder} on ${award.date}\n`;
-        if (award.summary) context += `  Summary: ${award.summary}\n`;
-      });
-    }
-    if (resumeData.publications && resumeData.publications.length > 0) {
-      context += "\nPublications:\n";
-      resumeData.publications.forEach((pub: ResumePublication) => {
-        context += `- ${pub.name} by ${pub.publisher} (${pub.releaseDate})\n`;
-        if (pub.website) context += `  Link: ${pub.website}\n`;
-        if (pub.summary) context += `  Summary: ${pub.summary}\n`;
-      });
-    }
-    if (resumeData.languages && resumeData.languages.length > 0) {
-      context += "\nLanguages:\n";
-      resumeData.languages.forEach((lang: ResumeLanguage) => {
-        context += `- ${lang.language} (Fluency: ${lang.fluency})\n`;
-      });
-    }
-    if (resumeData.interests && resumeData.interests.length > 0) {
-      context += "\nInterests:\n";
-      resumeData.interests.forEach((interest: ResumeInterest) => {
-        context += `- ${interest.name}`;
-        if (interest.keywords && interest.keywords.length > 0) {
-          context += ` Keywords: ${interest.keywords.join(', ')}\n`;
-        } else {
-          context += '\n';
-        }
-      });
-    }
-    if (resumeData.references && resumeData.references.length > 0) {
-      context += "\nReferences:\n";
-      resumeData.references.forEach((ref: ResumeReference) => {
-        context += `- ${ref.name}: ${ref.reference}\n`;
-      });
-    }
+    context += formatResumeData(resumeRes);
   }
 
   return context.trim();

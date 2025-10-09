@@ -2,49 +2,91 @@ import { useState, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Send, Bot, User as UserIcon, Loader2, AlertTriangle } from "lucide-react";
+import { Send, Bot, User as UserIcon, Loader2, AlertTriangle, X } from "lucide-react";
 import { usePortfolioContext } from "@/hooks/usePortfolioContext";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { useNavigate } from "react-router-dom";
+import ReactMarkdown from 'react-markdown';
+import { useJobMatching } from "@/hooks/useJobMatching"; // Import the new hook
+import { sendMessageToGemini } from "@/integrations/gemini/client"; // Ensure this is imported for direct chat
 
 interface Message {
   role: "user" | "assistant";
   content: string;
 }
 
-let sendMessageToGemini: (message: string) => Promise<string>;
+interface ChatProps {
+  jobDescription?: string;
+  onClose: () => void;
+}
 
-const Chat = () => {
+const Chat = ({ jobDescription, onClose }: ChatProps) => {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
-  const [isLoading, setIsLoading] = useState(false);
+  const [isLoadingChat, setIsLoadingChat] = useState(false); // Renamed to avoid conflict
   const [apiKeyError, setApiKeyError] = useState<string | null>(null);
-  const { context, loading: contextLoading, error: contextError } = usePortfolioContext();
+  const { chatbotKnowledge, resume, loading: contextLoading, error: contextError } = usePortfolioContext();
   const scrollAreaRef = useRef<HTMLDivElement>(null);
+  const navigate = useNavigate();
+
+  const {
+    isMatching, // From useJobMatching
+    matchResult, // From useJobMatching
+    performJobMatch, // From useJobMatching
+    geminiClientError, // From useJobMatching
+  } = useJobMatching();
 
   useEffect(() => {
-    const initGemini = async () => {
-      try {
-        const module = await import('@/integrations/gemini/client');
-        sendMessageToGemini = module.sendMessageToGemini;
-      } catch (error: any) {
-        setApiKeyError(error.message);
-      }
-    };
-    initGemini();
-  }, []);
+    // This check is now mostly for the direct chat functionality, as job matching uses the hook's error
+    if (geminiClientError) {
+      setApiKeyError(geminiClientError);
+    }
+  }, [geminiClientError]);
+
+  useEffect(() => {
+    if (jobDescription) {
+      // Start the job matching process when a job description is provided
+      handleJobMatch(jobDescription);
+    }
+  }, [jobDescription]);
+
+  const handleJobMatch = async (description: string) => {
+    if (!resume) {
+      setMessages([{ role: "assistant", content: "Sorry, resume data is not available for matching. Please ensure VITE_RESUME_URL is set and accessible." }]);
+      return;
+    }
+    if (contextError || geminiClientError) {
+      setMessages([{ role: "assistant", content: contextError || geminiClientError || "An error occurred with the AI service or context loading." }]);
+      return;
+    }
+
+    try {
+      const result = await performJobMatch(description);
+      // Add messages to the chat based on the result from the hook
+      const newMessages: Message[] = [
+        { role: "assistant", content: `I've analyzed your job description and found a **${result.percentage.toFixed(0)}%** match with Rajesh's profile.` },
+        { role: "assistant", content: result.reasoning },
+        { role: "assistant", content: "Would you like to contact Rajesh to discuss this further?" }
+      ];
+      setMessages(newMessages);
+    } catch (error: any) {
+      console.error("Error in job matching:", error);
+      setMessages([{ role: "assistant", content: "Sorry, I encountered an error while analyzing the job description. Please try again later." }]);
+    }
+  };
 
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!input.trim() || isLoading || contextLoading) return;
+    if (!input.trim() || isLoadingChat || contextLoading) return;
 
     const userMessage: Message = { role: "user", content: input };
     setMessages((prev) => [...prev, userMessage]);
     setInput("");
-    setIsLoading(true);
+    setIsLoadingChat(true);
 
     try {
       if (contextError) throw new Error(contextError);
-      if (!context) throw new Error("Knowledge base is not available.");
+      if (!chatbotKnowledge) throw new Error("Knowledge base is not available.");
       if (!sendMessageToGemini) throw new Error("Chat client is not initialized.");
 
       const systemPrompt = `You are a helpful assistant for a personal portfolio website.
@@ -53,7 +95,7 @@ const Chat = () => {
 
       CONTEXT:
       ---
-      ${context}
+      ${chatbotKnowledge}
       ---
 
       QUESTION:
@@ -73,11 +115,11 @@ const Chat = () => {
       } else if (error.message && error.message.includes("400") && error.message.includes("API key not valid")) {
         displayMessage = "It seems there's an issue with the API key. Please check the configuration.";
       }
-      
+
       const errorMessage: Message = { role: "assistant", content: displayMessage };
       setMessages((prev) => [...prev, errorMessage]);
     } finally {
-      setIsLoading(false);
+      setIsLoadingChat(false);
     }
   };
 
@@ -101,26 +143,32 @@ const Chat = () => {
     );
   }
 
+  const currentLoadingState = contextLoading || isMatching || isLoadingChat;
+
   return (
     <div className="flex flex-col h-full">
-      <div className="p-4 border-b">
+      <div className="p-4 border-b flex justify-between items-center">
         <h3 className="text-lg font-semibold flex items-center">
           <Bot className="mr-2 h-5 w-5" />
-          AI Assistant
+          Job Matching Assistant
         </h3>
+        <Button variant="ghost" size="icon" onClick={onClose}>
+          <X className="h-5 w-5" />
+          <span className="sr-only">Close chat</span>
+        </Button>
       </div>
       <ScrollArea className="flex-1 p-4" ref={scrollAreaRef}>
         <div className="space-y-4">
           {messages.map((message, index) => (
             <div key={index} className={`flex items-start gap-3 ${message.role === 'user' ? 'justify-end' : ''}`}>
               {message.role === 'assistant' && <Bot className="h-6 w-6 text-primary" />}
-              <div className={`rounded-lg p-3 max-w-[80%] ${message.role === 'user' ? 'bg-primary text-primary-foreground' : 'bg-muted'}`}>
-                <p className="text-sm whitespace-pre-wrap">{message.content}</p>
+              <div className={`rounded-lg p-3 max-w-[80%] ${message.role === 'user' ? 'bg-primary text-primary-foreground' : 'bg-muted'} prose dark:prose-invert max-w-none`}>
+                <ReactMarkdown>{message.content}</ReactMarkdown>
               </div>
               {message.role === 'user' && <UserIcon className="h-6 w-6" />}
             </div>
           ))}
-          {isLoading && (
+          {currentLoadingState && (
             <div className="flex items-start gap-3">
               <Bot className="h-6 w-6 text-primary" />
               <div className="rounded-lg p-3 bg-muted">
@@ -135,14 +183,26 @@ const Chat = () => {
           <Input
             value={input}
             onChange={(e) => setInput(e.target.value)}
-            placeholder="Ask about my projects, travel, or photos..."
-            disabled={isLoading || contextLoading}
+            placeholder="Ask about Rajesh's profile or job requirements..."
+            disabled={currentLoadingState || !chatbotKnowledge || !resume || !!contextError || !!geminiClientError}
           />
-          <Button type="submit" disabled={isLoading || contextLoading || !input.trim()}>
+          <Button type="submit" disabled={currentLoadingState || !input.trim() || !chatbotKnowledge || !resume || !!contextError || !!geminiClientError}>
             <Send className="h-4 w-4" />
             <span className="sr-only">Send</span>
           </Button>
         </form>
+        <div className="mt-2 flex justify-center">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => {
+              onClose();
+              navigate("/contact");
+            }}
+          >
+            Contact Rajesh
+          </Button>
+        </div>
       </div>
     </div>
   );
