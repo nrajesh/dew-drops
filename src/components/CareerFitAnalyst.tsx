@@ -98,15 +98,6 @@ export const CareerFitAnalyst = () => {
             </p>
             <Progress value={progressValue} className="w-full" />
           </div>
-        ) : matchResult ? (
-          <div className="space-y-4">
-            <ScrollArea className="h-64 bg-muted p-4 rounded-lg prose dark:prose-invert max-w-none career-fit-output">
-              <ReactMarkdown>{matchResult.reasoning}</ReactMarkdown>
-            </ScrollArea>
-            <Button onClick={handleAnalyzeAnother} className="w-full">
-              Analyze Another Job Description
-            </Button>
-          </div>
         ) : (
           <>
             <Textarea
@@ -114,20 +105,34 @@ export const CareerFitAnalyst = () => {
               value={jobDescription}
               onChange={handleInputChange}
               className="min-h-[200px]"
-              disabled={isMatching || contextLoading || !resume || !!displayError}
+              disabled={!resume || !!displayError}
             />
             <p className="text-sm text-muted-foreground">
               {jobDescription.length}/80 characters minimum
             </p>
-            <Button
-              onClick={handleSubmit}
-              disabled={!isButtonEnabled || isMatching || contextLoading || !resume || !!displayError}
-              className="w-full"
-            >
-              <Sparkles className="mr-2 h-4 w-4" />
-              Calculate Match Percentage
-            </Button>
+            {!matchResult ? (
+              <Button
+                onClick={handleSubmit}
+                disabled={!isButtonEnabled || !resume || !!displayError}
+                className="w-full"
+              >
+                <Sparkles className="mr-2 h-4 w-4" />
+                Calculate Match Percentage
+              </Button>
+            ) : (
+              <Button onClick={handleAnalyzeAnother} className="w-full">
+                Analyze Another Job Description
+              </Button>
+            )}
           </>
+        )}
+
+        {matchResult && !isMatching && !contextLoading && (
+          <div className="space-y-4 mt-6">
+            <ScrollArea className="h-64 bg-muted p-4 rounded-lg prose dark:prose-invert max-w-none career-fit-output">
+              <ReactMarkdown>{matchResult.reasoning}</ReactMarkdown>
+            </ScrollArea>
+          </div>
         )}
       </CardContent>
     </Card>
