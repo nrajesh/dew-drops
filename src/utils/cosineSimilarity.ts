@@ -159,3 +159,53 @@ export const calculateCosineSimilarity = (text1: string, text2: string): number 
   const similarity = dotProd / (mag1 * mag2);
   return parseFloat((similarity * 100).toFixed(2)); // Return as percentage, rounded to 2 decimal places
 };
+
+interface WeightedMatchResult {
+  totalPercentage: number;
+  breakdown: {
+    experience: number;
+    education: number;
+    skills: number;
+  };
+}
+
+interface CvSections {
+  experience: string;
+  education: string;
+  skills: string;
+}
+
+/**
+ * Calculates a weighted match percentage between a job description and CV sections.
+ * @param jobDescription The job description text.
+ * @param cvSections An object containing text for different CV sections (experience, education, skills).
+ * @returns An object with the total weighted percentage and a breakdown of individual section percentages.
+ */
+export const calculateWeightedMatchPercentage = (
+  jobDescription: string,
+  cvSections: CvSections
+): WeightedMatchResult => {
+  const weights = {
+    experience: 0.70,
+    education: 0.20,
+    skills: 0.10,
+  };
+
+  const experienceSimilarity = calculateCosineSimilarity(jobDescription, cvSections.experience);
+  const educationSimilarity = calculateCosineSimilarity(jobDescription, cvSections.education);
+  const skillsSimilarity = calculateCosineSimilarity(jobDescription, cvSections.skills);
+
+  const totalPercentage =
+    (experienceSimilarity * weights.experience) +
+    (educationSimilarity * weights.education) +
+    (skillsSimilarity * weights.skills);
+
+  return {
+    totalPercentage: parseFloat(totalPercentage.toFixed(2)),
+    breakdown: {
+      experience: parseFloat(experienceSimilarity.toFixed(2)),
+      education: parseFloat(educationSimilarity.toFixed(2)),
+      skills: parseFloat(skillsSimilarity.toFixed(2)),
+    },
+  };
+};

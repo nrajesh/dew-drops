@@ -19,7 +19,7 @@ const CurriculumVitae = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isJobMatchOpen, setIsJobMatchOpen] = useState(false);
-  const { context, loading: contextLoading, error: contextError } = usePortfolioContext();
+  const { chatbotKnowledge, resume: contextResume, loading: contextLoading, error: contextError } = usePortfolioContext();
 
   // State for collapsible sections
   const [isWorkOpen, setIsWorkOpen] = useState(true);

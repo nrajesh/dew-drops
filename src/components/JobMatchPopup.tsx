@@ -8,7 +8,8 @@ import { showError } from "@/utils/toast";
 import { useNavigate } from "react-router-dom";
 import { usePortfolioContext } from "@/hooks/usePortfolioContext";
 import { Loader2 } from "lucide-react";
-import { calculateCosineSimilarity } from "@/utils/cosineSimilarity"; // Import the new utility
+import { calculateWeightedMatchPercentage } from "@/utils/cosineSimilarity"; // Import the new utility
+import type { JsonResume } from "@/types/resume"; // Import JsonResume type
 
 interface JobMatchPopupProps {
   isOpen: boolean;
@@ -20,9 +21,9 @@ export const JobMatchPopup = ({ isOpen, onOpenChange, onMatchRequest }: JobMatch
   const [jobDescription, setJobDescription] = useState("");
   const [isButtonEnabled, setIsButtonEnabled] = useState(false);
   const [isMatching, setIsMatching] = useState(false);
-  const [matchResult, setMatchResult] = useState<{ percentage: number; reasoning: string } | null>(null);
+  const [matchResult, setMatchResult] = useState<{ percentage: number; reasoning: string; breakdown: { experience: number; education: number; skills: number } } | null>(null);
   const navigate = useNavigate();
-  const { context, loading: contextLoading, error: contextError } = usePortfolioContext();
+  const { chatbotKnowledge, resume, loading: contextLoading, error: contextError } = usePortfolioContext();
 
   useEffect(() => {
     if (!isOpen) {
@@ -40,15 +41,21 @@ export const JobMatchPopup = ({ isOpen, onOpenChange, onMatchRequest }: JobMatch
     setIsButtonEnabled(value.length >= 80);
   };
 
-  const generateReasoning = (description: string, context: string, matchPercentage: number): string => {
-    // Simple reasoning generation based on match percentage
-    if (matchPercentage >= 70) {
-      return `This is a strong match (${matchPercentage.toFixed(0)}%) because the job description aligns well with Rajesh's skills and experiences.`;
-    } else if (matchPercentage >= 40) {
-      return `This is a moderate match (${matchPercentage.toFixed(0)}%). While there are some relevant skills, there may be areas where Rajesh's experience could be enhanced to better fit the role.`;
+  const generateReasoning = (totalPercentage: number, breakdown: { experience: number; education: number; skills: number }): string => {
+    let reason = `This is a **${totalPercentage.toFixed(0)}%** overall match.`;
+    reason += `\n\n**Breakdown:**\n`;
+    reason += `- **Experience:** ${breakdown.experience.toFixed(0)}%\n`;
+    reason += `- **Education:** ${breakdown.education.toFixed(0)}%\n`;
+    reason += `- **Skills:** ${breakdown.skills.toFixed(0)}%\n\n`;
+
+    if (totalPercentage >= 70) {
+      reason += `Rajesh's profile shows a strong alignment with the job's requirements, particularly in areas of experience.`;
+    } else if (totalPercentage >= 40) {
+      reason += `There's a moderate alignment. While some areas match well, others might require further development or a more tailored approach.`;
     } else {
-      return `This is a low match (${matchPercentage.toFixed(0)}%). The job description may require skills or experiences that Rajesh doesn't currently have, or may need significant adjustments to align with the role.`;
+      reason += `The overall alignment is lower. This suggests the role might require a different set of core competencies or a significant upskilling effort.`;
     }
+    return reason;
   };
 
   const handleSubmit = async () => {
@@ -57,22 +64,28 @@ export const JobMatchPopup = ({ isOpen, onOpenChange, onMatchRequest }: JobMatch
       return;
     }
 
-    if (!context || contextError) {
-      showError("Knowledge base is not available for matching.");
+    if (!resume || contextError) {
+      showError("Resume data is not available for matching. Please ensure VITE_RESUME_URL is set and accessible.");
       return;
     }
 
     setIsMatching(true);
 
     try {
-      // Calculate match percentage using cosine similarity
-      const matchPercentage = calculateCosineSimilarity(jobDescription, context);
+      // Prepare CV sections for weighted similarity
+      const cvSections = {
+        experience: resume.work?.map(w => `${w.position} at ${w.company} ${w.summary} ${w.highlights?.join(' ')}`).join(' ') || '',
+        education: resume.education?.map(e => `${e.studyType} in ${e.area} from ${e.institution} ${e.courses?.join(' ')}`).join(' ') || '',
+        skills: resume.skills?.map(s => `${s.name} ${s.level} ${s.keywords?.join(' ')}`).join(' ') || '',
+      };
+
+      const { totalPercentage, breakdown } = calculateWeightedMatchPercentage(jobDescription, cvSections);
 
       // Generate reasoning
-      const reasoning = generateReasoning(jobDescription, context, matchPercentage);
+      const reasoning = generateReasoning(totalPercentage, breakdown);
 
       // Set the match result
-      setMatchResult({ percentage: matchPercentage, reasoning });
+      setMatchResult({ percentage: totalPercentage, reasoning, breakdown });
     } catch (error: any) {
       console.error("Error in job matching:", error);
       showError("Sorry, an error occurred while analyzing the job description. Please try again later.");
@@ -109,7 +122,7 @@ export const JobMatchPopup = ({ isOpen, onOpenChange, onMatchRequest }: JobMatch
                 <p className="text-4xl font-bold text-primary">{matchResult.percentage.toFixed(0)}%</p>
                 <p className="text-sm text-muted-foreground mt-1">Match Percentage</p>
               </div>
-              <div className="bg-muted p-4 rounded-lg">
+              <div className="bg-muted p-4 rounded-lg whitespace-pre-wrap">
                 <p className="text-sm">{matchResult.reasoning}</p>
               </div>
             </div>
