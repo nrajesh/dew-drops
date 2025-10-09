@@ -118,52 +118,51 @@ const magnitude = (vec: number[]): number => {
 };
 
 /**
- * Calculates the cosine similarity between two vectors.
- * @param vec1 The first vector.
- * @param vec2 The second vector.
- * @returns The cosine similarity.
+ * Parses the structured portfolio context into individual sections.
+ * @param structuredContext The full context string with section delimiters.
+ * @returns An object with section names as keys and their content as values.
  */
-const calculateVectorCosineSimilarity = (vec1: number[], vec2: number[]): number => {
-  const dotProd = dotProduct(vec1, vec2);
-  const mag1 = magnitude(vec1);
-  const mag2 = magnitude(vec2);
+const parseStructuredContext = (structuredContext: string): Record<string, string> => {
+  const sections: Record<string, string> = {};
+  const sectionRegex = /\[\[SECTION:([A-Z_]+)\]\]\n([\s\S]*?)(?=\n\[\[SECTION:|$)/g;
+  let match;
 
-  if (mag1 === 0 || mag2 === 0) {
-    return 0; // Avoid division by zero
+  while ((match = sectionRegex.exec(structuredContext)) !== null) {
+    const sectionName = match[1];
+    const sectionContent = match[2].trim();
+    sections[sectionName] = sectionContent;
   }
-  return dotProd / (mag1 * mag2);
+  return sections;
 };
 
 /**
- * Calculates the weighted match percentage between a job description and structured CV sections.
- * @param jobDescription The job description text.
- * @param cvSections An object containing different sections of the CV (e.g., experience, education, skills).
- * @returns An object with totalPercentage and a breakdown of match for each section.
+ * Calculates the cosine similarity between two text inputs using TF-IDF vectorization,
+ * with weighted scoring for different sections of the portfolio context.
+ * @param text1 The first text input (e.g., job description).
+ * @param structuredContext The second text input (e.g., structured portfolio text).
+ * @returns The cosine similarity as a percentage (0-100), rounded to 2 decimal places.
  */
-export const calculateWeightedMatchPercentage = (
-  jobDescription: string,
-  cvSections: { experience: string; education: string; skills: string; }
-): { totalPercentage: number; breakdown: { experience: number; education: number; skills: number } } => {
-  const jobDescriptionTokens = tokenize(jobDescription);
+export const calculateCosineSimilarity = (text1: string, structuredContext: string): number => {
+  const jobDescriptionTokens = tokenize(text1);
+  const sections = parseStructuredContext(structuredContext);
 
   // Define weights for different sections
-  const weights = {
-    experience: 0.70,
-    education: 0.20,
-    skills: 0.10,
+  const weights: Record<string, number> = {
+    RESUME_WORK: 0.70,      // 70% for work experience
+    RESUME_EDUCATION: 0.20, // 20% for education
+    RESUME_SKILLS: 0.10,    // 10% for skills
+    // Other sections will contribute to a general score
   };
 
   let totalWeightedSimilarity = 0;
   let totalWeight = 0;
-  const breakdown = { experience: 0, education: 0, skills: 0 };
 
   const allDocumentTokens: string[][] = [jobDescriptionTokens];
   const sectionTokens: Record<string, string[]> = {};
 
   // Tokenize all sections and add to allDocumentTokens for global IDF calculation
-  for (const sectionName in cvSections) {
-    const content = cvSections[sectionName as keyof typeof cvSections];
-    const tokens = tokenize(content);
+  for (const sectionName in sections) {
+    const tokens = tokenize(sections[sectionName]);
     sectionTokens[sectionName] = tokens;
     allDocumentTokens.push(tokens);
   }
@@ -180,7 +179,7 @@ export const calculateWeightedMatchPercentage = (
   }
 
   if (vocabulary.size === 0) {
-    return { totalPercentage: 0, breakdown: { experience: 0, education: 0, skills: 0 } };
+    return 0; // No common words or empty texts after tokenization
   }
 
   // Calculate global IDF across all documents/sections
@@ -190,31 +189,57 @@ export const calculateWeightedMatchPercentage = (
   const jobDescriptionTf = calculateTermFrequency(jobDescriptionTokens);
   const jobDescriptionVector = createTfidfVector(jobDescriptionTokens, jobDescriptionTf, idf, vocabulary);
 
-  // Calculate weighted similarity for each section
-  for (const sectionName of Object.keys(weights) as Array<keyof typeof weights>) {
+  // Calculate weighted similarity for key sections
+  for (const sectionName in weights) {
+    const sectionContent = sections[sectionName] || "";
     const tokens = sectionTokens[sectionName] || [];
 
     if (tokens.length > 0) {
       const sectionTf = calculateTermFrequency(tokens);
       const sectionVector = createTfidfVector(tokens, sectionTf, idf, vocabulary);
 
-      const similarity = calculateVectorCosineSimilarity(jobDescriptionVector, sectionVector);
-      
-      totalWeightedSimilarity += similarity * weights[sectionName];
-      totalWeight += weights[sectionName];
-      
-      // Store breakdown percentage
-      breakdown[sectionName] = parseFloat((similarity * 100).toFixed(2));
+      const dotProd = dotProduct(jobDescriptionVector, sectionVector);
+      const mag1 = magnitude(jobDescriptionVector);
+      const mag2 = magnitude(sectionVector);
+
+      if (mag1 > 0 && mag2 > 0) {
+        const similarity = dotProd / (mag1 * mag2);
+        totalWeightedSimilarity += similarity * weights[sectionName];
+        totalWeight += weights[sectionName];
+      }
+    }
+  }
+
+  // Calculate general similarity for remaining sections (if any)
+  let generalContext = "";
+  for (const sectionName in sections) {
+    if (!weights[sectionName]) { // If not a weighted section
+      generalContext += sections[sectionName] + " ";
+    }
+  }
+
+  if (generalContext.trim().length > 0) {
+    const generalTokens = tokenize(generalContext);
+    const generalTf = calculateTermFrequency(generalTokens);
+    const generalVector = createTfidfVector(generalTokens, generalTf, idf, vocabulary);
+
+    const dotProd = dotProduct(jobDescriptionVector, generalVector);
+    const mag1 = magnitude(jobDescriptionVector);
+    const mag2 = magnitude(generalVector);
+
+    if (mag1 > 0 && mag2 > 0) {
+      const generalSimilarity = dotProd / (mag1 * mag2);
+      // Assign a smaller, default weight to general context
+      const generalWeight = 0.10; // Example: 10% for general context
+      totalWeightedSimilarity += generalSimilarity * generalWeight;
+      totalWeight += generalWeight;
     }
   }
 
   if (totalWeight === 0) {
-    return { totalPercentage: 0, breakdown: { experience: 0, education: 0, skills: 0 } };
+    return 0; // No relevant sections or content to compare
   }
 
   const finalSimilarity = totalWeightedSimilarity / totalWeight;
-  return {
-    totalPercentage: parseFloat((finalSimilarity * 100).toFixed(2)),
-    breakdown,
-  };
+  return parseFloat((finalSimilarity * 100).toFixed(2)); // Return as percentage, rounded to 2 decimal places
 };
