@@ -43,34 +43,18 @@ const languageNames: { [key: string]: string } = {
   "slv": "Slovenian", "sqi": "Albanian", "ell": "Greek", "hye": "Armenian", "kat": "Georgian",
   "aze": "Azerbaijani", "tur": "Turkish", "fas": "Persian", "urd": "Urdu", "pus": "Pashto", "snd": "Sindhi",
   "kur": "Kurdish", "ara": "Arabic", "heb": "Hebrew", "amh": "Amharic", "tir": "Tigrinya", "som": "Somali",
-  "orm": "Oromo", "swa": "Swahili", "am": "Amharic", "ne": "Nepali", "ur": "Urdu",
-  "pa": "Punjabi", "gu": "Gujarati", "kn": "Kannada", "ml": "Malayalam", "mr": "Marathi", "ta": "Tamil",
-  "te": "Telugu", "si": "Sinhala", "km": "Khmer", "lo": "Lao", "my": "Burmese", "mn": "Mongolian",
-  "uz": "Uzbek", "kk": "Kazakh", "ky": "Kyrgyz", "tg": "Tajik", "ug": "Uyghur", "tk": "Turkmen", "tt": "Tatar",
-  "ba": "Bashkir", "cv": "Chuvash", "os": "Ossetian", "ab": "Abkhazian", "ce": "Chechen", "av": "Avaric",
-  "lez": "Lezghian", "inh": "Ingush", "kbd": "Kabardian", "ady": "Adyghe", "xal": "Kalmyk", "sah": "Sakha",
-  "tyv": "Tuvan", "alt": "Southern Altai", "krc": "Karachay-Balkar", "nog": "Nogai", "gag": "Gagauz",
-  "crh": "Crimean Tatar", "udm": "Udmurt", "mdf": "Moksha", "myv": "Erzya", "mrj": "Western Mari",
-  "mhr": "Eastern Mari", "kpv": "Komi-Zyrian", "koi": "Komi-Permyak", "vep": "Veps", "olo": "Olonets Karelian",
-  "krl": "Karelian", "sjd": "Kildin Sami", "sje": "Pite Sami", "sjt": "Ter Sami", "sjk": "Skolt Sami",
-  "smn": "Inari Sami", "sms": "Skolt Sami", "smj": "Lule Sami", "sma": "Southern Sami", "se": "Northern Sami",
-  "eng": "English", "fra": "French", "spa": "Spanish", "deu": "German",
-  "ita": "Italian", "por": "Portuguese", "nld": "Dutch", "swe": "Swedish", "nor": "Norwegian", "dan": "Danish",
-  "ice": "Icelandic", "gle": "Irish", "cym": "Welsh", "mlt": "Maltese", "fao": "Faroese", "gsw": "Swiss German",
-  "fry": "Western Frisian", "sco": "Scots", "gla": "Scottish Gaelic", "cor": "Cornish", "bre": "Breton",
-  "oci": "Occitan", "srd": "Sardinian", "wln": "Walloon", "vol": "Volapük", "zha": "Zhuang", "yid": "Yiddish",
-  "uig": "Uyghur", "tuk": "Turkmen", "tat": "Tatar", "bak": "Bashkir", "chv": "Chuvash", "oss": "Ossetian",
-  "abk": "Abkhazian", "che": "Chechen", "ava": "Avaric", "lez": "Lezghian", "inh": "Ingush", "kbd": "Kabardian",
-  "ady": "Adyghe", "xal": "Kalmyk", "sah": "Sakha", "tyv": "Tuvan", "alt": "Southern Altai", "krc": "Karachay-Balkar",
-  "nog": "Nogai", "gag": "Gagauz", "crh": "Crimean Tatar", "udm": "Udmurt", "mdf": "Moksha", "myv": "Erzya",
-  "mhr": "Eastern Mari", "kpv": "Komi-Zyrian", "koi": "Komi-Permyak", "vep": "Veps",
-  "olo": "Olonets Karelian", "krl": "Karelian", "sjd": "Kildin Sami", "sje": "Pite Sami", "sjt": "Ter Sami",
-  "sjk": "Skolt Sami", "smn": "Inari Sami", "sms": "Skolt Sami", "smj": "Lule Sami", "sma": "Southern Sami",
-  "sme": "Northern Sami", "jpn": "Japanese", "kor": "Korean", "vie": "Vietnamese", "tha": "Thai", "khm": "Khmer",
-  "lao": "Lao", "mya": "Burmese", "mon": "Mongolian", "uzb": "Uzbek", "kaz": "Kazakh", "kir": "Kyrgyz",
-  "tgk": "Tajik", "bo": "Tibetan", "cmn": "Mandarin Chinese", "yue": "Cantonese",
-  "nan": "Min Nan", "hak": "Hakka", "wuu": "Wu Chinese", "gan": "Gan Chinese", "hsn": "Xiang Chinese",
-  "och": "Old Chinese", "lzh": "Literary Chinese"
+  "orm": "Oromo", "swa": "Swahili", "hau": "Hausa", "yor": "Yoruba", "ibo": "Igbo", "zul": "Zulu",
+  "xho": "Xhosa", "sot": "Southern Sotho", "tso": "Tsonga", "tsn": "Tswana", "ssw": "Swati", "kin": "Kinyarwanda",
+  "mlg": "Malagasy", "hat": "Haitian Creole", "jav": "Javanese", "sun": "Sundanese", "ind": "Indonesian",
+  "msa": "Malay", "tgl": "Tagalog", "ceb": "Cebuano", "haw": "Hawaiian", "mri": "Maori", "smo": "Samoan",
+  "fij": "Fijian", "ton": "Tongan", "tah": "Tahitian", "div": "Dhivehi", "dzo": "Dzongkha", "sag": "Sango",
+  "sna": "Shona", "nya": "Chichewa", "lin": "Lingala", "lub": "Luba-Katanga", "kon": "Kongo", "kik": "Kikuyu",
+  "lug": "Ganda", "nep": "Nepali", "hin": "Hindi", "ben": "Bengali", "pan": "Punjabi", "guj": "Gujarati",
+  "mar": "Marathi", "kan": "Kannada", "mal": "Malayalam", "tam": "Tamil", "tel": "Telugu", "sin": "Sinhala",
+  "jpn": "Japanese", "kor": "Korean", "vie": "Vietnamese", "tha": "Thai", "khm": "Khmer", "lao": "Lao",
+  "mya": "Burmese", "mon": "Mongolian", "uzb": "Uzbek", "kaz": "Kazakh", "kir": "Kyrgyz", "tgk": "Tajik",
+  "bo": "Tibetan", "cmn": "Mandarin Chinese", "yue": "Cantonese", "nan": "Min Nan", "hak": "Hakka",
+  "wuu": "Wu Chinese", "gan": "Gan Chinese", "hsn": "Xiang Chinese", "och": "Old Chinese", "lzh": "Literary Chinese"
 };
 
 export const CareerFitAnalyst = () => {
@@ -111,7 +95,7 @@ export const CareerFitAnalyst = () => {
 
   // Combine pre-processing and matching steps for overall progress
   const overallSteps = [
-    "Validating & Translating Job Description", // This is the pre-processing step
+    "Validating entered text", // Changed text here
     ...analysisSteps // These are the steps from useJobMatching
   ];
   const totalOverallSteps = overallSteps.length;
@@ -137,10 +121,9 @@ export const CareerFitAnalyst = () => {
     // The last step can glow longer, so no auto-advance for it.
     if ((isPreProcessing || isMatching) && displayStepIndex < totalOverallSteps - 1) {
       glowTimerRef.current = setTimeout(() => {
-        // Only advance if the actual step hasn't caught up or surpassed
-        if (displayStepIndex === currentOverallStepIndex) {
-          setDisplayStepIndex(prev => Math.min(prev + 1, totalOverallSteps - 1));
-        }
+        // Always advance the visual glow if still processing and not on the last step
+        // This provides a sense of continuous progress even if actual step is slow.
+        setDisplayStepIndex(prev => Math.min(prev + 1, totalOverallSteps - 1));
       }, 3000); // Glow for 3 seconds
     } else if (!(isPreProcessing || isMatching)) {
       // If not processing, reset displayStepIndex
