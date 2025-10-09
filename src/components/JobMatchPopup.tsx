@@ -10,6 +10,8 @@ import { usePortfolioContext } from "@/hooks/usePortfolioContext";
 import { Loader2 } from "lucide-react";
 import { calculateCosineSimilarity } from "@/utils/cosineSimilarity"; // Import the new utility
 
+let sendMessageToGemini: (message: string) => Promise<string>; // Declare Gemini function
+
 interface JobMatchPopupProps {
   isOpen: boolean;
   onOpenChange: (isOpen: boolean) => void;
@@ -23,6 +25,19 @@ export const JobMatchPopup = ({ isOpen, onOpenChange, onMatchRequest }: JobMatch
   const [matchResult, setMatchResult] = useState<{ percentage: number; reasoning: string } | null>(null);
   const navigate = useNavigate();
   const { context, loading: contextLoading, error: contextError } = usePortfolioContext();
+  const [apiKeyError, setApiKeyError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const initGemini = async () => {
+      try {
+        const module = await import('@/integrations/gemini/client');
+        sendMessageToGemini = module.sendMessageToGemini;
+      } catch (error: any) {
+        setApiKeyError(error.message);
+      }
+    };
+    initGemini();
+  }, []);
 
   useEffect(() => {
     if (!isOpen) {
@@ -40,15 +55,22 @@ export const JobMatchPopup = ({ isOpen, onOpenChange, onMatchRequest }: JobMatch
     setIsButtonEnabled(value.length >= 80);
   };
 
-  const generateReasoning = (description: string, context: string, matchPercentage: number): string => {
-    // Simple reasoning generation based on match percentage
-    if (matchPercentage >= 70) {
-      return `This is a strong match (${matchPercentage.toFixed(0)}%) because the job description aligns well with Rajesh's skills and experiences.`;
-    } else if (matchPercentage >= 40) {
-      return `This is a moderate match (${matchPercentage.toFixed(0)}%). While there are some relevant skills, there may be areas where Rajesh's experience could be enhanced to better fit the role.`;
-    } else {
-      return `This is a low match (${matchPercentage.toFixed(0)}%). The job description may require skills or experiences that Rajesh doesn't currently have, or may need significant adjustments to align with the role.`;
-    }
+  const generateReasoning = async (description: string, context: string, matchPercentage: number): Promise<string> => {
+    if (!sendMessageToGemini) throw new Error("Chat client is not initialized.");
+
+    const systemPrompt = `You are a world-class hiring manager analyzing a job description against a candidate's profile.
+    Job Description: ${description}
+    Candidate Profile: ${context}
+    Match Percentage: ${matchPercentage.toFixed(0)}%
+
+    Based on the job description and the candidate's profile, perform a keyword matching and gap analysis.
+    Provide a concise reasoning (2-3 sentences) explaining why this is a ${matchPercentage.toFixed(0)}% match or why it isn't.
+    If the match is high, highlight specific skills or experiences that align.
+    If the match is low, suggest areas where the candidate might need to improve or where the job description might need to be adjusted.
+    Be professional and constructive in your assessment.`;
+
+    const response = await sendMessageToGemini(systemPrompt);
+    return response;
   };
 
   const handleSubmit = async () => {
@@ -61,6 +83,10 @@ export const JobMatchPopup = ({ isOpen, onOpenChange, onMatchRequest }: JobMatch
       showError("Knowledge base is not available for matching.");
       return;
     }
+    if (apiKeyError) {
+      showError(`AI service configuration error: ${apiKeyError}`);
+      return;
+    }
 
     setIsMatching(true);
 
@@ -68,8 +94,8 @@ export const JobMatchPopup = ({ isOpen, onOpenChange, onMatchRequest }: JobMatch
       // Calculate match percentage using cosine similarity
       const matchPercentage = calculateCosineSimilarity(jobDescription, context);
 
-      // Generate reasoning
-      const reasoning = generateReasoning(jobDescription, context, matchPercentage);
+      // Generate reasoning using Gemini for keyword matching and gap analysis
+      const reasoning = await generateReasoning(jobDescription, context, matchPercentage);
 
       // Set the match result
       setMatchResult({ percentage: matchPercentage, reasoning });
@@ -148,7 +174,7 @@ export const JobMatchPopup = ({ isOpen, onOpenChange, onMatchRequest }: JobMatch
           ) : (
             <Button
               onClick={handleSubmit}
-              disabled={!isButtonEnabled || isMatching}
+              disabled={!isButtonEnabled || isMatching || contextLoading || apiKeyError !== null}
               className="w-full"
             >
               {isMatching ? (

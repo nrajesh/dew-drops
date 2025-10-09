@@ -28,6 +28,7 @@ const generateContextFromData = async (): Promise<string> => {
   ]);
 
   let context = `
+[[SECTION:OVERVIEW]]
 PORTFOLIO KNOWLEDGE BASE:
 
 == ABOUT THE PORTFOLIO APPLICATION ==
@@ -54,21 +55,21 @@ The following sections contain the user's personal content available on the site
 `;
 
   if (postsRes.data && postsRes.data.length > 0) {
-    context += "\n\n== BLOG POSTS ==\n";
+    context += "\n[[SECTION:BLOG_POSTS]]\n";
     postsRes.data.forEach((p: any) => {
       context += `Title: ${p.title}\nDescription: ${p.description}\nTags: ${p.tags?.join(', ') || 'N/A'}\n\n`;
     });
   }
 
   if (locationsRes.data && locationsRes.data.length > 0) {
-    context += "== TRAVEL LOCATIONS ==\n";
+    context += "[[SECTION:TRAVEL_LOCATIONS]]\n";
     locationsRes.data.forEach((l: any) => {
       context += `Location: ${l.title} (${l.name})\nDescription: ${l.description}\n\n`;
     });
   }
 
   if (imagesRes.data && imagesRes.data.length > 0) {
-    context += "== GALLERY IMAGES ==\n";
+    context += "[[SECTION:GALLERY_IMAGES]]\n";
     imagesRes.data.forEach((i: any) => {
       if (i.alt_text) {
         context += `Image Description: ${i.alt_text}\nTags: ${i.tags?.join(', ') || 'N/A'}\n\n`;
@@ -78,7 +79,7 @@ The following sections contain the user's personal content available on the site
 
   if (resumeRes) {
     const resumeData: JsonResume = resumeRes;
-    context += "\n\n== CURRICULUM VITAE (PORTFOLIO) ==\n";
+    context += "\n[[SECTION:RESUME_BASICS]]\n";
     if (resumeData.basics) {
       context += `Name: ${resumeData.basics.name}\n`;
       context += `Title: ${resumeData.basics.label}\n`;
@@ -95,8 +96,8 @@ The following sections contain the user's personal content available on the site
         });
       }
     }
+    context += "\n[[SECTION:RESUME_WORK]]\n";
     if (resumeData.work && resumeData.work.length > 0) {
-      context += "\nWork Experience:\n";
       resumeData.work.forEach((job: ResumeWork) => {
         context += `- ${job.position} at ${job.company} (${job.startDate} - ${job.endDate || 'Present'})\n`;
         if (job.location) context += `  Location: ${job.location}\n`;
@@ -106,8 +107,8 @@ The following sections contain the user's personal content available on the site
         }
       });
     }
+    context += "\n[[SECTION:RESUME_EDUCATION]]\n";
     if (resumeData.education && resumeData.education.length > 0) {
-      context += "\nEducation:\n";
       resumeData.education.forEach((edu: ResumeEducation) => {
         context += `- ${edu.studyType} in ${edu.area} from ${edu.institution} (${edu.startDate} - ${edu.endDate || 'Present'})\n`;
         if (edu.gpa) context += `  GPA: ${edu.gpa}\n`;
@@ -116,8 +117,8 @@ The following sections contain the user's personal content available on the site
         }
       });
     }
+    context += "\n[[SECTION:RESUME_SKILLS]]\n";
     if (resumeData.skills && resumeData.skills.length > 0) {
-      context += "\nSkills:\n";
       resumeData.skills.forEach((skill: ResumeSkill) => {
         context += `- ${skill.name} (Level: ${skill.level || 'N/A'})`;
         if (skill.keywords && skill.keywords.length > 0) {
@@ -127,29 +128,29 @@ The following sections contain the user's personal content available on the site
         }
       });
     }
+    context += "\n[[SECTION:RESUME_AWARDS]]\n";
     if (resumeData.awards && resumeData.awards.length > 0) {
-      context += "\nAwards:\n";
       resumeData.awards.forEach((award: ResumeAward) => {
         context += `- ${award.title} from ${award.awarder} on ${award.date}\n`;
         if (award.summary) context += `  Summary: ${award.summary}\n`;
       });
     }
+    context += "\n[[SECTION:RESUME_PUBLICATIONS]]\n";
     if (resumeData.publications && resumeData.publications.length > 0) {
-      context += "\nPublications:\n";
       resumeData.publications.forEach((pub: ResumePublication) => {
         context += `- ${pub.name} by ${pub.publisher} (${pub.releaseDate})\n`;
         if (pub.website) context += `  Link: ${pub.website}\n`;
         if (pub.summary) context += `  Summary: ${pub.summary}\n`;
       });
     }
+    context += "\n[[SECTION:RESUME_LANGUAGES]]\n";
     if (resumeData.languages && resumeData.languages.length > 0) {
-      context += "\nLanguages:\n";
       resumeData.languages.forEach((lang: ResumeLanguage) => {
         context += `- ${lang.language} (Fluency: ${lang.fluency})\n`;
       });
     }
+    context += "\n[[SECTION:RESUME_INTERESTS]]\n";
     if (resumeData.interests && resumeData.interests.length > 0) {
-      context += "\nInterests:\n";
       resumeData.interests.forEach((interest: ResumeInterest) => {
         context += `- ${interest.name}`;
         if (interest.keywords && interest.keywords.length > 0) {
@@ -159,8 +160,8 @@ The following sections contain the user's personal content available on the site
         }
       });
     }
+    context += "\n[[SECTION:RESUME_REFERENCES]]\n";
     if (resumeData.references && resumeData.references.length > 0) {
-      context += "\nReferences:\n";
       resumeData.references.forEach((ref: ResumeReference) => {
         context += `- ${ref.name}: ${ref.reference}\n`;
       });
