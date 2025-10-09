@@ -4,19 +4,23 @@ import React, { useState, useRef, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
-import { Loader2, Sparkles, AlertTriangle, Download, Link as LinkIcon } from "lucide-react";
+import { Loader2, Sparkles, AlertTriangle, Download, Link as LinkIcon, Mail } from "lucide-react";
 import ReactMarkdown from 'react-markdown';
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useJobMatching, analysisSteps } from "@/hooks/useJobMatching";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { showError } from "@/utils/toast";
+import { showError, showSuccess, showLoading, dismissToast } from "@/utils/toast";
 import { Progress } from "@/components/ui/progress";
 import { downloadTextFile } from "@/utils/fileDownload";
 import { cn, limitGapsInMarkdown, markdownToPlainText } from "@/lib/utils";
 import { analyzeAndTranslateJobDescription } from "@/utils/aiTextAnalysis";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
-import { supabase } from "@/integrations/supabase/client"; // Import supabase client
+import { supabase } from "@/integrations/supabase/client";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Label } from "@/components/ui/label";
+import { generateCvPdfBase64 } from "@/utils/pdfGenerator"; // Import PDF generator
 
 const MIN_JOB_DESCRIPTION_LENGTH = 250;
 
@@ -70,6 +74,11 @@ export const CareerFitAnalyst = () => {
   const [originalLanguage, setOriginalLanguage] = useState<string | null>(null);
   const [inputMethod, setInputMethod] = useState<"text" | "url">("text");
   const [isFetchingUrl, setIsFetchingUrl] = useState(false);
+
+  const [isEmailDialogOpen, setIsEmailDialogOpen] = useState(false);
+  const [recipientEmail, setRecipientEmail] = useState("");
+  const [attachCv, setAttachCv] = useState(true);
+  const [isSendingEmail, setIsSendingEmail] = useState(false);
 
   const {
     isMatching,
@@ -240,6 +249,47 @@ export const CareerFitAnalyst = () => {
     }
   };
 
+  const handleEmailSend = async () => {
+    if (!recipientEmail || !matchResult || !resume) {
+      showError("Please provide a valid email and ensure analysis results and resume are available.");
+      return;
+    }
+
+    setIsSendingEmail(true);
+    const toastId = showLoading("Sending email...");
+
+    try {
+      let cvPdfBase64: string | undefined;
+      if (attachCv) {
+        cvPdfBase64 = await generateCvPdfBase64(resume);
+      }
+
+      const { error } = await supabase.functions.invoke('send-match-email', {
+        body: {
+          recipientEmail,
+          matchReasoning: matchResult.reasoning, // Send full reasoning, not limited
+          attachCv,
+          cvPdfBase64,
+        },
+      });
+
+      if (error) {
+        throw error;
+      }
+
+      showSuccess("Email sent successfully!");
+      setIsEmailDialogOpen(false);
+      setRecipientEmail("");
+      setAttachCv(true);
+    } catch (error: any) {
+      console.error("Error sending email:", error);
+      showError(`Failed to send email: ${error.message}`);
+    } finally {
+      dismissToast(toastId);
+      setIsSendingEmail(false);
+    }
+  };
+
   const displayError = contextError || geminiClientError;
 
   return (
@@ -356,24 +406,77 @@ export const CareerFitAnalyst = () => {
 
         {matchResult && !isMatching && !contextLoading && !isPreProcessing && (
           <div className="space-y-4 mt-6">
+            <div className="flex justify-end gap-2 mb-4 print:hidden">
+              <Button
+                onClick={handleDownloadText}
+                variant="outline"
+                size="sm"
+                className="print:hidden"
+              >
+                <Download className="mr-2 h-4 w-4" /> Download as Text
+              </Button>
+              <Button
+                onClick={() => setIsEmailDialogOpen(true)}
+                variant="outline"
+                size="sm"
+                className="print:hidden"
+              >
+                <Mail className="mr-2 h-4 w-4" /> Email Results
+              </Button>
+            </div>
             <ScrollArea className="h-64 bg-muted p-4 rounded-lg prose dark:prose-invert max-w-none career-fit-output">
               <div className="space-y-4">
-                <div className="flex justify-end mb-4 print:hidden">
-                  <Button
-                    onClick={handleDownloadText}
-                    variant="outline"
-                    size="sm"
-                    className="print:hidden"
-                  >
-                    <Download className="mr-2 h-4 w-4" /> Download as Text
-                  </Button>
-                </div>
                 <ReactMarkdown>{limitedReasoning}</ReactMarkdown>
               </div>
             </ScrollArea>
           </div>
         )}
       </CardContent>
+
+      <Dialog open={isEmailDialogOpen} onOpenChange={setIsEmailDialogOpen}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>Email Analysis Results</DialogTitle>
+            <DialogDescription>
+              Enter your email address to receive the full career fit analysis.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="email" className="text-right">
+                Email
+              </Label>
+              <Input
+                id="email"
+                type="email"
+                placeholder="your.email@example.com"
+                value={recipientEmail}
+                onChange={(e) => setRecipientEmail(e.target.value)}
+                className="col-span-3"
+                disabled={isSendingEmail}
+              />
+            </div>
+            <div className="flex items-center space-x-2 col-span-4 col-start-2">
+              <Checkbox
+                id="attach-cv"
+                checked={attachCv}
+                onCheckedChange={(checked: boolean) => setAttachCv(checked)}
+                disabled={isSendingEmail || !resume}
+              />
+              <Label htmlFor="attach-cv" className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
+                Attach CV as PDF
+              </Label>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsEmailDialogOpen(false)} disabled={isSendingEmail}>Cancel</Button>
+            <Button onClick={handleEmailSend} disabled={isSendingEmail || !recipientEmail || !matchResult || (attachCv && !resume)}>
+              {isSendingEmail && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Send Email
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </Card>
   );
 };
