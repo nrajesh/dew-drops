@@ -44,20 +44,6 @@ export const generateJobMatchReasoning = async (
   const overlaps = Array.from(jobReqSet).filter((req: string) => cvSkillsSet.has(req));
   const missing = Array.from(jobReqSet).filter((req: string) => !cvSkillsSet.has(req));
 
-  let feedback = `**Breakdown:**\n`;
-  feedback += `- **Experience:** ${breakdown.experience.toFixed(0)}%\n`;
-  feedback += `- **Education:** ${breakdown.education.toFixed(0)}%\n`;
-  feedback += `- **Skills:** ${breakdown.skills.toFixed(0)}%\n\n`;
-
-  if (overlaps.length > 0) {
-    feedback += `**Key Overlapping Skills/Requirements:**\n- ${overlaps.join(', ')}\n\n`;
-  }
-  if (missing.length > 0) {
-    feedback += `**Missing Key Skills/Requirements:**\n- ${missing.join(', ')}\n\n`;
-    feedback += `**Actionable Feedback:**\n`;
-    feedback += `To improve alignment, consider highlighting experiences or projects where you've utilized these missing skills. If you have relevant experience not explicitly listed, ensure it's added to your CV. For skills you're developing, consider adding them to a "Learning" or "Future Skills" section, or gaining practical experience through projects.\n\n`;
-  }
-
   // Qualitative assessment based on percentage, without explicitly stating the percentage
   let qualitativeAssessment = "";
   if (totalPercentage >= 70) {
@@ -71,22 +57,27 @@ export const generateJobMatchReasoning = async (
   onStepUpdate(4); // Step 5: Finalizing Profile Match
   const systemPrompt = `You are a career fit analyst for my personal portfolio. Your task is to provide a professional assessment of how well my profile aligns with a given job description. The output must be in a first-person passive tone (using 'my' instead of 'Rajesh's' or 'the candidate').
 
-Structure your response into two main sections: 'Matching Areas' and 'Gaps'.
+Structure your response into two main sections: 'Matching Areas' and 'Gaps'. Each section should be a bulletized paragraph.
 
 Here is the job description: ${jobDescription}
 Here is a summary of my profile (CV and chatbot knowledge): ${chatbotKnowledge}
+My detailed resume data (JSON): ${JSON.stringify(resume, null, 2)}
 Identified overlapping skills/requirements: ${overlaps.join(', ')}
 Identified missing skills/requirements: ${missing.join(', ')}
 Qualitative assessment: ${qualitativeAssessment}
+Match breakdown: Experience ${breakdown.experience.toFixed(0)}%, Education ${breakdown.education.toFixed(0)}%, Skills ${breakdown.skills.toFixed(0)}%.
 
-Provide the response strictly in the format below, using Markdown:
+Provide the response strictly in the format below, using Markdown. Ensure each point starts with '+ ' or '- ' and is left-aligned.
+
 ## Matching Areas
-+ [Succinct point describing a strength related to an overlapping skill/requirement]
-+ ...
++ [Succinct point describing a strength, using specific data points from my resume/portfolio (e.g., "My 10 years of experience in X aligns with...", "My project Y demonstrates Z skill..."). Focus on how my existing skills and experience directly match the job requirements.]
++ [Another point with specific data]
+...
 
 ## Gaps
-- [Missing skill/requirement] - [Suggested soft skill to leverage]
-- ...
+- [Missing skill/requirement] - [Identify a relevant soft skill from my profile (resume/chatbot knowledge) and explain how it can be leveraged to bridge this gap. E.g., "Missing skill: Cloud Security - My strong problem-solving skills, demonstrated in project X, can be leveraged to quickly learn and adapt to new security frameworks." Focus on how my existing soft skills can compensate or facilitate learning for the identified hard skill gaps.]
+- [Another missing skill with soft skill leverage]
+...
 `;
 
   const reasoningText = await sendMessageToGemini(systemPrompt);
