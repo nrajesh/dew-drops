@@ -27,8 +27,8 @@ const languageNames: { [key: string]: string } = {
   "lt": "Lithuanian", "is": "Icelandic", "ga": "Irish", "cy": "Welsh", "mt": "Maltese", "sq": "Albanian",
   "mk": "Macedonian", "ka": "Georgian", "hy": "Armenian", "az": "Azerbaijani", "eu": "Basque", "ca": "Catalan",
   "gl": "Galician", "af": "Afrikaans", "sw": "Swahili", "am": "Amharic", "ne": "Nepali", "ur": "Urdu",
-  "pa": "Punjabi", "gu": "Gujarati", "kn": "Kannada", "ml": "Malayalam", "mr": "Marathi", "ta": "Tamil",
-  "te": "Telugu", "si": "Sinhala", "km": "Khmer", "lo": "Lao", "my": "Burmese", "mn": "Mongolian",
+  "pa": "Punjabi", "gu": "Gujarati", "kn": "Kannada", "ml": "Malayalam", "mar": "Marathi", "ta": "Tamil",
+  "tel": "Telugu", "sin": "Sinhala", "km": "Khmer", "lo": "Lao", "my": "Burmese", "mn": "Mongolian",
   "uz": "Uzbek", "kk": "Kazakh", "ky": "Kyrgyz", "tg": "Tajik", "ug": "Uyghur", "tk": "Turkmen", "tt": "Tatar",
   "ba": "Bashkir", "cv": "Chuvash", "os": "Ossetian", "ab": "Abkhazian", "ce": "Chechen", "av": "Avaric",
   "lez": "Lezghian", "inh": "Ingush", "kbd": "Kabardian", "ady": "Adyghe", "xal": "Kalmyk", "sah": "Sakha",
@@ -52,7 +52,6 @@ const languageNames: { [key: string]: string } = {
   "sna": "Shona", "nya": "Chichewa", "lin": "Lingala", "lub": "Luba-Katanga", "kon": "Kongo", "kik": "Kikuyu",
   "lug": "Ganda",
   "nep": "Nepali", "hin": "Hindi", "ben": "Bengali", "pan": "Punjabi", "guj": "Gujarati",
-  "mar": "Marathi", "kan": "Kannada", "mal": "Malayalam", "tam": "Tamil", "tel": "Telugu", "sin": "Sinhala",
   "jpn": "Japanese", "kor": "Korean", "vie": "Vietnamese", "tha": "Thai", "khm": "Khmer", "lao": "Lao",
   "mya": "Burmese", "mon": "Mongolian", "uzb": "Uzbek", "kaz": "Kazakh", "kir": "Kyrgyz", "tgk": "Tajik",
   "bo": "Tibetan", "cmn": "Mandarin Chinese", "yue": "Cantonese",
@@ -98,15 +97,14 @@ export const CareerFitAnalyst = () => {
 
   // Combine pre-processing and matching steps for overall progress
   const overallSteps = [
-    "Validating entered text", // Changed text here
-    ...analysisSteps // These are the steps from useJobMatching
+    "Validating entered text",
+    ...analysisSteps
   ];
   const totalOverallSteps = overallSteps.length;
 
   const currentOverallStepIndex = isPreProcessing ? 0 : (isMatching ? (currentStepIndex + 1) : -1);
-  // currentOverallStepTitle now directly uses overallSteps[0] for pre-processing
-  const currentOverallStepTitle = isPreProcessing ? overallSteps[0] : (isMatching ? currentStepTitle : "");
-  const progressValue = totalOverallSteps > 0 && (isPreProcessing || isMatching) ? ((currentOverallStepIndex + 1) / totalOverallSteps) * 100 : 0;
+  // The progressValue now uses displayStepIndex to sync with the visual glow
+  const progressValue = totalOverallSteps > 0 && (isPreProcessing || isMatching) ? ((displayStepIndex + 1) / totalOverallSteps) * 100 : 0;
 
   // Effect for controlling the visual glowing of steps
   useEffect(() => {
@@ -176,7 +174,6 @@ export const CareerFitAnalyst = () => {
     }
 
     setIsPreProcessing(true);
-    // No specific message for pre-processing here, the step title will cover it.
     setDisplayStepIndex(0); // Ensure visual progress starts at 0
 
     try {
