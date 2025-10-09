@@ -128,11 +128,11 @@
 /* New class to force light mode on an element, regardless of parent theme */
 .force-light-mode {
   --background: 210 40% 98% !important;
-  --foreground: 0 0% 0% !important; /* Changed to pure black */
+  --foreground: 220 10% 20% !important;
   --card: 210 40% 100% !important;
-  --card-foreground: 0 0% 0% !important; /* Changed to pure black */
+  --card-foreground: 220 10% 20% !important;
   --popover: 210 40% 100% !important;
-  --popover-foreground: 0 0% 0% !important; /* Changed to pure black */
+  --popover-foreground: 220 10% 20% !important;
   --primary: 217 91% 60% !important;
   --primary-foreground: 210 40% 98% !important;
   --secondary: 210 40% 96.1% !important;
@@ -148,7 +148,7 @@
   --ring: 217 91% 60% !important;
 
   --sidebar-background: 210 40% 100% !important;
-  --sidebar-foreground: 0 0% 0% !important; /* Changed to pure black */
+  --sidebar-foreground: 220 10% 20% !important;
   --sidebar-primary: 217 91% 60% !important;
   --sidebar-primary-foreground: 210 40% 98% !important;
   --sidebar-accent: 210 40% 96.1% !important;
@@ -237,14 +237,8 @@
   /* Specific styles for PDF content wrapper */
   .pdf-content-wrapper {
     font-family: sans-serif;
-    color: #000000 !important; /* Force black text */
-    background-color: #ffffff !important; /* Force white background */
+    color: hsl(var(--foreground));
     line-height: 1.6;
-  }
-
-  .pdf-content-wrapper * {
-    color: #000000 !important; /* Force black text for all children */
-    background-color: #ffffff !important; /* Force white background for all children */
   }
 
   .pdf-content-wrapper h2 {
@@ -252,23 +246,20 @@
     font-weight: bold;
     margin-top: 1.5rem;
     margin-bottom: 0.75rem;
-    color: hsl(var(--primary)) !important; /* Keep primary color for headings */
-    background-color: #ffffff !important; /* Ensure white background for headings */
+    color: hsl(var(--primary));
   }
 
   .pdf-content-wrapper p {
     margin-bottom: 0.5rem;
-    background-color: #ffffff !important; /* Ensure white background for paragraphs */
   }
 
   .pdf-content-wrapper a {
-    color: hsl(var(--primary)) !important;
+    color: hsl(var(--primary));
     text-decoration: underline;
-    background-color: #ffffff !important; /* Ensure white background for links */
   }
 
   .pdf-content-wrapper .career-fit-output {
-    background-color: #ffffff !important; /* Ensure white background for career-fit-output */
+    background-color: hsl(var(--muted));
     padding: 1rem;
     border-radius: 0.5rem;
     border: 1px solid hsl(var(--border));
