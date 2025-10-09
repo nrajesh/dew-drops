@@ -6,10 +6,7 @@ import { Send, Bot, User as UserIcon, Loader2, AlertTriangle, X } from "lucide-r
 import { usePortfolioContext } from "@/hooks/usePortfolioContext";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { useNavigate } from "react-router-dom";
-import { calculateWeightedMatchPercentage } from "@/utils/cosineSimilarity";
-import type { JsonResume } from "@/types/resume";
-import { extractJobKeywords } from "@/integrations/gemini/client"; // Import the new Gemini function
-import ReactMarkdown from 'react-markdown'; // Import ReactMarkdown
+import { calculateCosineSimilarity } from "@/utils/cosineSimilarity"; // Import the new utility
 
 interface Message {
   role: "user" | "assistant";
@@ -28,7 +25,7 @@ const Chat = ({ jobDescription, onClose }: ChatProps) => {
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [apiKeyError, setApiKeyError] = useState<string | null>(null);
-  const { chatbotKnowledge, resume, loading: contextLoading, error: contextError } = usePortfolioContext();
+  const { context, loading: contextLoading, error: contextError } = usePortfolioContext();
   const scrollAreaRef = useRef<HTMLDivElement>(null);
   const navigate = useNavigate();
 
@@ -52,41 +49,21 @@ const Chat = ({ jobDescription, onClose }: ChatProps) => {
   }, [jobDescription]);
 
   const handleJobMatch = async (description: string) => {
-    if (!resume || contextError) {
-      setMessages([{ role: "assistant", content: "Sorry, resume data is not available for matching. Please ensure VITE_RESUME_URL is set and accessible." }]);
-      return;
-    }
+    if (!context || contextError) return;
 
     setIsLoading(true);
     setMessages([]);
 
     try {
-      // Step 1: Extract job requirements using Gemini
-      const jobRequirements = await extractJobKeywords(description);
+      // Calculate match percentage using cosine similarity
+      const matchPercentage = calculateCosineSimilarity(description, context);
 
-      // Step 2: Prepare CV sections for weighted similarity
-      const cvSections = {
-        experience: resume.work?.map(w => `${w.position} at ${w.company} ${w.summary} ${w.highlights?.join(' ')}`).join(' ') || '',
-        education: resume.education?.map(e => `${e.studyType} in ${e.area} from ${e.institution} ${e.courses?.join(' ')}`).join(' ') || '',
-        skills: resume.skills?.map(s => `${s.name} ${s.level} ${s.keywords?.join(' ')}`).join(' ') || '',
-      };
-
-      const { totalPercentage, breakdown } = calculateWeightedMatchPercentage(description, cvSections);
-
-      // Step 3: Collect all skills from CV for direct comparison
-      const allCvSkills: string[] = [];
-      resume.skills?.forEach(s => {
-        allCvSkills.push(s.name);
-        s.keywords?.forEach(k => allCvSkills.push(k));
-      });
-      resume.work?.forEach(w => w.highlights?.forEach(h => allCvSkills.push(h))); // Also consider work highlights as skills
-
-      // Step 4: Generate reasoning using Gemini with Markdown, overlaps, and feedback
-      const reasoning = await generateReasoning(description, chatbotKnowledge, totalPercentage, breakdown, jobRequirements, allCvSkills);
+      // Generate reasoning using Gemini
+      const reasoning = await generateReasoning(description, context, matchPercentage);
 
       // Add messages to the chat
       const newMessages: Message[] = [
-        { role: "assistant", content: `I've analyzed your job description and found a **${totalPercentage.toFixed(0)}%** match with Rajesh's profile.` },
+        { role: "assistant", content: `I've analyzed your job description and found a ${matchPercentage.toFixed(0)}% match with Rajesh's profile.` },
         { role: "assistant", content: reasoning },
         { role: "assistant", content: "Would you like to contact Rajesh to discuss this further?" }
       ];
@@ -100,50 +77,22 @@ const Chat = ({ jobDescription, onClose }: ChatProps) => {
     }
   };
 
-  const generateReasoning = async (
-    description: string,
-    context: string | null,
-    totalPercentage: number,
-    breakdown: { experience: number; education: number; skills: number },
-    jobRequirements: string[],
-    cvSkills: string[]
-  ): Promise<string> => {
+  const generateReasoning = async (description: string, context: string, matchPercentage: number): Promise<string> => {
     if (!sendMessageToGemini) throw new Error("Chat client is not initialized.");
-
-    const jobReqSet = new Set(jobRequirements.map(s => s.toLowerCase()));
-    const cvSkillsSet = new Set(cvSkills.map(s => s.toLowerCase()));
-
-    const overlaps = Array.from(jobReqSet).filter(req => cvSkillsSet.has(req));
-    const missing = Array.from(jobReqSet).filter(req => !cvSkillsSet.has(req));
-
-    let feedback = `**Breakdown:**\n`;
-    feedback += `- **Experience:** ${breakdown.experience.toFixed(0)}%\n`;
-    feedback += `- **Education:** ${breakdown.education.toFixed(0)}%\n`;
-    feedback += `- **Skills:** ${breakdown.skills.toFixed(0)}%\n\n`;
-
-    if (overlaps.length > 0) {
-      feedback += `**Key Overlapping Skills/Requirements:**\n- ${overlaps.join(', ')}\n\n`;
-    }
-    if (missing.length > 0) {
-      feedback += `**Missing Key Skills/Requirements:**\n- ${missing.join(', ')}\n\n`;
-      feedback += `**Actionable Feedback:**\n`;
-    }
 
     const systemPrompt = `You are a world-class hiring manager analyzing a job description against a candidate's profile.
     Job Description: ${description}
-    Candidate Profile (summary from CV and chatbot knowledge): ${context}
-    Overall Match Percentage: ${totalPercentage.toFixed(0)}%
-    
-    ${feedback}
+    Candidate Profile: ${context}
+    Match Percentage: ${matchPercentage.toFixed(0)}%
 
-    Provide a concise reasoning (2-3 sentences) explaining why this is a ${totalPercentage.toFixed(0)}% match or why it isn't.
+    Based on the job description and the candidate's profile, perform a keyword matching and gap analysis.
+    Provide a concise reasoning (2-3 sentences) explaining why this is a ${matchPercentage.toFixed(0)}% match or why it isn't.
     If the match is high, highlight specific skills or experiences that align.
     If the match is low, suggest areas where the candidate might need to improve or where the job description might need to be adjusted.
     Be professional and constructive in your assessment.`;
 
     const response = await sendMessageToGemini(systemPrompt);
-    // Trim multiple consecutive newlines to a maximum of two for better formatting
-    return response.replace(/\n{3,}/g, '\n\n').trim();
+    return response;
   };
 
   const handleSendMessage = async (e: React.FormEvent) => {
@@ -157,7 +106,7 @@ const Chat = ({ jobDescription, onClose }: ChatProps) => {
 
     try {
       if (contextError) throw new Error(contextError);
-      if (!chatbotKnowledge) throw new Error("Knowledge base is not available.");
+      if (!context) throw new Error("Knowledge base is not available.");
       if (!sendMessageToGemini) throw new Error("Chat client is not initialized.");
 
       const systemPrompt = `You are a world-class hiring manager analyzing a job description against a candidate's profile.
@@ -166,7 +115,7 @@ const Chat = ({ jobDescription, onClose }: ChatProps) => {
 
       CONTEXT:
       ---
-      ${chatbotKnowledge}
+      ${context}
       ---
 
       QUESTION:
@@ -175,7 +124,7 @@ const Chat = ({ jobDescription, onClose }: ChatProps) => {
 
       const response = await sendMessageToGemini(systemPrompt);
       const assistantMessage: Message = { role: "assistant", content: response };
-      setMessages((prev) => [...prev, assistantMessage]);
+      setMessages((prev) => [...prev, assistantMessage]); // Fixed: Changed errorMessage to assistantMessage
     } catch (error: any) {
       console.error("Error fetching chat response:", error);
       let displayMessage = `Sorry, an error occurred: ${error.message}`;
@@ -231,8 +180,8 @@ const Chat = ({ jobDescription, onClose }: ChatProps) => {
           {messages.map((message, index) => (
             <div key={index} className={`flex items-start gap-3 ${message.role === 'user' ? 'justify-end' : ''}`}>
               {message.role === 'assistant' && <Bot className="h-6 w-6 text-primary" />}
-              <div className={`rounded-lg p-3 max-w-[80%] ${message.role === 'user' ? 'bg-primary text-primary-foreground' : 'bg-muted'} prose dark:prose-invert max-w-none`}>
-                <ReactMarkdown>{message.content}</ReactMarkdown>
+              <div className={`rounded-lg p-3 max-w-[80%] ${message.role === 'user' ? 'bg-primary text-primary-foreground' : 'bg-muted'}`}>
+                <p className="text-sm whitespace-pre-wrap">{message.content}</p>
               </div>
               {message.role === 'user' && <UserIcon className="h-6 w-6" />}
             </div>
