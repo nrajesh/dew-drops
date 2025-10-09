@@ -8,7 +8,7 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { useNavigate } from "react-router-dom";
 import { calculateWeightedMatchPercentage } from "@/utils/cosineSimilarity";
 import type { JsonResume } from "@/types/resume";
-import { extractJobKeywords, sendMessageToGemini } from "@/integrations/gemini/client"; // Direct import for sendMessageToGemini and extractJobKeywords
+import { extractJobKeywords } from "@/integrations/gemini/client"; // Import the new Gemini function
 import ReactMarkdown from 'react-markdown'; // Import ReactMarkdown
 
 interface Message {
@@ -21,6 +21,8 @@ interface ChatProps {
   onClose: () => void;
 }
 
+let sendMessageToGemini: (message: string) => Promise<string>;
+
 const Chat = ({ jobDescription, onClose }: ChatProps) => {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
@@ -31,15 +33,15 @@ const Chat = ({ jobDescription, onClose }: ChatProps) => {
   const navigate = useNavigate();
 
   useEffect(() => {
-    // Check for API key error on component mount
-    try {
-      // Attempt to access the API key to trigger the error if it's missing
-      if (!import.meta.env.VITE_GEMINI_API_KEY) {
-        throw new Error("VITE_GEMINI_API_KEY is not set.");
+    const initGemini = async () => {
+      try {
+        const module = await import('@/integrations/gemini/client');
+        sendMessageToGemini = module.sendMessageToGemini;
+      } catch (error: any) {
+        setApiKeyError(error.message);
       }
-    } catch (error: any) {
-      setApiKeyError(error.message);
-    }
+    };
+    initGemini();
   }, []);
 
   useEffect(() => {
@@ -106,6 +108,8 @@ const Chat = ({ jobDescription, onClose }: ChatProps) => {
     jobRequirements: string[],
     cvSkills: string[]
   ): Promise<string> => {
+    if (!sendMessageToGemini) throw new Error("Chat client is not initialized.");
+
     const jobReqSet = new Set(jobRequirements.map(s => s.toLowerCase()));
     const cvSkillsSet = new Set(cvSkills.map(s => s.toLowerCase()));
 
@@ -123,29 +127,19 @@ const Chat = ({ jobDescription, onClose }: ChatProps) => {
     if (missing.length > 0) {
       feedback += `**Missing Key Skills/Requirements:**\n- ${missing.join(', ')}\n\n`;
       feedback += `**Actionable Feedback:**\n`;
-      feedback += `To improve alignment, consider highlighting experiences or projects where you've utilized these missing skills. If you have relevant experience not explicitly listed, ensure it's added to your CV. For skills you're developing, consider adding them to a "Learning" or "Future Skills" section, or gaining practical experience through projects.\n\n`;
-    }
-
-    if (totalPercentage >= 70) {
-      feedback += `Rajesh's profile shows a strong alignment with the job's requirements, particularly in areas of experience.`;
-    } else if (totalPercentage >= 40) {
-      feedback += `There's a moderate alignment. While some areas match well, others might require further development or a more tailored approach.`;
-    } else {
-      feedback += `The overall alignment is lower. This suggests the role might require a different set of core competencies or a significant upskilling effort.`;
     }
 
     const systemPrompt = `You are a world-class hiring manager analyzing a job description against a candidate's profile.
-    Based on the following information, provide a concise reasoning (2-3 sentences) explaining why this is a ${totalPercentage.toFixed(0)}% match or why it isn't.
-    Do NOT include the match percentage or any introductory "Reasoning:" prefix in your response.
-    Focus on the alignment, overlaps, and actionable feedback provided.
-
-    INFORMATION:
-    ---
     Job Description: ${description}
     Candidate Profile (summary from CV and chatbot knowledge): ${context}
+    Overall Match Percentage: ${totalPercentage.toFixed(0)}%
+    
     ${feedback}
-    ---
-    `;
+
+    Provide a concise reasoning (2-3 sentences) explaining why this is a ${totalPercentage.toFixed(0)}% match or why it isn't.
+    If the match is high, highlight specific skills or experiences that align.
+    If the match is low, suggest areas where the candidate might need to improve or where the job description might need to be adjusted.
+    Be professional and constructive in your assessment.`;
 
     const response = await sendMessageToGemini(systemPrompt);
     // Trim multiple consecutive newlines to a maximum of two for better formatting
@@ -164,6 +158,7 @@ const Chat = ({ jobDescription, onClose }: ChatProps) => {
     try {
       if (contextError) throw new Error(contextError);
       if (!chatbotKnowledge) throw new Error("Knowledge base is not available.");
+      if (!sendMessageToGemini) throw new Error("Chat client is not initialized.");
 
       const systemPrompt = `You are a world-class hiring manager analyzing a job description against a candidate's profile.
       Use ONLY the following context to answer the user's question.
