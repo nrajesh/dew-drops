@@ -43,18 +43,21 @@ const languageNames: { [key: string]: string } = {
   "slv": "Slovenian", "sqi": "Albanian", "ell": "Greek", "hye": "Armenian", "kat": "Georgian",
   "aze": "Azerbaijani", "tur": "Turkish", "fas": "Persian", "urd": "Urdu", "pus": "Pashto", "snd": "Sindhi",
   "kur": "Kurdish", "ara": "Arabic", "heb": "Hebrew", "amh": "Amharic", "tir": "Tigrinya", "som": "Somali",
-  "orm": "Oromo", "swa": "Swahili", "hau": "Hausa", "yor": "Yoruba", "ibo": "Igbo", "zul": "Zulu",
+  "orm": "Oromo", "swa": "Swahili",
+  "hau": "Hausa", "yor": "Yoruba", "ibo": "Igbo", "zul": "Zulu",
   "xho": "Xhosa", "sot": "Southern Sotho", "tso": "Tsonga", "tsn": "Tswana", "ssw": "Swati", "kin": "Kinyarwanda",
-  "mlg": "Malagasy", "hat": "Haitian Creole", "jav": "Javanese", "sun": "Sundanese", "ind": "Indonesian",
-  "msa": "Malay", "tgl": "Tagalog", "ceb": "Cebuano", "haw": "Hawaiian", "mi": "Maori", "sm": "Samoan",
-  "fj": "Fijian", "to": "Tongan", "ty": "Tahitian", "dv": "Dhivehi", "dzo": "Dzongkha", "sag": "Sango",
+  "mlg": "Malagasy", "hat": "Haitian Creole", "jav": "Javanese", "sun": "Sundanese",
+  "ind": "Indonesian", "msa": "Malay", "tgl": "Tagalog", "ceb": "Cebuano", "haw": "Hawaiian", "mi": "Maori", "sm": "Samoan",
+  "fj": "Fijian", "to": "Tongan", "ty": "Tahitian", "div": "Dhivehi", "dzo": "Dzongkha", "sag": "Sango",
   "sna": "Shona", "nya": "Chichewa", "lin": "Lingala", "lub": "Luba-Katanga", "kon": "Kongo", "kik": "Kikuyu",
-  "lug": "Ganda", "nep": "Nepali", "hin": "Hindi", "ben": "Bengali", "pan": "Punjabi", "guj": "Gujarati",
+  "lug": "Ganda",
+  "nep": "Nepali", "hin": "Hindi", "ben": "Bengali", "pan": "Punjabi", "guj": "Gujarati",
   "mar": "Marathi", "kan": "Kannada", "mal": "Malayalam", "tam": "Tamil", "tel": "Telugu", "sin": "Sinhala",
   "jpn": "Japanese", "kor": "Korean", "vie": "Vietnamese", "tha": "Thai", "khm": "Khmer", "lao": "Lao",
   "mya": "Burmese", "mon": "Mongolian", "uzb": "Uzbek", "kaz": "Kazakh", "kir": "Kyrgyz", "tgk": "Tajik",
-  "bo": "Tibetan", "cmn": "Mandarin Chinese", "yue": "Cantonese", "nan": "Min Nan", "hak": "Hakka",
-  "wuu": "Wu Chinese", "gan": "Gan Chinese", "hsn": "Xiang Chinese", "och": "Old Chinese", "lzh": "Literary Chinese"
+  "bo": "Tibetan", "cmn": "Mandarin Chinese", "yue": "Cantonese",
+  "nan": "Min Nan", "hak": "Hakka", "wuu": "Wu Chinese", "gan": "Gan Chinese", "hsn": "Xiang Chinese",
+  "och": "Old Chinese", "lzh": "Literary Chinese"
 };
 
 export const CareerFitAnalyst = () => {
@@ -262,9 +265,6 @@ export const CareerFitAnalyst = () => {
               ))}
             </div>
             <Loader2 className="mx-auto h-8 w-8 animate-spin text-primary" />
-            <p className="text-muted-foreground">
-              {contextLoading ? "Loading portfolio data..." : currentOverallStepTitle}
-            </p>
             <Progress value={progressValue} className="w-full" />
           </div>
         ) : (
