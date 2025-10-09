@@ -349,7 +349,7 @@ export const CareerFitAnalyst = () => {
               </TabsList>
               <TabsContent value="text">
                 <Textarea
-                  placeholder={`Paste your job description here (minimum ${MIN_JOB_DESCRIPTION_LENGTH} characters)...`}
+                  placeholder={`Paste your job description here (minimum ${MIN_JOB_DESCRIPTION_LENGTH} characters). Note: Longer descriptions or using a URL may take several minutes for the profile match to complete.`}
                   value={jobDescription}
                   onChange={handleInputChange}
                   className="min-h-[200px]"
