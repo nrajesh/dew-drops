@@ -110,3 +110,13 @@ export const markdownToPlainText = (markdown: string): string => {
   plainText = plainText.replace(/_([^_]+?)_/g, '$1');     // _italic_ -> italic
   return plainText;
 };
+
+/**
+ * Strips HTML tags from a string.
+ * @param htmlString The input string containing HTML.
+ * @returns The string with HTML tags removed.
+ */
+export const stripHtmlTags = (htmlString: string): string => {
+  const doc = new DOMParser().parseFromString(htmlString, 'text/html');
+  return doc.body.textContent || "";
+};
