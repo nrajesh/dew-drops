@@ -11,8 +11,6 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { JobMatchPopup } from "@/components/JobMatchPopup";
 import { usePortfolioContext } from "@/hooks/usePortfolioContext";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
-import Chat from "@/pages/Chat";
 
 const RESUME_URL = import.meta.env.VITE_RESUME_URL;
 
@@ -21,8 +19,6 @@ const CurriculumVitae = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isJobMatchOpen, setIsJobMatchOpen] = useState(false);
-  const [isChatOpen, setIsChatOpen] = useState(false);
-  const [jobDescription, setJobDescription] = useState("");
   const { context, loading: contextLoading, error: contextError } = usePortfolioContext();
 
   // State for collapsible sections
@@ -74,11 +70,6 @@ const CurriculumVitae = () => {
     document.title = `${resume?.basics.name || "Rajesh Narayanan"}-Resume.pdf`;
     window.print();
     document.title = originalTitle;
-  };
-
-  const handleMatchRequest = (description: string) => {
-    setJobDescription(description);
-    setIsChatOpen(true);
   };
 
   if (loading) {
@@ -204,7 +195,7 @@ const CurriculumVitae = () => {
                 <div className="prose dark:prose-invert max-w-none space-y-6">
                   {work.map((job: ResumeWork, index: number) => (
                     <div key={index} className="border-b pb-4 last:border-b-0 last:pb-0">
-                      <h3 className="text-lg font-semibold">{job.position} at {job.name} ({job.location})</h3>
+                      <h3 className="text-lg font-semibold">{job.position} at {job.company} ({job.location})</h3>
                       <p className="text-muted-foreground">
                         {formatDate(job.startDate)} – {job.endDate ? formatDate(job.endDate) : "Present"}
                       </p>
@@ -427,23 +418,8 @@ const CurriculumVitae = () => {
       <JobMatchPopup
         isOpen={isJobMatchOpen}
         onOpenChange={setIsJobMatchOpen}
-        onMatchRequest={handleMatchRequest}
+        onMatchRequest={() => {}}
       />
-
-      {/* Add the Chat component for job matching */}
-      {isChatOpen && (
-        <Dialog open={isChatOpen} onOpenChange={setIsChatOpen}>
-          <DialogContent className="w-full sm:max-w-lg p-0 flex flex-col h-[80vh]">
-            <DialogHeader className="sr-only">
-              <DialogTitle>Job Matching Assistant</DialogTitle>
-              <DialogDescription>
-                A chat interface to find matching profiles.
-              </DialogDescription>
-            </DialogHeader>
-            <Chat jobDescription={jobDescription} onClose={() => setIsChatOpen(false)} />
-          </DialogContent>
-        </Dialog>
-      )}
     </div>
   );
 };
