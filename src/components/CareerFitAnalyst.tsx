@@ -11,7 +11,7 @@ import { useJobMatching } from "@/hooks/useJobMatching";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { showError } from "@/utils/toast";
 import { Progress } from "@/components/ui/progress";
-import { downloadPdf } from "@/utils/pdfGenerator";
+import { downloadPdf } from "../utils/pdfGenerator"; // Changed to relative path
 
 // Helper function to limit gaps in markdown output
 const limitGapsInMarkdown = (markdown: string): string => {
