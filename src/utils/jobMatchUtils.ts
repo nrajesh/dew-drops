@@ -53,15 +53,27 @@ export const generateJobMatchReasoning = async (
     feedback += `To improve alignment, consider highlighting experiences or projects where you've utilized these missing skills. If you have relevant experience not explicitly listed, ensure it's added to your CV. For skills you're developing, consider adding them to a "Learning" or "Future Skills" section, or gaining practical experience through projects.\n\n`;
   }
 
+  // Qualitative assessment based on percentage, without explicitly stating the percentage
+  let qualitativeAssessment = "";
+  if (totalPercentage >= 70) {
+    qualitativeAssessment = `Rajesh's profile shows a strong alignment with the job's requirements, particularly in areas of experience.`;
+  } else if (totalPercentage >= 40) {
+    qualitativeAssessment = `There's a moderate alignment. While some areas match well, others might require further development or a more tailored approach.`;
+  } else {
+    qualitativeAssessment = `The overall alignment is lower. This suggests the role might require a different set of core competencies or a significant upskilling effort.`;
+  }
+
   const systemPrompt = `Analyze the following job description against the candidate's profile and provide a professional assessment.
   Job Description: ${jobDescription}
   Candidate Profile (summary from CV and chatbot knowledge): ${chatbotKnowledge}
   
   ${feedback}
 
-  Provide a concise reasoning (2-3 sentences) explaining why this is a ${totalPercentage.toFixed(0)}% match or why it isn't.
-  If the match is high, highlight specific skills or experiences that align.
-  If the match is low, suggest areas where the candidate might need to improve or where the job description might need to be adjusted.
+  ${qualitativeAssessment}
+
+  Provide a concise reasoning (2-3 sentences) explaining the alignment of the candidate's profile with the job description.
+  If the alignment is strong, highlight specific skills or experiences that align.
+  If the alignment is lower, suggest areas where the candidate might need to improve or where the job description might need to be adjusted.
   Be professional and constructive in your assessment.`;
 
   const reasoningText = await sendMessageToGemini(systemPrompt);

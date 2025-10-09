@@ -68,7 +68,7 @@ const Chat = ({ jobDescription, onClose }: ChatProps) => {
       const result = await performJobMatch(description);
       // Add messages to the chat based on the result from the hook
       const newMessages: Message[] = [
-        { role: "assistant", content: `I've analyzed your job description and found a **${result.percentage.toFixed(0)}%** match with Rajesh's profile.` },
+        // Removed: { role: "assistant", content: `I've analyzed your job description and found a **${result.percentage.toFixed(0)}%** match with Rajesh's profile.` },
         { role: "assistant", content: result.reasoning },
         { role: "assistant", content: "Would you like to contact Rajesh to discuss this further?" }
       ];
