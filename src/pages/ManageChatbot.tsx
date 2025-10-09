@@ -11,7 +11,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { showSuccess, showError, showLoading, dismissToast } from "@/utils/toast";
 import { Loader2, Sparkles } from "lucide-react";
 import type { Post, TravelLocation, GalleryImage } from "@/types";
-import type { JsonResume, ResumeWork, ResumeEducation, ResumeSkill, ResumeAward, ResumeLanguage, ResumeInterest, ResumePublication, ResumeReference } from "@/types/resume"; // Import all resume types
+import type { JsonResume, ResumeWork, ResumeEducation, ResumeSkill, ResumeAward, ResumeLanguage, ResumeInterest, ResumePublication, ResumeReference } from "@/types/resume";
 
 const formSchema = z.object({
   content: z.string().min(10, "Knowledge base content must be at least 10 characters."),
@@ -22,74 +22,94 @@ const RESUME_URL = import.meta.env.VITE_RESUME_URL;
 // Helper function to format resume data
 const formatResumeData = (resumeData: JsonResume): string => {
   let resumeContext = "\n\n== CURRICULUM VITAE (PORTFOLIO) ==\n";
-  if (resumeData.basics) {
-    resumeContext += `Name: ${resumeData.basics.name}\n`;
-    resumeContext += `Title: ${resumeData.basics.label}\n`;
-    if (resumeData.basics.summary) resumeContext += `Summary: ${resumeData.basics.summary}\n`;
-    if (resumeData.basics.email) resumeContext += `Email: ${resumeData.basics.email}\n`;
-    if (resumeData.basics.phone) resumeContext += `Phone: ${resumeData.basics.phone}\n`;
-    if (resumeData.basics.url) resumeContext += `Website: ${resumeData.basics.url}\n`;
-    if (resumeData.basics.location?.city) resumeContext += `Location: ${resumeData.basics.location.city}, ${resumeData.basics.location.countryCode}\n`;
+
+  const { basics, work, education, skills, awards, languages, interests, publications, references } = resumeData;
+
+  if (basics) {
+    resumeContext += `Name: ${basics.name}\n`;
+    resumeContext += `Title: ${basics.label}\n`;
+    if (basics.summary) resumeContext += `Summary: ${basics.summary}\n`;
+    if (basics.email) resumeContext += `Email: ${basics.email}\n`;
+    if (basics.phone) resumeContext += `Phone: ${basics.phone}\n`;
+    if (basics.url) resumeContext += `Website: ${basics.url}\n`;
+    if (basics.location?.city) resumeContext += `Location: ${basics.location.city}, ${basics.location.countryCode}\n`;
     
-    if (resumeData.basics.profiles && resumeData.basics.profiles.length > 0) {
+    if (basics.profiles && basics.profiles.length > 0) {
       resumeContext += "\nSocial Profiles:\n";
-      resumeData.basics.profiles.forEach((profile) => {
-        resumeContext += `- ${profile.network}: ${profile.url}\n`;
-      });
+      resumeContext += basics.profiles.map(profile => `- ${profile.network}: ${profile.url}`).join('\n');
+      resumeContext += '\n';
     }
   }
-  if (resumeData.work && resumeData.work.length > 0) {
+
+  if (work && work.length > 0) {
     resumeContext += "\nWork Experience:\n";
-    resumeContext += resumeData.work.map((job: ResumeWork) =>
-      `- ${job.position} at ${job.company} (${job.startDate} - ${job.endDate || 'Present'})${job.location ? `\n  Location: ${job.location}` : ''}${job.summary ? `\n  Summary: ${job.summary}` : ''}${job.highlights && job.highlights.length > 0 ? `\n  Highlights: ${job.highlights.join('; ')}` : ''}`
-    ).join('\n');
+    resumeContext += work.map((job: ResumeWork) => `
+- ${job.position} at ${job.company} (${job.startDate} - ${job.endDate || 'Present'})
+  ${job.location ? `Location: ${job.location}` : ''}
+  ${job.summary ? `Summary: ${job.summary}` : ''}
+  ${job.highlights && job.highlights.length > 0 ? `Highlights: ${job.highlights.join('; ')}` : ''}
+`.split('\n').filter(line => line.trim() !== '').join('\n')).join('\n');
     resumeContext += '\n';
   }
-  if (resumeData.education && resumeData.education.length > 0) {
+
+  if (education && education.length > 0) {
     resumeContext += "\nEducation:\n";
-    resumeContext += resumeData.education.map((edu: ResumeEducation) =>
-      `- ${edu.studyType} in ${edu.area} from ${edu.institution} (${edu.startDate} - ${edu.endDate || 'Present'})${edu.gpa ? `\n  GPA: ${edu.gpa}` : ''}${edu.courses && edu.courses.length > 0 ? `\n  Courses: ${edu.courses.join(', ')}` : ''}`
-    ).join('\n');
+    resumeContext += education.map((edu: ResumeEducation) => `
+- ${edu.studyType} in ${edu.area} from ${edu.institution} (${edu.startDate} - ${edu.endDate || 'Present'})
+  ${edu.gpa ? `GPA: ${edu.gpa}` : ''}
+  ${edu.courses && edu.courses.length > 0 ? `Courses: ${edu.courses.join(', ')}` : ''}
+`.split('\n').filter(line => line.trim() !== '').join('\n')).join('\n');
     resumeContext += '\n';
   }
-  if (resumeData.skills && resumeData.skills.length > 0) {
+
+  if (skills && skills.length > 0) {
     resumeContext += "\nSkills:\n";
-    resumeContext += resumeData.skills.map((skill: ResumeSkill) =>
-      `- ${skill.name} (Level: ${skill.level || 'N/A'})${skill.keywords && skill.keywords.length > 0 ? ` Keywords: ${skill.keywords.join(', ')}` : ''}`
-    ).join('\n');
+    resumeContext += skills.map((skill: ResumeSkill) => `
+- ${skill.name} (Level: ${skill.level || 'N/A'})
+  ${skill.keywords && skill.keywords.length > 0 ? `Keywords: ${skill.keywords.join(', ')}` : ''}
+`.split('\n').filter(line => line.trim() !== '').join('\n')).join('\n');
     resumeContext += '\n';
   }
-  if (resumeData.awards && resumeData.awards.length > 0) {
+
+  if (awards && awards.length > 0) {
     resumeContext += "\nAwards:\n";
-    resumeContext += resumeData.awards.map((award: ResumeAward) =>
-      `- ${award.title} from ${award.awarder} on ${award.date}${award.summary ? `\n  Summary: ${award.summary}` : ''}`
-    ).join('\n');
+    resumeContext += awards.map((award: ResumeAward) => `
+- ${award.title} from ${award.awarder} on ${award.date}
+  ${award.summary ? `Summary: ${award.summary}` : ''}
+`.split('\n').filter(line => line.trim() !== '').join('\n')).join('\n');
     resumeContext += '\n';
   }
-  if (resumeData.publications && resumeData.publications.length > 0) {
+
+  if (publications && publications.length > 0) {
     resumeContext += "\nPublications:\n";
-    resumeContext += resumeData.publications.map((pub: ResumePublication) =>
-      `- ${pub.name} by ${pub.publisher} (${pub.releaseDate})${pub.website ? `\n  Link: ${pub.website}` : ''}${pub.summary ? `\n  Summary: ${pub.summary}` : ''}`
-    ).join('\n');
+    resumeContext += publications.map((pub: ResumePublication) => `
+- ${pub.name} by ${pub.publisher} (${pub.releaseDate})
+  ${pub.website ? `Link: ${pub.website}` : ''}
+  ${pub.summary ? `Summary: ${pub.summary}` : ''}
+`.split('\n').filter(line => line.trim() !== '').join('\n')).join('\n');
     resumeContext += '\n';
   }
-  if (resumeData.languages && resumeData.languages.length > 0) {
+
+  if (languages && languages.length > 0) {
     resumeContext += "\nLanguages:\n";
-    resumeContext += resumeData.languages.map((lang: ResumeLanguage) =>
+    resumeContext += languages.map((lang: ResumeLanguage) =>
       `- ${lang.language} (Fluency: ${lang.fluency})`
     ).join('\n');
     resumeContext += '\n';
   }
-  if (resumeData.interests && resumeData.interests.length > 0) {
+
+  if (interests && interests.length > 0) {
     resumeContext += "\nInterests:\n";
-    resumeContext += resumeData.interests.map((interest: ResumeInterest) =>
-      `- ${interest.name}${interest.keywords && interest.keywords.length > 0 ? ` Keywords: ${interest.keywords.join(', ')}` : ''}`
-    ).join('\n');
+    resumeContext += interests.map((interest: ResumeInterest) => `
+- ${interest.name}
+  ${interest.keywords && interest.keywords.length > 0 ? `Keywords: ${interest.keywords.join(', ')}` : ''}
+`.split('\n').filter(line => line.trim() !== '').join('\n')).join('\n');
     resumeContext += '\n';
   }
-  if (resumeData.references && resumeData.references.length > 0) {
+
+  if (references && references.length > 0) {
     resumeContext += "\nReferences:\n";
-    resumeContext += resumeData.references.map((ref: ResumeReference) =>
+    resumeContext += references.map((ref: ResumeReference) =>
       `- ${ref.name}: ${ref.reference}`
     ).join('\n');
     resumeContext += '\n';

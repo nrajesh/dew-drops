@@ -8,7 +8,7 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { useNavigate } from "react-router-dom";
 import ReactMarkdown from 'react-markdown';
 import { useJobMatching } from "@/hooks/useJobMatching";
-import { sendMessageToGemini, getGeminiInitializationError } from "@/integrations/gemini/client";
+import { sendMessageToGemini } from "@/integrations/gemini/client"; // Keep sendMessageToGemini for general chat
 
 interface Message {
   role: "user" | "assistant";
@@ -24,7 +24,6 @@ const Chat = ({ jobDescription, onClose }: ChatProps) => {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [isLoadingChat, setIsLoadingChat] = useState(false);
-  const [apiKeyError, setApiKeyError] = useState<string | null>(null);
   const { chatbotKnowledge, resume, loading: contextLoading, error: contextError } = usePortfolioContext();
   const scrollAreaRef = useRef<HTMLDivElement>(null);
   const navigate = useNavigate();
@@ -33,29 +32,29 @@ const Chat = ({ jobDescription, onClose }: ChatProps) => {
     isMatching,
     matchResult,
     performJobMatch,
-    geminiClientError: jobMatchingGeminiError,
+    resetMatch,
+    geminiClientError,
   } = useJobMatching();
 
-  useEffect(() => {
-    const initError = getGeminiInitializationError();
-    if (initError) {
-      setApiKeyError(initError);
-    } else {
-      setApiKeyError(null);
-    }
-  }, []);
+  // Consolidate AI service error state
+  const aiServiceError = geminiClientError || contextError;
 
   useEffect(() => {
-    if (jobMatchingGeminiError) {
-      setApiKeyError(jobMatchingGeminiError);
-    }
-  }, [jobMatchingGeminiError]);
-
-  useEffect(() => {
-    if (jobDescription) {
+    if (jobDescription && !isMatching && !matchResult) {
+      // Only trigger job match if a description is provided and no match is in progress or already displayed
       handleJobMatch(jobDescription);
+    } else if (!jobDescription && !matchResult && !contextLoading && !aiServiceError) {
+      // Initial welcome message for general chat
+      setMessages([{ role: "assistant", content: "Hello! I'm your portfolio assistant. How can I help you today?" }]);
     }
-  }, [jobDescription]);
+  }, [jobDescription, isMatching, matchResult, contextLoading, aiServiceError]);
+
+
+  useEffect(() => {
+    if (scrollAreaRef.current) {
+      scrollAreaRef.current.scrollTo({ top: scrollAreaRef.current.scrollHeight, behavior: 'smooth' });
+    }
+  }, [messages, isMatching]); // Also scroll when matching state changes
 
   const handleJobMatch = async (description: string) => {
     if (contextLoading) {
@@ -66,8 +65,8 @@ const Chat = ({ jobDescription, onClose }: ChatProps) => {
       setMessages([{ role: "assistant", content: "Sorry, resume data is not available for matching. Please ensure VITE_RESUME_URL is set and accessible." }]);
       return;
     }
-    if (contextError || apiKeyError) {
-      setMessages([{ role: "assistant", content: contextError || apiKeyError || "An error occurred with the AI service or context loading." }]);
+    if (aiServiceError) {
+      setMessages([{ role: "assistant", content: aiServiceError || "An error occurred with the AI service or context loading." }]);
       return;
     }
 
@@ -86,7 +85,7 @@ const Chat = ({ jobDescription, onClose }: ChatProps) => {
 
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!input.trim() || isLoadingChat || contextLoading || apiKeyError) return;
+    if (!input.trim() || isLoadingChat || contextLoading || aiServiceError || isMatching) return;
 
     const userMessage: Message = { role: "user", content: input };
     setMessages((prev) => [...prev, userMessage]);
@@ -94,7 +93,6 @@ const Chat = ({ jobDescription, onClose }: ChatProps) => {
     setIsLoadingChat(true);
 
     try {
-      if (contextError) throw new Error(contextError);
       if (!chatbotKnowledge) throw new Error("Knowledge base is not available.");
 
       const systemPrompt = `You are a helpful assistant for a personal portfolio website.
@@ -138,25 +136,11 @@ const Chat = ({ jobDescription, onClose }: ChatProps) => {
     }
   };
 
-  useEffect(() => {
-    if (scrollAreaRef.current) {
-      scrollAreaRef.current.scrollTo({ top: scrollAreaRef.current.scrollHeight, behavior: 'smooth' });
-    }
-  }, [messages]);
-
-  if (apiKeyError) {
-    return (
-      <div className="p-4">
-        <Alert variant="destructive">
-          <AlertTriangle className="h-4 w-4" />
-          <AlertTitle>Configuration Error</AlertTitle>
-          <AlertDescription>
-            {apiKeyError}
-          </AlertDescription>
-        </Alert>
-      </div>
-    );
-  }
+  const handleResetChat = () => {
+    setMessages([{ role: "assistant", content: "Hello! I'm your portfolio assistant. How can I help you today?" }]);
+    setInput("");
+    resetMatch(); // Reset job matching state as well
+  };
 
   const currentLoadingState = contextLoading || isMatching || isLoadingChat;
 
@@ -165,15 +149,29 @@ const Chat = ({ jobDescription, onClose }: ChatProps) => {
       <div className="p-4 border-b flex justify-between items-center">
         <h3 className="text-lg font-semibold flex items-center">
           <Bot className="mr-2 h-5 w-5" />
-          Job Matching Assistant
+          {jobDescription ? "Job Matching Assistant" : "Portfolio Chatbot"}
         </h3>
-        <Button variant="ghost" size="icon" onClick={onClose}>
-          <X className="h-5 w-5" />
-          <span className="sr-only">Close chat</span>
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button variant="outline" size="sm" onClick={handleResetChat} disabled={currentLoadingState}>
+            Reset
+          </Button>
+          <Button variant="ghost" size="icon" onClick={onClose}>
+            <X className="h-5 w-5" />
+            <span className="sr-only">Close chat</span>
+          </Button>
+        </div>
       </div>
       <ScrollArea className="flex-1 p-4" ref={scrollAreaRef}>
         <div className="space-y-4">
+          {aiServiceError && (
+            <Alert variant="destructive">
+              <AlertTriangle className="h-4 w-4" />
+              <AlertTitle>Configuration Error</AlertTitle>
+              <AlertDescription>
+                {aiServiceError}
+              </AlertDescription>
+            </Alert>
+          )}
           {messages.map((message, index) => (
             <div key={index} className={`flex items-start gap-3 ${message.role === 'user' ? 'justify-end' : ''}`}>
               {message.role === 'assistant' && <Bot className="h-6 w-6 text-primary" />}
@@ -199,9 +197,9 @@ const Chat = ({ jobDescription, onClose }: ChatProps) => {
             value={input}
             onChange={(e) => setInput(e.target.value)}
             placeholder="Ask about Rajesh's profile or job requirements..."
-            disabled={currentLoadingState || !chatbotKnowledge || !resume || !!contextError || !!apiKeyError}
+            disabled={currentLoadingState || !chatbotKnowledge || !resume || !!aiServiceError}
           />
-          <Button type="submit" disabled={currentLoadingState || !input.trim() || !chatbotKnowledge || !resume || !!contextError || !!apiKeyError}>
+          <Button type="submit" disabled={currentLoadingState || !input.trim() || !chatbotKnowledge || !resume || !!aiServiceError}>
             <Send className="h-4 w-4" />
             <span className="sr-only">Send</span>
           </Button>

@@ -1,74 +1,69 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
 import { Loader2, Sparkles, AlertTriangle, Download } from "lucide-react";
 import ReactMarkdown from 'react-markdown';
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { useJobMatching, analysisSteps } from "@/hooks/useJobMatching"; // Import analysisSteps
+import { useJobMatching, analysisSteps } from "@/hooks/useJobMatching";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { showError } from "@/utils/toast";
 import { Progress } from "@/components/ui/progress";
-import { downloadTextFile } from "@/utils/fileDownload"; // Import the new utility
-import { cn } from "@/lib/utils"; // Import cn for conditional classNames
+import { downloadTextFile } from "@/utils/fileDownload";
+import { cn, limitGapsInMarkdown, markdownToPlainText } from "@/lib/utils";
+import { analyzeAndTranslateJobDescription } from "@/utils/aiTextAnalysis"; // Import the new utility
 
-// Helper function to limit gaps in markdown output for display
-const limitGapsInMarkdown = (markdown: string): string => {
-  const lines = markdown.split('\n');
-  let inGapsSection = false;
-  let gapCount = 0;
-  const newLines: string[] = [];
+const MIN_JOB_DESCRIPTION_LENGTH = 250; // Increased minimum character length
 
-  for (const line of lines) {
-    if (line.startsWith('## Gaps')) {
-      inGapsSection = true;
-      newLines.push(line);
-      continue;
-    }
-
-    if (inGapsSection) {
-      // If it's a bullet point for a gap
-      if (line.trim().startsWith('- ') || line.trim().startsWith('+ ')) {
-        if (gapCount < 3) { // This is the limit
-          newLines.push(line);
-          gapCount++;
-        }
-      } else if (line.trim().length > 0 && !line.trim().startsWith('##')) {
-        // Keep non-bullet point text within the gaps section (like 'No significant gaps identified.')
-        // but only if it's not another heading
-        newLines.push(line);
-      } else if (line.trim().startsWith('##')) {
-        // If a new heading starts, we're out of the gaps section
-        inGapsSection = false;
-        newLines.push(line);
-      } else {
-        // Keep empty lines or other non-bullet, non-heading content
-        newLines.push(line);
-      }
-    } else {
-      newLines.push(line);
-    }
-  }
-  return newLines.join('\n');
-};
-
-// Helper function to convert markdown to plain text for download
-const markdownToPlainText = (markdown: string): string => {
-  let plainText = markdown;
-  // Remove headings (e.g., ## Matching Areas)
-  plainText = plainText.replace(/^#+\s/gm, '');
-  // Remove bold/italic markers
-  plainText = plainText.replace(/\*\*([^*]+?)\*\*/g, '$1'); // **bold** -> bold
-  plainText = plainText.replace(/\*([^*]+?)\*/g, '$1');   // *italic* -> italic
-  plainText = plainText.replace(/_([^_]+?)_/g, '$1');     // _italic_ -> italic
-  return plainText;
+const languageNames: { [key: string]: string } = {
+  "en": "English", "fr": "French", "es": "Spanish", "de": "German", "it": "Italian", "pt": "Portuguese",
+  "ru": "Russian", "zh": "Chinese", "ja": "Japanese", "ko": "Korean", "ar": "Arabic", "hi": "Hindi",
+  "bn": "Bengali", "nl": "Dutch", "sv": "Swedish", "fi": "Finnish", "pl": "Polish", "tr": "Turkish",
+  "el": "Greek", "he": "Hebrew", "th": "Thai", "vi": "Vietnamese", "id": "Indonesian", "ms": "Malay",
+  "fa": "Persian", "uk": "Ukrainian", "cs": "Czech", "hu": "Hungarian", "ro": "Romanian", "sk": "Slovak",
+  "bg": "Bulgarian", "hr": "Croatian", "sr": "Serbian", "sl": "Slovenian", "et": "Estonian", "lv": "Latvian",
+  "lt": "Lithuanian", "is": "Icelandic", "ga": "Irish", "cy": "Welsh", "mt": "Maltese", "sq": "Albanian",
+  "mk": "Macedonian", "ka": "Georgian", "hy": "Armenian", "az": "Azerbaijani", "eu": "Basque", "ca": "Catalan",
+  "gl": "Galician", "af": "Afrikaans", "sw": "Swahili", "am": "Amharic", "ne": "Nepali", "ur": "Urdu",
+  "pa": "Punjabi", "gu": "Gujarati", "kn": "Kannada", "ml": "Malayalam", "mr": "Marathi", "ta": "Tamil",
+  "te": "Telugu", "sin": "Sinhala", "km": "Khmer", "lo": "Lao", "my": "Burmese", "mn": "Mongolian",
+  "uz": "Uzbek", "kk": "Kazakh", "ky": "Kyrgyz", "tg": "Tajik", "ug": "Uyghur", "tk": "Turkmen", "tt": "Tatar",
+  "ba": "Bashkir", "cv": "Chuvash", "os": "Ossetian", "ab": "Abkhazian", "ce": "Chechen", "av": "Avaric",
+  "lez": "Lezghian", "inh": "Ingush", "kbd": "Kabardian", "ady": "Adyghe", "xal": "Kalmyk", "sah": "Sakha",
+  "tyv": "Tuvan", "alt": "Southern Altai", "krc": "Karachay-Balkar", "nog": "Nogai", "gag": "Gagauz",
+  "crh": "Crimean Tatar", "udm": "Udmurt", "mdf": "Moksha", "myv": "Erzya", "mrj": "Western Mari",
+  "mhr": "Eastern Mari", "kpv": "Komi-Zyrian", "koi": "Komi-Permyak", "vep": "Veps", "olo": "Olonets Karelian",
+  "krl": "Karelian", "sjd": "Kildin Sami", "sje": "Pite Sami", "sjt": "Ter Sami", "sjk": "Skolt Sami",
+  "smn": "Inari Sami", "sms": "Skolt Sami", "smj": "Lule Sami", "sma": "Southern Sami", "se": "Northern Sami",
+  "fin": "Finnish", "est": "Estonian", "lav": "Latvian", "lit": "Lithuanian", "hun": "Hungarian",
+  "ces": "Czech", "slk": "Slovak", "pol": "Polish", "ukr": "Ukrainian", "be": "Belarusian", "rus": "Russian",
+  "bul": "Bulgarian", "mkd": "Macedonian", "srp": "Serbian", "hrv": "Croatian", "bs": "Bosnian",
+  "slv": "Slovenian", "sqi": "Albanian", "ell": "Greek", "hye": "Armenian", "kat": "Georgian",
+  "aze": "Azerbaijani", "tur": "Turkish", "fas": "Persian", "urd": "Urdu", "pus": "Pashto", "snd": "Sindhi",
+  "kur": "Kurdish", "ara": "Arabic", "heb": "Hebrew", "amh": "Amharic", "tir": "Tigrinya", "som": "Somali",
+  "orm": "Oromo", "swa": "Swahili",
+  "hau": "Hausa", "yor": "Yoruba", "ibo": "Igbo", "zul": "Zulu",
+  "xho": "Xhosa", "sot": "Southern Sotho", "tso": "Tsonga", "tsn": "Tswana", "ssw": "Swati", "kin": "Kinyarwanda",
+  "mlg": "Malagasy", "hat": "Haitian Creole", "jav": "Javanese", "sun": "Sundanese",
+  "ind": "Indonesian", "msa": "Malay", "tgl": "Tagalog", "ceb": "Cebuano", "haw": "Hawaiian", "mi": "Maori", "sm": "Samoan",
+  "fj": "Fijian", "to": "Tongan", "ty": "Tahitian", "div": "Dhivehi", "dzo": "Dzongkha", "sag": "Sango",
+  "sna": "Shona", "nya": "Chichewa", "lin": "Lingala", "lub": "Luba-Katanga", "kon": "Kongo", "kik": "Kikuyu",
+  "lug": "Ganda",
+  "nep": "Nepali", "hin": "Hindi", "ben": "Bengali", "pan": "Punjabi", "guj": "Gujarati",
+  "jpn": "Japanese", "kor": "Korean", "vie": "Vietnamese", "tha": "Thai", "khm": "Khmer", "lao": "Lao",
+  "mya": "Burmese", "mon": "Mongolian", "uzb": "Uzbek", "kaz": "Kazakh", "kir": "Kyrgyz", "tgk": "Tajik",
+  "bo": "Tibetan", "cmn": "Mandarin Chinese", "yue": "Cantonese",
+  "nan": "Min Nan", "hak": "Hakka", "wuu": "Wu Chinese", "gan": "Gan Chinese", "hsn": "Xiang Chinese",
+  "och": "Old Chinese", "lzh": "Literary Chinese"
 };
 
 export const CareerFitAnalyst = () => {
   const [jobDescription, setJobDescription] = useState("");
   const [isButtonEnabled, setIsButtonEnabled] = useState(false);
+  const [isPreProcessing, setIsPreProcessing] = useState(false);
+  const [originalLanguage, setOriginalLanguage] = useState<string | null>(null); // New state for original language
 
   const {
     isMatching,
@@ -84,8 +79,12 @@ export const CareerFitAnalyst = () => {
     totalSteps,
   } = useJobMatching();
 
-  // State to store the reasoning after applying the gap limit for display and download
+  // State to store the reasoning after applying the gap limit
   const [limitedReasoning, setLimitedReasoning] = useState<string>('');
+
+  // State for visual glowing progress
+  const [displayStepIndex, setDisplayStepIndex] = useState(0);
+  const glowTimerRef = useRef<NodeJS.Timeout | null>(null);
 
   // Effect to update limitedReasoning whenever matchResult changes
   useEffect(() => {
@@ -96,15 +95,70 @@ export const CareerFitAnalyst = () => {
     }
   }, [matchResult]);
 
+  // Combine pre-processing and matching steps for overall progress
+  const overallSteps = [
+    "Validating entered text",
+    ...analysisSteps
+  ];
+  const totalOverallSteps = overallSteps.length;
+
+  const currentOverallStepIndex = isPreProcessing ? 0 : (isMatching ? (currentStepIndex + 1) : -1);
+  // The progressValue now uses displayStepIndex to sync with the visual glow
+  const progressValue = totalOverallSteps > 0 && (isPreProcessing || isMatching) ? ((displayStepIndex + 1) / totalOverallSteps) * 100 : 0;
+
+  // Effect for controlling the visual glowing of steps
+  useEffect(() => {
+    // Clear any existing timer when dependencies change
+    if (glowTimerRef.current) {
+      clearTimeout(glowTimerRef.current);
+      glowTimerRef.current = null;
+    }
+
+    // If actual progress has advanced, immediately update displayStepIndex
+    if (currentOverallStepIndex > displayStepIndex) {
+      setDisplayStepIndex(currentOverallStepIndex);
+    }
+
+    // Determine glow duration based on original language
+    const glowDuration = originalLanguage && originalLanguage !== 'en' ? 5000 : 3000; // 5 seconds if not English, 3 seconds if English or not yet detected
+
+    // If currently processing and not on the last step, set a timer to advance displayStepIndex
+    // The last step can glow longer, so no auto-advance for it.
+    if ((isPreProcessing || isMatching) && displayStepIndex < totalOverallSteps - 1) {
+      glowTimerRef.current = setTimeout(() => {
+        // Always advance the visual glow if still processing and not on the last step
+        // This provides a sense of continuous progress even if actual step is slow.
+        setDisplayStepIndex(prev => Math.min(prev + 1, totalOverallSteps - 1));
+      }, glowDuration); // Use dynamic duration
+    } else if (!(isPreProcessing || isMatching)) {
+      // If not processing, reset displayStepIndex and originalLanguage
+      setDisplayStepIndex(0);
+      setOriginalLanguage(null);
+    }
+
+    return () => {
+      if (glowTimerRef.current) {
+        clearTimeout(glowTimerRef.current);
+      }
+    };
+  }, [currentOverallStepIndex, displayStepIndex, isPreProcessing, isMatching, totalOverallSteps, originalLanguage]); // Add originalLanguage to dependencies
+
+  // Reset displayStepIndex when analysis starts or resets
+  useEffect(() => {
+    if (!isPreProcessing && !isMatching && !matchResult) {
+      setDisplayStepIndex(0);
+    }
+  }, [isPreProcessing, isMatching, matchResult]);
+
   const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     const value = e.target.value;
     setJobDescription(value);
-    setIsButtonEnabled(value.length >= 80);
+    setIsButtonEnabled(value.length >= MIN_JOB_DESCRIPTION_LENGTH);
   };
 
   const handleSubmit = async () => {
-    if (jobDescription.length < 80) {
-      showError("Please enter at least 80 characters for a meaningful match.");
+    if (jobDescription.length < MIN_JOB_DESCRIPTION_LENGTH) {
+      showError(`Please enter at least ${MIN_JOB_DESCRIPTION_LENGTH} characters for a meaningful match.`);
       return;
     }
 
@@ -117,11 +171,26 @@ export const CareerFitAnalyst = () => {
       return;
     }
 
+    setIsPreProcessing(true);
+    setDisplayStepIndex(0); // Ensure visual progress starts at 0
+
     try {
-      await performJobMatch(jobDescription);
+      const analysisResult = await analyzeAndTranslateJobDescription(jobDescription);
+      setOriginalLanguage(analysisResult.originalLanguage); // Set the detected language
+
+      if (!analysisResult.isValidJobDescription) {
+        showError(analysisResult.processedText); // This will contain the "INVALID_JOB_DESCRIPTION" message
+        return;
+      }
+
+      // Proceed with job matching using the processed (potentially translated) text
+      await performJobMatch(analysisResult.processedText);
+
     } catch (error: any) {
-      console.error("Error in career fit analysis:", error);
-      showError("Sorry, an error occurred while analyzing the job description. Please try again later.");
+      console.error("Error in pre-analysis or career fit analysis:", error);
+      showError(error.message || "Sorry, an error occurred during job description validation or analysis. Please try again later.");
+    } finally {
+      setIsPreProcessing(false);
     }
   };
 
@@ -130,11 +199,14 @@ export const CareerFitAnalyst = () => {
     setJobDescription("");
     setIsButtonEnabled(false);
     setLimitedReasoning(''); // Clear limited reasoning on reset
+    setIsPreProcessing(false);
+    setDisplayStepIndex(0); // Reset visual progress
+    setOriginalLanguage(null); // Reset original language
   };
 
   const handleDownloadText = () => {
     if (limitedReasoning) {
-      // Use the pre-limited reasoning for download, converted to plain text
+      // Use the pre-limited reasoning for download
       const plainTextContent = markdownToPlainText(limitedReasoning);
       downloadTextFile(plainTextContent, "CareerFitAnalysis.txt");
     } else {
@@ -143,7 +215,6 @@ export const CareerFitAnalyst = () => {
   };
 
   const displayError = contextError || geminiClientError;
-  const progressValue = totalSteps > 0 ? ((currentStepIndex + 1) / totalSteps) * 100 : 0;
 
   return (
     <Card className="w-full max-w-3xl mx-auto">
@@ -167,40 +238,46 @@ export const CareerFitAnalyst = () => {
           </Alert>
         )}
 
-        {contextLoading || isMatching ? (
+        {contextLoading || isMatching || isPreProcessing ? (
           <div className="space-y-4 text-center py-8">
-            <div className="flex justify-center gap-4 mb-4 flex-wrap">
-              {analysisSteps.map((step, index) => (
-                <span
-                  key={index}
-                  className={cn(
-                    "text-sm transition-colors duration-300",
-                    index === currentStepIndex
-                      ? "text-primary font-bold animate-pulse"
-                      : "text-muted-foreground"
+            <div className="flex justify-center gap-2 mb-4 flex-wrap">
+              {overallSteps.map((step, index) => (
+                <React.Fragment key={index}>
+                  <span
+                    className={cn(
+                      "text-sm transition-colors duration-300",
+                      index === displayStepIndex
+                        ? "text-primary font-bold animate-pulse"
+                        : "text-muted-foreground"
+                    )}
+                  >
+                    {step}
+                  </span>
+                  {index < totalOverallSteps - 1 && (
+                    <span className="text-muted-foreground mx-1">→</span>
                   )}
-                >
-                  {step}
-                </span>
+                </React.Fragment>
               ))}
             </div>
             <Loader2 className="mx-auto h-8 w-8 animate-spin text-primary" />
-            <p className="text-muted-foreground">
-              {contextLoading ? "Loading portfolio data..." : `Step ${currentStepIndex + 1} of ${totalSteps}: ${currentStepTitle}`}
-            </p>
             <Progress value={progressValue} className="w-full" />
+            {displayStepIndex === totalOverallSteps - 1 && (
+              <p className="text-sm text-muted-foreground">
+                This step may take 5-15 seconds depending on the length of your job description and the number of matching criteria.
+              </p>
+            )}
           </div>
         ) : (
           <>
             <Textarea
-              placeholder="Paste your job description here (minimum 80 characters)..."
+              placeholder={`Paste your job description here (minimum ${MIN_JOB_DESCRIPTION_LENGTH} characters)...`}
               value={jobDescription}
               onChange={handleInputChange}
               className="min-h-[200px]"
               disabled={!resume || !!displayError}
             />
             <p className="text-sm text-muted-foreground">
-              {jobDescription.length}/80 characters minimum
+              {jobDescription.length}/{MIN_JOB_DESCRIPTION_LENGTH} characters minimum
             </p>
             {!matchResult ? (
               <Button
@@ -219,7 +296,7 @@ export const CareerFitAnalyst = () => {
           </>
         )}
 
-        {matchResult && !isMatching && !contextLoading && (
+        {matchResult && !isMatching && !contextLoading && !isPreProcessing && (
           <div className="space-y-4 mt-6">
             <ScrollArea className="h-64 bg-muted p-4 rounded-lg prose dark:prose-invert max-w-none career-fit-output">
               <div className="space-y-4">

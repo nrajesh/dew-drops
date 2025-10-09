@@ -51,7 +51,7 @@ export const useJobMatching = () => {
 
     setIsMatching(true);
     setMatchResult(null);
-    setCurrentStepIndex(0);
+    setCurrentStepIndex(0); // Reset step index for the start of analysisSteps
 
     try {
       const result = await generateJobMatchReasoning(
@@ -59,7 +59,7 @@ export const useJobMatching = () => {
         chatbotKnowledge,
         resume,
         sendMessageToGemini,
-        setCurrentStepIndex
+        setCurrentStepIndex // Pass the setter to update steps
       );
       setMatchResult(result);
       return result;
@@ -70,8 +70,8 @@ export const useJobMatching = () => {
       if (error.message) {
         if (error.message.includes("API key not valid")) {
           errorMessage = "Gemini API key is not valid. Please check VITE_GEMINI_API_KEY.";
-        } else if (error.message.includes("503") && error.message.includes("The model is overloaded")) {
-          errorMessage = "The AI model is currently overloaded. Please try again in a few moments.";
+        } else if (error.message.includes("The model is overloaded") || (error.message.includes("503") && error.message.includes("generateContent"))) {
+          errorMessage = "The AI service is currently busy. Please try again in a few moments.";
         } else if (error.message.includes("400") && error.message.includes("Bad Request")) {
           errorMessage = "The request to the AI model was malformed. This might be a temporary issue or an invalid prompt.";
         } else if (error.message.includes("429") || error.message.includes("rate limit")) {
@@ -84,7 +84,7 @@ export const useJobMatching = () => {
       throw new Error(errorMessage);
     } finally {
       setIsMatching(false);
-      setCurrentStepIndex(0);
+      setCurrentStepIndex(0); // Reset for next analysis
     }
   }, [chatbotKnowledge, resume, contextError, contextLoading, geminiClientError]);
 

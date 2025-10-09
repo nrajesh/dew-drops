@@ -12,6 +12,7 @@ This README provides a comprehensive guide to understanding, customizing, and ma
 -   **Interactive Travel Map:** Pin your travel destinations on a world map, with bulk import/export and management features.
 -   **Contact Form:** A secure, serverless contact form that sends emails directly to you.
 -   **AI Chatbot:** An integrated chatbot powered by Google Gemini that uses an editable knowledge base to provide intelligent answers about your portfolio. It also includes an auto-generate feature to populate the knowledge base from your content.
+-   **AI-Powered Career Fit Analyst:** An advanced tool that analyzes job descriptions against your resume and portfolio content, providing a detailed breakdown of matching areas and potential gaps.
 -   **Comprehensive Data Management:** Export your entire portfolio to a single JSON file for backup, or import a backup to restore your site. You can also reset all data.
 -   **User Profile Management:** Securely update your administrator profile information, avatar, and change your password.
 -   **Feature Toggles:** A settings page to enable or disable entire sections of the portfolio.
@@ -32,10 +33,10 @@ To use features like the map, AI chatbot, and contact form, you need to provide 
 These keys are used in the browser. You should create a `.env` file in the root of your project and add the following variables:
 
 -   `VITE_MAPBOX_ACCESS_TOKEN`: Your access token from [Mapbox](https://www.mapbox.com/), required for the Travel Map.
--   `VITE_GEMINI_API_KEY`: Your API key from [Google AI Studio](https://aistudio.google.com/), required for the AI Chatbot and AI-powered image tagging.
--   `VITE_GEMINI_MODEL_NAME`: The name of the Gemini model to use (e.g., `"gemini-pro"` or `"gemini-1.5-flash"`).
+-   `VITE_GEMINI_API_KEY`: Your API key from [Google AI Studio](https://aistudio.google.com/), required for the AI Chatbot, AI-powered image tagging, and the **AI-Powered Career Fit Analyst**.
+-   `VITE_GEMINI_MODEL_NAME`: The name of the Gemini model to use (e.g., `"gemini-pro"` or `"gemini-1.5-flash"`), used by the AI Chatbot and the **AI-Powered Career Fit Analyst**.
 -   `VITE_ALLOWED_EMAIL`: The single email address that is permitted to sign in to the admin dashboard.
--   `VITE_RESUME_URL`: The URL to your public JSON Resume Gist, required for the Portfolio (CV) page and for the chatbot to generate knowledge about your CV.
+-   `VITE_RESUME_URL`: The URL to your public JSON Resume Gist, required for the Portfolio (CV) page and for the chatbot to generate knowledge about your CV, and for the **AI-Powered Career Fit Analyst**.
 
 *Note: Your Supabase URL and Publishable Key are already pre-configured in the code.*
 
@@ -94,6 +95,14 @@ The gallery management page uses a two-tab system—**Published** and **Unpublis
 2.  **Edit Knowledge:** The large text area contains the entire "knowledge base" the AI uses to answer questions. You can edit this text directly.
 3.  **Auto-Generate:** Click the **"Generate from Portfolio"** button to automatically create a new knowledge base from your latest published content, including details about the updated gallery features and your CV.
 4.  **Save:** Click "Save Knowledge Base" to apply your changes.
+
+### 📊 Using the AI-Powered Career Fit Analyst
+
+1.  **Navigate:** Go to the **Match CV** page from the main navigation.
+2.  **Paste Job Description:** Enter a job description into the provided text area.
+3.  **Analyze:** Click "Calculate Match Percentage" to initiate the AI analysis. The system will validate the text, extract key criteria, and compare it against your resume and portfolio content.
+4.  **Review Results:** The AI will generate a detailed markdown report outlining "Matching Areas" and "Gaps," explaining how your profile aligns with the role.
+5.  **Download:** You can download the analysis report as a plain text file.
 
 ### 📄 Managing Your CV/Portfolio Page
 
