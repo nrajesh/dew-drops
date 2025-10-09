@@ -126,7 +126,8 @@ const Chat = ({ jobDescription, onClose }: ChatProps) => {
     }
     if (missing.length > 0) {
       feedback += `**Missing Key Skills/Requirements:**\n- ${missing.join(', ')}\n\n`;
-      feedback += `**Actionable Feedback:**\nTo improve alignment, consider highlighting experiences or projects where you've utilized these missing skills. If you have relevant experience not explicitly listed, ensure it's added to your CV. For skills you're developing, consider adding them to a "Learning" or "Future Skills" section, or gaining practical experience through projects.\n\n`;
+      feedback += `**Actionable Feedback:**\n`;
+      feedback += `To improve alignment, consider highlighting experiences or projects where you've utilized these missing skills. If you have relevant experience not explicitly listed, ensure it's added to your CV. For skills you're developing, consider adding them to a "Learning" or "Future Skills" section, or gaining practical experience through projects.\n\n`;
     }
 
     const systemPrompt = `You are a world-class hiring manager analyzing a job description against a candidate's profile.
