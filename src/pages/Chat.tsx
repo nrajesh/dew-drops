@@ -7,8 +7,8 @@ import { usePortfolioContext } from "@/hooks/usePortfolioContext";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { useNavigate } from "react-router-dom";
 import ReactMarkdown from 'react-markdown';
-import { useJobMatching } from "@/hooks/useJobMatching"; // Import the new hook
-import { sendMessageToGemini } from "@/integrations/gemini/client"; // Ensure this is imported for direct chat
+import { useJobMatching } from "@/hooks/useJobMatching";
+import { sendMessageToGemini, getGeminiInitializationError } from "@/integrations/gemini/client";
 
 interface Message {
   role: "user" | "assistant";
@@ -23,29 +23,36 @@ interface ChatProps {
 const Chat = ({ jobDescription, onClose }: ChatProps) => {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
-  const [isLoadingChat, setIsLoadingChat] = useState(false); // Renamed to avoid conflict
+  const [isLoadingChat, setIsLoadingChat] = useState(false);
   const [apiKeyError, setApiKeyError] = useState<string | null>(null);
   const { chatbotKnowledge, resume, loading: contextLoading, error: contextError } = usePortfolioContext();
   const scrollAreaRef = useRef<HTMLDivElement>(null);
   const navigate = useNavigate();
 
   const {
-    isMatching, // From useJobMatching
-    matchResult, // From useJobMatching
-    performJobMatch, // From useJobMatching
-    geminiClientError, // From useJobMatching
+    isMatching,
+    matchResult,
+    performJobMatch,
+    geminiClientError: jobMatchingGeminiError,
   } = useJobMatching();
 
   useEffect(() => {
-    // This check is now mostly for the direct chat functionality, as job matching uses the hook's error
-    if (geminiClientError) {
-      setApiKeyError(geminiClientError);
+    const initError = getGeminiInitializationError();
+    if (initError) {
+      setApiKeyError(initError);
+    } else {
+      setApiKeyError(null);
     }
-  }, [geminiClientError]);
+  }, []);
+
+  useEffect(() => {
+    if (jobMatchingGeminiError) {
+      setApiKeyError(jobMatchingGeminiError);
+    }
+  }, [jobMatchingGeminiError]);
 
   useEffect(() => {
     if (jobDescription) {
-      // Start the job matching process when a job description is provided
       handleJobMatch(jobDescription);
     }
   }, [jobDescription]);
@@ -59,16 +66,14 @@ const Chat = ({ jobDescription, onClose }: ChatProps) => {
       setMessages([{ role: "assistant", content: "Sorry, resume data is not available for matching. Please ensure VITE_RESUME_URL is set and accessible." }]);
       return;
     }
-    if (contextError || geminiClientError) {
-      setMessages([{ role: "assistant", content: contextError || geminiClientError || "An error occurred with the AI service or context loading." }]);
+    if (contextError || apiKeyError) {
+      setMessages([{ role: "assistant", content: contextError || apiKeyError || "An error occurred with the AI service or context loading." }]);
       return;
     }
 
     try {
       const result = await performJobMatch(description);
-      // Add messages to the chat based on the result from the hook
       const newMessages: Message[] = [
-        // Removed: { role: "assistant", content: `I've analyzed your job description and found a **${result.percentage.toFixed(0)}%** match with Rajesh's profile.` },
         { role: "assistant", content: result.reasoning },
         { role: "assistant", content: "Would you like to contact Rajesh to discuss this further?" }
       ];
@@ -81,7 +86,7 @@ const Chat = ({ jobDescription, onClose }: ChatProps) => {
 
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!input.trim() || isLoadingChat || contextLoading) return;
+    if (!input.trim() || isLoadingChat || contextLoading || apiKeyError) return;
 
     const userMessage: Message = { role: "user", content: input };
     setMessages((prev) => [...prev, userMessage]);
@@ -91,7 +96,6 @@ const Chat = ({ jobDescription, onClose }: ChatProps) => {
     try {
       if (contextError) throw new Error(contextError);
       if (!chatbotKnowledge) throw new Error("Knowledge base is not available.");
-      if (!sendMessageToGemini) throw new Error("Chat client is not initialized.");
 
       const systemPrompt = `You are a helpful assistant for a personal portfolio website.
       Use ONLY the following context to answer the user's question.
@@ -113,11 +117,18 @@ const Chat = ({ jobDescription, onClose }: ChatProps) => {
       console.error("Error fetching chat response:", error);
       let displayMessage = `Sorry, an error occurred: ${error.message}`;
 
-      // Check for specific Gemini API overload error
-      if (error.message && error.message.includes("503") && error.message.includes("The model is overloaded")) {
-        displayMessage = "I am currently responding to multiple users. I hope we can connect again later!";
-      } else if (error.message && error.message.includes("400") && error.message.includes("API key not valid")) {
-        displayMessage = "It seems there's an issue with the API key. Please check the configuration.";
+      if (error.message) {
+        if (error.message.includes("API key not valid")) {
+          displayMessage = "It seems there's an issue with the API key. Please check the configuration.";
+        } else if (error.message.includes("503") && error.message.includes("The model is overloaded")) {
+          displayMessage = "I am currently responding to multiple users. I hope we can connect again later!";
+        } else if (error.message.includes("400") && error.message.includes("Bad Request")) {
+          displayMessage = "The request to the AI model was malformed. This might be a temporary issue or an invalid prompt.";
+        } else if (error.message.includes("429") || error.message.includes("rate limit")) {
+          displayMessage = "You've hit the AI service rate limit. Please wait a moment and try again.";
+        } else if (error.message.includes("VITE_GEMINI_API_KEY is not set") || error.message.includes("VITE_GEMINI_MODEL_NAME is not set")) {
+          displayMessage = "AI service is not configured. Please ensure VITE_GEMINI_API_KEY and VITE_GEMINI_MODEL_NAME are set.";
+        }
       }
 
       const errorMessage: Message = { role: "assistant", content: displayMessage };
@@ -140,7 +151,7 @@ const Chat = ({ jobDescription, onClose }: ChatProps) => {
           <AlertTriangle className="h-4 w-4" />
           <AlertTitle>Configuration Error</AlertTitle>
           <AlertDescription>
-            The chatbot is not configured correctly. Please ensure the <code>VITE_GEMINI_API_KEY</code> is set in your environment variables.
+            {apiKeyError}
           </AlertDescription>
         </Alert>
       </div>
@@ -188,9 +199,9 @@ const Chat = ({ jobDescription, onClose }: ChatProps) => {
             value={input}
             onChange={(e) => setInput(e.target.value)}
             placeholder="Ask about Rajesh's profile or job requirements..."
-            disabled={currentLoadingState || !chatbotKnowledge || !resume || !!contextError || !!geminiClientError}
+            disabled={currentLoadingState || !chatbotKnowledge || !resume || !!contextError || !!apiKeyError}
           />
-          <Button type="submit" disabled={currentLoadingState || !input.trim() || !chatbotKnowledge || !resume || !!contextError || !!geminiClientError}>
+          <Button type="submit" disabled={currentLoadingState || !input.trim() || !chatbotKnowledge || !resume || !!contextError || !!apiKeyError}>
             <Send className="h-4 w-4" />
             <span className="sr-only">Send</span>
           </Button>

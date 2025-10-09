@@ -2,7 +2,8 @@
 import { useState, useCallback, useEffect } from "react";
 import { usePortfolioContext } from "@/hooks/usePortfolioContext";
 import { generateJobMatchReasoning } from "@/utils/jobMatchUtils";
-import { sendMessageToGemini } from "@/integrations/gemini/client"; // Assuming this is available globally or passed
+import { sendMessageToGemini, getGeminiInitializationError } from "@/integrations/gemini/client";
+import { showError } from "@/utils/toast"; // Added import for showError
 
 interface JobMatchResult {
   percentage: number;
@@ -23,12 +24,14 @@ export const useJobMatching = () => {
   const [isMatching, setIsMatching] = useState(false);
   const [matchResult, setMatchResult] = useState<JobMatchResult | null>(null);
   const [geminiClientError, setGeminiClientError] = useState<string | null>(null);
-  const [currentStepIndex, setCurrentStepIndex] = useState(0); // New state for current step
+  const [currentStepIndex, setCurrentStepIndex] = useState(0);
 
   useEffect(() => {
-    // Check if sendMessageToGemini is available, if not, set an error
-    if (typeof sendMessageToGemini !== 'function') {
-      setGeminiClientError("Gemini client is not initialized. Check VITE_GEMINI_API_KEY and VITE_GEMINI_MODEL_NAME.");
+    const initError = getGeminiInitializationError();
+    if (initError) {
+      setGeminiClientError(initError);
+    } else {
+      setGeminiClientError(null);
     }
   }, []);
 
@@ -36,14 +39,19 @@ export const useJobMatching = () => {
     if (contextLoading) {
       throw new Error("Portfolio context is still loading. Please wait.");
     }
-    if (!resume || contextError || geminiClientError) {
-      throw new Error(contextError || geminiClientError || "Resume data or Gemini client not available.");
+    if (!resume) {
+      throw new Error("Resume data is not available for matching. Please ensure VITE_RESUME_URL is set and accessible.");
     }
-    
+    if (contextError) {
+      throw new Error(contextError);
+    }
+    if (geminiClientError) {
+      throw new Error(geminiClientError);
+    }
 
     setIsMatching(true);
-    setMatchResult(null); // Clear previous result
-    setCurrentStepIndex(0); // Reset step index
+    setMatchResult(null);
+    setCurrentStepIndex(0);
 
     try {
       const result = await generateJobMatchReasoning(
@@ -51,22 +59,38 @@ export const useJobMatching = () => {
         chatbotKnowledge,
         resume,
         sendMessageToGemini,
-        setCurrentStepIndex // Pass the step update callback
+        setCurrentStepIndex
       );
       setMatchResult(result);
       return result;
     } catch (error: any) {
       console.error("Error performing job match:", error);
-      throw error;
+      let errorMessage = "Sorry, an error occurred while analyzing the job description. Please try again later.";
+
+      if (error.message) {
+        if (error.message.includes("API key not valid")) {
+          errorMessage = "Gemini API key is not valid. Please check VITE_GEMINI_API_KEY.";
+        } else if (error.message.includes("503") && error.message.includes("The model is overloaded")) {
+          errorMessage = "The AI model is currently overloaded. Please try again in a few moments.";
+        } else if (error.message.includes("400") && error.message.includes("Bad Request")) {
+          errorMessage = "The request to the AI model was malformed. This might be a temporary issue or an invalid prompt.";
+        } else if (error.message.includes("429") || error.message.includes("rate limit")) {
+          errorMessage = "You've hit the AI service rate limit. Please wait a moment and try again.";
+        } else if (error.message.includes("VITE_GEMINI_API_KEY is not set") || error.message.includes("VITE_GEMINI_MODEL_NAME is not set")) {
+          errorMessage = "AI service is not configured. Please ensure VITE_GEMINI_API_KEY and VITE_GEMINI_MODEL_NAME are set.";
+        }
+      }
+      showError(errorMessage);
+      throw new Error(errorMessage);
     } finally {
       setIsMatching(false);
-      setCurrentStepIndex(0); // Reset after completion or error
+      setCurrentStepIndex(0);
     }
   }, [chatbotKnowledge, resume, contextError, contextLoading, geminiClientError]);
 
   const resetMatch = useCallback(() => {
     setMatchResult(null);
-    setCurrentStepIndex(0); // Reset step index on reset
+    setCurrentStepIndex(0);
   }, []);
 
   return {
