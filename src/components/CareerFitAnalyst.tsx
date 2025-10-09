@@ -200,6 +200,7 @@ export const CareerFitAnalyst = () => {
 
       if (inputMethod === "url") {
         textToAnalyze = await fetchJobDescriptionFromUrl(jobDescriptionUrl);
+        setJobDescription(textToAnalyze); // Set the fetched content to jobDescription state
       }
 
       const analysisResult = await analyzeAndTranslateJobDescription(textToAnalyze);
@@ -357,19 +358,17 @@ export const CareerFitAnalyst = () => {
         {matchResult && !isMatching && !contextLoading && !isPreProcessing && (
           <div className="space-y-4 mt-6">
             <ScrollArea className="h-64 bg-muted p-4 rounded-lg prose dark:prose-invert max-w-none career-fit-output">
-              <div className="space-y-4">
-                <div className="flex justify-end mb-4 print:hidden">
-                  <Button
-                    onClick={handleDownloadText}
-                    variant="outline"
-                    size="sm"
-                    className="print:hidden"
-                  >
-                    <Download className="mr-2 h-4 w-4" /> Download as Text
-                  </Button>
-                </div>
-                <ReactMarkdown>{limitedReasoning}</ReactMarkdown>
+              <div className="flex justify-end mb-4 print:hidden">
+                <Button
+                  onClick={handleDownloadText}
+                  variant="outline"
+                  size="sm"
+                  className="print:hidden"
+                >
+                  <Download className="mr-2 h-4 w-4" /> Download as Text
+                </Button>
               </div>
+              <ReactMarkdown>{limitedReasoning}</ReactMarkdown>
             </ScrollArea>
           </div>
         )}
