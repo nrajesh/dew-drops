@@ -10,11 +10,14 @@ export const generateJobMatchReasoning = async (
   jobDescription: string,
   chatbotKnowledge: string | null,
   resume: JsonResume,
-  sendMessageToGemini: SendMessageToGeminiFunction
+  sendMessageToGemini: SendMessageToGeminiFunction,
+  onStepUpdate: (stepIndex: number) => void // New callback for step updates
 ): Promise<{ percentage: number; reasoning: string; breakdown: { experience: number; education: number; skills: number } }> => {
+  onStepUpdate(0); // Step 1: Extracting Key Criteria
   // Step 1: Extract job requirements using Gemini
   const jobRequirements = await extractJobKeywords(jobDescription);
 
+  onStepUpdate(1); // Step 2: Text Preprocessing
   // Step 2: Prepare CV sections for weighted similarity
   const cvSections = {
     experience: resume.work?.map(w => `${w.position} at ${w.company} ${w.summary} ${w.highlights?.join(' ')}`).join(' ') || '',
@@ -22,8 +25,10 @@ export const generateJobMatchReasoning = async (
     skills: resume.skills?.map(s => `${s.name} ${s.level} ${s.keywords?.join(' ')}`).join(' ') || '',
   };
 
+  onStepUpdate(2); // Step 3: Vectorization & Similarity Calculation
   const { totalPercentage, breakdown } = calculateWeightedMatchPercentage(jobDescription, cvSections);
 
+  onStepUpdate(3); // Step 4: Keyword Matching & Gap Analysis
   // Step 3: Collect all skills from CV for direct comparison
   const allCvSkills: string[] = [];
   resume.skills?.forEach(s => {
@@ -63,6 +68,7 @@ export const generateJobMatchReasoning = async (
     qualitativeAssessment = `The overall alignment is lower. This suggests the role might require a different set of core competencies or a significant upskilling effort.`;
   }
 
+  onStepUpdate(4); // Step 5: Finalizing Profile Match
   const systemPrompt = `Analyze the following job description against the candidate's profile and provide a professional assessment.
   Job Description: ${jobDescription}
   Candidate Profile (summary from CV and chatbot knowledge): ${chatbotKnowledge}

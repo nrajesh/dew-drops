@@ -10,6 +10,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { useJobMatching } from "@/hooks/useJobMatching";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { showError } from "@/utils/toast";
+import { Progress } from "@/components/ui/progress"; // Import Progress component
 
 export const CareerFitAnalyst = () => {
   const [jobDescription, setJobDescription] = useState("");
@@ -24,6 +25,9 @@ export const CareerFitAnalyst = () => {
     contextError,
     geminiClientError,
     resume,
+    currentStepIndex,
+    currentStepTitle,
+    totalSteps,
   } = useJobMatching();
 
   const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
@@ -62,6 +66,7 @@ export const CareerFitAnalyst = () => {
   };
 
   const displayError = contextError || geminiClientError;
+  const progressValue = totalSteps > 0 ? ((currentStepIndex + 1) / totalSteps) * 100 : 0;
 
   return (
     <Card className="w-full max-w-3xl mx-auto">
@@ -89,8 +94,9 @@ export const CareerFitAnalyst = () => {
           <div className="space-y-4 text-center py-8">
             <Loader2 className="mx-auto h-8 w-8 animate-spin text-primary" />
             <p className="text-muted-foreground">
-              {contextLoading ? "Loading portfolio data..." : "Analyzing your job description..."}
+              {contextLoading ? "Loading portfolio data..." : `Analyzing: ${currentStepTitle}`}
             </p>
+            <Progress value={progressValue} className="w-full" />
           </div>
         ) : matchResult ? (
           <div className="space-y-4">

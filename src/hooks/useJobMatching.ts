@@ -10,11 +10,20 @@ interface JobMatchResult {
   breakdown: { experience: number; education: number; skills: number };
 }
 
+const analysisSteps = [
+  "Extracting Key Criteria",
+  "Text Preprocessing",
+  "Vectorization & Similarity Calculation",
+  "Keyword Matching & Gap Analysis",
+  "Finalizing Profile Match",
+];
+
 export const useJobMatching = () => {
   const { chatbotKnowledge, resume, loading: contextLoading, error: contextError } = usePortfolioContext();
   const [isMatching, setIsMatching] = useState(false);
   const [matchResult, setMatchResult] = useState<JobMatchResult | null>(null);
   const [geminiClientError, setGeminiClientError] = useState<string | null>(null);
+  const [currentStepIndex, setCurrentStepIndex] = useState(0); // New state for current step
 
   useEffect(() => {
     // Check if sendMessageToGemini is available, if not, set an error
@@ -34,13 +43,15 @@ export const useJobMatching = () => {
 
     setIsMatching(true);
     setMatchResult(null); // Clear previous result
+    setCurrentStepIndex(0); // Reset step index
 
     try {
       const result = await generateJobMatchReasoning(
         jobDescription,
         chatbotKnowledge,
         resume,
-        sendMessageToGemini // Pass the function
+        sendMessageToGemini,
+        setCurrentStepIndex // Pass the step update callback
       );
       setMatchResult(result);
       return result;
@@ -49,11 +60,13 @@ export const useJobMatching = () => {
       throw error;
     } finally {
       setIsMatching(false);
+      setCurrentStepIndex(0); // Reset after completion or error
     }
   }, [chatbotKnowledge, resume, contextError, contextLoading, geminiClientError]);
 
   const resetMatch = useCallback(() => {
     setMatchResult(null);
+    setCurrentStepIndex(0); // Reset step index on reset
   }, []);
 
   return {
@@ -66,5 +79,8 @@ export const useJobMatching = () => {
     geminiClientError,
     resume,
     chatbotKnowledge,
+    currentStepIndex,
+    currentStepTitle: analysisSteps[currentStepIndex],
+    totalSteps: analysisSteps.length,
   };
 };
