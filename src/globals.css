@@ -137,24 +137,6 @@
     print-color-adjust: exact;
   }
 
-  /* Hide everything in the body by default */
-  body > *:not(.print-only) {
-    display: none !important;
-  }
-
-  /* Make the print-only content visible */
-  .print-only {
-    display: block !important;
-    position: absolute;
-    left: 0;
-    top: 0;
-    width: 100%;
-    height: auto;
-    padding: 1.5cm; /* Match @page margin */
-    background-color: white; /* Ensure white background for print */
-    color: black; /* Ensure black text for print */
-  }
-
   /* Force light theme colors for printing */
   :root, .dark {
     --background: 210 40% 98% !important;

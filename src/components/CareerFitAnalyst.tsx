@@ -4,14 +4,13 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
-import { Loader2, Sparkles, AlertTriangle, Printer } from "lucide-react"; // Added Printer icon
+import { Loader2, Sparkles, AlertTriangle } from "lucide-react";
 import ReactMarkdown from 'react-markdown';
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useJobMatching } from "@/hooks/useJobMatching";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { showError } from "@/utils/toast";
-import { Progress } from "@/components/ui/progress";
-import { PrintableJobMatch } from "./PrintableJobMatch"; // Import the new component
+import { Progress } from "@/components/ui/progress"; // Import Progress component
 
 export const CareerFitAnalyst = () => {
   const [jobDescription, setJobDescription] = useState("");
@@ -66,10 +65,6 @@ export const CareerFitAnalyst = () => {
     setIsButtonEnabled(false);
   };
 
-  const handlePrintReport = () => {
-    window.print();
-  };
-
   const displayError = contextError || geminiClientError;
   const progressValue = totalSteps > 0 ? ((currentStepIndex + 1) / totalSteps) * 100 : 0;
 
@@ -108,14 +103,9 @@ export const CareerFitAnalyst = () => {
             <ScrollArea className="h-64 bg-muted p-4 rounded-lg prose dark:prose-invert max-w-none career-fit-output">
               <ReactMarkdown>{matchResult.reasoning}</ReactMarkdown>
             </ScrollArea>
-            <div className="flex gap-2">
-              <Button onClick={handleAnalyzeAnother} className="flex-1">
-                Analyze Another Job Description
-              </Button>
-              <Button variant="outline" onClick={handlePrintReport} className="flex-1">
-                <Printer className="mr-2 h-4 w-4" /> Print Report
-              </Button>
-            </div>
+            <Button onClick={handleAnalyzeAnother} className="w-full">
+              Analyze Another Job Description
+            </Button>
           </div>
         ) : (
           <>
@@ -140,14 +130,6 @@ export const CareerFitAnalyst = () => {
           </>
         )}
       </CardContent>
-
-      {/* Printable content, only visible during print */}
-      {matchResult && (
-        <PrintableJobMatch
-          jobDescription={jobDescription}
-          matchReasoning={matchResult.reasoning}
-        />
-      )}
     </Card>
   );
 };
