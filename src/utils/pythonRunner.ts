@@ -1,28 +1,39 @@
-import { loadPyodide } from 'pyodide';
+import loadPyodide from 'pyodide';
 
 let pyodide: any = null;
 
 export const initializePython = async () => {
   if (pyodide) return pyodide;
 
-  // Load Pyodide
-  pyodide = await loadPyodide({
-    indexURL: "https://cdn.jsdelivr.net/pyodide/v0.23.4/full/",
-  });
+  try {
+    // Load Pyodide
+    pyodide = await loadPyodide({
+      indexURL: "https://cdn.jsdelivr.net/pyodide/v0.23.4/full/",
+    });
 
-  // Load required packages
-  await pyodide.loadPackage("scikit-learn");
+    // Load required packages
+    await pyodide.loadPackage("scikit-learn");
 
-  return pyodide;
+    return pyodide;
+  } catch (error) {
+    console.error("Failed to initialize Python environment:", error);
+    throw new Error("Failed to initialize Python environment. Please check your internet connection and try again.");
+  }
 };
 
 export const calculateMatchPercentage = async (text1: string, text2: string): Promise<number> => {
   if (!pyodide) {
-    pyodide = await initializePython();
+    try {
+      pyodide = await initializePython();
+    } catch (error) {
+      console.error("Python initialization failed:", error);
+      throw error; // Re-throw the error to be handled by the caller
+    }
   }
 
-  // Define the Python function
-  const pythonCode = `
+  try {
+    // Define the Python function
+    const pythonCode = `
 from sklearn.feature_extraction.text import CountVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
 
@@ -34,11 +45,15 @@ def calculate_match_percentage(text1, text2):
     return match_percentage
 `;
 
-  // Run the Python code
-  pyodide.runPython(pythonCode);
+    // Run the Python code
+    pyodide.runPython(pythonCode);
 
-  // Call the function with the provided texts
-  const matchPercentage = pyodide.globals.get('calculate_match_percentage')(text1, text2);
+    // Call the function with the provided texts
+    const matchPercentage = pyodide.globals.get('calculate_match_percentage')(text1, text2);
 
-  return matchPercentage;
+    return matchPercentage;
+  } catch (error) {
+    console.error("Error calculating match percentage:", error);
+    throw new Error("Failed to calculate match percentage. Please try again later.");
+  }
 };

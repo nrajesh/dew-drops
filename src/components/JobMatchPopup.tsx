@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
-import { showError } from "@/utils/toast";
+import { showError, showSuccess } from "@/utils/toast";
 import { useNavigate } from "react-router-dom";
 import { usePortfolioContext } from "@/hooks/usePortfolioContext";
 import { Loader2 } from "lucide-react";
@@ -22,6 +22,7 @@ export const JobMatchPopup = ({ isOpen, onOpenChange, onMatchRequest }: JobMatch
   const [isButtonEnabled, setIsButtonEnabled] = useState(false);
   const [isMatching, setIsMatching] = useState(false);
   const [matchResult, setMatchResult] = useState<{ percentage: number; reasoning: string } | null>(null);
+  const [error, setError] = useState<string | null>(null);
   const navigate = useNavigate();
   const { context, loading: contextLoading, error: contextError } = usePortfolioContext();
 
@@ -32,6 +33,7 @@ export const JobMatchPopup = ({ isOpen, onOpenChange, onMatchRequest }: JobMatch
       setIsButtonEnabled(false);
       setIsMatching(false);
       setMatchResult(null);
+      setError(null);
     }
   }, [isOpen]);
 
@@ -39,6 +41,7 @@ export const JobMatchPopup = ({ isOpen, onOpenChange, onMatchRequest }: JobMatch
     const value = e.target.value;
     setJobDescription(value);
     setIsButtonEnabled(value.length >= 80);
+    setError(null); // Clear error when user starts typing
   };
 
   const generateReasoning = async (matchPercentage: number): Promise<string> => {
@@ -66,16 +69,17 @@ export const JobMatchPopup = ({ isOpen, onOpenChange, onMatchRequest }: JobMatch
 
   const handleSubmit = async () => {
     if (jobDescription.length < 80) {
-      showError("Please enter at least 80 characters for a meaningful match.");
+      setError("Please enter at least 80 characters for a meaningful match.");
       return;
     }
 
     if (!context || contextError) {
-      showError("Knowledge base is not available for matching.");
+      setError("Knowledge base is not available for matching.");
       return;
     }
 
     setIsMatching(true);
+    setError(null);
 
     try {
       // Calculate match percentage using the new Python-based calculation
@@ -88,7 +92,8 @@ export const JobMatchPopup = ({ isOpen, onOpenChange, onMatchRequest }: JobMatch
       setMatchResult({ percentage: Math.round(matchPercentage), reasoning });
     } catch (error: any) {
       console.error("Error in job matching:", error);
-      showError("Sorry, an error occurred while analyzing the job description. Please try again later.");
+      setError(error.message || "Sorry, an error occurred while analyzing the job description. Please try again later.");
+      setMatchResult(null);
     } finally {
       setIsMatching(false);
     }
@@ -104,6 +109,7 @@ export const JobMatchPopup = ({ isOpen, onOpenChange, onMatchRequest }: JobMatch
     setMatchResult(null);
     setJobDescription("");
     setIsButtonEnabled(false);
+    setError(null);
   };
 
   return (
@@ -116,6 +122,12 @@ export const JobMatchPopup = ({ isOpen, onOpenChange, onMatchRequest }: JobMatch
           </DialogDescription>
         </DialogHeader>
         <div className="py-4">
+          {error && (
+            <div className="bg-destructive/10 text-destructive p-3 rounded-md mb-4">
+              {error}
+            </div>
+          )}
+
           {matchResult ? (
             <div className="space-y-4">
               <div className="text-center">
