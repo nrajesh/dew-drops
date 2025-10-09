@@ -8,8 +8,9 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { useNavigate } from "react-router-dom";
 import { calculateWeightedMatchPercentage } from "@/utils/cosineSimilarity";
 import type { JsonResume } from "@/types/resume";
-import { extractJobKeywords } from "@/integrations/gemini/client"; // Import the new Gemini function
-import ReactMarkdown from 'react-markdown'; // Import ReactMarkdown
+import { extractJobKeywords } from "@/integrations/gemini/client";
+import ReactMarkdown from 'react-markdown';
+import { AnalysisProgressBar } from "@/components/AnalysisProgressBar"; // Import the new component
 
 interface Message {
   role: "user" | "assistant";
@@ -23,10 +24,20 @@ interface ChatProps {
 
 let sendMessageToGemini: (message: string) => Promise<string>;
 
+const ANALYSIS_STEPS = [
+  "Extracting Key Criteria",
+  "Text Preprocessing",
+  "Vectorization",
+  "Similarity Calculation",
+  "Keyword Matching & Gap Analysis",
+  "Weighted Scoring",
+];
+
 const Chat = ({ jobDescription, onClose }: ChatProps) => {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [currentAnalysisStep, setCurrentAnalysisStep] = useState(0); // New state for progress
   const [apiKeyError, setApiKeyError] = useState<string | null>(null);
   const { chatbotKnowledge, resume, loading: contextLoading, error: contextError } = usePortfolioContext();
   const scrollAreaRef = useRef<HTMLDivElement>(null);
@@ -58,33 +69,43 @@ const Chat = ({ jobDescription, onClose }: ChatProps) => {
     }
 
     setIsLoading(true);
+    setCurrentAnalysisStep(0); // Start progress
     setMessages([]);
 
     try {
-      // Step 1: Extract job requirements using Gemini
+      // Step 1: Extracting Key Criteria
+      setCurrentAnalysisStep(1);
       const jobRequirements = await extractJobKeywords(description);
 
-      // Step 2: Prepare CV sections for weighted similarity
+      // Step 2: Text Preprocessing (implicitly done before vectorization)
+      setCurrentAnalysisStep(2);
       const cvSections = {
         experience: resume.work?.map(w => `${w.position} at ${w.company} ${w.summary} ${w.highlights?.join(' ')}`).join(' ') || '',
         education: resume.education?.map(e => `${e.studyType} in ${e.area} from ${e.institution} ${e.courses?.join(' ')}`).join(' ') || '',
         skills: resume.skills?.map(s => `${s.name} ${s.level} ${s.keywords?.join(' ')}`).join(' ') || '',
       };
 
+      // Step 3: Vectorization (happens inside calculateWeightedMatchPercentage)
+      setCurrentAnalysisStep(3);
       const { totalPercentage, breakdown } = calculateWeightedMatchPercentage(description, cvSections);
 
-      // Step 3: Collect all skills from CV for direct comparison
+      // Step 4: Similarity Calculation (happens inside calculateWeightedMatchPercentage)
+      setCurrentAnalysisStep(4);
+      // No explicit action here, just updating the step
+
+      // Step 5: Keyword Matching & Gap Analysis
+      setCurrentAnalysisStep(5);
       const allCvSkills: string[] = [];
       resume.skills?.forEach(s => {
         allCvSkills.push(s.name);
         s.keywords?.forEach(k => allCvSkills.push(k));
       });
-      resume.work?.forEach(w => w.highlights?.forEach(h => allCvSkills.push(h))); // Also consider work highlights as skills
+      resume.work?.forEach(w => w.highlights?.forEach(h => allCvSkills.push(h)));
 
-      // Step 4: Generate reasoning using Gemini with Markdown, overlaps, and feedback
+      // Step 6: Weighted Scoring
+      setCurrentAnalysisStep(6);
       const reasoning = await generateReasoning(description, chatbotKnowledge, totalPercentage, breakdown, jobRequirements, allCvSkills);
 
-      // Add messages to the chat
       const newMessages: Message[] = [
         { role: "assistant", content: `I've analyzed your job description and found a **${totalPercentage.toFixed(0)}%** match with Rajesh's profile.` },
         { role: "assistant", content: reasoning },
@@ -97,6 +118,7 @@ const Chat = ({ jobDescription, onClose }: ChatProps) => {
       setMessages([{ role: "assistant", content: "Sorry, I encountered an error while analyzing the job description. Please try again later." }]);
     } finally {
       setIsLoading(false);
+      setCurrentAnalysisStep(0); // Reset progress after completion or error
     }
   };
 
@@ -228,22 +250,25 @@ const Chat = ({ jobDescription, onClose }: ChatProps) => {
       </div>
       <ScrollArea className="flex-1 p-4" ref={scrollAreaRef}>
         <div className="space-y-4">
-          {messages.map((message, index) => (
-            <div key={index} className={`flex items-start gap-3 ${message.role === 'user' ? 'justify-end' : ''}`}>
-              {message.role === 'assistant' && <Bot className="h-6 w-6 text-primary" />}
-              <div className={`rounded-lg p-3 max-w-[80%] ${message.role === 'user' ? 'bg-primary text-primary-foreground' : 'bg-muted'} prose dark:prose-invert max-w-none`}>
-                <ReactMarkdown>{message.content}</ReactMarkdown>
-              </div>
-              {message.role === 'user' && <UserIcon className="h-6 w-6" />}
+          {isLoading && currentAnalysisStep > 0 ? (
+            <div className="flex flex-col items-center justify-center h-full space-y-4">
+              <Loader2 className="h-8 w-8 animate-spin text-primary" />
+              <AnalysisProgressBar
+                currentStep={currentAnalysisStep}
+                totalSteps={ANALYSIS_STEPS.length}
+                stepLabels={ANALYSIS_STEPS}
+              />
             </div>
-          ))}
-          {isLoading && (
-            <div className="flex items-start gap-3">
-              <Bot className="h-6 w-6 text-primary" />
-              <div className="rounded-lg p-3 bg-muted">
-                <Loader2 className="h-5 w-5 animate-spin" />
+          ) : (
+            messages.map((message, index) => (
+              <div key={index} className={`flex items-start gap-3 ${message.role === 'user' ? 'justify-end' : ''}`}>
+                {message.role === 'assistant' && <Bot className="h-6 w-6 text-primary" />}
+                <div className={`rounded-lg p-3 max-w-[80%] ${message.role === 'user' ? 'bg-primary text-primary-foreground' : 'bg-muted'} prose dark:prose-invert max-w-none`}>
+                  <ReactMarkdown>{message.content}</ReactMarkdown>
+                </div>
+                {message.role === 'user' && <UserIcon className="h-6 w-6" />}
               </div>
-            </div>
+            ))
           )}
         </div>
       </ScrollArea>

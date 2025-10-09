@@ -10,8 +10,9 @@ import { usePortfolioContext } from "@/hooks/usePortfolioContext";
 import { Loader2 } from "lucide-react";
 import { calculateWeightedMatchPercentage } from "@/utils/cosineSimilarity";
 import type { JsonResume } from "@/types/resume";
-import { extractJobKeywords } from "@/integrations/gemini/client"; // Import the new Gemini function
-import ReactMarkdown from 'react-markdown'; // Import ReactMarkdown
+import { extractJobKeywords } from "@/integrations/gemini/client";
+import ReactMarkdown from 'react-markdown';
+import { AnalysisProgressBar } from "./AnalysisProgressBar"; // Import the new component
 
 interface JobMatchPopupProps {
   isOpen: boolean;
@@ -19,10 +20,20 @@ interface JobMatchPopupProps {
   onMatchRequest: (jobDescription: string) => void;
 }
 
+const ANALYSIS_STEPS = [
+  "Extracting Key Criteria",
+  "Text Preprocessing",
+  "Vectorization",
+  "Similarity Calculation",
+  "Keyword Matching & Gap Analysis",
+  "Weighted Scoring",
+];
+
 export const JobMatchPopup = ({ isOpen, onOpenChange, onMatchRequest }: JobMatchPopupProps) => {
   const [jobDescription, setJobDescription] = useState("");
   const [isButtonEnabled, setIsButtonEnabled] = useState(false);
   const [isMatching, setIsMatching] = useState(false);
+  const [currentAnalysisStep, setCurrentAnalysisStep] = useState(0); // New state for progress
   const [matchResult, setMatchResult] = useState<{ percentage: number; reasoning: string; breakdown: { experience: number; education: number; skills: number } } | null>(null);
   const navigate = useNavigate();
   const { chatbotKnowledge, resume, loading: contextLoading, error: contextError } = usePortfolioContext();
@@ -34,6 +45,7 @@ export const JobMatchPopup = ({ isOpen, onOpenChange, onMatchRequest }: JobMatch
       setIsButtonEnabled(false);
       setIsMatching(false);
       setMatchResult(null);
+      setCurrentAnalysisStep(0); // Reset progress
     }
   }, [isOpen]);
 
@@ -94,38 +106,49 @@ export const JobMatchPopup = ({ isOpen, onOpenChange, onMatchRequest }: JobMatch
     }
 
     setIsMatching(true);
+    setCurrentAnalysisStep(0); // Start progress
 
     try {
-      // Step 1: Extract job requirements using Gemini
+      // Step 1: Extracting Key Criteria
+      setCurrentAnalysisStep(1);
       const jobRequirements = await extractJobKeywords(jobDescription);
 
-      // Step 2: Prepare CV sections for weighted similarity
+      // Step 2: Text Preprocessing (implicitly done before vectorization)
+      setCurrentAnalysisStep(2);
       const cvSections = {
         experience: resume.work?.map(w => `${w.position} at ${w.company} ${w.summary} ${w.highlights?.join(' ')}`).join(' ') || '',
         education: resume.education?.map(e => `${e.studyType} in ${e.area} from ${e.institution} ${e.courses?.join(' ')}`).join(' ') || '',
         skills: resume.skills?.map(s => `${s.name} ${s.level} ${s.keywords?.join(' ')}`).join(' ') || '',
       };
 
+      // Step 3: Vectorization (happens inside calculateWeightedMatchPercentage)
+      setCurrentAnalysisStep(3);
       const { totalPercentage, breakdown } = calculateWeightedMatchPercentage(jobDescription, cvSections);
 
-      // Step 3: Collect all skills from CV for direct comparison
+      // Step 4: Similarity Calculation (happens inside calculateWeightedMatchPercentage)
+      setCurrentAnalysisStep(4);
+      // No explicit action here, just updating the step
+
+      // Step 5: Keyword Matching & Gap Analysis
+      setCurrentAnalysisStep(5);
       const allCvSkills: string[] = [];
       resume.skills?.forEach(s => {
         allCvSkills.push(s.name);
         s.keywords?.forEach(k => allCvSkills.push(k));
       });
-      resume.work?.forEach(w => w.highlights?.forEach(h => allCvSkills.push(h))); // Also consider work highlights as skills
+      resume.work?.forEach(w => w.highlights?.forEach(h => allCvSkills.push(h)));
 
-      // Step 4: Generate reasoning with Markdown, overlaps, and feedback
+      // Step 6: Weighted Scoring
+      setCurrentAnalysisStep(6);
       const reasoning = generateReasoning(totalPercentage, breakdown, jobRequirements, allCvSkills);
 
-      // Set the match result
       setMatchResult({ percentage: totalPercentage, reasoning, breakdown });
     } catch (error: any) {
       console.error("Error in job matching:", error);
       showError("Sorry, an error occurred while analyzing the job description. Please try again later.");
     } finally {
       setIsMatching(false);
+      setCurrentAnalysisStep(0); // Reset progress after completion or error
     }
   };
 
@@ -135,7 +158,6 @@ export const JobMatchPopup = ({ isOpen, onOpenChange, onMatchRequest }: JobMatch
   };
 
   const handleMatchAnother = () => {
-    // Reset the match result to allow for a new match
     setMatchResult(null);
     setJobDescription("");
     setIsButtonEnabled(false);
@@ -151,7 +173,16 @@ export const JobMatchPopup = ({ isOpen, onOpenChange, onMatchRequest }: JobMatch
           </DialogDescription>
         </DialogHeader>
         <div className="py-4">
-          {matchResult ? (
+          {isMatching ? (
+            <div className="space-y-4">
+              <Loader2 className="mx-auto h-8 w-8 animate-spin text-primary" />
+              <AnalysisProgressBar
+                currentStep={currentAnalysisStep}
+                totalSteps={ANALYSIS_STEPS.length}
+                stepLabels={ANALYSIS_STEPS}
+              />
+            </div>
+          ) : matchResult ? (
             <div className="space-y-4">
               <div className="text-center">
                 <p className="text-4xl font-bold text-primary">{matchResult.percentage.toFixed(0)}%</p>
