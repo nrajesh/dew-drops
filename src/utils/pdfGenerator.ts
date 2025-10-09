@@ -1,11 +1,11 @@
-import html2canvas from 'html22canvas';
+import html2canvas from 'html2canvas';
 import jsPDF from 'jspdf';
 
 export const downloadPdf = async (element: HTMLElement, filename: string) => {
   const canvas = await html2canvas(element, {
     scale: 2, // Increase scale for better resolution
     useCORS: true, // Enable CORS if images are from external sources
-  });
+  } as any); // Cast to any to bypass type check
 
   const imgData = canvas.toDataURL('image/png');
   const pdf = new jsPDF({
