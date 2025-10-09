@@ -1,22 +1,20 @@
 "use client";
 
-import { useState, useRef } from "react"; // Added useRef
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
-import { Loader2, Sparkles, AlertTriangle, Download } from "lucide-react"; // Added Download icon
+import { Loader2, Sparkles, AlertTriangle } from "lucide-react";
 import ReactMarkdown from 'react-markdown';
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useJobMatching } from "@/hooks/useJobMatching";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { showError } from "@/utils/toast";
-import { Progress } from "@/components/ui/progress";
-import { downloadPdf } from "@/utils/pdfGenerator"; // Import the new utility
+import { Progress } from "@/components/ui/progress"; // Import Progress component
 
 export const CareerFitAnalyst = () => {
   const [jobDescription, setJobDescription] = useState("");
   const [isButtonEnabled, setIsButtonEnabled] = useState(false);
-  const contentRef = useRef<HTMLDivElement>(null); // Ref for the content to be downloaded
 
   const {
     isMatching,
@@ -65,14 +63,6 @@ export const CareerFitAnalyst = () => {
     resetMatch();
     setJobDescription("");
     setIsButtonEnabled(false);
-  };
-
-  const handleDownloadPdf = async () => {
-    if (contentRef.current) {
-      await downloadPdf(contentRef.current, "CareerFitAnalysis.pdf");
-    } else {
-      showError("Could not find content to download.");
-    }
   };
 
   const displayError = contextError || geminiClientError;
@@ -140,14 +130,7 @@ export const CareerFitAnalyst = () => {
         {matchResult && !isMatching && !contextLoading && (
           <div className="space-y-4 mt-6">
             <ScrollArea className="h-64 bg-muted p-4 rounded-lg prose dark:prose-invert max-w-none career-fit-output">
-              <div ref={contentRef} className="space-y-4">
-                <div className="flex justify-end mb-4">
-                  <Button onClick={handleDownloadPdf} variant="outline" size="sm">
-                    <Download className="mr-2 h-4 w-4" /> Download as PDF
-                  </Button>
-                </div>
-                <ReactMarkdown>{matchResult.reasoning}</ReactMarkdown>
-              </div>
+              <ReactMarkdown>{matchResult.reasoning}</ReactMarkdown>
             </ScrollArea>
           </div>
         )}
