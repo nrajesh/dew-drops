@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -8,7 +8,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Button } from "@/components/ui/button";
-import { cn } from "@/lib/utils";
+import { cn, formatDate } from "@/lib/utils"; // Import centralized formatDate
 
 const RESUME_URL = import.meta.env.VITE_RESUME_URL;
 
@@ -53,21 +53,19 @@ const CurriculumVitae = () => {
     fetchResume();
   }, []);
 
-  const formatDate = (dateString: string) => {
-    if (!dateString) return "Present";
-    try {
-      return new Date(dateString).toLocaleDateString('en-US', { year: 'numeric', month: 'short' });
-    } catch {
-      return dateString; // Fallback for invalid date strings
-    }
-  };
-
-  const handlePrint = () => {
+  const handlePrint = useCallback(() => {
     const originalTitle = document.title;
     document.title = `${resume?.basics.name || "Rajesh Narayanan"}-Resume.pdf`;
+
+    // Add a class to the body to force light mode for printing
+    document.body.classList.add('print-light-mode');
+    
     window.print();
+    
+    // Remove the class after printing
+    document.body.classList.remove('print-light-mode');
     document.title = originalTitle;
-  };
+  }, [resume]);
 
   if (loading) {
     return (
@@ -181,7 +179,7 @@ const CurriculumVitae = () => {
                     <div key={index} className="border-b pb-4 last:border-b-0 last:pb-0">
                       <h3 className="text-lg font-semibold">{job.position} at {job.name} ({job.location})</h3>
                       <p className="text-muted-foreground">
-                        {formatDate(job.startDate)} – {job.endDate ? formatDate(job.endDate) : "Present"}
+                        {formatDate(job.startDate, { year: 'numeric', month: 'short' })} – {job.endDate ? formatDate(job.endDate, { year: 'numeric', month: 'short' }) : "Present"}
                       </p>
                       {job.summary && <p>{job.summary}</p>}
                       {job.highlights && job.highlights.length > 0 && (
@@ -219,7 +217,7 @@ const CurriculumVitae = () => {
                       <h3 className="text-lg font-semibold">{edu.institution}</h3>
                       <p className="text-muted-foreground">{edu.studyType} in {edu.area}</p>
                       <p className="text-muted-foreground">
-                        {formatDate(edu.startDate)} – {edu.endDate ? formatDate(edu.endDate) : "Present"}
+                        {formatDate(edu.startDate, { year: 'numeric', month: 'short' })} – {edu.endDate ? formatDate(edu.endDate, { year: 'numeric', month: 'short' }) : "Present"}
                       </p>
                       {edu.gpa && <p>GPA: {edu.gpa}</p>}
                       {edu.courses && edu.courses.length > 0 && (
@@ -275,7 +273,7 @@ const CurriculumVitae = () => {
                   {awards.map((award: ResumeAward, index: number) => (
                     <div key={index} className="border-b pb-4 last:border-b-0 last:pb-0">
                       <h3 className="text-lg font-semibold">{award.title}</h3>
-                      <p className="text-muted-foreground">{award.awarder} - {formatDate(award.date)}</p>
+                      <p className="text-muted-foreground">{award.awarder} - {formatDate(award.date, { year: 'numeric', month: 'short' })}</p>
                       {award.summary && <p>{award.summary}</p>}
                     </div>
                   ))}
@@ -360,7 +358,7 @@ const CurriculumVitae = () => {
                           pub.name
                         )}
                       </h3>
-                      <p className="text-muted-foreground">{pub.publisher} - {formatDate(pub.releaseDate)}</p>
+                      <p className="text-muted-foreground">{formatDate(pub.releaseDate, { year: 'numeric', month: 'short' })}</p>
                       {pub.summary && <p>{pub.summary}</p>}
                     </div>
                   ))}

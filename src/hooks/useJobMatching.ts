@@ -1,5 +1,5 @@
 // src/hooks/useJobMatching.ts
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect, useMemo } from "react";
 import { usePortfolioContext } from "@/hooks/usePortfolioContext";
 import { generateJobMatchReasoning } from "@/utils/jobMatchUtils";
 import { sendMessageToGemini, getGeminiInitializationError } from "@/integrations/gemini/client";
@@ -26,6 +26,8 @@ export const useJobMatching = () => {
   const [geminiClientError, setGeminiClientError] = useState<string | null>(null);
   const [currentStepIndex, setCurrentStepIndex] = useState(0);
 
+  const memoizedAnalysisSteps = useMemo(() => analysisSteps, []);
+
   useEffect(() => {
     const initError = getGeminiInitializationError();
     if (initError) {
@@ -51,7 +53,7 @@ export const useJobMatching = () => {
 
     setIsMatching(true);
     setMatchResult(null);
-    setCurrentStepIndex(0); // Reset step index for the start of analysisSteps
+    setCurrentStepIndex(0); // Reset step index for the start of memoizedAnalysisSteps
 
     try {
       const result = await generateJobMatchReasoning(
@@ -104,7 +106,7 @@ export const useJobMatching = () => {
     resume,
     chatbotKnowledge,
     currentStepIndex,
-    currentStepTitle: analysisSteps[currentStepIndex],
-    totalSteps: analysisSteps.length,
+    currentStepTitle: memoizedAnalysisSteps[currentStepIndex],
+    totalSteps: memoizedAnalysisSteps.length,
   };
 };

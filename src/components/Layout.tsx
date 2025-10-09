@@ -3,7 +3,7 @@ import { Menu, LogIn, LogOut, Plus, Bot, User as UserIcon, Text } from "lucide-r
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger, SheetDescription } from "@/components/ui/sheet";
 import { ThemeToggle } from "./ThemeToggle";
-import { useState } from "react";
+import React, { useState, useCallback, useMemo } from "react"; // Added React import
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { mainNavItems, managementNavItems, navFeatures, settingsNavItems } from "@/config/navigation";
 import { useAuth } from "@/contexts/AuthContext";
@@ -22,14 +22,25 @@ const NavContent = ({ onLinkClick }: { onLinkClick?: () => void }) => {
   const { toggles } = useFeatureToggles();
   const { session } = useAuth();
 
-  const visibleMainNavItems = mainNavItems.filter(item => toggles[item.featureKey] || !item.featureKey);
-  const visibleManagementNavItems = session ? managementNavItems.filter(item => toggles[item.featureKey]) : [];
-  const visibleSettingsNavItems = session ? settingsNavItems : [];
+  const visibleMainNavItems = useMemo(() => 
+    mainNavItems.filter(item => toggles[item.featureKey] || !item.featureKey),
+    [toggles]
+  );
+  const visibleManagementNavItems = useMemo(() => 
+    session ? managementNavItems.filter(item => toggles[item.featureKey]) : [],
+    [session, toggles]
+  );
+  const visibleSettingsNavItems = useMemo(() => 
+    session ? settingsNavItems : [],
+    [session]
+  );
 
-  const navLinkClassName = ({ isActive }: { isActive: boolean }) =>
+  const navLinkClassName = useCallback(({ isActive }: { isActive: boolean }) =>
     `flex items-center gap-3 rounded-lg px-3 py-2 transition-all hover:bg-sidebar-accent hover:text-sidebar-accent-foreground ${
       isActive ? "bg-sidebar-primary text-sidebar-primary-foreground" : "text-sidebar-foreground"
-    }`;
+    }`,
+    []
+  );
 
   const areManagementItemsVisible = visibleManagementNavItems.length > 0;
   const areSettingsItemsVisible = visibleSettingsNavItems.length > 0;
@@ -100,6 +111,8 @@ const NavContent = ({ onLinkClick }: { onLinkClick?: () => void }) => {
   );
 };
 
+const MemoizedNavContent = React.memo(NavContent);
+
 const Layout = () => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const { session, profile } = useAuth();
@@ -108,7 +121,7 @@ const Layout = () => {
   const navigate = useNavigate();
   const { toggles } = useFeatureToggles();
 
-  const handleLogout = async () => {
+  const handleLogout = useCallback(async () => {
     const { error } = await supabase.auth.signOut();
 
     if (error && error.name !== 'AuthSessionMissingError') {
@@ -118,16 +131,22 @@ const Layout = () => {
       showSuccess("You have been logged out.");
       window.location.href = "/";
     }
-  };
+  }, []);
 
-  const handleFormSubmit = (values: PostFormData) => {
+  const handleFormSubmit = useCallback((values: PostFormData) => {
     setIsAddBlogDialogOpen(false);
     navigate('/manage-blog', { state: { newPostData: values } });
-  };
+  }, [navigate]);
 
-  const avatarFallback = profile?.first_name && profile?.last_name
-    ? `${profile.first_name.charAt(0)}${profile.last_name.charAt(0)}`
-    : profile?.first_name?.charAt(0) || <UserIcon className="h-5 w-5" />;
+  const avatarFallback = useMemo(() => {
+    if (profile?.first_name && profile?.last_name) {
+      return `${profile.first_name.charAt(0)}${profile.last_name.charAt(0)}`;
+    }
+    if (profile?.first_name) {
+      return profile.first_name.charAt(0);
+    }
+    return <UserIcon className="h-5 w-5" />;
+  }, [profile]);
 
   return (
     <>
@@ -140,7 +159,7 @@ const Layout = () => {
               </NavLink>
             </div>
             <div className="flex-1 overflow-auto py-2">
-              <NavContent />
+              <MemoizedNavContent />
             </div>
           </div>
         </div>
@@ -170,7 +189,7 @@ const Layout = () => {
                   </NavLink>
                 </div>
                 <div className="flex-1 overflow-auto py-2">
-                  <NavContent onLinkClick={() => setMobileMenuOpen(false)} />
+                  <MemoizedNavContent onLinkClick={() => setMobileMenuOpen(false)} />
                 </div>
               </SheetContent>
             </Sheet>

@@ -81,10 +81,6 @@ export const limitGapsInMarkdown = (markdown: string): string => {
         // Keep non-bullet point text within the gaps section (like 'No significant gaps identified.')
         // but only if it's not another heading
         newLines.push(line);
-      } else if (line.trim().startsWith('##')) {
-        // If a new heading starts, we're out of the gaps section
-        inGapsSection = false;
-        newLines.push(line);
       } else {
         // Keep empty lines or other non-bullet, non-heading content
         newLines.push(line);
@@ -109,4 +105,50 @@ export const markdownToPlainText = (markdown: string): string => {
   plainText = plainText.replace(/\*([^*]+?)\*/g, '$1');   // *italic* -> italic
   plainText = plainText.replace(/_([^_]+?)_/g, '$1');     // _italic_ -> italic
   return plainText;
+};
+
+/**
+ * Cleans job description text by stripping HTML tags, removing excessive newlines,
+ * and filtering out single-word paragraphs.
+ * @param text The input string, potentially containing HTML.
+ * @returns The cleaned plain text.
+ */
+export const cleanJobDescriptionText = (text: string): string => {
+  // 1. Strip HTML tags
+  const doc = new DOMParser().parseFromString(text, 'text/html');
+  let plainText = doc.body.textContent || "";
+
+  // 2. Remove specific LinkedIn boilerplate text more robustly
+  // This regex targets the common start and end phrases of the LinkedIn privacy banner
+  const linkedInBoilerplateRegex = /LinkedIn\s*respects\s*your\s*privacy[\s\S]*?(?:Skip\s*to\s*main\s*content|You\s*can\s*update\s*your\s*choices\s*at\s*any\s*time\s*in\s*your\s*settings\.)/gi;
+  plainText = plainText.replace(linkedInBoilerplateRegex, '');
+
+  // 3. Replace all newlines with a single space, then normalize multiple spaces
+  plainText = plainText.replace(/(\r\n|\n|\r)/g, ' ').replace(/\s\s+/g, ' ').trim();
+
+  // 4. Split the text into words and filter out single-character words or very short words
+  const words = plainText.split(/\s+/);
+  const filteredWords = words.filter(word => word.length > 1); // Keep words longer than 1 character
+
+  return filteredWords.join(' ').trim();
+};
+
+/**
+ * Formats a date string into a human-readable format (e.g., "Month Day, Year").
+ * @param dateString The date string to format.
+ * @param options Optional Intl.DateTimeFormatOptions for custom formatting.
+ * @returns The formatted date string, or an empty string if null/invalid.
+ */
+export const formatDate = (dateString: string | null, options?: Intl.DateTimeFormatOptions): string => {
+  if (!dateString) return "";
+  try {
+    const defaultOptions: Intl.DateTimeFormatOptions = {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+    };
+    return new Date(dateString).toLocaleDateString('en-US', options || defaultOptions);
+  } catch {
+    return dateString; // Fallback for invalid date strings
+  }
 };

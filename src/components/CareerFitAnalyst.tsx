@@ -1,10 +1,10 @@
 "use client";
 
-import React, { useState, useRef, useEffect } from "react";
+import React, { useState, useRef, useEffect, useMemo, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
-import { Loader2, Sparkles, AlertTriangle, Download } from "lucide-react";
+import { Loader2, Sparkles, AlertTriangle, Download, Link as LinkIcon, FileText } from "lucide-react";
 import ReactMarkdown from 'react-markdown';
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useJobMatching, analysisSteps } from "@/hooks/useJobMatching";
@@ -12,10 +12,15 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { showError } from "@/utils/toast";
 import { Progress } from "@/components/ui/progress";
 import { downloadTextFile } from "@/utils/fileDownload";
-import { cn, limitGapsInMarkdown, markdownToPlainText } from "@/lib/utils";
-import { analyzeAndTranslateJobDescription } from "@/utils/aiTextAnalysis"; // Import the new utility
+import { cn, limitGapsInMarkdown, markdownToPlainText, cleanJobDescriptionText } from "@/lib/utils";
+import { analyzeAndTranslateJobDescription } from "@/utils/aiTextAnalysis";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Input } from "@/components/ui/input";
+import { supabase } from "@/integrations/supabase/client"; // Import supabase client
+import { generateCareerFitPdf } from "@/utils/pdfGenerator"; // Import the new PDF utility
+import { marked } from 'marked'; // Import marked for markdown to HTML conversion
 
-const MIN_JOB_DESCRIPTION_LENGTH = 250; // Increased minimum character length
+const MIN_JOB_DESCRIPTION_LENGTH = 250;
 
 const languageNames: { [key: string]: string } = {
   "en": "English", "fr": "French", "es": "Spanish", "de": "German", "it": "Italian", "pt": "Portuguese",
@@ -28,7 +33,7 @@ const languageNames: { [key: string]: string } = {
   "mk": "Macedonian", "ka": "Georgian", "hy": "Armenian", "az": "Azerbaijani", "eu": "Basque", "ca": "Catalan",
   "gl": "Galician", "af": "Afrikaans", "sw": "Swahili", "am": "Amharic", "ne": "Nepali", "ur": "Urdu",
   "pa": "Punjabi", "gu": "Gujarati", "kn": "Kannada", "ml": "Malayalam", "mr": "Marathi", "ta": "Tamil",
-  "te": "Telugu", "sin": "Sinhala", "km": "Khmer", "lo": "Lao", "my": "Burmese", "mn": "Mongolian",
+  "te": "Telugu", "si": "Sinhala", "km": "Khmer", "lo": "Lao", "my": "Burmese", "mn": "Mongolian",
   "uz": "Uzbek", "kk": "Kazakh", "ky": "Kyrgyz", "tg": "Tajik", "ug": "Uyghur", "tk": "Turkmen", "tt": "Tatar",
   "ba": "Bashkir", "cv": "Chuvash", "os": "Ossetian", "ab": "Abkhazian", "ce": "Chechen", "av": "Avaric",
   "lez": "Lezghian", "inh": "Ingush", "kbd": "Kabardian", "ady": "Adyghe", "xal": "Kalmyk", "sah": "Sakha",
@@ -54,16 +59,19 @@ const languageNames: { [key: string]: string } = {
   "nep": "Nepali", "hin": "Hindi", "ben": "Bengali", "pan": "Punjabi", "guj": "Gujarati",
   "jpn": "Japanese", "kor": "Korean", "vie": "Vietnamese", "tha": "Thai", "khm": "Khmer", "lao": "Lao",
   "mya": "Burmese", "mon": "Mongolian", "uzb": "Uzbek", "kaz": "Kazakh", "kir": "Kyrgyz", "tgk": "Tajik",
-  "bo": "Tibetan", "cmn": "Mandarin Chinese", "yue": "Cantonese",
+  "bod": "Tibetan", "cmn": "Mandarin Chinese", "yue": "Cantonese",
   "nan": "Min Nan", "hak": "Hakka", "wuu": "Wu Chinese", "gan": "Gan Chinese", "hsn": "Xiang Chinese",
   "och": "Old Chinese", "lzh": "Literary Chinese"
 };
 
 export const CareerFitAnalyst = () => {
   const [jobDescription, setJobDescription] = useState("");
+  const [jobDescriptionUrl, setJobDescriptionUrl] = useState("");
   const [isButtonEnabled, setIsButtonEnabled] = useState(false);
   const [isPreProcessing, setIsPreProcessing] = useState(false);
-  const [originalLanguage, setOriginalLanguage] = useState<string | null>(null); // New state for original language
+  const [originalLanguage, setOriginalLanguage] = useState<string | null>(null);
+  const [inputMethod, setInputMethod] = useState<"text" | "url">("text");
+  const [isFetchingUrl, setIsFetchingUrl] = useState(false);
 
   const {
     isMatching,
@@ -79,14 +87,10 @@ export const CareerFitAnalyst = () => {
     totalSteps,
   } = useJobMatching();
 
-  // State to store the reasoning after applying the gap limit
   const [limitedReasoning, setLimitedReasoning] = useState<string>('');
-
-  // State for visual glowing progress
   const [displayStepIndex, setDisplayStepIndex] = useState(0);
   const glowTimerRef = useRef<NodeJS.Timeout | null>(null);
 
-  // Effect to update limitedReasoning whenever matchResult changes
   useEffect(() => {
     if (matchResult?.reasoning) {
       setLimitedReasoning(limitGapsInMarkdown(matchResult.reasoning));
@@ -95,43 +99,40 @@ export const CareerFitAnalyst = () => {
     }
   }, [matchResult]);
 
-  // Combine pre-processing and matching steps for overall progress
-  const overallSteps = [
+  const overallSteps = useMemo(() => [
     "Validating entered text",
     ...analysisSteps
-  ];
+  ], []);
   const totalOverallSteps = overallSteps.length;
 
-  const currentOverallStepIndex = isPreProcessing ? 0 : (isMatching ? (currentStepIndex + 1) : -1);
-  // The progressValue now uses displayStepIndex to sync with the visual glow
-  const progressValue = totalOverallSteps > 0 && (isPreProcessing || isMatching) ? ((displayStepIndex + 1) / totalOverallSteps) * 100 : 0;
+  const currentOverallStepIndex = useMemo(() => {
+    if (isPreProcessing) return 0;
+    if (isMatching) return currentStepIndex + 1;
+    return -1;
+  }, [isPreProcessing, isMatching, currentStepIndex]);
 
-  // Effect for controlling the visual glowing of steps
+  const progressValue = useMemo(() => {
+    if (totalOverallSteps === 0 || (!isPreProcessing && !isMatching)) return 0;
+    return ((displayStepIndex + 1) / totalOverallSteps) * 100;
+  }, [totalOverallSteps, isPreProcessing, isMatching, displayStepIndex]);
+
   useEffect(() => {
-    // Clear any existing timer when dependencies change
     if (glowTimerRef.current) {
       clearTimeout(glowTimerRef.current);
       glowTimerRef.current = null;
     }
 
-    // If actual progress has advanced, immediately update displayStepIndex
     if (currentOverallStepIndex > displayStepIndex) {
       setDisplayStepIndex(currentOverallStepIndex);
     }
 
-    // Determine glow duration based on original language
-    const glowDuration = originalLanguage && originalLanguage !== 'en' ? 5000 : 3000; // 5 seconds if not English, 3 seconds if English or not yet detected
+    const glowDuration = originalLanguage && originalLanguage !== 'en' ? 5000 : 3000;
 
-    // If currently processing and not on the last step, set a timer to advance displayStepIndex
-    // The last step can glow longer, so no auto-advance for it.
     if ((isPreProcessing || isMatching) && displayStepIndex < totalOverallSteps - 1) {
       glowTimerRef.current = setTimeout(() => {
-        // Always advance the visual glow if still processing and not on the last step
-        // This provides a sense of continuous progress even if actual step is slow.
         setDisplayStepIndex(prev => Math.min(prev + 1, totalOverallSteps - 1));
-      }, glowDuration); // Use dynamic duration
+      }, glowDuration);
     } else if (!(isPreProcessing || isMatching)) {
-      // If not processing, reset displayStepIndex and originalLanguage
       setDisplayStepIndex(0);
       setOriginalLanguage(null);
     }
@@ -141,25 +142,56 @@ export const CareerFitAnalyst = () => {
         clearTimeout(glowTimerRef.current);
       }
     };
-  }, [currentOverallStepIndex, displayStepIndex, isPreProcessing, isMatching, totalOverallSteps, originalLanguage]); // Add originalLanguage to dependencies
+  }, [currentOverallStepIndex, displayStepIndex, isPreProcessing, isMatching, totalOverallSteps, originalLanguage]);
 
-  // Reset displayStepIndex when analysis starts or resets
   useEffect(() => {
     if (!isPreProcessing && !isMatching && !matchResult) {
       setDisplayStepIndex(0);
     }
   }, [isPreProcessing, isMatching, matchResult]);
 
-  const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+  const handleInputChange = useCallback((e: React.ChangeEvent<HTMLTextAreaElement>) => {
     const value = e.target.value;
     setJobDescription(value);
     setIsButtonEnabled(value.length >= MIN_JOB_DESCRIPTION_LENGTH);
-  };
+  }, []);
 
-  const handleSubmit = async () => {
-    if (jobDescription.length < MIN_JOB_DESCRIPTION_LENGTH) {
-      showError(`Please enter at least ${MIN_JOB_DESCRIPTION_LENGTH} characters for a meaningful match.`);
-      return;
+  const handleUrlChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    setJobDescriptionUrl(value);
+    setIsButtonEnabled(value.trim() !== "");
+  }, []);
+
+  const fetchJobDescriptionFromUrl = useCallback(async (url: string): Promise<string> => {
+    try {
+      const { data, error } = await supabase.functions.invoke('fetch-url-content', {
+        body: { url },
+      });
+
+      if (error) {
+        throw new Error(error.message);
+      }
+      if (!data || !data.content) {
+        throw new Error("Failed to retrieve content from the URL.");
+      }
+      return data.content;
+    } catch (error: any) {
+      throw new Error(`Error fetching job description from URL via proxy: ${error.message}`);
+    }
+  }, []);
+
+  const handleSubmit = useCallback(async () => {
+    if (inputMethod === "text") {
+      if (jobDescription.length < MIN_JOB_DESCRIPTION_LENGTH) {
+        showError(`Please enter at least ${MIN_JOB_DESCRIPTION_LENGTH} characters for a meaningful match.`);
+        return;
+      }
+    } else {
+      if (!jobDescriptionUrl.trim()) {
+        showError("Please enter a valid URL.");
+        return;
+      }
+      setIsFetchingUrl(true);
     }
 
     if (!resume) {
@@ -172,47 +204,88 @@ export const CareerFitAnalyst = () => {
     }
 
     setIsPreProcessing(true);
-    setDisplayStepIndex(0); // Ensure visual progress starts at 0
+    setDisplayStepIndex(0);
 
     try {
-      const analysisResult = await analyzeAndTranslateJobDescription(jobDescription);
-      setOriginalLanguage(analysisResult.originalLanguage); // Set the detected language
+      let textToAnalyze = jobDescription;
+
+      if (inputMethod === "url") {
+        const fetchedHtml = await fetchJobDescriptionFromUrl(jobDescriptionUrl);
+        textToAnalyze = cleanJobDescriptionText(fetchedHtml); // Use the new cleaning function
+        setJobDescription(textToAnalyze); // Set the fetched and cleaned content to jobDescription state
+      }
+
+      const analysisResult = await analyzeAndTranslateJobDescription(textToAnalyze);
+      setOriginalLanguage(analysisResult.originalLanguage);
 
       if (!analysisResult.isValidJobDescription) {
-        showError(analysisResult.processedText); // This will contain the "INVALID_JOB_DESCRIPTION" message
+        showError(analysisResult.processedText);
         return;
       }
 
-      // Proceed with job matching using the processed (potentially translated) text
       await performJobMatch(analysisResult.processedText);
-
     } catch (error: any) {
       console.error("Error in pre-analysis or career fit analysis:", error);
       showError(error.message || "Sorry, an error occurred during job description validation or analysis. Please try again later.");
     } finally {
       setIsPreProcessing(false);
+      setIsFetchingUrl(false);
     }
-  };
+  }, [
+    inputMethod,
+    jobDescription,
+    jobDescriptionUrl,
+    resume,
+    contextError,
+    geminiClientError,
+    fetchJobDescriptionFromUrl,
+    performJobMatch,
+  ]);
 
-  const handleAnalyzeAnother = () => {
+  const handleAnalyzeAnother = useCallback(() => {
     resetMatch();
     setJobDescription("");
+    setJobDescriptionUrl("");
     setIsButtonEnabled(false);
-    setLimitedReasoning(''); // Clear limited reasoning on reset
+    setLimitedReasoning('');
     setIsPreProcessing(false);
-    setDisplayStepIndex(0); // Reset visual progress
-    setOriginalLanguage(null); // Reset original language
-  };
+    setDisplayStepIndex(0);
+    setOriginalLanguage(null);
+  }, [resetMatch]);
 
-  const handleDownloadText = () => {
+  const handleDownloadText = useCallback(() => {
     if (limitedReasoning) {
-      // Use the pre-limited reasoning for download
       const plainTextContent = markdownToPlainText(limitedReasoning);
       downloadTextFile(plainTextContent, "CareerFitAnalysis.txt");
     } else {
       showError("No analysis result to download.");
     }
-  };
+  }, [limitedReasoning]);
+
+  const handleDownloadPdf = useCallback(async () => {
+    if (!matchResult) {
+      showError("No analysis result to download as PDF.");
+      return;
+    }
+
+    // Convert markdown reasoning to HTML
+    const renderedMarkdownHtml = marked.parse(limitedReasoning);
+
+    const contentToPrint = `
+      <div class="pdf-content-wrapper">
+        <h2 class="text-2xl font-bold mb-4">Job Description</h2>
+        ${inputMethod === "url" ? `<p class="text-muted-foreground mb-4">Source URL: <a href="${jobDescriptionUrl}" target="_blank" rel="noopener noreferrer">${jobDescriptionUrl}</a></p>` : ''}
+        <p class="whitespace-pre-wrap text-sm mb-8">${jobDescription}</p>
+
+        <h2 class="text-2xl font-bold mb-4">Career Fit Analyst Result</h2>
+        <div class="prose dark:prose-invert max-w-none career-fit-output">
+          ${renderedMarkdownHtml}
+        </div>
+      </div>
+    `;
+
+    await generateCareerFitPdf(contentToPrint, "CareerFitAnalysis.pdf");
+  }, [matchResult, limitedReasoning, inputMethod, jobDescriptionUrl, jobDescription]);
 
   const displayError = contextError || geminiClientError;
 
@@ -238,7 +311,7 @@ export const CareerFitAnalyst = () => {
           </Alert>
         )}
 
-        {contextLoading || isMatching || isPreProcessing ? (
+        {contextLoading || isMatching || isPreProcessing || isFetchingUrl ? (
           <div className="space-y-4 text-center py-8">
             <div className="flex justify-center gap-2 mb-4 flex-wrap">
               {overallSteps.map((step, index) => (
@@ -263,23 +336,53 @@ export const CareerFitAnalyst = () => {
             <Progress value={progressValue} className="w-full" />
             {displayStepIndex === totalOverallSteps - 1 && (
               <p className="text-sm text-muted-foreground">
-                This step may take 5-15 seconds depending on the length of your job description and the number of matching criteria.
+                This step may take a few minutes depending on the length of your job description and the number of matching criteria.
               </p>
             )}
           </div>
         ) : (
           <>
-            <Textarea
-              placeholder={`Paste your job description here (minimum ${MIN_JOB_DESCRIPTION_LENGTH} characters)...`}
-              value={jobDescription}
-              onChange={handleInputChange}
-              className="min-h-[200px]"
-              disabled={!resume || !!displayError}
-            />
-            <p className="text-sm text-muted-foreground">
-              {jobDescription.length}/{MIN_JOB_DESCRIPTION_LENGTH} characters minimum
-            </p>
-            {!matchResult ? (
+            <Tabs defaultValue="text" onValueChange={(value) => setInputMethod(value as "text" | "url")}>
+              <TabsList className="grid w-full grid-cols-2">
+                <TabsTrigger value="text" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">Paste Description</TabsTrigger>
+                <TabsTrigger value="url" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">Provide URL</TabsTrigger>
+              </TabsList>
+              <TabsContent value="text">
+                <Textarea
+                  placeholder={`Paste your job description here (minimum ${MIN_JOB_DESCRIPTION_LENGTH} characters)...`}
+                  value={jobDescription}
+                  onChange={handleInputChange}
+                  className="min-h-[200px]"
+                  disabled={!resume || !!displayError}
+                />
+                <p className="text-sm text-muted-foreground mt-2">
+                  {jobDescription.length}/{MIN_JOB_DESCRIPTION_LENGTH} characters minimum
+                </p>
+              </TabsContent>
+              <TabsContent value="url">
+                <div className="flex items-center gap-2">
+                  <Input
+                    type="url"
+                    placeholder="https://example.com/job-description"
+                    value={jobDescriptionUrl}
+                    onChange={handleUrlChange}
+                    disabled={!resume || !!displayError}
+                  />
+                  <Button
+                    onClick={handleSubmit}
+                    disabled={!isButtonEnabled || !resume || !!displayError}
+                  >
+                    <LinkIcon className="mr-2 h-4 w-4" />
+                    Fetch & Analyze
+                  </Button>
+                </div>
+                <p className="text-sm text-muted-foreground mt-2">
+                  Provide a URL where the job description is hosted.
+                </p>
+              </TabsContent>
+            </Tabs>
+
+            {!matchResult && inputMethod === "text" && (
               <Button
                 onClick={handleSubmit}
                 disabled={!isButtonEnabled || !resume || !!displayError}
@@ -288,8 +391,10 @@ export const CareerFitAnalyst = () => {
                 <Sparkles className="mr-2 h-4 w-4" />
                 Calculate Match Percentage
               </Button>
-            ) : (
-              <Button onClick={handleAnalyzeAnother} className="w-full">
+            )}
+
+            {matchResult && (
+              <Button onClick={handleAnalyzeAnother} className="w-full pdf-hidden">
                 Analyze Another Job Description
               </Button>
             )}
@@ -298,20 +403,24 @@ export const CareerFitAnalyst = () => {
 
         {matchResult && !isMatching && !contextLoading && !isPreProcessing && (
           <div className="space-y-4 mt-6">
+            <div className="flex justify-end gap-2 mb-4 pdf-hidden">
+              <Button
+                onClick={handleDownloadText}
+                variant="outline"
+                size="sm"
+              >
+                <Download className="mr-2 h-4 w-4" /> Download as Text
+              </Button>
+              <Button
+                onClick={handleDownloadPdf}
+                variant="outline"
+                size="sm"
+              >
+                <FileText className="mr-2 h-4 w-4" /> Download as PDF
+              </Button>
+            </div>
             <ScrollArea className="h-64 bg-muted p-4 rounded-lg prose dark:prose-invert max-w-none career-fit-output">
-              <div className="space-y-4">
-                <div className="flex justify-end mb-4 print:hidden">
-                  <Button
-                    onClick={handleDownloadText}
-                    variant="outline"
-                    size="sm"
-                    className="print:hidden"
-                  >
-                    <Download className="mr-2 h-4 w-4" /> Download as Text
-                  </Button>
-                </div>
-                <ReactMarkdown>{limitedReasoning}</ReactMarkdown> {/* Use limitedReasoning for display */}
-              </div>
+              <ReactMarkdown>{limitedReasoning}</ReactMarkdown>
             </ScrollArea>
           </div>
         )}

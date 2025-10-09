@@ -138,7 +138,7 @@
   }
 
   /* Force light theme colors for printing */
-  :root, .dark {
+  .print-light-mode {
     --background: 210 40% 98% !important;
     --foreground: 220 10% 20% !important;
     --card: 210 40% 100% !important;
@@ -171,7 +171,7 @@
     display: none !important;
   }
   /* Ensure the print button is hidden */
-  .print\:hidden {
+  .print\:hidden, .pdf-hidden {
     display: none !important;
   }
   /* Force all collapsible sections to be open for printing by default if not explicitly closed */
@@ -201,5 +201,36 @@
   /* General print resets */
   a[href]:after {
     content: none !important;
+  }
+
+  /* Specific styles for PDF content wrapper */
+  .pdf-content-wrapper {
+    font-family: sans-serif;
+    color: hsl(var(--foreground));
+    line-height: 1.6;
+  }
+
+  .pdf-content-wrapper h2 {
+    font-size: 1.5rem;
+    font-weight: bold;
+    margin-top: 1.5rem;
+    margin-bottom: 0.75rem;
+    color: hsl(var(--primary));
+  }
+
+  .pdf-content-wrapper p {
+    margin-bottom: 0.5rem;
+  }
+
+  .pdf-content-wrapper a {
+    color: hsl(var(--primary));
+    text-decoration: underline;
+  }
+
+  .pdf-content-wrapper .career-fit-output {
+    background-color: hsl(var(--muted));
+    padding: 1rem;
+    border-radius: 0.5rem;
+    border: 1px solid hsl(var(--border));
   }
 }

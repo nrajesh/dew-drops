@@ -10,6 +10,7 @@ import { Search } from "lucide-react";
 import { useDebounce } from "@/hooks/useDebounce";
 import { PaginationControls } from "@/components/PaginationControls";
 import { usePaginationNavigation } from "@/hooks/usePaginationNavigation";
+import { formatDate } from '@/lib/utils'; // Import centralized formatDate
 
 const LazyMultiSelectPopover = lazy(() => import("@/components/MultiSelectPopover").then(module => ({ default: module.MultiSelectPopover })));
 
@@ -76,15 +77,6 @@ const Blog = () => {
   useEffect(() => {
     setCurrentPage(1);
   }, [selectedTags, debouncedSearchTerm]);
-
-  const formatDate = (dateString: string | null) => {
-    if (!dateString) return "";
-    return new Date(dateString).toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric',
-    });
-  };
 
   return (
     <div className="flex flex-col min-h-[calc(100vh-112px)]" ref={containerRef}>
