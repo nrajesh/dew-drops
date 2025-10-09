@@ -1,20 +1,62 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
-import { Loader2, Sparkles, AlertTriangle } from "lucide-react";
+import { Loader2, Sparkles, AlertTriangle, Download } from "lucide-react";
 import ReactMarkdown from 'react-markdown';
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useJobMatching } from "@/hooks/useJobMatching";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { showError } from "@/utils/toast";
-import { Progress } from "@/components/ui/progress"; // Import Progress component
+import { Progress } from "@/components/ui/progress";
+import { downloadPdf } from "@/utils/pdfGenerator";
+
+// Helper function to limit gaps in markdown output
+const limitGapsInMarkdown = (markdown: string): string => {
+  const lines = markdown.split('\n');
+  let inGapsSection = false;
+  let gapCount = 0;
+  const newLines: string[] = [];
+
+  for (const line of lines) {
+    if (line.startsWith('## Gaps')) {
+      inGapsSection = true;
+      newLines.push(line);
+      continue;
+    }
+
+    if (inGapsSection) {
+      // If it's a bullet point for a gap
+      if (line.trim().startsWith('- ') || line.trim().startsWith('+ ')) {
+        if (gapCount < 3) {
+          newLines.push(line);
+          gapCount++;
+        }
+      } else if (line.trim().length > 0 && !line.trim().startsWith('##')) {
+        // Keep non-bullet point text within the gaps section (like 'No significant gaps identified.')
+        // but only if it's not another heading
+        newLines.push(line);
+      } else if (line.trim().startsWith('##')) {
+        // If a new heading starts, we're out of the gaps section
+        inGapsSection = false;
+        newLines.push(line);
+      } else {
+        // Keep empty lines or other non-bullet, non-heading content
+        newLines.push(line);
+      }
+    } else {
+      newLines.push(line);
+    }
+  }
+  return newLines.join('\n');
+};
 
 export const CareerFitAnalyst = () => {
   const [jobDescription, setJobDescription] = useState("");
   const [isButtonEnabled, setIsButtonEnabled] = useState(false);
+  const contentRef = useRef<HTMLDivElement>(null); // Ref for the content to be downloaded
 
   const {
     isMatching,
@@ -65,8 +107,19 @@ export const CareerFitAnalyst = () => {
     setIsButtonEnabled(false);
   };
 
+  const handleDownloadPdf = async () => {
+    if (contentRef.current) {
+      await downloadPdf(contentRef.current, "CareerFitAnalysis.pdf");
+    } else {
+      showError("Could not find content to download.");
+    }
+  };
+
   const displayError = contextError || geminiClientError;
   const progressValue = totalSteps > 0 ? ((currentStepIndex + 1) / totalSteps) * 100 : 0;
+
+  // Apply the gap limiting logic here before rendering
+  const displayedReasoning = matchResult ? limitGapsInMarkdown(matchResult.reasoning) : '';
 
   return (
     <Card className="w-full max-w-3xl mx-auto">
@@ -130,7 +183,14 @@ export const CareerFitAnalyst = () => {
         {matchResult && !isMatching && !contextLoading && (
           <div className="space-y-4 mt-6">
             <ScrollArea className="h-64 bg-muted p-4 rounded-lg prose dark:prose-invert max-w-none career-fit-output">
-              <ReactMarkdown>{matchResult.reasoning}</ReactMarkdown>
+              <div ref={contentRef} className="space-y-4">
+                <div className="flex justify-end mb-4">
+                  <Button onClick={handleDownloadPdf} variant="outline" size="sm">
+                    <Download className="mr-2 h-4 w-4" /> Download as PDF
+                  </Button>
+                </div>
+                <ReactMarkdown>{displayedReasoning}</ReactMarkdown>
+              </div>
             </ScrollArea>
           </div>
         )}
