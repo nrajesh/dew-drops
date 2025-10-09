@@ -66,15 +66,76 @@ ${jobDescriptionText}
 
   try {
     const rawResponse = await sendMessageToGemini(prompt);
-    // Gemini might sometimes wrap JSON in markdown code blocks, so we need to extract it.
-    const jsonString = rawResponse.replace(/```json\n([\s\S]*?)\n```/, '$1').trim();
-    const result: JobDescriptionAnalysisResult = JSON.parse(jsonString);
+    let jsonString = rawResponse.replace(/```json\n([\s\S]*?)\n```/, '$1').trim();
 
-    if (!result.isValidJobDescription && result.processedText === "INVALID_JOB_DESCRIPTION") {
-      throw new Error("The provided text does not appear to be a formal job description. Please ensure you paste a formal job description.");
+    try {
+      const result: JobDescriptionAnalysisResult = JSON.parse(jsonString);
+      if (!result.isValidJobDescription && result.processedText === "INVALID_JOB_DESCRIPTION") {
+        throw new Error("The provided text does not appear to be a formal job description. Please ensure you paste a formal job description.");
+      }
+      return result;
+    } catch (parseError) {
+      console.warn("Initial JSON parse failed, attempting to sanitize and re-parse.", parseError);
+      console.warn("Problematic raw AI response:", rawResponse);
+
+      // Attempt to fix common JSON issues:
+      // 1. Remove control characters from the entire string
+      // eslint-disable-next-line no-control-regex
+      jsonString = jsonString.replace(/[\x00-\x1f\x7f-\x9f]/g, '');
+
+      // 2. Try to extract fields using regex as a fallback
+      const isValidJobDescriptionMatch = jsonString.match(/"isValidJobDescription":\s*(true|false)/);
+      const originalLanguageMatch = jsonString.match(/"originalLanguage":\s*"([^"]*)"/);
+
+      if (isValidJobDescriptionMatch && originalLanguageMatch) {
+        const isValidJobDescription = isValidJobDescriptionMatch[1] === 'true';
+        const originalLanguage = originalLanguageMatch[1];
+
+        // Attempt to extract processedText more leniently
+        const processedTextStartTag = '"processedText": "';
+        const processedTextStartIndex = jsonString.indexOf(processedTextStartTag);
+
+        let extractedProcessedText = "";
+        if (processedTextStartIndex !== -1) {
+          let potentialText = jsonString.substring(processedTextStartIndex + processedTextStartTag.length);
+
+          // Find the last unescaped double quote that would be the end of the string value
+          let lastQuoteIndex = -1;
+          for (let i = potentialText.length - 1; i >= 0; i--) {
+            if (potentialText[i] === '"' && (i === 0 || potentialText[i - 1] !== '\\')) {
+              lastQuoteIndex = i;
+              break;
+            }
+          }
+
+          if (lastQuoteIndex !== -1) {
+            extractedProcessedText = potentialText.substring(0, lastQuoteIndex);
+          } else {
+            // If no closing quote found, take the rest of the string and clean it
+            extractedProcessedText = potentialText;
+          }
+
+          // Now, sanitize this extracted content for any problematic characters
+          // eslint-disable-next-line no-control-regex
+          extractedProcessedText = extractedProcessedText.replace(/[\x00-\x1f\x7f-\x9f]/g, '');
+          // Unescape already escaped quotes
+          extractedProcessedText = extractedProcessedText.replace(/\\"/g, '"');
+        }
+
+        if (!isValidJobDescription && extractedProcessedText === "INVALID_JOB_DESCRIPTION") {
+          throw new Error("The provided text does not appear to be a formal job description. Please ensure you paste a formal job description.");
+        }
+
+        return {
+          isValidJobDescription,
+          originalLanguage,
+          processedText: extractedProcessedText
+        };
+      }
+
+      // If all fallback attempts fail, re-throw the original parsing error.
+      throw parseError;
     }
-
-    return result;
   } catch (error: any) {
     console.error("Error during job description analysis and translation:", error);
     if (error.message.includes("JSON.parse")) {
