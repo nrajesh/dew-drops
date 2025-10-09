@@ -113,6 +113,19 @@
   background-color: hsla(var(--primary-foreground), 0.1);
 }
 
+/* Custom styling for CareerFitAnalyst output */
+.career-fit-output .prose ul {
+  list-style-type: none !important; /* Remove default bullets */
+  padding-left: 0 !important; /* Remove default padding */
+  margin-left: 0 !important; /* Remove default margin */
+}
+
+.career-fit-output .prose ul li {
+  padding-left: 0 !important; /* Ensure list items are left-aligned */
+  margin-left: 0 !important; /* Ensure list items are left-aligned */
+  text-align: left !important; /* Explicitly left-align text */
+}
+
 @media print {
   @page {
     size: A4;
