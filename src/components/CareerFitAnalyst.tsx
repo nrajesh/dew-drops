@@ -185,7 +185,7 @@ export const CareerFitAnalyst = () => {
             <ScrollArea className="h-64 bg-muted p-4 rounded-lg prose dark:prose-invert max-w-none career-fit-output">
               <div ref={contentRef} className="space-y-4">
                 <div className="flex justify-end mb-4">
-                  <Button onClick={handleDownloadPdf} variant="outline" size="sm">
+                  <Button onClick={handleDownloadPdf} variant="outline" size="sm" className="print:hidden">
                     <Download className="mr-2 h-4 w-4" /> Download as PDF
                   </Button>
                 </div>
