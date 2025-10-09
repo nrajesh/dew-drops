@@ -12,15 +12,15 @@ This README provides a comprehensive guide to understanding, customizing, and ma
 -   **Interactive Travel Map:** Pin your travel destinations on a world map, with bulk import/export and management features.
 -   **Contact Form:** A secure, serverless contact form that sends emails directly to you.
 -   **AI Chatbot:** An integrated chatbot powered by Google Gemini that uses an editable knowledge base to provide intelligent answers about your portfolio. It also includes an auto-generate feature to populate the knowledge base from your content.
--   **AI-Powered Career Fit Analyst:** An advanced tool that analyzes job descriptions against your resume and portfolio content, providing a detailed breakdown of matching areas and potential gaps.
+-   **AI-Powered Career Fit Analyst:** An advanced tool that analyzes job descriptions against your resume and portfolio content, providing a detailed breakdown of matching areas and potential gaps, with the ability to download the analysis as text or PDF.
 -   **Comprehensive Data Management:** Export your entire portfolio to a single JSON file for backup, or import a backup to restore your site. You can also reset all data.
 -   **User Profile Management:** Securely update your administrator profile information, avatar, and change your password.
 -   **Feature Toggles:** A settings page to enable or disable entire sections of the portfolio.
--   **Enhanced Navigation:** All content pages are paginated and can be navigated using keyboard arrows or swipe gestures on mobile.
 -   **Light & Dark Mode:** A sleek theme toggle for user preference.
--   **Text Readability Controls:** Adjust base font size and line spacing for a personalized reading experience.
--   **CV/Portfolio Page:** A dedicated page to display a professional curriculum vitae, with collapsible sections for easy viewing and print-friendly formatting.
+-   **Text Readability Controls:** Users can adjust base font size and line spacing for a personalized reading experience.
 -   **Fully Responsive:** Designed to look great on all devices, from desktops to mobile phones.
+-   **Enhanced Navigation:** All content pages are paginated and can be navigated using keyboard arrows or swipe gestures on mobile.
+-   **CV/Portfolio Page:** A dedicated page to display a professional curriculum vitae, with collapsible sections for easy viewing and print-friendly formatting, including a "Print to PDF" option.
 
 ---
 
@@ -99,10 +99,10 @@ The gallery management page uses a two-tab system—**Published** and **Unpublis
 ### 📊 Using the AI-Powered Career Fit Analyst
 
 1.  **Navigate:** Go to the **Match CV** page from the main navigation.
-2.  **Paste Job Description:** Enter a job description into the provided text area.
-3.  **Analyze:** Click "Calculate Match Percentage" to initiate the AI analysis. The system will validate the text, extract key criteria, and compare it against your resume and portfolio content.
+2.  **Input Job Description:** You can either paste a job description directly into the text area or provide a URL to a job posting.
+3.  **Analyze:** Click "Calculate Match Percentage" (or "Fetch & Analyze" for URLs) to initiate the AI analysis. The system will validate the text, extract key criteria, and compare it against your resume and portfolio content.
 4.  **Review Results:** The AI will generate a detailed markdown report outlining "Matching Areas" and "Gaps," explaining how your profile aligns with the role.
-5.  **Download:** You can download the analysis report as a plain text file.
+5.  **Download:** You can download the analysis report as a plain text file or a formatted PDF.
 
 ### 📄 Managing Your CV/Portfolio Page
 
@@ -110,19 +110,6 @@ The gallery management page uses a two-tab system—**Published** and **Unpublis
 2.  **Content Source:** The content for this page is fetched from the URL specified in your `VITE_RESUME_URL` environment variable. Update this variable to point to your own JSON Resume file.
 3.  **Collapsible Sections:** Each section (Work Experience, Education, Skills, etc.) is collapsible for easier viewing.
 4.  **Print to PDF:** Use the "Print to PDF" button to generate a clean, print-friendly version of your CV. Collapsed sections will not be included in the printout.
-
-### ⚙️ Managing Your Data
-
-1.  **Navigate:** Go to the **Manage Data** page under "Settings".
-2.  **Export:** Download a complete backup of your posts, gallery metadata, travel locations, and chatbot knowledge in a single JSON file.
-3.  **Import:** **(Destructive)** Upload a backup JSON file to restore your portfolio. This will delete all existing data first.
-4.  **Reset:** **(Destructive)** Permanently delete all content from your portfolio.
-
-### 👤 Managing Your Profile
-
-1.  **Navigate:** Go to the **User Profile** page under "Settings".
-2.  **Update Info:** Change your first name, last name, and avatar.
-3.  **Change Password:** Securely update your administrator password.
 
 ### 🔠 Adjusting Text Readability
 
