@@ -13,11 +13,9 @@ const stopwords = new Set([
 const tokenize = (text: string): string[] => {
   return text
     .toLowerCase()
-    .replace(/[.,/#!$%^&*;:{}=\-_`~()]/g, "") // Remove punctuation
-    .replace(/\s\s+/g, " ") // Replace multiple spaces with single space
-    .trim()
-    .split(" ")
-    .filter(word => word.length > 0 && !stopwords.has(word)); // Filter stopwords
+    .replace(/[^\w\s]/g, "") // Remove all non-word, non-space characters
+    .split(/\s+/) // Split by one or more spaces
+    .filter(word => word.length > 0 && !stopwords.has(word)); // Filter out empty strings and stopwords
 };
 
 /**
@@ -45,17 +43,22 @@ const calculateInverseDocumentFrequency = (
 ): Map<string, number> => {
   const idf = new Map<string, number>();
   const numDocuments = allTokens.length;
+  const documentFrequency = new Map<string, number>();
 
-  vocabulary.forEach((value, term) => {
-    let documentCount = 0;
-    for (const tokens of allTokens) {
-      if (tokens.includes(term)) {
-        documentCount++;
-      }
+  // Calculate document frequency for each term by iterating through documents once
+  for (const tokens of allTokens) {
+    const uniqueTokensInDoc = new Set(tokens);
+    for (const term of uniqueTokensInDoc) {
+      documentFrequency.set(term, (documentFrequency.get(term) || 0) + 1);
     }
+  }
+
+  // Calculate IDF scores
+  vocabulary.forEach((value, term) => {
+    const docCount = documentFrequency.get(term) || 0;
     // Add 1 to the denominator to avoid division by zero for terms not in any document
     // and to smooth the IDF calculation.
-    idf.set(term, Math.log(numDocuments / (documentCount + 1)));
+    idf.set(term, Math.log(numDocuments / (docCount + 1)));
   });
   return idf;
 };
