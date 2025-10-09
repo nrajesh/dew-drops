@@ -4,7 +4,7 @@ import React, { useState, useRef, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
-import { Loader2, Sparkles, AlertTriangle, Download, Link as LinkIcon } from "lucide-react";
+import { Loader2, Sparkles, AlertTriangle, Download, Link as LinkIcon, FileText } from "lucide-react";
 import ReactMarkdown from 'react-markdown';
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useJobMatching, analysisSteps } from "@/hooks/useJobMatching";
@@ -17,6 +17,7 @@ import { analyzeAndTranslateJobDescription } from "@/utils/aiTextAnalysis";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
 import { supabase } from "@/integrations/supabase/client"; // Import supabase client
+import { generateCareerFitPdf } from "@/utils/pdfGenerator"; // Import the new PDF utility
 
 const MIN_JOB_DESCRIPTION_LENGTH = 250;
 
@@ -242,6 +243,28 @@ export const CareerFitAnalyst = () => {
     }
   };
 
+  const handleDownloadPdf = async () => {
+    if (!matchResult) {
+      showError("No analysis result to download as PDF.");
+      return;
+    }
+
+    const contentToPrint = `
+      <div class="pdf-content-wrapper">
+        <h2 class="text-2xl font-bold mb-4">Job Description</h2>
+        ${inputMethod === "url" ? `<p class="text-muted-foreground mb-4">Source URL: <a href="${jobDescriptionUrl}" target="_blank" rel="noopener noreferrer">${jobDescriptionUrl}</a></p>` : ''}
+        <p class="whitespace-pre-wrap text-sm mb-8">${jobDescription}</p>
+
+        <h2 class="text-2xl font-bold mb-4">Career Fit Analyst Result</h2>
+        <div class="prose dark:prose-invert max-w-none career-fit-output">
+          ${limitedReasoning}
+        </div>
+      </div>
+    `;
+
+    await generateCareerFitPdf(contentToPrint, "CareerFitAnalysis.pdf");
+  };
+
   const displayError = contextError || geminiClientError;
 
   return (
@@ -291,7 +314,7 @@ export const CareerFitAnalyst = () => {
             <Progress value={progressValue} className="w-full" />
             {displayStepIndex === totalOverallSteps - 1 && (
               <p className="text-sm text-muted-foreground">
-                This step may take a few minutes depending on the length of your job description and size of matching criteria.
+                This step may take a few minutes depending on the length of your job description and the number of matching criteria.
               </p>
             )}
           </div>
@@ -299,8 +322,8 @@ export const CareerFitAnalyst = () => {
           <>
             <Tabs defaultValue="text" onValueChange={(value) => setInputMethod(value as "text" | "url")}>
               <TabsList className="grid w-full grid-cols-2">
-                <TabsTrigger value="text">Paste Description</TabsTrigger>
-                <TabsTrigger value="url">Provide URL</TabsTrigger>
+                <TabsTrigger value="text" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">Paste Description</TabsTrigger>
+                <TabsTrigger value="url" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">Provide URL</TabsTrigger>
               </TabsList>
               <TabsContent value="text">
                 <Textarea
@@ -349,7 +372,7 @@ export const CareerFitAnalyst = () => {
             )}
 
             {matchResult && (
-              <Button onClick={handleAnalyzeAnother} className="w-full">
+              <Button onClick={handleAnalyzeAnother} className="w-full pdf-hidden">
                 Analyze Another Job Description
               </Button>
             )}
@@ -358,17 +381,23 @@ export const CareerFitAnalyst = () => {
 
         {matchResult && !isMatching && !contextLoading && !isPreProcessing && (
           <div className="space-y-4 mt-6">
+            <div className="flex justify-end gap-2 mb-4 pdf-hidden">
+              <Button
+                onClick={handleDownloadText}
+                variant="outline"
+                size="sm"
+              >
+                <Download className="mr-2 h-4 w-4" /> Download as Text
+              </Button>
+              <Button
+                onClick={handleDownloadPdf}
+                variant="outline"
+                size="sm"
+              >
+                <FileText className="mr-2 h-4 w-4" /> Download as PDF
+              </Button>
+            </div>
             <ScrollArea className="h-64 bg-muted p-4 rounded-lg prose dark:prose-invert max-w-none career-fit-output">
-              <div className="flex justify-end mb-4 print:hidden">
-                <Button
-                  onClick={handleDownloadText}
-                  variant="outline"
-                  size="sm"
-                  className="print:hidden"
-                >
-                  <Download className="mr-2 h-4 w-4" /> Download as Text
-                </Button>
-              </div>
               <ReactMarkdown>{limitedReasoning}</ReactMarkdown>
             </ScrollArea>
           </div>
