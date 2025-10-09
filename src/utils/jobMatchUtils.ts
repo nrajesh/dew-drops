@@ -44,6 +44,20 @@ export const generateJobMatchReasoning = async (
   const overlaps = Array.from(jobReqSet).filter((req: string) => cvSkillsSet.has(req));
   const missing = Array.from(jobReqSet).filter((req: string) => !cvSkillsSet.has(req));
 
+  let feedback = `**Breakdown:**\n`;
+  feedback += `- **Experience:** ${breakdown.experience.toFixed(0)}%\n`;
+  feedback += `- **Education:** ${breakdown.education.toFixed(0)}%\n`;
+  feedback += `- **Skills:** ${breakdown.skills.toFixed(0)}%\n\n`;
+
+  if (overlaps.length > 0) {
+    feedback += `**Key Overlapping Skills/Requirements:**\n- ${overlaps.join(', ')}\n\n`;
+  }
+  if (missing.length > 0) {
+    feedback += `**Missing Key Skills/Requirements:**\n- ${missing.join(', ')}\n\n`;
+    feedback += `**Actionable Feedback:**\n`;
+    feedback += `To improve alignment, consider highlighting experiences or projects where you've utilized these missing skills. If you have relevant experience not explicitly listed, ensure it's added to your CV. For skills you're developing, consider adding them to a "Learning" or "Future Skills" section, or gaining practical experience through projects.\n\n`;
+  }
+
   // Qualitative assessment based on percentage, without explicitly stating the percentage
   let qualitativeAssessment = "";
   if (totalPercentage >= 70) {
@@ -59,12 +73,6 @@ export const generateJobMatchReasoning = async (
 
 Structure your response into two main sections: 'Matching Areas' and 'Gaps'.
 
-**Matching Areas:**
-Based on the identified overlapping skills and requirements, describe my strengths and relevant experiences in succinct bullet points. Emphasize how my qualifications directly address the job criteria.
-
-**Gaps:**
-For each identified missing key skill or requirement, list it as a bullet point. Against each point, suggest a soft skill I can leverage to bridge this specific gap.
-
 Here is the job description: ${jobDescription}
 Here is a summary of my profile (CV and chatbot knowledge): ${chatbotKnowledge}
 Identified overlapping skills/requirements: ${overlaps.join(', ')}
@@ -72,16 +80,15 @@ Identified missing skills/requirements: ${missing.join(', ')}
 Qualitative assessment: ${qualitativeAssessment}
 
 Provide the response strictly in the format below, using Markdown:
-
 ## Matching Areas
 
-*   [Succinct point describing a strength related to an overlapping skill/requirement]
-*   ...
++   [Succinct point describing a strength related to an overlapping skill/requirement]
++   ...
 
 ## Gaps
 
-*   [Missing skill/requirement] - [Suggested soft skill to leverage]
-*   ...
+-   [Missing skill/requirement] - [Suggested soft skill to leverage]
+-   ...
 `;
 
   const reasoningText = await sendMessageToGemini(systemPrompt);
