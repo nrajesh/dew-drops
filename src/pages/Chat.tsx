@@ -164,7 +164,6 @@ const Chat = ({ jobDescription, onClose }: ChatProps) => {
     try {
       if (contextError) throw new Error(contextError);
       if (!chatbotKnowledge) throw new Error("Knowledge base is not available.");
-      if (!sendMessageToGemini) throw new Error("Chat client is not initialized.");
 
       const systemPrompt = `You are a world-class hiring manager analyzing a job description against a candidate's profile.
       Use ONLY the following context to answer the user's question.

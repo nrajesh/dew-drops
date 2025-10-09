@@ -125,7 +125,7 @@ export const JobMatchPopup = ({ isOpen, onOpenChange, onMatchRequest }: JobMatch
       const allCvSkills: string[] = [];
       resume.skills?.forEach(s => {
         allCvSkills.push(s.name);
-        s.keywords?.forEach(k => allCvSkills.push(k)); // Fixed typo here
+        s.keywords?.forEach(k => allCvSkills.push(k));
       });
       resume.work?.forEach(w => w.highlights?.forEach(h => allCvSkills.push(h))); // Also consider work highlights as skills
 
