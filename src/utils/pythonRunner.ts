@@ -1,4 +1,4 @@
-import loadPyodide from 'pyodide';
+import { loadPyodide } from 'pyodide';
 
 let pyodide: any = null;
 
