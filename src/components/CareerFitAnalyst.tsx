@@ -7,13 +7,14 @@ import { Textarea } from "@/components/ui/textarea";
 import { Loader2, Sparkles, AlertTriangle, Download } from "lucide-react";
 import ReactMarkdown from 'react-markdown';
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { useJobMatching } from "@/hooks/useJobMatching";
+import { useJobMatching, analysisSteps } from "@/hooks/useJobMatching"; // Import analysisSteps
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { showError } from "@/utils/toast";
 import { Progress } from "@/components/ui/progress";
 import { downloadTextFile } from "@/utils/fileDownload"; // Import the new utility
+import { cn } from "@/lib/utils"; // Import cn for conditional classNames
 
-// Helper function to limit gaps in markdown output
+// Helper function to limit gaps in markdown output for display
 const limitGapsInMarkdown = (markdown: string): string => {
   const lines = markdown.split('\n');
   let inGapsSection = false;
@@ -53,11 +54,21 @@ const limitGapsInMarkdown = (markdown: string): string => {
   return newLines.join('\n');
 };
 
+// Helper function to convert markdown to plain text for download
+const markdownToPlainText = (markdown: string): string => {
+  let plainText = markdown;
+  // Remove headings (e.g., ## Matching Areas)
+  plainText = plainText.replace(/^#+\s/gm, '');
+  // Remove bold/italic markers
+  plainText = plainText.replace(/\*\*([^*]+?)\*\*/g, '$1'); // **bold** -> bold
+  plainText = plainText.replace(/\*([^*]+?)\*/g, '$1');   // *italic* -> italic
+  plainText = plainText.replace(/_([^_]+?)_/g, '$1');     // _italic_ -> italic
+  return plainText;
+};
+
 export const CareerFitAnalyst = () => {
   const [jobDescription, setJobDescription] = useState("");
   const [isButtonEnabled, setIsButtonEnabled] = useState(false);
-  // contentRef is no longer strictly needed as we're downloading from state
-  // const contentRef = useRef<HTMLDivElement>(null); 
 
   const {
     isMatching,
@@ -73,7 +84,7 @@ export const CareerFitAnalyst = () => {
     totalSteps,
   } = useJobMatching();
 
-  // State to store the reasoning after applying the gap limit
+  // State to store the reasoning after applying the gap limit for display and download
   const [limitedReasoning, setLimitedReasoning] = useState<string>('');
 
   // Effect to update limitedReasoning whenever matchResult changes
@@ -123,8 +134,9 @@ export const CareerFitAnalyst = () => {
 
   const handleDownloadText = () => {
     if (limitedReasoning) {
-      // Use the pre-limited reasoning for download
-      downloadTextFile(limitedReasoning, "CareerFitAnalysis.txt");
+      // Use the pre-limited reasoning for download, converted to plain text
+      const plainTextContent = markdownToPlainText(limitedReasoning);
+      downloadTextFile(plainTextContent, "CareerFitAnalysis.txt");
     } else {
       showError("No analysis result to download.");
     }
@@ -157,6 +169,21 @@ export const CareerFitAnalyst = () => {
 
         {contextLoading || isMatching ? (
           <div className="space-y-4 text-center py-8">
+            <div className="flex justify-center gap-4 mb-4 flex-wrap">
+              {analysisSteps.map((step, index) => (
+                <span
+                  key={index}
+                  className={cn(
+                    "text-sm transition-colors duration-300",
+                    index === currentStepIndex
+                      ? "text-primary font-bold animate-pulse"
+                      : "text-muted-foreground"
+                  )}
+                >
+                  {step}
+                </span>
+              ))}
+            </div>
             <Loader2 className="mx-auto h-8 w-8 animate-spin text-primary" />
             <p className="text-muted-foreground">
               {contextLoading ? "Loading portfolio data..." : `Step ${currentStepIndex + 1} of ${totalSteps}: ${currentStepTitle}`}
@@ -195,7 +222,7 @@ export const CareerFitAnalyst = () => {
         {matchResult && !isMatching && !contextLoading && (
           <div className="space-y-4 mt-6">
             <ScrollArea className="h-64 bg-muted p-4 rounded-lg prose dark:prose-invert max-w-none career-fit-output">
-              <div /* ref={contentRef} */ className="space-y-4">
+              <div className="space-y-4">
                 <div className="flex justify-end mb-4 print:hidden">
                   <Button
                     onClick={handleDownloadText}

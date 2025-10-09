@@ -11,7 +11,7 @@ interface JobMatchResult {
   breakdown: { experience: number; education: number; skills: number; languages: number }; // Updated breakdown
 }
 
-const analysisSteps = [
+export const analysisSteps = [
   "Extracting Key Criteria",
   "Text Preprocessing",
   "Vectorization & Similarity Calculation",
