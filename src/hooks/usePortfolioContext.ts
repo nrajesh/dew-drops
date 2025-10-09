@@ -1,55 +1,27 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import type { JsonResume } from '@/types/resume'; // Import JsonResume type
 
-const RESUME_URL = import.meta.env.VITE_RESUME_URL;
-
-interface PortfolioContextType {
-  chatbotKnowledge: string | null;
-  resume: JsonResume | null;
-  loading: boolean;
-  error: string | null;
-}
-
-export const usePortfolioContext = (): PortfolioContextType => {
-  const [chatbotKnowledge, setChatbotKnowledge] = useState<string | null>(null);
-  const [resume, setResume] = useState<JsonResume | null>(null);
+export const usePortfolioContext = () => {
+  const [context, setContext] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchContext = async () => {
       setLoading(true);
-      setError(null); // Clear previous errors
       try {
-        // Fetch chatbot knowledge
-        const { data: knowledgeData, error: knowledgeError } = await supabase
+        const { data, error } = await supabase
           .from('chatbot_knowledge')
           .select('content')
           .eq('id', 1)
           .single();
 
-        if (knowledgeError && knowledgeError.code !== 'PGRST116') { // Ignore "0 rows" error
-          throw knowledgeError;
-        }
-        setChatbotKnowledge(knowledgeData?.content || "No knowledge base has been configured for the chatbot.");
+        if (error) throw error;
 
-        // Fetch resume data
-        if (RESUME_URL) {
-          const response = await fetch(RESUME_URL);
-          if (!response.ok) {
-            throw new Error(`Failed to fetch resume from ${RESUME_URL}: ${response.statusText}`);
-          }
-          const resumeData: JsonResume = await response.json();
-          setResume(resumeData);
-        } else {
-          console.warn("VITE_RESUME_URL is not set. Resume data will not be available.");
-          setResume(null);
-        }
-
+        setContext(data?.content || "No knowledge base has been configured for the chatbot.");
       } catch (err: any) {
         setError(err.message);
-        console.error("Failed to fetch portfolio context or resume:", err);
+        console.error("Failed to fetch portfolio context:", err);
       } finally {
         setLoading(false);
       }
@@ -58,5 +30,5 @@ export const usePortfolioContext = (): PortfolioContextType => {
     fetchContext();
   }, []);
 
-  return { chatbotKnowledge, resume, loading, error };
+  return { context, loading, error };
 };

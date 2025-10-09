@@ -9,8 +9,6 @@ import { Badge } from "@/components/ui/badge";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { JobMatchPopup } from "@/components/JobMatchPopup";
-import { usePortfolioContext } from "@/hooks/usePortfolioContext";
 
 const RESUME_URL = import.meta.env.VITE_RESUME_URL;
 
@@ -18,8 +16,6 @@ const CurriculumVitae = () => {
   const [resume, setResume] = useState<JsonResume | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [isJobMatchOpen, setIsJobMatchOpen] = useState(false);
-  const { chatbotKnowledge, loading: contextLoading, error: contextError } = usePortfolioContext(); // Corrected destructuring
 
   // State for collapsible sections
   const [isWorkOpen, setIsWorkOpen] = useState(true);
@@ -30,6 +26,7 @@ const CurriculumVitae = () => {
   const [isInterestsOpen, setIsInterestsOpen] = useState(true);
   const [isPublicationsOpen, setIsPublicationsOpen] = useState(true);
   const [isReferencesOpen, setIsReferencesOpen] = useState(true);
+
 
   useEffect(() => {
     const fetchResume = async () => {
@@ -166,19 +163,6 @@ const CurriculumVitae = () => {
         )}
       </Card>
 
-      {/* Add the new "Add Your Job Description" button with wave animation */}
-      <div className="flex justify-center mt-4">
-        <Button
-          variant="default"
-          size="lg"
-          className="relative overflow-hidden group"
-          onClick={() => setIsJobMatchOpen(true)}
-        >
-          <span className="relative z-10">Add Your Job Description</span>
-          <span className="absolute inset-0 bg-gradient-to-r from-primary/20 via-primary/30 to-primary/20 transform -translate-x-full group-hover:translate-x-full transition-transform duration-500 ease-in-out"></span>
-        </Button>
-      </div>
-
       {work && work.length > 0 && (
         <Card>
           <Collapsible open={isWorkOpen} onOpenChange={setIsWorkOpen} className="cv-collapsible-section">
@@ -195,7 +179,7 @@ const CurriculumVitae = () => {
                 <div className="prose dark:prose-invert max-w-none space-y-6">
                   {work.map((job: ResumeWork, index: number) => (
                     <div key={index} className="border-b pb-4 last:border-b-0 last:pb-0">
-                      <h3 className="text-lg font-semibold">{job.position} at {job.company} ({job.location})</h3>
+                      <h3 className="text-lg font-semibold">{job.position} at {job.name} ({job.location})</h3>
                       <p className="text-muted-foreground">
                         {formatDate(job.startDate)} – {job.endDate ? formatDate(job.endDate) : "Present"}
                       </p>
@@ -413,13 +397,6 @@ const CurriculumVitae = () => {
           </Collapsible>
         </Card>
       )}
-
-      {/* Add the JobMatchPopup component */}
-      <JobMatchPopup
-        isOpen={isJobMatchOpen}
-        onOpenChange={setIsJobMatchOpen}
-        onMatchRequest={() => {}}
-      />
     </div>
   );
 };
