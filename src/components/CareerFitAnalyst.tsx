@@ -11,7 +11,7 @@ import { useJobMatching } from "@/hooks/useJobMatching";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { showError } from "@/utils/toast";
 import { Progress } from "@/components/ui/progress";
-import { downloadPdf } from "@/utils/pdfGenerator";
+import { downloadTextFile } from "@/utils/fileDownload"; // Import the new utility
 
 // Helper function to limit gaps in markdown output
 const limitGapsInMarkdown = (markdown: string): string => {
@@ -107,11 +107,11 @@ export const CareerFitAnalyst = () => {
     setIsButtonEnabled(false);
   };
 
-  const handleDownloadPdf = async () => {
-    if (contentRef.current) {
-      await downloadPdf(contentRef.current, "CareerFitAnalysis.pdf");
+  const handleDownloadText = () => {
+    if (matchResult?.reasoning) {
+      downloadTextFile(matchResult.reasoning, "CareerFitAnalysis.txt");
     } else {
-      showError("Could not find content to download.");
+      showError("No analysis result to download.");
     }
   };
 
@@ -186,12 +186,12 @@ export const CareerFitAnalyst = () => {
               <div ref={contentRef} className="space-y-4">
                 <div className="flex justify-end mb-4 print:hidden">
                   <Button
-                    onClick={handleDownloadPdf}
+                    onClick={handleDownloadText}
                     variant="outline"
                     size="sm"
                     className="print:hidden"
                   >
-                    <Download className="mr-2 h-4 w-4" /> Download as PDF
+                    <Download className="mr-2 h-4 w-4" /> Download as Text
                   </Button>
                 </div>
                 <ReactMarkdown>{displayedReasoning}</ReactMarkdown>
