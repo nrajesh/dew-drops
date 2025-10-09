@@ -5,7 +5,7 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger, SheetDescri
 import { ThemeToggle } from "./ThemeToggle";
 import { useState } from "react";
 import { Toaster as Sonner } from "@/components/ui/sonner";
-import { mainNavItems, managementNavItems, navFeatures, settingsNavItems } from "@/config/navigation";
+import { mainNavItems, managementNavItems, settingsNavItems } from "@/config/navigation";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { showError, showSuccess } from "@/utils/toast";
@@ -16,7 +16,9 @@ import { useNavigate } from "react-router-dom";
 import Chat from "@/pages/Chat";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { FontSizeLineHeightSliders } from "./FontSizeLineHeightSliders"; // Import the new component
+import { FontSizeLineHeightSliders } from "./FontSizeLineHeightSliders";
+import { JobMatchPopup } from "./JobMatchPopup";
+import { navFeatures } from "@/config/navigation"; // Added this import
 
 const NavContent = ({ onLinkClick }: { onLinkClick?: () => void }) => {
   const { toggles } = useFeatureToggles();
@@ -105,6 +107,8 @@ const Layout = () => {
   const { session, profile } = useAuth();
   const [isAddBlogDialogOpen, setIsAddBlogDialogOpen] = useState(false);
   const [isChatOpen, setIsChatOpen] = useState(false);
+  const [isJobMatchOpen, setIsJobMatchOpen] = useState(false);
+  const [jobDescription, setJobDescription] = useState("");
   const navigate = useNavigate();
   const { toggles } = useFeatureToggles();
 
@@ -123,6 +127,11 @@ const Layout = () => {
   const handleFormSubmit = (values: PostFormData) => {
     setIsAddBlogDialogOpen(false);
     navigate('/manage-blog', { state: { newPostData: values } });
+  };
+
+  const handleMatchRequest = (description: string) => {
+    setJobDescription(description);
+    setIsChatOpen(true);
   };
 
   const avatarFallback = profile?.first_name && profile?.last_name
@@ -269,7 +278,7 @@ const Layout = () => {
       </div>
 
       {/* Removed Shadcn UI Toaster, keeping Sonner */}
-      <Sonner /> 
+      <Sonner />
 
       <Dialog open={isAddBlogDialogOpen} onOpenChange={setIsAddBlogDialogOpen}>
         <DialogContent className="max-w-4xl w-[90vw] max-h-[90vh] overflow-y-auto">
@@ -298,9 +307,15 @@ const Layout = () => {
               A chat interface to ask questions about the portfolio.
             </DialogDescription>
           </DialogHeader>
-          <Chat />
+          <Chat jobDescription={jobDescription} onClose={() => setIsChatOpen(false)} />
         </DialogContent>
       </Dialog>
+
+      <JobMatchPopup
+        isOpen={isJobMatchOpen}
+        onOpenChange={setIsJobMatchOpen}
+        onMatchRequest={handleMatchRequest}
+      />
     </>
   );
 };

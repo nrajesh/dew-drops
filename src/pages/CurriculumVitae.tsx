@@ -9,6 +9,10 @@ import { Badge } from "@/components/ui/badge";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { JobMatchPopup } from "@/components/JobMatchPopup";
+import { usePortfolioContext } from "@/hooks/usePortfolioContext";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog"; // Added this import
+import Chat from "@/pages/Chat"; // Added this import
 
 const RESUME_URL = import.meta.env.VITE_RESUME_URL;
 
@@ -16,6 +20,10 @@ const CurriculumVitae = () => {
   const [resume, setResume] = useState<JsonResume | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [isJobMatchOpen, setIsJobMatchOpen] = useState(false);
+  const [isChatOpen, setIsChatOpen] = useState(false);
+  const [jobDescription, setJobDescription] = useState("");
+  const { context, loading: contextLoading, error: contextError } = usePortfolioContext();
 
   // State for collapsible sections
   const [isWorkOpen, setIsWorkOpen] = useState(true);
@@ -26,7 +34,6 @@ const CurriculumVitae = () => {
   const [isInterestsOpen, setIsInterestsOpen] = useState(true);
   const [isPublicationsOpen, setIsPublicationsOpen] = useState(true);
   const [isReferencesOpen, setIsReferencesOpen] = useState(true);
-
 
   useEffect(() => {
     const fetchResume = async () => {
@@ -67,6 +74,11 @@ const CurriculumVitae = () => {
     document.title = `${resume?.basics.name || "Rajesh Narayanan"}-Resume.pdf`;
     window.print();
     document.title = originalTitle;
+  };
+
+  const handleMatchRequest = (description: string) => {
+    setJobDescription(description);
+    setIsChatOpen(true);
   };
 
   if (loading) {
@@ -162,6 +174,18 @@ const CurriculumVitae = () => {
           </CardContent>
         )}
       </Card>
+
+      {/* Add the new "Add Your Job Description" button */}
+      <div className="flex justify-center mt-4">
+        <Button
+          variant="default"
+          size="lg"
+          className="animate-pulse shadow-lg hover:shadow-xl transition-shadow duration-300"
+          onClick={() => setIsJobMatchOpen(true)}
+        >
+          Add Your Job Description
+        </Button>
+      </div>
 
       {work && work.length > 0 && (
         <Card>
@@ -396,6 +420,28 @@ const CurriculumVitae = () => {
             </CollapsibleContent>
           </Collapsible>
         </Card>
+      )}
+
+      {/* Add the JobMatchPopup component */}
+      <JobMatchPopup
+        isOpen={isJobMatchOpen}
+        onOpenChange={setIsJobMatchOpen}
+        onMatchRequest={handleMatchRequest}
+      />
+
+      {/* Add the Chat component for job matching */}
+      {isChatOpen && (
+        <Dialog open={isChatOpen} onOpenChange={setIsChatOpen}>
+          <DialogContent className="w-full sm:max-w-lg p-0 flex flex-col h-[80vh]">
+            <DialogHeader className="sr-only">
+              <DialogTitle>Job Matching Assistant</DialogTitle>
+              <DialogDescription>
+                A chat interface to find matching profiles.
+              </DialogDescription>
+            </DialogHeader>
+            <Chat jobDescription={jobDescription} onClose={() => setIsChatOpen(false)} />
+          </DialogContent>
+        </Dialog>
       )}
     </div>
   );
