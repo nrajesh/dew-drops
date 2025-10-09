@@ -9,6 +9,9 @@ import { useNavigate } from "react-router-dom";
 import { usePortfolioContext } from "@/hooks/usePortfolioContext";
 import { Loader2 } from "lucide-react";
 import { calculateCosineSimilarity } from "@/utils/cosineSimilarity"; // Import the new utility
+import ReactMarkdown from 'react-markdown'; // Import ReactMarkdown
+import remarkGfm from 'remark-gfm'; // Import remarkGfm for GitHub Flavored Markdown
+import { ScrollArea } from "@/components/ui/scroll-area"; // Import ScrollArea
 
 let sendMessageToGemini: (message: string) => Promise<string>; // Declare Gemini function
 
@@ -135,9 +138,11 @@ export const JobMatchPopup = ({ isOpen, onOpenChange, onMatchRequest }: JobMatch
                 <p className="text-4xl font-bold text-primary">{matchResult.percentage.toFixed(0)}%</p>
                 <p className="text-sm text-muted-foreground mt-1">Match Percentage</p>
               </div>
-              <div className="bg-muted p-4 rounded-lg">
-                <p className="text-sm">{matchResult.reasoning}</p>
-              </div>
+              <ScrollArea className="h-48 bg-muted p-4 rounded-lg prose dark:prose-invert max-w-none">
+                <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                  {matchResult.reasoning}
+                </ReactMarkdown>
+              </ScrollArea>
             </div>
           ) : (
             <>
