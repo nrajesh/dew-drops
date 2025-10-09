@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useRef, useEffect } from "react";
+import React, { useState, useRef, useEffect, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
@@ -66,6 +66,8 @@ const languageNames: { [key: string]: string } = {
   "och": "Old Chinese", "lzh": "Literary Chinese"
 };
 
+type EmailOption = 'send' | 'skip' | null;
+
 export const CareerFitAnalyst = () => {
   const [jobDescription, setJobDescription] = useState("");
   const [jobDescriptionUrl, setJobDescriptionUrl] = useState("");
@@ -80,6 +82,7 @@ export const CareerFitAnalyst = () => {
   const [attachCv, setAttachCv] = useState(true);
   const [isSendingEmail, setIsSendingEmail] = useState(false);
   const [pendingEmailDetails, setPendingEmailDetails] = useState<{ recipientEmail: string; attachCv: boolean; } | null>(null);
+  const [emailOptionSelected, setEmailOptionSelected] = useState<EmailOption>(null);
 
 
   const {
@@ -180,7 +183,7 @@ export const CareerFitAnalyst = () => {
     }
   };
 
-  const validateAndOpenEmailDialog = async () => {
+  const validateAndOpenEmailDialog = () => {
     if (inputMethod === "text") {
       if (jobDescription.length < MIN_JOB_DESCRIPTION_LENGTH) {
         showError(`Please enter at least ${MIN_JOB_DESCRIPTION_LENGTH} characters for a meaningful match.`);
@@ -204,9 +207,15 @@ export const CareerFitAnalyst = () => {
     setIsPreAnalysisEmailDialogOpen(true);
   };
 
-  const startAnalysis = async (email: string, attach: boolean) => {
+  const startAnalysis = async (email: string | null, attach: boolean) => {
     setIsPreAnalysisEmailDialogOpen(false);
-    setPendingEmailDetails({ recipientEmail: email, attachCv: attach });
+    if (email) {
+      setPendingEmailDetails({ recipientEmail: email, attachCv: attach });
+      setEmailOptionSelected('send');
+    } else {
+      setPendingEmailDetails(null);
+      setEmailOptionSelected('skip');
+    }
 
     setIsPreProcessing(true);
     setDisplayStepIndex(0);
@@ -232,6 +241,7 @@ export const CareerFitAnalyst = () => {
       console.error("Error in pre-analysis or career fit analysis:", error);
       showError(error.message || "Sorry, an error occurred during job description validation or analysis. Please try again later.");
       setPendingEmailDetails(null); // Clear pending email details on error
+      setEmailOptionSelected(null); // Reset email option on error
     } finally {
       setIsPreProcessing(false);
       setIsFetchingUrl(false);
@@ -250,6 +260,7 @@ export const CareerFitAnalyst = () => {
     setPendingEmailDetails(null); // Clear pending email details
     setRecipientEmail(""); // Reset email input in dialog
     setAttachCv(true); // Reset checkbox in dialog
+    setEmailOptionSelected(null); // Reset email option
   };
 
   const handleDownloadText = () => {
@@ -261,7 +272,7 @@ export const CareerFitAnalyst = () => {
     }
   };
 
-  const handleEmailSend = async (email: string, attach: boolean, reasoning: string) => {
+  const handleEmailSend = useCallback(async (email: string, attach: boolean, reasoning: string) => {
     if (!email || !reasoning || (attach && !resume)) {
       showError("Please provide a valid email and ensure analysis results and resume are available.");
       return;
@@ -298,13 +309,13 @@ export const CareerFitAnalyst = () => {
       dismissToast(toastId);
       setIsSendingEmail(false);
     }
-  };
+  }, [resume]);
 
   useEffect(() => {
-    if (matchResult && pendingEmailDetails) {
+    if (matchResult && pendingEmailDetails && emailOptionSelected === 'send') {
       handleEmailSend(pendingEmailDetails.recipientEmail, pendingEmailDetails.attachCv, matchResult.reasoning);
     }
-  }, [matchResult, pendingEmailDetails, handleEmailSend]);
+  }, [matchResult, pendingEmailDetails, emailOptionSelected, handleEmailSend]);
 
   const displayError = contextError || geminiClientError;
 
@@ -331,34 +342,47 @@ export const CareerFitAnalyst = () => {
         )}
 
         {contextLoading || isMatching || isPreProcessing || isFetchingUrl ? (
-          <div className="space-y-4 text-center py-8">
-            <div className="flex justify-center gap-2 mb-4 flex-wrap">
-              {overallSteps.map((step, index) => (
-                <React.Fragment key={index}>
-                  <span
-                    className={cn(
-                      "text-sm transition-colors duration-300",
-                      index === displayStepIndex
-                        ? "text-primary font-bold animate-pulse"
-                        : "text-muted-foreground"
-                    )}
-                  >
-                    {step}
-                  </span>
-                  {index < totalOverallSteps - 1 && (
-                    <span className="text-muted-foreground mx-1">→</span>
-                  )}
-                </React.Fragment>
-              ))}
-            </div>
-            <Loader2 className="mx-auto h-8 w-8 animate-spin text-primary" />
-            <Progress value={progressValue} className="w-full" />
-            {displayStepIndex === totalOverallSteps - 1 && (
-              <p className="text-sm text-muted-foreground">
-                This step may take 5-15 seconds depending on the length of your job description and the number of matching criteria.
+          emailOptionSelected === 'send' ? (
+            <div className="space-y-4 text-center py-8">
+              <Mail className="mx-auto h-8 w-8 text-primary" />
+              <p className="text-lg font-semibold">Analysis in progress!</p>
+              <p className="text-muted-foreground">
+                We're calculating the career fit. Once complete, the full analysis and your CV (if selected) will be emailed to you shortly.
               </p>
-            )}
-          </div>
+              <Button onClick={handleAnalyzeAnother} className="w-full mt-4">
+                Analyze Another Job Description
+              </Button>
+            </div>
+          ) : (
+            <div className="space-y-4 text-center py-8">
+              <div className="flex justify-center gap-2 mb-4 flex-wrap">
+                {overallSteps.map((step, index) => (
+                  <React.Fragment key={index}>
+                    <span
+                      className={cn(
+                        "text-sm transition-colors duration-300",
+                        index === displayStepIndex
+                          ? "text-primary font-bold animate-pulse"
+                          : "text-muted-foreground"
+                      )}
+                    >
+                      {step}
+                    </span>
+                    {index < totalOverallSteps - 1 && (
+                      <span className="text-muted-foreground mx-1">→</span>
+                    )}
+                  </React.Fragment>
+                ))}
+              </div>
+              <Loader2 className="mx-auto h-8 w-8 animate-spin text-primary" />
+              <Progress value={progressValue} className="w-full" />
+              {displayStepIndex === totalOverallSteps - 1 && (
+                <p className="text-sm text-muted-foreground">
+                  This step may take 5-15 seconds depending on the length of your job description and the number of matching criteria.
+                </p>
+              )}
+            </div>
+          )
         ) : (
           <>
             <Tabs defaultValue="text" onValueChange={(value) => setInputMethod(value as "text" | "url")}>
@@ -421,23 +445,41 @@ export const CareerFitAnalyst = () => {
         )}
 
         {matchResult && !isMatching && !contextLoading && !isPreProcessing && (
-          <div className="space-y-4 mt-6">
-            <div className="flex justify-end gap-2 mb-4 print:hidden">
-              <Button
-                onClick={handleDownloadText}
-                variant="outline"
-                size="sm"
-                className="print:hidden"
-              >
-                <Download className="mr-2 h-4 w-4" /> Download as Text
+          emailOptionSelected === 'send' ? (
+            <div className="space-y-4 mt-6 text-center">
+              <Mail className="mx-auto h-8 w-8 text-primary" />
+              <p className="text-lg font-semibold">
+                Your analysis results have been sent to {pendingEmailDetails?.recipientEmail}!
+              </p>
+              <p className="text-muted-foreground">
+                Please check your inbox (and spam folder) in a few minutes.
+              </p>
+              <Button onClick={handleAnalyzeAnother} className="w-full mt-4">
+                Analyze Another Job Description
               </Button>
             </div>
-            <ScrollArea className="h-64 bg-muted p-4 rounded-lg prose dark:prose-invert max-w-none career-fit-output">
-              <div className="space-y-4">
-                <ReactMarkdown>{limitedReasoning}</ReactMarkdown>
+          ) : ( // emailOptionSelected === 'skip' or initial state if somehow reached here
+            <div className="space-y-4 mt-6">
+              <div className="flex justify-end gap-2 mb-4 print:hidden">
+                <Button
+                  onClick={handleDownloadText}
+                  variant="outline"
+                  size="sm"
+                  className="print:hidden"
+                >
+                  <Download className="mr-2 h-4 w-4" /> Download as Text
+                </Button>
               </div>
-            </ScrollArea>
-          </div>
+              <ScrollArea className="h-64 bg-muted p-4 rounded-lg prose dark:prose-invert max-w-none career-fit-output">
+                <div className="space-y-4">
+                  <ReactMarkdown>{limitedReasoning}</ReactMarkdown>
+                </div>
+              </ScrollArea>
+              <Button onClick={handleAnalyzeAnother} className="w-full mt-4">
+                Analyze Another Job Description
+              </Button>
+            </div>
+          )
         )}
       </CardContent>
 
@@ -446,7 +488,7 @@ export const CareerFitAnalyst = () => {
           <DialogHeader>
             <DialogTitle>Email Analysis Results</DialogTitle>
             <DialogDescription>
-              Enter your email address to receive the full career fit analysis.
+              Enter your email address to receive the full career fit analysis, or skip to view it directly.
             </DialogDescription>
           </DialogHeader>
           <div className="grid gap-4 py-4">
@@ -477,7 +519,7 @@ export const CareerFitAnalyst = () => {
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setIsPreAnalysisEmailDialogOpen(false)} disabled={isSendingEmail}>Cancel</Button>
+            <Button variant="outline" onClick={() => startAnalysis(null, false)} disabled={isSendingEmail}>Skip Email</Button>
             <Button onClick={() => startAnalysis(recipientEmail, attachCv)} disabled={isSendingEmail || !recipientEmail || !resume}>
               {isSendingEmail && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               Start Analysis
