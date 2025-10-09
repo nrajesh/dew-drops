@@ -8,6 +8,8 @@ import { showError } from "@/utils/toast";
 import { useNavigate } from "react-router-dom";
 import { usePortfolioContext } from "@/hooks/usePortfolioContext";
 import { Loader2 } from "lucide-react";
+import { calculateMatchPercentage } from "@/utils/pythonRunner";
+import { sendMessageToGemini } from "@/integrations/gemini/client";
 
 interface JobMatchPopupProps {
   isOpen: boolean;
@@ -39,28 +41,27 @@ export const JobMatchPopup = ({ isOpen, onOpenChange, onMatchRequest }: JobMatch
     setIsButtonEnabled(value.length >= 80);
   };
 
-  const calculateMatchPercentage = (description: string, context: string): number => {
-    // Simple keyword matching for demonstration
-    const descriptionKeywords = description.toLowerCase().split(/\s+/);
-    const contextKeywords = context.toLowerCase().split(/\s+/);
+  const generateReasoning = async (matchPercentage: number): Promise<string> => {
+    if (!context || contextError) throw new Error("Knowledge base is not available.");
 
-    const commonKeywords = descriptionKeywords.filter(keyword =>
-      contextKeywords.includes(keyword) && keyword.length > 3
-    );
+    // Use the chatbot to generate reasoning based on the match percentage
+    const systemPrompt = `You are a world-class hiring manager analyzing a job description against a candidate's profile.
+    Match Percentage: ${matchPercentage}%
 
-    const matchPercentage = Math.min(100, Math.round((commonKeywords.length / descriptionKeywords.length) * 100));
-    return matchPercentage;
-  };
+    Provide a concise reasoning (2-3 sentences) explaining why this is a ${matchPercentage}% match or why it isn't.
+    If the match is high, highlight specific skills or experiences that align.
+    If the match is low, suggest areas where the candidate might need to improve or where the job description might need to be adjusted.
+    Be professional and constructive in your assessment.
 
-  const generateReasoning = (description: string, context: string, matchPercentage: number): string => {
-    // Simple reasoning generation based on match percentage
-    if (matchPercentage >= 70) {
-      return `This is a strong match (${matchPercentage}%) because the job description aligns well with Rajesh's skills and experiences.`;
-    } else if (matchPercentage >= 40) {
-      return `This is a moderate match (${matchPercentage}%). While there are some relevant skills, there may be areas where Rajesh's experience could be enhanced to better fit the role.`;
-    } else {
-      return `This is a low match (${matchPercentage}%). The job description may require skills or experiences that Rajesh doesn't currently have, or may need significant adjustments to align with the role.`;
-    }
+    CONTEXT:
+    ---
+    ${context}
+    ---
+    `;
+
+    // Use the existing chatbot function to generate the reasoning
+    const response = await sendMessageToGemini(systemPrompt);
+    return response;
   };
 
   const handleSubmit = async () => {
@@ -77,14 +78,14 @@ export const JobMatchPopup = ({ isOpen, onOpenChange, onMatchRequest }: JobMatch
     setIsMatching(true);
 
     try {
-      // Calculate match percentage
-      const matchPercentage = calculateMatchPercentage(jobDescription, context);
+      // Calculate match percentage using the new Python-based calculation
+      const matchPercentage = await calculateMatchPercentage(context, jobDescription);
 
       // Generate reasoning
-      const reasoning = generateReasoning(jobDescription, context, matchPercentage);
+      const reasoning = await generateReasoning(matchPercentage);
 
       // Set the match result
-      setMatchResult({ percentage: matchPercentage, reasoning });
+      setMatchResult({ percentage: Math.round(matchPercentage), reasoning });
     } catch (error: any) {
       console.error("Error in job matching:", error);
       showError("Sorry, an error occurred while analyzing the job description. Please try again later.");
