@@ -359,7 +359,7 @@ export const CareerFitAnalyst = () => {
                   {jobDescription.length}/{MIN_JOB_DESCRIPTION_LENGTH} characters minimum
                 </p>
                 <p className="text-sm text-muted-foreground mt-2">
-                  Matching job descriptions longer than 2000 characters in length will take a few minutes to complete.
+                  Matching job descriptions longer than 2000 characters in length or using an URL to match can take a several minutes to complete.
                 </p>
               </TabsContent>
               <TabsContent value="url">
@@ -383,7 +383,7 @@ export const CareerFitAnalyst = () => {
                   Provide a URL where the job description is hosted.
                 </p>
                 <p className="text-sm text-muted-foreground mt-2">
-                  Matching job descriptions longer than 2000 characters in length will take a few minutes to complete.
+                  Matching job descriptions longer than 2000 characters in length or using an URL to match can take a several minutes to complete.
                 </p>
               </TabsContent>
             </Tabs>
