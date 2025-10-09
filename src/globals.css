@@ -24,7 +24,6 @@
     --border: 214.3 31.8% 91.4%;
     --input: 214.3 31.8% 91.4%;
     --ring: 217 91% 60%;
-    --radius: 0.5rem;
 
     /* Sidebar variables for light theme */
     --sidebar-background: 210 40% 100%;
@@ -124,6 +123,38 @@
   padding-left: 0 !important; /* Ensure list items are left-aligned */
   margin-left: 0 !important; /* Ensure list items are left-aligned */
   text-align: left !important; /* Explicitly left-align text */
+}
+
+/* New class to force light mode on an element, regardless of parent theme */
+.force-light-mode {
+  --background: 210 40% 98% !important;
+  --foreground: 220 10% 20% !important;
+  --card: 210 40% 100% !important;
+  --card-foreground: 220 10% 20% !important;
+  --popover: 210 40% 100% !important;
+  --popover-foreground: 220 10% 20% !important;
+  --primary: 217 91% 60% !important;
+  --primary-foreground: 210 40% 98% !important;
+  --secondary: 210 40% 96.1% !important;
+  --secondary-foreground: 222.2 47.4% 11.2% !important;
+  --muted: 210 40% 96.1% !important;
+  --muted-foreground: 215.4 16.3% 46.9% !important;
+  --accent: 210 40% 96.1% !important;
+  --accent-foreground: 222.2 47.4% 11.2% !important;
+  --destructive: 0 84.2% 60.2% !important;
+  --destructive-foreground: 210 40% 98% !important;
+  --border: 214.3 31.8% 91.4% !important;
+  --input: 214.3 31.8% 91.4% !important;
+  --ring: 217 91% 60% !important;
+
+  --sidebar-background: 210 40% 100% !important;
+  --sidebar-foreground: 220 10% 20% !important;
+  --sidebar-primary: 217 91% 60% !important;
+  --sidebar-primary-foreground: 210 40% 98% !important;
+  --sidebar-accent: 210 40% 96.1% !important;
+  --sidebar-accent-foreground: 222.2 47.4% 11.2% !important;
+  --sidebar-border: 214.3 31.8% 91.4% !important;
+  --sidebar-ring: 217 91% 60% !important;
 }
 
 @media print {

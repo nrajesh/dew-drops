@@ -17,13 +17,8 @@ export const generateCareerFitPdf = async (htmlContent: string, filename: string
 
   // Apply print-specific classes to the container
   printContainer.classList.add('print-mode');
-
-  // Temporarily add dark class if needed for consistent rendering in dark mode
-  const isDarkMode = document.documentElement.classList.contains('dark');
-  if (isDarkMode) {
-    document.documentElement.classList.remove('dark');
-    printContainer.classList.add('force-light-mode'); // Custom class to force light mode styles
-  }
+  // Apply the new class to force light mode on the hidden container
+  printContainer.classList.add('force-light-mode');
 
   try {
     const canvas = await html2canvas(printContainer, {
@@ -58,8 +53,5 @@ export const generateCareerFitPdf = async (htmlContent: string, filename: string
     alert("Failed to generate PDF. Please try again.");
   } finally {
     document.body.removeChild(printContainer);
-    if (isDarkMode) {
-      document.documentElement.classList.add('dark'); // Restore dark mode
-    }
   }
 };
