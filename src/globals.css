@@ -182,7 +182,13 @@
   .card {
     border: 1px solid hsl(var(--border)) !important;
     box-shadow: none !important;
-    page-break-inside: avoid;
+    page-break-inside: avoid; /* Prevent cards from splitting */
+  }
+
+  /* Prevent paragraphs and list items from splitting across pages */
+  .pdf-content-wrapper p,
+  .pdf-content-wrapper li {
+    page-break-inside: avoid !important;
   }
 
   /* Allow CV content to expand to full page width */
