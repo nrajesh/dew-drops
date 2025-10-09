@@ -2,7 +2,6 @@ import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
 import { Suspense, lazy } from "react";
 import { Skeleton } from "@/components/ui/skeleton";
-import { CareerFitAnalyst } from "@/components/CareerFitAnalyst"; // Import the new component
 
 const LazyBackground = lazy(() => import("@/components/LazyBackground"));
 
@@ -27,11 +26,6 @@ const Index = () => {
         <Button variant="secondary" asChild>
           <Link to="/contact">Contact Me</Link>
         </Button>
-      </div>
-
-      {/* New Career Fit Analyst Section */}
-      <div className="mt-12 w-full max-w-3xl">
-        <CareerFitAnalyst />
       </div>
     </div>
   );

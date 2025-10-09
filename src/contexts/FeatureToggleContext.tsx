@@ -26,10 +26,11 @@ const fetchToggles = async (): Promise<Toggles> => {
           [navFeatures.HOME]: true,
           [navFeatures.BLOG]: true,
           [navFeatures.GALLERY]: true,
-          [navFeatures.PORTFOLIO]: false, // New feature toggle, default to false
+          [navFeatures.PORTFOLIO]: false,
           [navFeatures.TRAVEL]: true,
           [navFeatures.CONTACT]: true,
           [navFeatures.CHATBOT]: false,
+          [navFeatures.MATCH_CV]: true, // New feature toggle, default to true
           [navFeatures.MANAGE_BLOG]: false,
           [navFeatures.MANAGE_GALLERY]: false,
           [navFeatures.MANAGE_TRAVEL]: false,
