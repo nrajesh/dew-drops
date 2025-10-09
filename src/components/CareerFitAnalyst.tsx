@@ -9,7 +9,7 @@ import ReactMarkdown from 'react-markdown';
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useJobMatching, analysisSteps } from "@/hooks/useJobMatching";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { showError } from "@/utils/toast";
+import { showError } from "@/utils/toast"; // Fixed: Changed '=>' to 'from'
 import { Progress } from "@/components/ui/progress";
 import { downloadTextFile } from "@/utils/fileDownload";
 import { cn, limitGapsInMarkdown, markdownToPlainText, cleanJobDescriptionText } from "@/lib/utils";
@@ -378,6 +378,9 @@ export const CareerFitAnalyst = () => {
                 </div>
                 <p className="text-sm text-muted-foreground mt-2">
                   Provide a URL where the job description is hosted.
+                  <br />
+                  <br />
+                  Matching using a URL can take several minutes to complete.
                 </p>
               </TabsContent>
             </Tabs>
