@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
@@ -16,6 +16,62 @@ import { cn, limitGapsInMarkdown, markdownToPlainText } from "@/lib/utils";
 import { analyzeAndTranslateJobDescription } from "@/utils/aiTextAnalysis"; // Import the new utility
 
 const MIN_JOB_DESCRIPTION_LENGTH = 250; // Increased minimum character length
+
+const languageNames: { [key: string]: string } = {
+  "en": "English", "fr": "French", "es": "Spanish", "de": "German", "it": "Italian", "pt": "Portuguese",
+  "ru": "Russian", "zh": "Chinese", "ja": "Japanese", "ko": "Korean", "ar": "Arabic", "hi": "Hindi",
+  "bn": "Bengali", "nl": "Dutch", "sv": "Swedish", "fi": "Finnish", "pl": "Polish", "tr": "Turkish",
+  "el": "Greek", "he": "Hebrew", "th": "Thai", "vi": "Vietnamese", "id": "Indonesian", "ms": "Malay",
+  "fa": "Persian", "uk": "Ukrainian", "cs": "Czech", "hu": "Hungarian", "ro": "Romanian", "sk": "Slovak",
+  "bg": "Bulgarian", "hr": "Croatian", "sr": "Serbian", "sl": "Slovenian", "et": "Estonian", "lv": "Latvian",
+  "lt": "Lithuanian", "is": "Icelandic", "ga": "Irish", "cy": "Welsh", "mt": "Maltese", "sq": "Albanian",
+  "mk": "Macedonian", "ka": "Georgian", "hy": "Armenian", "az": "Azerbaijani", "eu": "Basque", "ca": "Catalan",
+  "gl": "Galician", "af": "Afrikaans", "sw": "Swahili", "am": "Amharic", "ne": "Nepali", "ur": "Urdu",
+  "pa": "Punjabi", "gu": "Gujarati", "kn": "Kannada", "ml": "Malayalam", "mr": "Marathi", "ta": "Tamil",
+  "te": "Telugu", "si": "Sinhala", "km": "Khmer", "lo": "Lao", "my": "Burmese", "mn": "Mongolian",
+  "uz": "Uzbek", "kk": "Kazakh", "ky": "Kyrgyz", "tg": "Tajik", "ug": "Uyghur", "tk": "Turkmen", "tt": "Tatar",
+  "ba": "Bashkir", "cv": "Chuvash", "os": "Ossetian", "ab": "Abkhazian", "ce": "Chechen", "av": "Avaric",
+  "lez": "Lezghian", "inh": "Ingush", "kbd": "Kabardian", "ady": "Adyghe", "xal": "Kalmyk", "sah": "Sakha",
+  "tyv": "Tuvan", "alt": "Southern Altai", "krc": "Karachay-Balkar", "nog": "Nogai", "gag": "Gagauz",
+  "crh": "Crimean Tatar", "udm": "Udmurt", "mdf": "Moksha", "myv": "Erzya", "mrj": "Western Mari",
+  "mhr": "Eastern Mari", "kpv": "Komi-Zyrian", "koi": "Komi-Permyak", "vep": "Veps", "olo": "Olonets Karelian",
+  "krl": "Karelian", "sjd": "Kildin Sami", "sje": "Pite Sami", "sjt": "Ter Sami", "sjk": "Skolt Sami",
+  "smn": "Inari Sami", "sms": "Skolt Sami", "smj": "Lule Sami", "sma": "Southern Sami", "se": "Northern Sami",
+  "fin": "Finnish", "est": "Estonian", "lav": "Latvian", "lit": "Lithuanian", "hun": "Hungarian",
+  "ces": "Czech", "slk": "Slovak", "pol": "Polish", "ukr": "Ukrainian", "be": "Belarusian", "rus": "Russian",
+  "bul": "Bulgarian", "mkd": "Macedonian", "srp": "Serbian", "hrv": "Croatian", "bs": "Bosnian",
+  "slv": "Slovenian", "sqi": "Albanian", "ell": "Greek", "hye": "Armenian", "kat": "Georgian",
+  "aze": "Azerbaijani", "tur": "Turkish", "fas": "Persian", "urd": "Urdu", "pus": "Pashto", "snd": "Sindhi",
+  "kur": "Kurdish", "ara": "Arabic", "heb": "Hebrew", "amh": "Amharic", "tir": "Tigrinya", "som": "Somali",
+  "orm": "Oromo", "swa": "Swahili", "am": "Amharic", "ne": "Nepali", "ur": "Urdu",
+  "pa": "Punjabi", "gu": "Gujarati", "kn": "Kannada", "ml": "Malayalam", "mr": "Marathi", "ta": "Tamil",
+  "te": "Telugu", "si": "Sinhala", "km": "Khmer", "lo": "Lao", "my": "Burmese", "mn": "Mongolian",
+  "uz": "Uzbek", "kk": "Kazakh", "ky": "Kyrgyz", "tg": "Tajik", "ug": "Uyghur", "tk": "Turkmen", "tt": "Tatar",
+  "ba": "Bashkir", "cv": "Chuvash", "os": "Ossetian", "ab": "Abkhazian", "ce": "Chechen", "av": "Avaric",
+  "lez": "Lezghian", "inh": "Ingush", "kbd": "Kabardian", "ady": "Adyghe", "xal": "Kalmyk", "sah": "Sakha",
+  "tyv": "Tuvan", "alt": "Southern Altai", "krc": "Karachay-Balkar", "nog": "Nogai", "gag": "Gagauz",
+  "crh": "Crimean Tatar", "udm": "Udmurt", "mdf": "Moksha", "myv": "Erzya", "mrj": "Western Mari",
+  "mhr": "Eastern Mari", "kpv": "Komi-Zyrian", "koi": "Komi-Permyak", "vep": "Veps", "olo": "Olonets Karelian",
+  "krl": "Karelian", "sjd": "Kildin Sami", "sje": "Pite Sami", "sjt": "Ter Sami", "sjk": "Skolt Sami",
+  "smn": "Inari Sami", "sms": "Skolt Sami", "smj": "Lule Sami", "sma": "Southern Sami", "se": "Northern Sami",
+  "eng": "English", "fra": "French", "spa": "Spanish", "deu": "German",
+  "ita": "Italian", "por": "Portuguese", "nld": "Dutch", "swe": "Swedish", "nor": "Norwegian", "dan": "Danish",
+  "ice": "Icelandic", "gle": "Irish", "cym": "Welsh", "mlt": "Maltese", "fao": "Faroese", "gsw": "Swiss German",
+  "fry": "Western Frisian", "sco": "Scots", "gla": "Scottish Gaelic", "cor": "Cornish", "bre": "Breton",
+  "oci": "Occitan", "srd": "Sardinian", "wln": "Walloon", "vol": "Volapük", "zha": "Zhuang", "yid": "Yiddish",
+  "uig": "Uyghur", "tuk": "Turkmen", "tat": "Tatar", "bak": "Bashkir", "chv": "Chuvash", "oss": "Ossetian",
+  "abk": "Abkhazian", "che": "Chechen", "ava": "Avaric", "lez": "Lezghian", "inh": "Ingush", "kbd": "Kabardian",
+  "ady": "Adyghe", "xal": "Kalmyk", "sah": "Sakha", "tyv": "Tuvan", "alt": "Southern Altai", "krc": "Karachay-Balkar",
+  "nog": "Nogai", "gag": "Gagauz", "crh": "Crimean Tatar", "udm": "Udmurt", "mdf": "Moksha", "myv": "Erzya",
+  "mhr": "Eastern Mari", "kpv": "Komi-Zyrian", "koi": "Komi-Permyak", "vep": "Veps",
+  "olo": "Olonets Karelian", "krl": "Karelian", "sjd": "Kildin Sami", "sje": "Pite Sami", "sjt": "Ter Sami",
+  "sjk": "Skolt Sami", "smn": "Inari Sami", "sms": "Skolt Sami", "smj": "Lule Sami", "sma": "Southern Sami",
+  "sme": "Northern Sami", "jpn": "Japanese", "kor": "Korean", "vie": "Vietnamese", "tha": "Thai", "khm": "Khmer",
+  "lao": "Lao", "mya": "Burmese", "mon": "Mongolian", "uzb": "Uzbek", "kaz": "Kazakh", "kir": "Kyrgyz",
+  "tgk": "Tajik", "bo": "Tibetan", "cmn": "Mandarin Chinese", "yue": "Cantonese",
+  "nan": "Min Nan", "hak": "Hakka", "wuu": "Wu Chinese", "gan": "Gan Chinese", "hsn": "Xiang Chinese",
+  "och": "Old Chinese", "lzh": "Literary Chinese"
+};
 
 export const CareerFitAnalyst = () => {
   const [jobDescription, setJobDescription] = useState("");
@@ -40,6 +96,10 @@ export const CareerFitAnalyst = () => {
   // State to store the reasoning after applying the gap limit
   const [limitedReasoning, setLimitedReasoning] = useState<string>('');
 
+  // State for visual glowing progress
+  const [displayStepIndex, setDisplayStepIndex] = useState(0);
+  const glowTimerRef = useRef<NodeJS.Timeout | null>(null);
+
   // Effect to update limitedReasoning whenever matchResult changes
   useEffect(() => {
     if (matchResult?.reasoning) {
@@ -48,6 +108,59 @@ export const CareerFitAnalyst = () => {
       setLimitedReasoning('');
     }
   }, [matchResult]);
+
+  // Combine pre-processing and matching steps for overall progress
+  const overallSteps = [
+    "Validating & Translating Job Description", // This is the pre-processing step
+    ...analysisSteps // These are the steps from useJobMatching
+  ];
+  const totalOverallSteps = overallSteps.length;
+
+  const currentOverallStepIndex = isPreProcessing ? 0 : (isMatching ? (currentStepIndex + 1) : -1);
+  const currentOverallStepTitle = isPreProcessing ? preProcessingMessage : (isMatching ? currentStepTitle : "");
+  const progressValue = totalOverallSteps > 0 && (isPreProcessing || isMatching) ? ((currentOverallStepIndex + 1) / totalOverallSteps) * 100 : 0;
+
+  // Effect for controlling the visual glowing of steps
+  useEffect(() => {
+    // Clear any existing timer when dependencies change
+    if (glowTimerRef.current) {
+      clearTimeout(glowTimerRef.current);
+      glowTimerRef.current = null;
+    }
+
+    // If actual progress has advanced, immediately update displayStepIndex
+    if (currentOverallStepIndex > displayStepIndex) {
+      setDisplayStepIndex(currentOverallStepIndex);
+    }
+
+    // If currently processing and not on the last step, set a timer to advance displayStepIndex
+    // The last step can glow longer, so no auto-advance for it.
+    if ((isPreProcessing || isMatching) && displayStepIndex < totalOverallSteps - 1) {
+      glowTimerRef.current = setTimeout(() => {
+        // Only advance if the actual step hasn't caught up or surpassed
+        if (displayStepIndex === currentOverallStepIndex) {
+          setDisplayStepIndex(prev => Math.min(prev + 1, totalOverallSteps - 1));
+        }
+      }, 3000); // Glow for 3 seconds
+    } else if (!(isPreProcessing || isMatching)) {
+      // If not processing, reset displayStepIndex
+      setDisplayStepIndex(0);
+    }
+
+    return () => {
+      if (glowTimerRef.current) {
+        clearTimeout(glowTimerRef.current);
+      }
+    };
+  }, [currentOverallStepIndex, displayStepIndex, isPreProcessing, isMatching, totalOverallSteps]);
+
+  // Reset displayStepIndex when analysis starts or resets
+  useEffect(() => {
+    if (!isPreProcessing && !isMatching && !matchResult) {
+      setDisplayStepIndex(0);
+    }
+  }, [isPreProcessing, isMatching, matchResult]);
+
 
   const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     const value = e.target.value;
@@ -72,6 +185,7 @@ export const CareerFitAnalyst = () => {
 
     setIsPreProcessing(true);
     setPreProcessingMessage("Detecting language and validating job description...");
+    setDisplayStepIndex(0); // Ensure visual progress starts at 0
 
     try {
       const analysisResult = await analyzeAndTranslateJobDescription(jobDescription);
@@ -82,7 +196,8 @@ export const CareerFitAnalyst = () => {
       }
 
       if (analysisResult.originalLanguage !== 'en') {
-        setPreProcessingMessage(`Translating job description from ${analysisResult.originalLanguage.toUpperCase()} to English...`);
+        const fullLanguageName = languageNames[analysisResult.originalLanguage] || analysisResult.originalLanguage.toUpperCase();
+        setPreProcessingMessage(`Translating job description from ${fullLanguageName} to English...`);
       } else {
         setPreProcessingMessage("Job description validated. Proceeding with analysis...");
       }
@@ -106,6 +221,7 @@ export const CareerFitAnalyst = () => {
     setLimitedReasoning(''); // Clear limited reasoning on reset
     setIsPreProcessing(false);
     setPreProcessingMessage("");
+    setDisplayStepIndex(0); // Reset visual progress
   };
 
   const handleDownloadText = () => {
@@ -119,18 +235,6 @@ export const CareerFitAnalyst = () => {
   };
 
   const displayError = contextError || geminiClientError;
-
-  // Combine pre-processing and matching steps for overall progress
-  const overallSteps = [
-    "Validating & Translating Job Description", // This is the pre-processing step
-    ...analysisSteps // These are the steps from useJobMatching
-  ];
-
-  const currentOverallStepIndex = isPreProcessing ? 0 : (isMatching ? (currentStepIndex + 1) : -1);
-  const currentOverallStepTitle = isPreProcessing ? preProcessingMessage : (isMatching ? currentStepTitle : "");
-  const totalOverallSteps = overallSteps.length;
-  const progressValue = totalOverallSteps > 0 && (isPreProcessing || isMatching) ? ((currentOverallStepIndex + 1) / totalOverallSteps) * 100 : 0;
-
 
   return (
     <Card className="w-full max-w-3xl mx-auto">
@@ -156,19 +260,23 @@ export const CareerFitAnalyst = () => {
 
         {contextLoading || isMatching || isPreProcessing ? (
           <div className="space-y-4 text-center py-8">
-            <div className="flex justify-center gap-4 mb-4 flex-wrap">
+            <div className="flex justify-center gap-2 mb-4 flex-wrap">
               {overallSteps.map((step, index) => (
-                <span
-                  key={index}
-                  className={cn(
-                    "text-sm transition-colors duration-300",
-                    index === currentOverallStepIndex
-                      ? "text-primary font-bold animate-pulse"
-                      : "text-muted-foreground"
+                <React.Fragment key={index}>
+                  <span
+                    className={cn(
+                      "text-sm transition-colors duration-300",
+                      index === displayStepIndex
+                        ? "text-primary font-bold animate-pulse"
+                        : "text-muted-foreground"
+                    )}
+                  >
+                    {step}
+                  </span>
+                  {index < totalOverallSteps - 1 && (
+                    <span className="text-muted-foreground mx-1">→</span>
                   )}
-                >
-                  {step}
-                </span>
+                </React.Fragment>
               ))}
             </div>
             <Loader2 className="mx-auto h-8 w-8 animate-spin text-primary" />
