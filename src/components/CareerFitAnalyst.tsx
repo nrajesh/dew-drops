@@ -46,8 +46,8 @@ const languageNames: { [key: string]: string } = {
   "orm": "Oromo", "swa": "Swahili", "hau": "Hausa", "yor": "Yoruba", "ibo": "Igbo", "zul": "Zulu",
   "xho": "Xhosa", "sot": "Southern Sotho", "tso": "Tsonga", "tsn": "Tswana", "ssw": "Swati", "kin": "Kinyarwanda",
   "mlg": "Malagasy", "hat": "Haitian Creole", "jav": "Javanese", "sun": "Sundanese", "ind": "Indonesian",
-  "msa": "Malay", "tgl": "Tagalog", "ceb": "Cebuano", "haw": "Hawaiian", "mri": "Maori", "smo": "Samoan",
-  "fij": "Fijian", "ton": "Tongan", "tah": "Tahitian", "div": "Dhivehi", "dzo": "Dzongkha", "sag": "Sango",
+  "msa": "Malay", "tgl": "Tagalog", "ceb": "Cebuano", "haw": "Hawaiian", "mi": "Maori", "sm": "Samoan",
+  "fj": "Fijian", "to": "Tongan", "ty": "Tahitian", "dv": "Dhivehi", "dzo": "Dzongkha", "sag": "Sango",
   "sna": "Shona", "nya": "Chichewa", "lin": "Lingala", "lub": "Luba-Katanga", "kon": "Kongo", "kik": "Kikuyu",
   "lug": "Ganda", "nep": "Nepali", "hin": "Hindi", "ben": "Bengali", "pan": "Punjabi", "guj": "Gujarati",
   "mar": "Marathi", "kan": "Kannada", "mal": "Malayalam", "tam": "Tamil", "tel": "Telugu", "sin": "Sinhala",
@@ -60,8 +60,8 @@ const languageNames: { [key: string]: string } = {
 export const CareerFitAnalyst = () => {
   const [jobDescription, setJobDescription] = useState("");
   const [isButtonEnabled, setIsButtonEnabled] = useState(false);
-  const [isPreProcessing, setIsPreProcessing] = useState(false); // New state for validation/translation
-  const [preProcessingMessage, setPreProcessingMessage] = useState(""); // Message for pre-processing step
+  const [isPreProcessing, setIsPreProcessing] = useState(false);
+  const [originalLanguage, setOriginalLanguage] = useState<string | null>(null); // New state for original language
 
   const {
     isMatching,
@@ -101,7 +101,8 @@ export const CareerFitAnalyst = () => {
   const totalOverallSteps = overallSteps.length;
 
   const currentOverallStepIndex = isPreProcessing ? 0 : (isMatching ? (currentStepIndex + 1) : -1);
-  const currentOverallStepTitle = isPreProcessing ? preProcessingMessage : (isMatching ? currentStepTitle : "");
+  // currentOverallStepTitle now directly uses overallSteps[0] for pre-processing
+  const currentOverallStepTitle = isPreProcessing ? overallSteps[0] : (isMatching ? currentStepTitle : "");
   const progressValue = totalOverallSteps > 0 && (isPreProcessing || isMatching) ? ((currentOverallStepIndex + 1) / totalOverallSteps) * 100 : 0;
 
   // Effect for controlling the visual glowing of steps
@@ -117,6 +118,9 @@ export const CareerFitAnalyst = () => {
       setDisplayStepIndex(currentOverallStepIndex);
     }
 
+    // Determine glow duration based on original language
+    const glowDuration = originalLanguage && originalLanguage !== 'en' ? 5000 : 3000; // 5 seconds if not English, 3 seconds if English or not yet detected
+
     // If currently processing and not on the last step, set a timer to advance displayStepIndex
     // The last step can glow longer, so no auto-advance for it.
     if ((isPreProcessing || isMatching) && displayStepIndex < totalOverallSteps - 1) {
@@ -124,10 +128,11 @@ export const CareerFitAnalyst = () => {
         // Always advance the visual glow if still processing and not on the last step
         // This provides a sense of continuous progress even if actual step is slow.
         setDisplayStepIndex(prev => Math.min(prev + 1, totalOverallSteps - 1));
-      }, 3000); // Glow for 3 seconds
+      }, glowDuration); // Use dynamic duration
     } else if (!(isPreProcessing || isMatching)) {
-      // If not processing, reset displayStepIndex
+      // If not processing, reset displayStepIndex and originalLanguage
       setDisplayStepIndex(0);
+      setOriginalLanguage(null);
     }
 
     return () => {
@@ -135,7 +140,8 @@ export const CareerFitAnalyst = () => {
         clearTimeout(glowTimerRef.current);
       }
     };
-  }, [currentOverallStepIndex, displayStepIndex, isPreProcessing, isMatching, totalOverallSteps]);
+  }, [currentOverallStepIndex, displayStepIndex, isPreProcessing, isMatching, totalOverallSteps, originalLanguage]); // Add originalLanguage to dependencies
+
 
   // Reset displayStepIndex when analysis starts or resets
   useEffect(() => {
@@ -167,22 +173,16 @@ export const CareerFitAnalyst = () => {
     }
 
     setIsPreProcessing(true);
-    setPreProcessingMessage("Detecting language and validating job description...");
+    // No specific message for pre-processing here, the step title will cover it.
     setDisplayStepIndex(0); // Ensure visual progress starts at 0
 
     try {
       const analysisResult = await analyzeAndTranslateJobDescription(jobDescription);
+      setOriginalLanguage(analysisResult.originalLanguage); // Set the detected language
 
       if (!analysisResult.isValidJobDescription) {
         showError(analysisResult.processedText); // This will contain the "INVALID_JOB_DESCRIPTION" message
         return;
-      }
-
-      if (analysisResult.originalLanguage !== 'en') {
-        const fullLanguageName = languageNames[analysisResult.originalLanguage] || analysisResult.originalLanguage.toUpperCase();
-        setPreProcessingMessage(`Translating job description from ${fullLanguageName} to English...`);
-      } else {
-        setPreProcessingMessage("Job description validated. Proceeding with analysis...");
       }
 
       // Proceed with job matching using the processed (potentially translated) text
@@ -193,7 +193,6 @@ export const CareerFitAnalyst = () => {
       showError(error.message || "Sorry, an error occurred during job description validation or analysis. Please try again later.");
     } finally {
       setIsPreProcessing(false);
-      setPreProcessingMessage("");
     }
   };
 
@@ -203,8 +202,8 @@ export const CareerFitAnalyst = () => {
     setIsButtonEnabled(false);
     setLimitedReasoning(''); // Clear limited reasoning on reset
     setIsPreProcessing(false);
-    setPreProcessingMessage("");
     setDisplayStepIndex(0); // Reset visual progress
+    setOriginalLanguage(null); // Reset original language
   };
 
   const handleDownloadText = () => {
