@@ -12,7 +12,7 @@ This README provides a comprehensive guide to understanding, customizing, and ma
 -   **Interactive Travel Map:** Pin your travel destinations on a world map, with bulk import/export and management features.
 -   **Contact Form:** A secure, serverless contact form that sends emails directly to you.
 -   **AI Chatbot:** An integrated chatbot powered by Google Gemini that uses an editable knowledge base to provide intelligent answers about your portfolio. It also includes an auto-generate feature to populate the knowledge base from your content.
--   **AI-Powered Career Fit Analyst:** An advanced tool that analyzes job descriptions against your resume and portfolio content, providing a detailed breakdown of matching areas and potential gaps. It also allows emailing the analysis results with an optional PDF attachment of the CV.
+-   **AI-Powered Career Fit Analyst:** An advanced tool that analyzes job descriptions against your resume and portfolio content, providing a detailed breakdown of matching areas and potential gaps.
 -   **Comprehensive Data Management:** Export your entire portfolio to a single JSON file for backup, or import a backup to restore your site. You can also reset all data.
 -   **User Profile Management:** Securely update your administrator profile information, avatar, and change your password.
 -   **Feature Toggles:** A settings page to enable or disable entire sections of the portfolio.
@@ -47,7 +47,7 @@ These keys are stored securely in your Supabase project dashboard and are used b
 1.  Navigate to your Supabase Project Dashboard.
 2.  Go to **Settings** -> **Edge Functions**.
 3.  Under **Manage Secrets**, add the following:
-    -   `RESEND_API_KEY`: Your API key from [Resend](https://resend.com/), required for the Contact Form to send emails and for the **Career Fit Analyst** to email results.
+    -   `RESEND_API_KEY`: Your API key from [Resend](https://resend.com/), required for the Contact Form to send emails.
     -   `GEMINI_MODEL_NAME`: The name of the Gemini model to use for server-side functions (e.g., `"gemini-pro"` or `"gemini-1.5-flash"`).
 
 ---
@@ -103,7 +103,6 @@ The gallery management page uses a two-tab system—**Published** and **Unpublis
 3.  **Analyze:** Click "Calculate Match Percentage" to initiate the AI analysis. The system will validate the text, extract key criteria, and compare it against your resume and portfolio content.
 4.  **Review Results:** The AI will generate a detailed markdown report outlining "Matching Areas" and "Gaps," explaining how your profile aligns with the role.
 5.  **Download:** You can download the analysis report as a plain text file.
-6.  **Email Results:** After analysis, you can click "Email Results" to send the full report to an email address, with an option to attach your CV as a PDF.
 
 ### 📄 Managing Your CV/Portfolio Page
 

@@ -1,26 +1,22 @@
 "use client";
 
-import React, { useState, useRef, useEffect, useCallback } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
-import { Loader2, Sparkles, AlertTriangle, Download, Link as LinkIcon, Mail } from "lucide-react";
+import { Loader2, Sparkles, AlertTriangle, Download, Link as LinkIcon } from "lucide-react";
 import ReactMarkdown from 'react-markdown';
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useJobMatching, analysisSteps } from "@/hooks/useJobMatching";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { showError, showSuccess, showLoading, dismissToast } from "@/utils/toast";
+import { showError } from "@/utils/toast";
 import { Progress } from "@/components/ui/progress";
 import { downloadTextFile } from "@/utils/fileDownload";
 import { cn, limitGapsInMarkdown, markdownToPlainText } from "@/lib/utils";
 import { analyzeAndTranslateJobDescription } from "@/utils/aiTextAnalysis";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
-import { supabase } from "@/integrations/supabase/client";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
-import { Checkbox } from "@/components/ui/checkbox";
-import { Label } from "@/components/ui/label";
-import { generateCvPdfBase64 } from "@/utils/pdfGenerator"; // Import PDF generator
+import { supabase } from "@/integrations/supabase/client"; // Import supabase client
 
 const MIN_JOB_DESCRIPTION_LENGTH = 250;
 
@@ -66,8 +62,6 @@ const languageNames: { [key: string]: string } = {
   "och": "Old Chinese", "lzh": "Literary Chinese"
 };
 
-type EmailOption = 'send' | 'skip' | null;
-
 export const CareerFitAnalyst = () => {
   const [jobDescription, setJobDescription] = useState("");
   const [jobDescriptionUrl, setJobDescriptionUrl] = useState("");
@@ -76,14 +70,6 @@ export const CareerFitAnalyst = () => {
   const [originalLanguage, setOriginalLanguage] = useState<string | null>(null);
   const [inputMethod, setInputMethod] = useState<"text" | "url">("text");
   const [isFetchingUrl, setIsFetchingUrl] = useState(false);
-
-  const [isPreAnalysisEmailDialogOpen, setIsPreAnalysisEmailDialogOpen] = useState(false);
-  const [recipientEmail, setRecipientEmail] = useState("");
-  const [attachCv, setAttachCv] = useState(true);
-  const [isSendingEmail, setIsSendingEmail] = useState(false);
-  const [pendingEmailDetails, setPendingEmailDetails] = useState<{ recipientEmail: string; attachCv: boolean; } | null>(null);
-  const [emailOptionSelected, setEmailOptionSelected] = useState<EmailOption>(null);
-
 
   const {
     isMatching,
@@ -183,7 +169,7 @@ export const CareerFitAnalyst = () => {
     }
   };
 
-  const validateAndOpenEmailDialog = () => {
+  const handleSubmit = async () => {
     if (inputMethod === "text") {
       if (jobDescription.length < MIN_JOB_DESCRIPTION_LENGTH) {
         showError(`Please enter at least ${MIN_JOB_DESCRIPTION_LENGTH} characters for a meaningful match.`);
@@ -194,6 +180,7 @@ export const CareerFitAnalyst = () => {
         showError("Please enter a valid URL.");
         return;
       }
+      setIsFetchingUrl(true);
     }
 
     if (!resume) {
@@ -204,18 +191,6 @@ export const CareerFitAnalyst = () => {
       showError(contextError || geminiClientError || "An error occurred with the AI service or context loading.");
       return;
     }
-    setIsPreAnalysisEmailDialogOpen(true);
-  };
-
-  const startAnalysis = async (email: string | null, attach: boolean) => {
-    setIsPreAnalysisEmailDialogOpen(false);
-    if (email) {
-      setPendingEmailDetails({ recipientEmail: email, attachCv: attach });
-      setEmailOptionSelected('send');
-    } else {
-      setPendingEmailDetails(null);
-      setEmailOptionSelected('skip');
-    }
 
     setIsPreProcessing(true);
     setDisplayStepIndex(0);
@@ -224,7 +199,6 @@ export const CareerFitAnalyst = () => {
       let textToAnalyze = jobDescription;
 
       if (inputMethod === "url") {
-        setIsFetchingUrl(true);
         textToAnalyze = await fetchJobDescriptionFromUrl(jobDescriptionUrl);
       }
 
@@ -240,8 +214,6 @@ export const CareerFitAnalyst = () => {
     } catch (error: any) {
       console.error("Error in pre-analysis or career fit analysis:", error);
       showError(error.message || "Sorry, an error occurred during job description validation or analysis. Please try again later.");
-      setPendingEmailDetails(null); // Clear pending email details on error
-      setEmailOptionSelected(null); // Reset email option on error
     } finally {
       setIsPreProcessing(false);
       setIsFetchingUrl(false);
@@ -257,65 +229,16 @@ export const CareerFitAnalyst = () => {
     setIsPreProcessing(false);
     setDisplayStepIndex(0);
     setOriginalLanguage(null);
-    setPendingEmailDetails(null); // Clear pending email details
-    setRecipientEmail(""); // Reset email input in dialog
-    setAttachCv(true); // Reset checkbox in dialog
-    setEmailOptionSelected(null); // Reset email option
   };
 
   const handleDownloadText = () => {
-    if (matchResult?.reasoning) { // Use full reasoning for download
-      const plainTextContent = markdownToPlainText(matchResult.reasoning);
+    if (limitedReasoning) {
+      const plainTextContent = markdownToPlainText(limitedReasoning);
       downloadTextFile(plainTextContent, "CareerFitAnalysis.txt");
     } else {
       showError("No analysis result to download.");
     }
   };
-
-  const handleEmailSend = useCallback(async (email: string, attach: boolean, reasoning: string) => {
-    if (!email || !reasoning || (attach && !resume)) {
-      showError("Please provide a valid email and ensure analysis results and resume are available.");
-      return;
-    }
-
-    setIsSendingEmail(true);
-    const toastId = showLoading("Sending email...");
-
-    try {
-      let cvPdfBase64: string | undefined;
-      if (attach) {
-        cvPdfBase64 = await generateCvPdfBase64(resume!);
-      }
-
-      const { error } = await supabase.functions.invoke('send-match-email', {
-        body: {
-          recipientEmail: email,
-          matchReasoning: reasoning,
-          attachCv: attach,
-          cvPdfBase64,
-        },
-      });
-
-      if (error) {
-        throw error;
-      }
-
-      showSuccess("Email sent successfully!");
-      setPendingEmailDetails(null); // Clear pending details after successful send
-    } catch (error: any) {
-      console.error("Error sending email:", error);
-      showError(`Failed to send email: ${error.message}`);
-    } finally {
-      dismissToast(toastId);
-      setIsSendingEmail(false);
-    }
-  }, [resume]);
-
-  useEffect(() => {
-    if (matchResult && pendingEmailDetails && emailOptionSelected === 'send') {
-      handleEmailSend(pendingEmailDetails.recipientEmail, pendingEmailDetails.attachCv, matchResult.reasoning);
-    }
-  }, [matchResult, pendingEmailDetails, emailOptionSelected, handleEmailSend]);
 
   const displayError = contextError || geminiClientError;
 
@@ -342,47 +265,34 @@ export const CareerFitAnalyst = () => {
         )}
 
         {contextLoading || isMatching || isPreProcessing || isFetchingUrl ? (
-          emailOptionSelected === 'send' ? (
-            <div className="space-y-4 text-center py-8">
-              <Mail className="mx-auto h-8 w-8 text-primary" />
-              <p className="text-lg font-semibold">Analysis in progress!</p>
-              <p className="text-muted-foreground">
-                We're calculating the career fit. Once complete, the full analysis and your CV (if selected) will be emailed to you shortly.
-              </p>
-              <Button onClick={handleAnalyzeAnother} className="w-full mt-4">
-                Analyze Another Job Description
-              </Button>
-            </div>
-          ) : (
-            <div className="space-y-4 text-center py-8">
-              <div className="flex justify-center gap-2 mb-4 flex-wrap">
-                {overallSteps.map((step, index) => (
-                  <React.Fragment key={index}>
-                    <span
-                      className={cn(
-                        "text-sm transition-colors duration-300",
-                        index === displayStepIndex
-                          ? "text-primary font-bold animate-pulse"
-                          : "text-muted-foreground"
-                      )}
-                    >
-                      {step}
-                    </span>
-                    {index < totalOverallSteps - 1 && (
-                      <span className="text-muted-foreground mx-1">→</span>
+          <div className="space-y-4 text-center py-8">
+            <div className="flex justify-center gap-2 mb-4 flex-wrap">
+              {overallSteps.map((step, index) => (
+                <React.Fragment key={index}>
+                  <span
+                    className={cn(
+                      "text-sm transition-colors duration-300",
+                      index === displayStepIndex
+                        ? "text-primary font-bold animate-pulse"
+                        : "text-muted-foreground"
                     )}
-                  </React.Fragment>
-                ))}
-              </div>
-              <Loader2 className="mx-auto h-8 w-8 animate-spin text-primary" />
-              <Progress value={progressValue} className="w-full" />
-              {displayStepIndex === totalOverallSteps - 1 && (
-                <p className="text-sm text-muted-foreground">
-                  This step may take 5-15 seconds depending on the length of your job description and the number of matching criteria.
-                </p>
-              )}
+                  >
+                    {step}
+                  </span>
+                  {index < totalOverallSteps - 1 && (
+                    <span className="text-muted-foreground mx-1">→</span>
+                  )}
+                </React.Fragment>
+              ))}
             </div>
-          )
+            <Loader2 className="mx-auto h-8 w-8 animate-spin text-primary" />
+            <Progress value={progressValue} className="w-full" />
+            {displayStepIndex === totalOverallSteps - 1 && (
+              <p className="text-sm text-muted-foreground">
+                This step may take 5-15 seconds depending on the length of your job description and the number of matching criteria.
+              </p>
+            )}
+          </div>
         ) : (
           <>
             <Tabs defaultValue="text" onValueChange={(value) => setInputMethod(value as "text" | "url")}>
@@ -412,7 +322,7 @@ export const CareerFitAnalyst = () => {
                     disabled={!resume || !!displayError}
                   />
                   <Button
-                    onClick={validateAndOpenEmailDialog}
+                    onClick={handleSubmit}
                     disabled={!isButtonEnabled || !resume || !!displayError}
                   >
                     <LinkIcon className="mr-2 h-4 w-4" />
@@ -427,7 +337,7 @@ export const CareerFitAnalyst = () => {
 
             {!matchResult && inputMethod === "text" && (
               <Button
-                onClick={validateAndOpenEmailDialog}
+                onClick={handleSubmit}
                 disabled={!isButtonEnabled || !resume || !!displayError}
                 className="w-full"
               >
@@ -445,88 +355,25 @@ export const CareerFitAnalyst = () => {
         )}
 
         {matchResult && !isMatching && !contextLoading && !isPreProcessing && (
-          emailOptionSelected === 'send' ? (
-            <div className="space-y-4 mt-6 text-center">
-              <Mail className="mx-auto h-8 w-8 text-primary" />
-              <p className="text-lg font-semibold">
-                Your analysis results have been sent to {pendingEmailDetails?.recipientEmail}!
-              </p>
-              <p className="text-muted-foreground">
-                Please check your inbox (and spam folder) in a few minutes.
-              </p>
-              <Button onClick={handleAnalyzeAnother} className="w-full mt-4">
-                Analyze Another Job Description
-              </Button>
-            </div>
-          ) : ( // emailOptionSelected === 'skip' or initial state if somehow reached here
-            <div className="space-y-4 mt-6">
-              <div className="flex justify-end gap-2 mb-4 print:hidden">
-                <Button
-                  onClick={handleDownloadText}
-                  variant="outline"
-                  size="sm"
-                  className="print:hidden"
-                >
-                  <Download className="mr-2 h-4 w-4" /> Download as Text
-                </Button>
-              </div>
-              <ScrollArea className="h-64 bg-muted p-4 rounded-lg prose dark:prose-invert max-w-none career-fit-output">
-                <div className="space-y-4">
-                  <ReactMarkdown>{limitedReasoning}</ReactMarkdown>
+          <div className="space-y-4 mt-6">
+            <ScrollArea className="h-64 bg-muted p-4 rounded-lg prose dark:prose-invert max-w-none career-fit-output">
+              <div className="space-y-4">
+                <div className="flex justify-end mb-4 print:hidden">
+                  <Button
+                    onClick={handleDownloadText}
+                    variant="outline"
+                    size="sm"
+                    className="print:hidden"
+                  >
+                    <Download className="mr-2 h-4 w-4" /> Download as Text
+                  </Button>
                 </div>
-              </ScrollArea>
-              <Button onClick={handleAnalyzeAnother} className="w-full mt-4">
-                Analyze Another Job Description
-              </Button>
-            </div>
-          )
+                <ReactMarkdown>{limitedReasoning}</ReactMarkdown>
+              </div>
+            </ScrollArea>
+          </div>
         )}
       </CardContent>
-
-      <Dialog open={isPreAnalysisEmailDialogOpen} onOpenChange={setIsPreAnalysisEmailDialogOpen}>
-        <DialogContent className="sm:max-w-[425px]">
-          <DialogHeader>
-            <DialogTitle>Email Analysis Results</DialogTitle>
-            <DialogDescription>
-              Enter your email address to receive the full career fit analysis, or skip to view it directly.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="grid gap-4 py-4">
-            <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="email" className="text-right">
-                Email
-              </Label>
-              <Input
-                id="email"
-                type="email"
-                placeholder="your.email@example.com"
-                value={recipientEmail}
-                onChange={(e) => setRecipientEmail(e.target.value)}
-                className="col-span-3"
-                disabled={isSendingEmail}
-              />
-            </div>
-            <div className="flex items-center space-x-2 col-span-4 col-start-2">
-              <Checkbox
-                id="attach-cv"
-                checked={attachCv}
-                onCheckedChange={(checked: boolean) => setAttachCv(checked)}
-                disabled={isSendingEmail || !resume}
-              />
-              <Label htmlFor="attach-cv" className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
-                Attach CV as PDF
-              </Label>
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => startAnalysis(null, false)} disabled={isSendingEmail}>Skip Email</Button>
-            <Button onClick={() => startAnalysis(recipientEmail, attachCv)} disabled={isSendingEmail || !recipientEmail || !resume}>
-              {isSendingEmail && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              Start Analysis
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
     </Card>
   );
 };
