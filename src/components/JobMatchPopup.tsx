@@ -99,7 +99,7 @@ export const JobMatchPopup = ({ isOpen, onOpenChange, onMatchRequest }: JobMatch
         <DialogHeader>
           <DialogTitle>Find Your Perfect Match</DialogTitle>
           <DialogDescription>
-            Enter your job description to see if you're a good fit for the role.
+            Enter your job description to see if Rajesh is a good fit for the role.
           </DialogDescription>
         </DialogHeader>
         <div className="py-4">
