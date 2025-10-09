@@ -291,7 +291,7 @@ export const CareerFitAnalyst = () => {
             <Progress value={progressValue} className="w-full" />
             {displayStepIndex === totalOverallSteps - 1 && (
               <p className="text-sm text-muted-foreground">
-                This step may take a few minutes depending on the length of your job description and the number of matching criteria.
+                This step may take a few minutes depending on the length of your job description and size of matching criteria.
               </p>
             )}
           </div>
