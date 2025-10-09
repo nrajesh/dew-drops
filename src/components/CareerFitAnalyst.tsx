@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
@@ -30,7 +30,7 @@ const limitGapsInMarkdown = (markdown: string): string => {
     if (inGapsSection) {
       // If it's a bullet point for a gap
       if (line.trim().startsWith('- ') || line.trim().startsWith('+ ')) {
-        if (gapCount < 3) {
+        if (gapCount < 3) { // This is the limit
           newLines.push(line);
           gapCount++;
         }
@@ -56,7 +56,8 @@ const limitGapsInMarkdown = (markdown: string): string => {
 export const CareerFitAnalyst = () => {
   const [jobDescription, setJobDescription] = useState("");
   const [isButtonEnabled, setIsButtonEnabled] = useState(false);
-  const contentRef = useRef<HTMLDivElement>(null); // Ref for the content to be downloaded
+  // contentRef is no longer strictly needed as we're downloading from state
+  // const contentRef = useRef<HTMLDivElement>(null); 
 
   const {
     isMatching,
@@ -71,6 +72,18 @@ export const CareerFitAnalyst = () => {
     currentStepTitle,
     totalSteps,
   } = useJobMatching();
+
+  // State to store the reasoning after applying the gap limit
+  const [limitedReasoning, setLimitedReasoning] = useState<string>('');
+
+  // Effect to update limitedReasoning whenever matchResult changes
+  useEffect(() => {
+    if (matchResult?.reasoning) {
+      setLimitedReasoning(limitGapsInMarkdown(matchResult.reasoning));
+    } else {
+      setLimitedReasoning('');
+    }
+  }, [matchResult]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     const value = e.target.value;
@@ -105,12 +118,13 @@ export const CareerFitAnalyst = () => {
     resetMatch();
     setJobDescription("");
     setIsButtonEnabled(false);
+    setLimitedReasoning(''); // Clear limited reasoning on reset
   };
 
   const handleDownloadText = () => {
-    if (matchResult?.reasoning) {
-      // Use the full reasoning for download, not the displayedReasoning
-      downloadTextFile(matchResult.reasoning, "CareerFitAnalysis.txt");
+    if (limitedReasoning) {
+      // Use the pre-limited reasoning for download
+      downloadTextFile(limitedReasoning, "CareerFitAnalysis.txt");
     } else {
       showError("No analysis result to download.");
     }
@@ -118,9 +132,6 @@ export const CareerFitAnalyst = () => {
 
   const displayError = contextError || geminiClientError;
   const progressValue = totalSteps > 0 ? ((currentStepIndex + 1) / totalSteps) * 100 : 0;
-
-  // Apply the gap limiting logic here before rendering for display only
-  const displayedReasoning = matchResult ? limitGapsInMarkdown(matchResult.reasoning) : '';
 
   return (
     <Card className="w-full max-w-3xl mx-auto">
@@ -184,7 +195,7 @@ export const CareerFitAnalyst = () => {
         {matchResult && !isMatching && !contextLoading && (
           <div className="space-y-4 mt-6">
             <ScrollArea className="h-64 bg-muted p-4 rounded-lg prose dark:prose-invert max-w-none career-fit-output">
-              <div ref={contentRef} className="space-y-4">
+              <div /* ref={contentRef} */ className="space-y-4">
                 <div className="flex justify-end mb-4 print:hidden">
                   <Button
                     onClick={handleDownloadText}
@@ -195,7 +206,7 @@ export const CareerFitAnalyst = () => {
                     <Download className="mr-2 h-4 w-4" /> Download as Text
                   </Button>
                 </div>
-                <ReactMarkdown>{displayedReasoning}</ReactMarkdown>
+                <ReactMarkdown>{limitedReasoning}</ReactMarkdown> {/* Use limitedReasoning for display */}
               </div>
             </ScrollArea>
           </div>
