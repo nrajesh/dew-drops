@@ -12,7 +12,7 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { showError } from "@/utils/toast";
 import { Progress } from "@/components/ui/progress";
 import { downloadTextFile } from "@/utils/fileDownload";
-import { cn, limitGapsInMarkdown, markdownToPlainText, stripHtmlTags } from "@/lib/utils";
+import { cn, limitGapsInMarkdown, markdownToPlainText, cleanJobDescriptionText } from "@/lib/utils";
 import { analyzeAndTranslateJobDescription } from "@/utils/aiTextAnalysis";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
@@ -200,8 +200,8 @@ export const CareerFitAnalyst = () => {
 
       if (inputMethod === "url") {
         const fetchedHtml = await fetchJobDescriptionFromUrl(jobDescriptionUrl);
-        textToAnalyze = stripHtmlTags(fetchedHtml); // Strip HTML tags
-        setJobDescription(textToAnalyze); // Set the fetched and stripped content to jobDescription state
+        textToAnalyze = cleanJobDescriptionText(fetchedHtml); // Use the new cleaning function
+        setJobDescription(textToAnalyze); // Set the fetched and cleaned content to jobDescription state
       }
 
       const analysisResult = await analyzeAndTranslateJobDescription(textToAnalyze);

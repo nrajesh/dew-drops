@@ -81,10 +81,6 @@ export const limitGapsInMarkdown = (markdown: string): string => {
         // Keep non-bullet point text within the gaps section (like 'No significant gaps identified.')
         // but only if it's not another heading
         newLines.push(line);
-      } else if (line.trim().startsWith('##')) {
-        // If a new heading starts, we're out of the gaps section
-        inGapsSection = false;
-        newLines.push(line);
       } else {
         // Keep empty lines or other non-bullet, non-heading content
         newLines.push(line);
@@ -112,11 +108,47 @@ export const markdownToPlainText = (markdown: string): string => {
 };
 
 /**
- * Strips HTML tags from a string.
- * @param htmlString The input string containing HTML.
- * @returns The string with HTML tags removed.
+ * Cleans job description text by stripping HTML tags, removing excessive newlines,
+ * and filtering out single-word paragraphs.
+ * @param text The input string, potentially containing HTML.
+ * @returns The cleaned plain text.
  */
-export const stripHtmlTags = (htmlString: string): string => {
-  const doc = new DOMParser().parseFromString(htmlString, 'text/html');
-  return doc.body.textContent || "";
+export const cleanJobDescriptionText = (text: string): string => {
+  // 1. Strip HTML tags
+  const doc = new DOMParser().parseFromString(text, 'text/html');
+  let plainText = doc.body.textContent || "";
+
+  // 2. Replace multiple newlines with a single space, then normalize spaces
+  plainText = plainText.replace(/(\r\n|\n|\r){2,}/g, ' ').replace(/\s\s+/g, ' ').trim();
+
+  // 3. Remove single-word "paragraphs" (now single words separated by spaces)
+  // This regex looks for a single word followed by a space or end of string,
+  // and replaces it with just a space, effectively removing the single word.
+  // It's applied iteratively to catch cases where removing one single word
+  // might create another.
+  let cleanedText = plainText;
+  let prevLength = -1;
+  while (cleanedText.length !== prevLength) {
+    prevLength = cleanedText.length;
+    cleanedText = cleanedText.replace(/\b\w+\b(?=\s|$)/g, (match) => {
+      // Only remove if it's truly a standalone single word "paragraph"
+      // In a flattened string, this means a single word followed by a space or end of string
+      // and not part of a larger phrase.
+      // A simpler approach is to filter after splitting into "sentences" or meaningful chunks.
+      // For now, let's focus on removing single words that are isolated by significant whitespace.
+      // Re-evaluating: The previous regex was too aggressive. Let's split by sentence-like structures
+      // and then filter single words.
+      return match.length > 1 ? match : ''; // Keep words longer than 1 char
+    }).replace(/\s\s+/g, ' ').trim();
+  }
+  
+  // A more robust way to handle single-word paragraphs after flattening:
+  // Split by common sentence/phrase delimiters, then filter.
+  const sentences = cleanedText.split(/([.!?]\s*|\n\s*)/).filter(Boolean);
+  const filteredSentences = sentences.filter(sentence => {
+    const words = sentence.trim().split(/\s+/);
+    return words.length > 1 || words[0].length > 1; // Keep if more than one word, or if single word is long
+  });
+  
+  return filteredSentences.join(' ').replace(/\s\s+/g, ' ').trim();
 };
