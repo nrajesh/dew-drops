@@ -367,7 +367,7 @@ export const CareerFitAnalyst = () => {
                 className="w-full"
               >
                 <Sparkles className="mr-2 h-4 w-4" />
-                Calculate Match Percentage
+                Perform Profile Match Analysis
               </Button>
             )}
 
