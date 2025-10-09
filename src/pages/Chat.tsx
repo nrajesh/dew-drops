@@ -58,7 +58,7 @@ const Chat = ({ jobDescription, onClose }: ChatProps) => {
       // Calculate match percentage using cosine similarity
       const matchPercentage = calculateCosineSimilarity(description, context);
 
-      // Generate reasoning using Gemini with enhanced prompt
+      // Generate reasoning using Gemini
       const reasoning = await generateReasoning(description, context, matchPercentage);
 
       // Add messages to the chat
@@ -81,21 +81,14 @@ const Chat = ({ jobDescription, onClose }: ChatProps) => {
     if (!sendMessageToGemini) throw new Error("Chat client is not initialized.");
 
     const systemPrompt = `You are a world-class hiring manager analyzing a job description against a candidate's profile.
-    Your task is to provide a concise, professional assessment (2-3 paragraphs) of the match.
-    
-    Here's the information:
     Job Description: ${description}
-    Candidate Profile (Rajesh's CV/Portfolio): ${context}
-    Calculated Match Percentage: ${matchPercentage.toFixed(0)}%
+    Candidate Profile: ${context}
+    Match Percentage: ${matchPercentage.toFixed(0)}%
 
-    Follow these steps for your assessment:
-    1.  **Extract Key Criteria**: Briefly identify the main skills, experience, and qualifications required by the job description.
-    2.  **Keyword & Skill Overlap**: Point out direct keyword and skill overlaps between the job description and Rajesh's profile.
-    3.  **Gap Analysis**: Identify any required items from the job description that appear to be missing or less prominent in Rajesh's profile.
-    4.  **Soft Skill Bridge**: For any identified gaps, suggest how Rajesh's likely soft skills (e.g., adaptability, quick learning, problem-solving, communication, initiative) could help him quickly acquire or compensate for those missing hard skills.
-    5.  **Overall Recommendation**: Conclude with an overall recommendation on the fit, encouraging further discussion if appropriate.
-    
-    Be professional, constructive, and focus on actionable insights.`;
+    Provide a concise reasoning (2-3 sentences) explaining why this is a ${matchPercentage.toFixed(0)}% match or why it isn't.
+    If the match is high, highlight specific skills or experiences that align.
+    If the match is low, suggest areas where the candidate might need to improve or where the job description might need to be adjusted.
+    Be professional and constructive in your assessment.`;
 
     const response = await sendMessageToGemini(systemPrompt);
     return response;
@@ -115,7 +108,7 @@ const Chat = ({ jobDescription, onClose }: ChatProps) => {
       if (!context) throw new Error("Knowledge base is not available.");
       if (!sendMessageToGemini) throw new Error("Chat client is not initialized.");
 
-      const systemPrompt = `You are a helpful assistant.
+      const systemPrompt = `You are a world-class hiring manager analyzing a job description against a candidate's profile.
       Use ONLY the following context to answer the user's question.
       Be friendly, concise, and helpful. If the answer is not in the context, say you don't have that information. Do not make things up.
 
