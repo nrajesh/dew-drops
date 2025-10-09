@@ -139,7 +139,8 @@ const Chat = ({ jobDescription, onClose }: ChatProps) => {
     Be professional and constructive in your assessment.`;
 
     const response = await sendMessageToGemini(systemPrompt);
-    return response;
+    // Trim multiple consecutive newlines to a maximum of two for better formatting
+    return response.replace(/\n{3,}/g, '\n\n').trim();
   };
 
   const handleSendMessage = async (e: React.FormEvent) => {

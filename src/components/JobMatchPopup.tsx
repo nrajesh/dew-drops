@@ -78,7 +78,9 @@ export const JobMatchPopup = ({ isOpen, onOpenChange, onMatchRequest }: JobMatch
     } else {
       reason += `The overall alignment is lower. This suggests the role might require a different set of core competencies or a significant upskilling effort.`;
     }
-    return reason;
+    
+    // Trim multiple consecutive newlines to a maximum of two for better formatting
+    return reason.replace(/\n{3,}/g, '\n\n').trim();
   };
 
   const handleSubmit = async () => {
