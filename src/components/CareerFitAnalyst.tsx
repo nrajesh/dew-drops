@@ -94,13 +94,13 @@ export const CareerFitAnalyst = () => {
           <div className="space-y-4 text-center py-8">
             <Loader2 className="mx-auto h-8 w-8 animate-spin text-primary" />
             <p className="text-muted-foreground">
-              {contextLoading ? "Loading portfolio data..." : `Analyzing: ${currentStepTitle}`}
+              {contextLoading ? "Loading portfolio data..." : `Step ${currentStepIndex + 1} of ${totalSteps}: ${currentStepTitle}`}
             </p>
             <Progress value={progressValue} className="w-full" />
           </div>
         ) : matchResult ? (
           <div className="space-y-4">
-            <ScrollArea className="h-64 bg-muted p-4 rounded-lg prose dark:prose-invert max-w-none">
+            <ScrollArea className="h-64 bg-muted p-4 rounded-lg prose dark:prose-invert max-w-none career-fit-output">
               <ReactMarkdown>{matchResult.reasoning}</ReactMarkdown>
             </ScrollArea>
             <Button onClick={handleAnalyzeAnother} className="w-full">

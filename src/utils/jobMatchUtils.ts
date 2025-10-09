@@ -81,14 +81,12 @@ Qualitative assessment: ${qualitativeAssessment}
 
 Provide the response strictly in the format below, using Markdown:
 ## Matching Areas
-
--   **+** [Succinct point describing a strength related to an overlapping skill/requirement]
--   **+** ...
++ [Succinct point describing a strength related to an overlapping skill/requirement]
++ ...
 
 ## Gaps
-
--   **-** [Missing skill/requirement] - [Suggested soft skill to leverage]
--   **-** ...
+- [Missing skill/requirement] - [Suggested soft skill to leverage]
+- ...
 `;
 
   const reasoningText = await sendMessageToGemini(systemPrompt);
