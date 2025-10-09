@@ -8,13 +8,10 @@ import { showError } from "@/utils/toast";
 import { useNavigate } from "react-router-dom";
 import { usePortfolioContext } from "@/hooks/usePortfolioContext";
 import { Loader2 } from "lucide-react";
-import { calculateCosineSimilarity } from "@/utils/cosineSimilarity"; // Import the new utility
+import { calculateWeightedMatchPercentage } from "@/utils/cosineSimilarity";
+import type { JsonResume } from "@/types/resume";
+import { extractJobKeywords, sendMessageToGemini } from "@/integrations/gemini/client"; // Direct import for sendMessageToGemini and extractJobKeywords
 import ReactMarkdown from 'react-markdown'; // Import ReactMarkdown
-import remarkGfm from 'remark-gfm'; // Import remarkGfm for GitHub Flavored Markdown
-import { ScrollArea } from "@/components/ui/scroll-area"; // Import ScrollArea
-import { Progress } from "@/components/ui/progress"; // Import Progress component
-
-let sendMessageToGemini: (message: string) => Promise<string>; // Declare Gemini function
 
 interface JobMatchPopupProps {
   isOpen: boolean;
@@ -26,23 +23,9 @@ export const JobMatchPopup = ({ isOpen, onOpenChange, onMatchRequest }: JobMatch
   const [jobDescription, setJobDescription] = useState("");
   const [isButtonEnabled, setIsButtonEnabled] = useState(false);
   const [isMatching, setIsMatching] = useState(false);
-  const [matchResult, setMatchResult] = useState<{ percentage: number; reasoning: string } | null>(null);
-  const [progress, setProgress] = useState(0); // New state for progress
+  const [matchResult, setMatchResult] = useState<{ percentage: number; reasoning: string; breakdown: { experience: number; education: number; skills: number } } | null>(null);
   const navigate = useNavigate();
-  const { context, loading: contextLoading, error: contextError } = usePortfolioContext();
-  const [apiKeyError, setApiKeyError] = useState<string | null>(null);
-
-  useEffect(() => {
-    const initGemini = async () => {
-      try {
-        const module = await import('@/integrations/gemini/client');
-        sendMessageToGemini = module.sendMessageToGemini;
-      } catch (error: any) {
-        setApiKeyError(error.message);
-      }
-    };
-    initGemini();
-  }, []);
+  const { chatbotKnowledge, resume, loading: contextLoading, error: contextError } = usePortfolioContext();
 
   useEffect(() => {
     if (!isOpen) {
@@ -51,7 +34,6 @@ export const JobMatchPopup = ({ isOpen, onOpenChange, onMatchRequest }: JobMatch
       setIsButtonEnabled(false);
       setIsMatching(false);
       setMatchResult(null);
-      setProgress(0); // Reset progress
     }
   }, [isOpen]);
 
@@ -61,22 +43,56 @@ export const JobMatchPopup = ({ isOpen, onOpenChange, onMatchRequest }: JobMatch
     setIsButtonEnabled(value.length >= 80);
   };
 
-  const generateReasoning = async (description: string, context: string, matchPercentage: number): Promise<string> => {
-    if (!sendMessageToGemini) throw new Error("Chat client is not initialized.");
+  const generateReasoning = async (
+    description: string,
+    totalPercentage: number,
+    breakdown: { experience: number; education: number; skills: number },
+    jobRequirements: string[],
+    cvSkills: string[]
+  ): Promise<string> => {
+    const jobReqSet = new Set(jobRequirements.map(s => s.toLowerCase()));
+    const cvSkillsSet = new Set(cvSkills.map(s => s.toLowerCase()));
+
+    const overlaps = Array.from(jobReqSet).filter(req => cvSkillsSet.has(req));
+    const missing = Array.from(jobReqSet).filter(req => !cvSkillsSet.has(req));
+
+    let feedback = `**Breakdown:**\n`;
+    feedback += `- **Experience:** ${breakdown.experience.toFixed(0)}%\n`;
+    feedback += `- **Education:** ${breakdown.education.toFixed(0)}%\n`;
+    feedback += `- **Skills:** ${breakdown.skills.toFixed(0)}%\n\n`;
+
+    if (overlaps.length > 0) {
+      feedback += `**Key Overlapping Skills/Requirements:**\n- ${overlaps.join(', ')}\n\n`;
+    }
+
+    if (missing.length > 0) {
+      feedback += `**Missing Key Skills/Requirements:**\n- ${missing.join(', ')}\n\n`;
+      feedback += `**Actionable Feedback:**\n`;
+      feedback += `To improve alignment, consider highlighting experiences or projects where you've utilized these missing skills. If you have relevant experience not explicitly listed, ensure it's added to your CV. For skills you're developing, consider adding them to a "Learning" or "Future Skills" section, or gaining practical experience through projects.\n\n`;
+    }
+
+    if (totalPercentage >= 70) {
+      feedback += `Rajesh's profile shows a strong alignment with the job's requirements, particularly in areas of experience.`;
+    } else if (totalPercentage >= 40) {
+      feedback += `There's a moderate alignment. While some areas match well, others might require further development or a more tailored approach.`;
+    } else {
+      feedback += `The overall alignment is lower. This suggests the role might require a different set of core competencies or a significant upskilling effort.`;
+    }
 
     const systemPrompt = `You are a world-class hiring manager analyzing a job description against a candidate's profile.
-    Job Description: ${description}
-    Candidate Profile: ${context}
-    Match Percentage: ${matchPercentage.toFixed(0)}%
+    Based on the following information, provide a concise reasoning (2-3 sentences) explaining why this is a ${totalPercentage.toFixed(0)}% match or why it isn't.
+    Do NOT include the match percentage or any introductory "Reasoning:" prefix in your response.
+    Focus on the alignment, overlaps, and actionable feedback provided.
 
-    Based on the job description and the candidate's profile, perform a keyword matching and gap analysis.
-    Provide a concise reasoning (2-3 sentences) explaining why this is a ${matchPercentage.toFixed(0)}% match or why it isn't.
-    If the match is high, highlight specific skills or experiences that align.
-    If the match is low, suggest areas where the candidate might need to improve or where the job description might need to be adjusted.
-    Be professional and constructive in your assessment.`;
+    INFORMATION:
+    ---
+    Job Description: ${description}
+    ${feedback}
+    ---
+    `;
 
     const response = await sendMessageToGemini(systemPrompt);
-    return response;
+    return response.replace(/\n{3,}/g, '\n\n').trim();
   };
 
   const handleSubmit = async () => {
@@ -85,33 +101,42 @@ export const JobMatchPopup = ({ isOpen, onOpenChange, onMatchRequest }: JobMatch
       return;
     }
 
-    if (!context || contextError) {
-      showError("Knowledge base is not available for matching.");
-      return;
-    }
-    if (apiKeyError) {
-      showError(`AI service configuration error: ${apiKeyError}`);
+    if (!resume || contextError) {
+      showError("Resume data is not available for matching. Please ensure VITE_RESUME_URL is set and accessible.");
       return;
     }
 
     setIsMatching(true);
-    setProgress(10); // Start progress
 
     try {
-      // Calculate match percentage using cosine similarity
-      const matchPercentage = calculateCosineSimilarity(jobDescription, context);
-      setProgress(50); // After client-side calculation
+      // Step 1: Extract job requirements using Gemini
+      const jobRequirements = await extractJobKeywords(jobDescription);
 
-      // Generate reasoning using Gemini for keyword matching and gap analysis
-      const reasoning = await generateReasoning(jobDescription, context, matchPercentage);
-      setProgress(100); // After AI response
+      // Step 2: Prepare CV sections for weighted similarity
+      const cvSections = {
+        experience: resume.work?.map(w => `${w.position} at ${w.company} ${w.summary} ${w.highlights?.join(' ')}`).join(' ') || '',
+        education: resume.education?.map(e => `${e.studyType} in ${e.area} from ${e.institution} ${e.courses?.join(' ')}`).join(' ') || '',
+        skills: resume.skills?.map(s => `${s.name} ${s.level} ${s.keywords?.join(' ')}`).join(' ') || '',
+      };
+
+      const { totalPercentage, breakdown } = calculateWeightedMatchPercentage(jobDescription, cvSections);
+
+      // Step 3: Collect all skills from CV for direct comparison
+      const allCvSkills: string[] = [];
+      resume.skills?.forEach(s => {
+        allCvSkills.push(s.name);
+        s.keywords?.forEach(k => allCvSkills.push(k)); // Fixed typo here
+      });
+      resume.work?.forEach(w => w.highlights?.forEach(h => allCvSkills.push(h))); // Also consider work highlights as skills
+
+      // Step 4: Generate reasoning with Markdown, overlaps, and feedback
+      const reasoning = await generateReasoning(jobDescription, totalPercentage, breakdown, jobRequirements, allCvSkills);
 
       // Set the match result
-      setMatchResult({ percentage: matchPercentage, reasoning });
+      setMatchResult({ percentage: totalPercentage, reasoning, breakdown });
     } catch (error: any) {
       console.error("Error in job matching:", error);
       showError("Sorry, an error occurred while analyzing the job description. Please try again later.");
-      setProgress(0); // Reset progress on error
     } finally {
       setIsMatching(false);
     }
@@ -127,7 +152,6 @@ export const JobMatchPopup = ({ isOpen, onOpenChange, onMatchRequest }: JobMatch
     setMatchResult(null);
     setJobDescription("");
     setIsButtonEnabled(false);
-    setProgress(0); // Reset progress
   };
 
   return (
@@ -136,27 +160,19 @@ export const JobMatchPopup = ({ isOpen, onOpenChange, onMatchRequest }: JobMatch
         <DialogHeader>
           <DialogTitle>Find Your Perfect Match</DialogTitle>
           <DialogDescription>
-            Enter your job description to see if you're a good fit for the role.
+            Enter your job description to see if Rajesh is a good fit for the role.
           </DialogDescription>
         </DialogHeader>
         <div className="py-4">
-          {isMatching && !matchResult ? (
-            <div className="space-y-4 text-center">
-              <Loader2 className="mx-auto h-8 w-8 animate-spin text-primary" />
-              <p className="text-muted-foreground">Analyzing your job description...</p>
-              <Progress value={progress} className="w-full" />
-            </div>
-          ) : matchResult ? (
+          {matchResult ? (
             <div className="space-y-4">
               <div className="text-center">
                 <p className="text-4xl font-bold text-primary">{matchResult.percentage.toFixed(0)}%</p>
                 <p className="text-sm text-muted-foreground mt-1">Match Percentage</p>
               </div>
-              <ScrollArea className="h-48 bg-muted p-4 rounded-lg prose dark:prose-invert max-w-none">
-                <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                  {matchResult.reasoning}
-                </ReactMarkdown>
-              </ScrollArea>
+              <div className="bg-muted p-4 rounded-lg whitespace-pre-wrap prose dark:prose-invert max-w-none max-h-[200px] overflow-y-auto">
+                <ReactMarkdown>{matchResult.reasoning}</ReactMarkdown>
+              </div>
             </div>
           ) : (
             <>
@@ -193,7 +209,7 @@ export const JobMatchPopup = ({ isOpen, onOpenChange, onMatchRequest }: JobMatch
           ) : (
             <Button
               onClick={handleSubmit}
-              disabled={!isButtonEnabled || isMatching || contextLoading || apiKeyError !== null}
+              disabled={!isButtonEnabled || isMatching}
               className="w-full"
             >
               {isMatching ? (
