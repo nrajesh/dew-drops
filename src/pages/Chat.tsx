@@ -6,6 +6,7 @@ import { Send, Bot, User as UserIcon, Loader2, AlertTriangle, X } from "lucide-r
 import { usePortfolioContext } from "@/hooks/usePortfolioContext";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { useNavigate } from "react-router-dom";
+import { calculateCosineSimilarity } from "@/utils/cosineSimilarity"; // Import the new utility
 
 interface Message {
   role: "user" | "assistant";
@@ -54,15 +55,15 @@ const Chat = ({ jobDescription, onClose }: ChatProps) => {
     setMessages([]);
 
     try {
-      // Calculate match percentage
-      const matchPercentage = calculateMatchPercentage(description, context);
+      // Calculate match percentage using cosine similarity
+      const matchPercentage = calculateCosineSimilarity(description, context);
 
-      // Generate reasoning
+      // Generate reasoning using Gemini
       const reasoning = await generateReasoning(description, context, matchPercentage);
 
       // Add messages to the chat
       const newMessages: Message[] = [
-        { role: "assistant", content: `I've analyzed your job description and found a ${matchPercentage}% match with Rajesh's profile.` },
+        { role: "assistant", content: `I've analyzed your job description and found a ${matchPercentage.toFixed(0)}% match with Rajesh's profile.` },
         { role: "assistant", content: reasoning },
         { role: "assistant", content: "Would you like to contact Rajesh to discuss this further?" }
       ];
@@ -76,28 +77,15 @@ const Chat = ({ jobDescription, onClose }: ChatProps) => {
     }
   };
 
-  const calculateMatchPercentage = (description: string, context: string): number => {
-    // Simple keyword matching for demonstration
-    const descriptionKeywords = description.toLowerCase().split(/\s+/);
-    const contextKeywords = context.toLowerCase().split(/\s+/);
-
-    const commonKeywords = descriptionKeywords.filter(keyword =>
-      contextKeywords.includes(keyword) && keyword.length > 3
-    );
-
-    const matchPercentage = Math.min(100, Math.round((commonKeywords.length / descriptionKeywords.length) * 100));
-    return matchPercentage;
-  };
-
   const generateReasoning = async (description: string, context: string, matchPercentage: number): Promise<string> => {
     if (!sendMessageToGemini) throw new Error("Chat client is not initialized.");
 
     const systemPrompt = `You are a world-class hiring manager analyzing a job description against a candidate's profile.
     Job Description: ${description}
     Candidate Profile: ${context}
-    Match Percentage: ${matchPercentage}%
+    Match Percentage: ${matchPercentage.toFixed(0)}%
 
-    Provide a concise reasoning (2-3 sentences) explaining why this is a ${matchPercentage}% match or why it isn't.
+    Provide a concise reasoning (2-3 sentences) explaining why this is a ${matchPercentage.toFixed(0)}% match or why it isn't.
     If the match is high, highlight specific skills or experiences that align.
     If the match is low, suggest areas where the candidate might need to improve or where the job description might need to be adjusted.
     Be professional and constructive in your assessment.`;

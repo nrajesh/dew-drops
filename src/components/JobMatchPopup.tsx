@@ -8,6 +8,7 @@ import { showError } from "@/utils/toast";
 import { useNavigate } from "react-router-dom";
 import { usePortfolioContext } from "@/hooks/usePortfolioContext";
 import { Loader2 } from "lucide-react";
+import { calculateCosineSimilarity } from "@/utils/cosineSimilarity"; // Import the new utility
 
 interface JobMatchPopupProps {
   isOpen: boolean;
@@ -39,27 +40,14 @@ export const JobMatchPopup = ({ isOpen, onOpenChange, onMatchRequest }: JobMatch
     setIsButtonEnabled(value.length >= 80);
   };
 
-  const calculateMatchPercentage = (description: string, context: string): number => {
-    // Simple keyword matching for demonstration
-    const descriptionKeywords = description.toLowerCase().split(/\s+/);
-    const contextKeywords = context.toLowerCase().split(/\s+/);
-
-    const commonKeywords = descriptionKeywords.filter(keyword =>
-      contextKeywords.includes(keyword) && keyword.length > 3
-    );
-
-    const matchPercentage = Math.min(100, Math.round((commonKeywords.length / descriptionKeywords.length) * 100));
-    return matchPercentage;
-  };
-
   const generateReasoning = (description: string, context: string, matchPercentage: number): string => {
     // Simple reasoning generation based on match percentage
     if (matchPercentage >= 70) {
-      return `This is a strong match (${matchPercentage}%) because the job description aligns well with Rajesh's skills and experiences.`;
+      return `This is a strong match (${matchPercentage.toFixed(0)}%) because the job description aligns well with Rajesh's skills and experiences.`;
     } else if (matchPercentage >= 40) {
-      return `This is a moderate match (${matchPercentage}%). While there are some relevant skills, there may be areas where Rajesh's experience could be enhanced to better fit the role.`;
+      return `This is a moderate match (${matchPercentage.toFixed(0)}%). While there are some relevant skills, there may be areas where Rajesh's experience could be enhanced to better fit the role.`;
     } else {
-      return `This is a low match (${matchPercentage}%). The job description may require skills or experiences that Rajesh doesn't currently have, or may need significant adjustments to align with the role.`;
+      return `This is a low match (${matchPercentage.toFixed(0)}%). The job description may require skills or experiences that Rajesh doesn't currently have, or may need significant adjustments to align with the role.`;
     }
   };
 
@@ -77,8 +65,8 @@ export const JobMatchPopup = ({ isOpen, onOpenChange, onMatchRequest }: JobMatch
     setIsMatching(true);
 
     try {
-      // Calculate match percentage
-      const matchPercentage = calculateMatchPercentage(jobDescription, context);
+      // Calculate match percentage using cosine similarity
+      const matchPercentage = calculateCosineSimilarity(jobDescription, context);
 
       // Generate reasoning
       const reasoning = generateReasoning(jobDescription, context, matchPercentage);
@@ -118,7 +106,7 @@ export const JobMatchPopup = ({ isOpen, onOpenChange, onMatchRequest }: JobMatch
           {matchResult ? (
             <div className="space-y-4">
               <div className="text-center">
-                <p className="text-4xl font-bold text-primary">{matchResult.percentage}%</p>
+                <p className="text-4xl font-bold text-primary">{matchResult.percentage.toFixed(0)}%</p>
                 <p className="text-sm text-muted-foreground mt-1">Match Percentage</p>
               </div>
               <div className="bg-muted p-4 rounded-lg">
