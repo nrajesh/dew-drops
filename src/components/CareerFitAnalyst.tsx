@@ -12,11 +12,16 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { showError } from "@/utils/toast";
 import { Progress } from "@/components/ui/progress";
 import { downloadTextFile } from "@/utils/fileDownload";
-import { cn, limitGapsInMarkdown, markdownToPlainText } from "@/lib/utils"; // Import from utils
+import { cn, limitGapsInMarkdown, markdownToPlainText } from "@/lib/utils";
+import { analyzeAndTranslateJobDescription } from "@/utils/aiTextAnalysis"; // Import the new utility
+
+const MIN_JOB_DESCRIPTION_LENGTH = 250; // Increased minimum character length
 
 export const CareerFitAnalyst = () => {
   const [jobDescription, setJobDescription] = useState("");
   const [isButtonEnabled, setIsButtonEnabled] = useState(false);
+  const [isPreProcessing, setIsPreProcessing] = useState(false); // New state for validation/translation
+  const [preProcessingMessage, setPreProcessingMessage] = useState(""); // Message for pre-processing step
 
   const {
     isMatching,
@@ -47,12 +52,12 @@ export const CareerFitAnalyst = () => {
   const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     const value = e.target.value;
     setJobDescription(value);
-    setIsButtonEnabled(value.length >= 80);
+    setIsButtonEnabled(value.length >= MIN_JOB_DESCRIPTION_LENGTH);
   };
 
   const handleSubmit = async () => {
-    if (jobDescription.length < 80) {
-      showError("Please enter at least 80 characters for a meaningful match.");
+    if (jobDescription.length < MIN_JOB_DESCRIPTION_LENGTH) {
+      showError(`Please enter at least ${MIN_JOB_DESCRIPTION_LENGTH} characters for a meaningful match.`);
       return;
     }
 
@@ -65,11 +70,32 @@ export const CareerFitAnalyst = () => {
       return;
     }
 
+    setIsPreProcessing(true);
+    setPreProcessingMessage("Detecting language and validating job description...");
+
     try {
-      await performJobMatch(jobDescription);
+      const analysisResult = await analyzeAndTranslateJobDescription(jobDescription);
+
+      if (!analysisResult.isValidJobDescription) {
+        showError(analysisResult.processedText); // This will contain the "INVALID_JOB_DESCRIPTION" message
+        return;
+      }
+
+      if (analysisResult.originalLanguage !== 'en') {
+        setPreProcessingMessage(`Translating job description from ${analysisResult.originalLanguage.toUpperCase()} to English...`);
+      } else {
+        setPreProcessingMessage("Job description validated. Proceeding with analysis...");
+      }
+
+      // Proceed with job matching using the processed (potentially translated) text
+      await performJobMatch(analysisResult.processedText);
+
     } catch (error: any) {
-      console.error("Error in career fit analysis:", error);
-      showError("Sorry, an error occurred while analyzing the job description. Please try again later.");
+      console.error("Error in pre-analysis or career fit analysis:", error);
+      showError(error.message || "Sorry, an error occurred during job description validation or analysis. Please try again later.");
+    } finally {
+      setIsPreProcessing(false);
+      setPreProcessingMessage("");
     }
   };
 
@@ -78,6 +104,8 @@ export const CareerFitAnalyst = () => {
     setJobDescription("");
     setIsButtonEnabled(false);
     setLimitedReasoning(''); // Clear limited reasoning on reset
+    setIsPreProcessing(false);
+    setPreProcessingMessage("");
   };
 
   const handleDownloadText = () => {
@@ -91,7 +119,18 @@ export const CareerFitAnalyst = () => {
   };
 
   const displayError = contextError || geminiClientError;
-  const progressValue = totalSteps > 0 ? ((currentStepIndex + 1) / totalSteps) * 100 : 0;
+
+  // Combine pre-processing and matching steps for overall progress
+  const overallSteps = [
+    "Validating & Translating Job Description", // This is the pre-processing step
+    ...analysisSteps // These are the steps from useJobMatching
+  ];
+
+  const currentOverallStepIndex = isPreProcessing ? 0 : (isMatching ? (currentStepIndex + 1) : -1);
+  const currentOverallStepTitle = isPreProcessing ? preProcessingMessage : (isMatching ? currentStepTitle : "");
+  const totalOverallSteps = overallSteps.length;
+  const progressValue = totalOverallSteps > 0 && (isPreProcessing || isMatching) ? ((currentOverallStepIndex + 1) / totalOverallSteps) * 100 : 0;
+
 
   return (
     <Card className="w-full max-w-3xl mx-auto">
@@ -115,15 +154,15 @@ export const CareerFitAnalyst = () => {
           </Alert>
         )}
 
-        {contextLoading || isMatching ? (
+        {contextLoading || isMatching || isPreProcessing ? (
           <div className="space-y-4 text-center py-8">
             <div className="flex justify-center gap-4 mb-4 flex-wrap">
-              {analysisSteps.map((step, index) => (
+              {overallSteps.map((step, index) => (
                 <span
                   key={index}
                   className={cn(
                     "text-sm transition-colors duration-300",
-                    index === currentStepIndex
+                    index === currentOverallStepIndex
                       ? "text-primary font-bold animate-pulse"
                       : "text-muted-foreground"
                   )}
@@ -134,21 +173,21 @@ export const CareerFitAnalyst = () => {
             </div>
             <Loader2 className="mx-auto h-8 w-8 animate-spin text-primary" />
             <p className="text-muted-foreground">
-              {contextLoading ? "Loading portfolio data..." : `Step ${currentStepIndex + 1} of ${totalSteps}: ${currentStepTitle}`}
+              {contextLoading ? "Loading portfolio data..." : currentOverallStepTitle}
             </p>
             <Progress value={progressValue} className="w-full" />
           </div>
         ) : (
           <>
             <Textarea
-              placeholder="Paste your job description here (minimum 80 characters)..."
+              placeholder={`Paste your job description here (minimum ${MIN_JOB_DESCRIPTION_LENGTH} characters)...`}
               value={jobDescription}
               onChange={handleInputChange}
               className="min-h-[200px]"
               disabled={!resume || !!displayError}
             />
             <p className="text-sm text-muted-foreground">
-              {jobDescription.length}/80 characters minimum
+              {jobDescription.length}/{MIN_JOB_DESCRIPTION_LENGTH} characters minimum
             </p>
             {!matchResult ? (
               <Button
@@ -167,7 +206,7 @@ export const CareerFitAnalyst = () => {
           </>
         )}
 
-        {matchResult && !isMatching && !contextLoading && (
+        {matchResult && !isMatching && !contextLoading && !isPreProcessing && (
           <div className="space-y-4 mt-6">
             <ScrollArea className="h-64 bg-muted p-4 rounded-lg prose dark:prose-invert max-w-none career-fit-output">
               <div className="space-y-4">
