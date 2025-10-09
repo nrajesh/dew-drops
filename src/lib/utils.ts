@@ -52,3 +52,61 @@ export function generateAltTextFromFileName(fileName: string): string {
   // Remove the file extension and replace underscores with spaces.
   return originalFileName.replace(/\.[^/.]+$/, "").replace(/_/g, ' ');
 }
+
+/**
+ * Helper function to limit gaps in markdown output for display
+ * to a maximum of 3 bullet points in the 'Gaps' section.
+ */
+export const limitGapsInMarkdown = (markdown: string): string => {
+  const lines = markdown.split('\n');
+  let inGapsSection = false;
+  let gapCount = 0;
+  const newLines: string[] = [];
+
+  for (const line of lines) {
+    if (line.startsWith('## Gaps')) {
+      inGapsSection = true;
+      newLines.push(line);
+      continue;
+    }
+
+    if (inGapsSection) {
+      // If it's a bullet point for a gap
+      if (line.trim().startsWith('- ') || line.trim().startsWith('+ ')) {
+        if (gapCount < 3) { // This is the limit
+          newLines.push(line);
+          gapCount++;
+        }
+      } else if (line.trim().length > 0 && !line.trim().startsWith('##')) {
+        // Keep non-bullet point text within the gaps section (like 'No significant gaps identified.')
+        // but only if it's not another heading
+        newLines.push(line);
+      } else if (line.trim().startsWith('##')) {
+        // If a new heading starts, we're out of the gaps section
+        inGapsSection = false;
+        newLines.push(line);
+      } else {
+        // Keep empty lines or other non-bullet, non-heading content
+        newLines.push(line);
+      }
+    } else {
+      newLines.push(line);
+    }
+  }
+  return newLines.join('\n');
+};
+
+/**
+ * Helper function to convert markdown to plain text for download,
+ * removing markdown formatting like headings, bold, and italics.
+ */
+export const markdownToPlainText = (markdown: string): string => {
+  let plainText = markdown;
+  // Remove headings (e.g., ## Matching Areas)
+  plainText = plainText.replace(/^#+\s/gm, '');
+  // Remove bold/italic markers
+  plainText = plainText.replace(/\*\*([^*]+?)\*\*/g, '$1'); // **bold** -> bold
+  plainText = plainText.replace(/\*([^*]+?)\*/g, '$1');   // *italic* -> italic
+  plainText = plainText.replace(/_([^_]+?)_/g, '$1');     // _italic_ -> italic
+  return plainText;
+};

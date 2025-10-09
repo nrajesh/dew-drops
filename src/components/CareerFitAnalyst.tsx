@@ -7,64 +7,12 @@ import { Textarea } from "@/components/ui/textarea";
 import { Loader2, Sparkles, AlertTriangle, Download } from "lucide-react";
 import ReactMarkdown from 'react-markdown';
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { useJobMatching, analysisSteps } from "@/hooks/useJobMatching"; // Import analysisSteps
+import { useJobMatching, analysisSteps } from "@/hooks/useJobMatching";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { showError } from "@/utils/toast";
 import { Progress } from "@/components/ui/progress";
-import { downloadTextFile } from "@/utils/fileDownload"; // Import the new utility
-import { cn } from "@/lib/utils"; // Import cn for conditional classNames
-
-// Helper function to limit gaps in markdown output for display
-const limitGapsInMarkdown = (markdown: string): string => {
-  const lines = markdown.split('\n');
-  let inGapsSection = false;
-  let gapCount = 0;
-  const newLines: string[] = [];
-
-  for (const line of lines) {
-    if (line.startsWith('## Gaps')) {
-      inGapsSection = true;
-      newLines.push(line);
-      continue;
-    }
-
-    if (inGapsSection) {
-      // If it's a bullet point for a gap
-      if (line.trim().startsWith('- ') || line.trim().startsWith('+ ')) {
-        if (gapCount < 3) { // This is the limit
-          newLines.push(line);
-          gapCount++;
-        }
-      } else if (line.trim().length > 0 && !line.trim().startsWith('##')) {
-        // Keep non-bullet point text within the gaps section (like 'No significant gaps identified.')
-        // but only if it's not another heading
-        newLines.push(line);
-      } else if (line.trim().startsWith('##')) {
-        // If a new heading starts, we're out of the gaps section
-        inGapsSection = false;
-        newLines.push(line);
-      } else {
-        // Keep empty lines or other non-bullet, non-heading content
-        newLines.push(line);
-      }
-    } else {
-      newLines.push(line);
-    }
-  }
-  return newLines.join('\n');
-};
-
-// Helper function to convert markdown to plain text for download
-const markdownToPlainText = (markdown: string): string => {
-  let plainText = markdown;
-  // Remove headings (e.g., ## Matching Areas)
-  plainText = plainText.replace(/^#+\s/gm, '');
-  // Remove bold/italic markers
-  plainText = plainText.replace(/\*\*([^*]+?)\*\*/g, '$1'); // **bold** -> bold
-  plainText = plainText.replace(/\*([^*]+?)\*/g, '$1');   // *italic* -> italic
-  plainText = plainText.replace(/_([^_]+?)_/g, '$1');     // _italic_ -> italic
-  return plainText;
-};
+import { downloadTextFile } from "@/utils/fileDownload";
+import { cn, limitGapsInMarkdown, markdownToPlainText } from "@/lib/utils"; // Import from utils
 
 export const CareerFitAnalyst = () => {
   const [jobDescription, setJobDescription] = useState("");
@@ -84,7 +32,7 @@ export const CareerFitAnalyst = () => {
     totalSteps,
   } = useJobMatching();
 
-  // State to store the reasoning after applying the gap limit for display and download
+  // State to store the reasoning after applying the gap limit
   const [limitedReasoning, setLimitedReasoning] = useState<string>('');
 
   // Effect to update limitedReasoning whenever matchResult changes
@@ -134,7 +82,7 @@ export const CareerFitAnalyst = () => {
 
   const handleDownloadText = () => {
     if (limitedReasoning) {
-      // Use the pre-limited reasoning for download, converted to plain text
+      // Use the pre-limited reasoning for download
       const plainTextContent = markdownToPlainText(limitedReasoning);
       downloadTextFile(plainTextContent, "CareerFitAnalysis.txt");
     } else {
