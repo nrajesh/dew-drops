@@ -156,7 +156,7 @@ export const JobMatchPopup = ({ isOpen, onOpenChange, onMatchRequest }: JobMatch
                 <p className="text-4xl font-bold text-primary">{matchResult.percentage.toFixed(0)}%</p>
                 <p className="text-sm text-muted-foreground mt-1">Match Percentage</p>
               </div>
-              <div className="bg-muted p-4 rounded-lg whitespace-pre-wrap prose dark:prose-invert max-w-none">
+              <div className="bg-muted p-4 rounded-lg whitespace-pre-wrap prose dark:prose-invert max-w-none max-h-[200px] overflow-y-auto">
                 <ReactMarkdown>{matchResult.reasoning}</ReactMarkdown>
               </div>
             </div>
