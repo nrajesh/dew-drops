@@ -24,6 +24,7 @@
     --border: 214.3 31.8% 91.4%;
     --input: 214.3 31.8% 91.4%;
     --ring: 217 91% 60%;
+    --radius: 0.5rem;
 
     /* Sidebar variables for light theme */
     --sidebar-background: 210 40% 100%;
@@ -112,18 +113,18 @@
   background-color: hsla(var(--primary-foreground), 0.1);
 }
 
-/* Removed custom styling for CareerFitAnalyst output to allow default markdown list rendering */
-/* .career-fit-output .prose ul {
-  list-style-type: none !important;
-  padding-left: 0 !important;
-  margin-left: 0 !important;
+/* Custom styling for CareerFitAnalyst output */
+.career-fit-output .prose ul {
+  list-style-type: none !important; /* Remove default bullets */
+  padding-left: 0 !important; /* Remove default padding */
+  margin-left: 0 !important; /* Remove default margin */
 }
 
 .career-fit-output .prose ul li {
-  padding-left: 0 !important;
-  margin-left: 0 !important;
-  text-align: left !important;
-} */
+  padding-left: 0 !important; /* Ensure list items are left-aligned */
+  margin-left: 0 !important; /* Ensure list items are left-aligned */
+  text-align: left !important; /* Explicitly left-align text */
+}
 
 @media print {
   @page {
