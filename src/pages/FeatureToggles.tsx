@@ -16,6 +16,7 @@ const featureDescriptions: Record<string, { title: string; description: string }
   [navFeatures.MANAGE_BLOG]: { title: "Manage Blog", description: "The management page for blog posts." },
   [navFeatures.MANAGE_GALLERY]: { title: "Manage Gallery", description: "The management page for the photo gallery." },
   [navFeatures.MANAGE_TRAVEL]: { title: "Manage Travel", description: "The management page for the travel map." },
+  [navFeatures.MATCH_CV]: { title: "Match CV", description: "The AI driven CV analysis page." },
   [navFeatures.FEATURE_TOGGLES]: { title: "Feature Toggles", description: "This management page itself." },
 };
 

@@ -1,13 +1,14 @@
-import { Home, Newspaper, Image as ImageIcon, Map, Send, Wrench, ToggleRight, Database, User as UserIcon, Bot, FileText } from "lucide-react";
+import { Home, Newspaper, Image as ImageIcon, Map, Send, Wrench, ToggleRight, Database, User as UserIcon, Bot, FileText, GitCompare } from "lucide-react";
 
 export const navFeatures = {
   HOME: "home",
   CONTACT: "contact",
   BLOG: "blog",
   GALLERY: "gallery",
-  PORTFOLIO: "portfolio", // New feature key
+  PORTFOLIO: "portfolio",
   TRAVEL: "travel",
   CHATBOT: "chatbot",
+  MATCH_CV: "match_cv", // New feature key
   MANAGE_BLOG: "manage_blog",
   MANAGE_GALLERY: "manage_gallery",
   MANAGE_TRAVEL: "manage_travel",
@@ -18,7 +19,8 @@ export const mainNavItems = [
   { to: "/", icon: Home, label: "Home", featureKey: navFeatures.HOME },
   { to: "/blog", icon: Newspaper, label: "Blog", featureKey: navFeatures.BLOG },
   { to: "/gallery", icon: ImageIcon, label: "Gallery", featureKey: navFeatures.GALLERY },
-  { to: "/portfolio", icon: FileText, label: "Portfolio", featureKey: navFeatures.PORTFOLIO }, // New navigation item
+  { to: "/portfolio", icon: FileText, label: "Portfolio", featureKey: navFeatures.PORTFOLIO },
+  { to: "/match-cv", icon: GitCompare, label: "Match CV", featureKey: navFeatures.MATCH_CV }, // New navigation item
   { to: "/travel", icon: Map, label: "Travel", featureKey: navFeatures.TRAVEL },
   { to: "/contact", icon: Send, label: "Contact", featureKey: navFeatures.CONTACT },
 ];

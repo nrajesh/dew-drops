@@ -298,7 +298,7 @@ const Layout = () => {
               A chat interface to ask questions about the portfolio.
             </DialogDescription>
           </DialogHeader>
-          <Chat />
+          <Chat onClose={() => setIsChatOpen(false)} />
         </DialogContent>
       </Dialog>
     </>

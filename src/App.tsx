@@ -22,7 +22,8 @@ const FeatureToggles = lazy(() => import("./pages/FeatureToggles"));
 const Profile = lazy(() => import("./pages/Profile"));
 const ManageData = lazy(() => import("./pages/ManageData"));
 const ManageChatbot = lazy(() => import("./pages/ManageChatbot"));
-const CurriculumVitae = lazy(() => import("./pages/CurriculumVitae")); // Lazy load CV page
+const CurriculumVitae = lazy(() => import("./pages/CurriculumVitae"));
+const MatchCV = lazy(() => import("./pages/MatchCV")); // Lazy load MatchCV page
 
 const FullPageLoader = () => (
   <div className="flex items-center justify-center h-screen bg-background">
@@ -50,7 +51,8 @@ const App = () => {
               const Component = item.to === "/" ? Index :
                                 item.to === "/blog" ? Blog :
                                 item.to === "/gallery" ? Gallery :
-                                item.to === "/portfolio" ? CurriculumVitae : // New route for Portfolio
+                                item.to === "/portfolio" ? CurriculumVitae :
+                                item.to === "/match-cv" ? MatchCV : // New route for MatchCV
                                 item.to === "/travel" ? Travel :
                                 item.to === "/contact" ? Contact : null;
               if (!Component) return null;
