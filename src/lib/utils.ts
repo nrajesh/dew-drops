@@ -118,9 +118,10 @@ export const cleanJobDescriptionText = (text: string): string => {
   const doc = new DOMParser().parseFromString(text, 'text/html');
   let plainText = doc.body.textContent || "";
 
-  // 2. Remove specific LinkedIn boilerplate text
-  const linkedInBoilerplate = /LinkedIn respects your privacy LinkedIn and 3rd parties use essential and non-essential cookies to provide, secure, analyze and improve our Services, and to show you relevant ads \(including professional and job ads\) on and off LinkedIn\. Learn more in our Cookie Policy\.Select Accept to consent or Reject to decline non-essential cookies for this use\. You can update your choices at any time in your settings\. Accept Reject Skip to main content/g;
-  plainText = plainText.replace(linkedInBoilerplate, '');
+  // 2. Remove specific LinkedIn boilerplate text more robustly
+  // This regex targets the common start and end phrases of the LinkedIn privacy banner
+  const linkedInBoilerplateRegex = /LinkedIn\s*respects\s*your\s*privacy[\s\S]*?(?:Skip\s*to\s*main\s*content|You\s*can\s*update\s*your\s*choices\s*at\s*any\s*time\s*in\s*your\s*settings\.)/gi;
+  plainText = plainText.replace(linkedInBoilerplateRegex, '');
 
   // 3. Replace all newlines with a single space, then normalize multiple spaces
   plainText = plainText.replace(/(\r\n|\n|\r)/g, ' ').replace(/\s\s+/g, ' ').trim();
