@@ -13,14 +13,13 @@ import { calculateCosineSimilarity } from "@/utils/cosineSimilarity"; // Import 
 interface JobMatchPopupProps {
   isOpen: boolean;
   onOpenChange: (isOpen: boolean) => void;
-  onMatchRequest: (jobDescription: string) => void;
+  onMatchRequest: (jobDescription: string) => void; // This will now trigger the Chatbot
 }
 
 export const JobMatchPopup = ({ isOpen, onOpenChange, onMatchRequest }: JobMatchPopupProps) => {
   const [jobDescription, setJobDescription] = useState("");
   const [isButtonEnabled, setIsButtonEnabled] = useState(false);
-  const [isMatching, setIsMatching] = useState(false);
-  const [matchResult, setMatchResult] = useState<{ percentage: number; reasoning: string } | null>(null);
+  const [isMatching, setIsMatching] = useState(false); // Keep for loading state
   const navigate = useNavigate();
   const { context, loading: contextLoading, error: contextError } = usePortfolioContext();
 
@@ -30,7 +29,6 @@ export const JobMatchPopup = ({ isOpen, onOpenChange, onMatchRequest }: JobMatch
       setJobDescription("");
       setIsButtonEnabled(false);
       setIsMatching(false);
-      setMatchResult(null);
     }
   }, [isOpen]);
 
@@ -38,17 +36,6 @@ export const JobMatchPopup = ({ isOpen, onOpenChange, onMatchRequest }: JobMatch
     const value = e.target.value;
     setJobDescription(value);
     setIsButtonEnabled(value.length >= 80);
-  };
-
-  const generateReasoning = (description: string, context: string, matchPercentage: number): string => {
-    // Simple reasoning generation based on match percentage
-    if (matchPercentage >= 70) {
-      return `This is a strong match (${matchPercentage.toFixed(0)}%) because the job description aligns well with Rajesh's skills and experiences.`;
-    } else if (matchPercentage >= 40) {
-      return `This is a moderate match (${matchPercentage.toFixed(0)}%). While there are some relevant skills, there may be areas where Rajesh's experience could be enhanced to better fit the role.`;
-    } else {
-      return `This is a low match (${matchPercentage.toFixed(0)}%). The job description may require skills or experiences that Rajesh doesn't currently have, or may need significant adjustments to align with the role.`;
-    }
   };
 
   const handleSubmit = async () => {
@@ -62,35 +49,15 @@ export const JobMatchPopup = ({ isOpen, onOpenChange, onMatchRequest }: JobMatch
       return;
     }
 
-    setIsMatching(true);
-
-    try {
-      // Calculate match percentage using cosine similarity
-      const matchPercentage = calculateCosineSimilarity(jobDescription, context);
-
-      // Generate reasoning
-      const reasoning = generateReasoning(jobDescription, context, matchPercentage);
-
-      // Set the match result
-      setMatchResult({ percentage: matchPercentage, reasoning });
-    } catch (error: any) {
-      console.error("Error in job matching:", error);
-      showError("Sorry, an error occurred while analyzing the job description. Please try again later.");
-    } finally {
-      setIsMatching(false);
-    }
+    setIsMatching(true); // Indicate loading while opening chat
+    onMatchRequest(jobDescription); // Trigger the chat with the job description
+    onOpenChange(false); // Close this popup
+    setIsMatching(false); // Reset loading state
   };
 
   const handleContactClick = () => {
     onOpenChange(false);
     navigate("/contact");
-  };
-
-  const handleMatchAnother = () => {
-    // Reset the match result to allow for a new match
-    setMatchResult(null);
-    setJobDescription("");
-    setIsButtonEnabled(false);
   };
 
   return (
@@ -103,64 +70,39 @@ export const JobMatchPopup = ({ isOpen, onOpenChange, onMatchRequest }: JobMatch
           </DialogDescription>
         </DialogHeader>
         <div className="py-4">
-          {matchResult ? (
-            <div className="space-y-4">
-              <div className="text-center">
-                <p className="text-4xl font-bold text-primary">{matchResult.percentage.toFixed(0)}%</p>
-                <p className="text-sm text-muted-foreground mt-1">Match Percentage</p>
-              </div>
-              <div className="bg-muted p-4 rounded-lg">
-                <p className="text-sm">{matchResult.reasoning}</p>
-              </div>
-            </div>
-          ) : (
-            <>
-              <Textarea
-                placeholder="Describe the job you're applying for..."
-                value={jobDescription}
-                onChange={handleInputChange}
-                className="min-h-[150px]"
-                disabled={isMatching}
-              />
-              <p className="text-sm text-muted-foreground mt-2">
-                {jobDescription.length}/80 characters minimum
-              </p>
-            </>
-          )}
+          <Textarea
+            placeholder="Describe the job you're applying for..."
+            value={jobDescription}
+            onChange={handleInputChange}
+            className="min-h-[150px]"
+            disabled={isMatching}
+          />
+          <p className="text-sm text-muted-foreground mt-2">
+            {jobDescription.length}/80 characters minimum
+          </p>
         </div>
         <DialogFooter className="flex flex-col gap-2">
-          {matchResult ? (
-            <>
-              <Button
-                onClick={handleMatchAnother}
-                className="w-full"
-              >
-                Match Another Job Profile
-              </Button>
-              <Button
-                variant="outline"
-                onClick={handleContactClick}
-                className="w-full"
-              >
-                Contact Me
-              </Button>
-            </>
-          ) : (
-            <Button
-              onClick={handleSubmit}
-              disabled={!isButtonEnabled || isMatching}
-              className="w-full"
-            >
-              {isMatching ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Analyzing...
-                </>
-              ) : (
-                "Is Rajesh a Good Match?"
-              )}
-            </Button>
-          )}
+          <Button
+            onClick={handleSubmit}
+            disabled={!isButtonEnabled || isMatching}
+            className="w-full"
+          >
+            {isMatching ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Analyzing...
+              </>
+            ) : (
+              "Is Rajesh a Good Match?"
+            )}
+          </Button>
+          <Button
+            variant="outline"
+            onClick={handleContactClick}
+            className="w-full"
+          >
+            Contact Me
+          </Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
