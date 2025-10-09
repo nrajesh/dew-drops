@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useRef, useEffect } from "react";
+import React, { useState, useRef, useEffect, useMemo, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
@@ -99,14 +99,22 @@ export const CareerFitAnalyst = () => {
     }
   }, [matchResult]);
 
-  const overallSteps = [
+  const overallSteps = useMemo(() => [
     "Validating entered text",
     ...analysisSteps
-  ];
+  ], []);
   const totalOverallSteps = overallSteps.length;
 
-  const currentOverallStepIndex = isPreProcessing ? 0 : (isMatching ? (currentStepIndex + 1) : -1);
-  const progressValue = totalOverallSteps > 0 && (isPreProcessing || isMatching) ? ((displayStepIndex + 1) / totalOverallSteps) * 100 : 0;
+  const currentOverallStepIndex = useMemo(() => {
+    if (isPreProcessing) return 0;
+    if (isMatching) return currentStepIndex + 1;
+    return -1;
+  }, [isPreProcessing, isMatching, currentStepIndex]);
+
+  const progressValue = useMemo(() => {
+    if (totalOverallSteps === 0 || (!isPreProcessing && !isMatching)) return 0;
+    return ((displayStepIndex + 1) / totalOverallSteps) * 100;
+  }, [totalOverallSteps, isPreProcessing, isMatching, displayStepIndex]);
 
   useEffect(() => {
     if (glowTimerRef.current) {
@@ -142,18 +150,19 @@ export const CareerFitAnalyst = () => {
     }
   }, [isPreProcessing, isMatching, matchResult]);
 
-  const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+  const handleInputChange = useCallback((e: React.ChangeEvent<HTMLTextAreaElement>) => {
     const value = e.target.value;
     setJobDescription(value);
     setIsButtonEnabled(value.length >= MIN_JOB_DESCRIPTION_LENGTH);
-  };
+  }, []);
 
-  const handleUrlChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setJobDescriptionUrl(e.target.value);
-    setIsButtonEnabled(e.target.value.trim() !== "");
-  };
+  const handleUrlChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    setJobDescriptionUrl(value);
+    setIsButtonEnabled(value.trim() !== "");
+  }, []);
 
-  const fetchJobDescriptionFromUrl = async (url: string): Promise<string> => {
+  const fetchJobDescriptionFromUrl = useCallback(async (url: string): Promise<string> => {
     try {
       const { data, error } = await supabase.functions.invoke('fetch-url-content', {
         body: { url },
@@ -169,9 +178,9 @@ export const CareerFitAnalyst = () => {
     } catch (error: any) {
       throw new Error(`Error fetching job description from URL via proxy: ${error.message}`);
     }
-  };
+  }, []);
 
-  const handleSubmit = async () => {
+  const handleSubmit = useCallback(async () => {
     if (inputMethod === "text") {
       if (jobDescription.length < MIN_JOB_DESCRIPTION_LENGTH) {
         showError(`Please enter at least ${MIN_JOB_DESCRIPTION_LENGTH} characters for a meaningful match.`);
@@ -222,9 +231,18 @@ export const CareerFitAnalyst = () => {
       setIsPreProcessing(false);
       setIsFetchingUrl(false);
     }
-  };
+  }, [
+    inputMethod,
+    jobDescription,
+    jobDescriptionUrl,
+    resume,
+    contextError,
+    geminiClientError,
+    fetchJobDescriptionFromUrl,
+    performJobMatch,
+  ]);
 
-  const handleAnalyzeAnother = () => {
+  const handleAnalyzeAnother = useCallback(() => {
     resetMatch();
     setJobDescription("");
     setJobDescriptionUrl("");
@@ -233,18 +251,18 @@ export const CareerFitAnalyst = () => {
     setIsPreProcessing(false);
     setDisplayStepIndex(0);
     setOriginalLanguage(null);
-  };
+  }, [resetMatch]);
 
-  const handleDownloadText = () => {
+  const handleDownloadText = useCallback(() => {
     if (limitedReasoning) {
       const plainTextContent = markdownToPlainText(limitedReasoning);
       downloadTextFile(plainTextContent, "CareerFitAnalysis.txt");
     } else {
       showError("No analysis result to download.");
     }
-  };
+  }, [limitedReasoning]);
 
-  const handleDownloadPdf = async () => {
+  const handleDownloadPdf = useCallback(async () => {
     if (!matchResult) {
       showError("No analysis result to download as PDF.");
       return;
@@ -267,7 +285,7 @@ export const CareerFitAnalyst = () => {
     `;
 
     await generateCareerFitPdf(contentToPrint, "CareerFitAnalysis.pdf");
-  };
+  }, [matchResult, limitedReasoning, inputMethod, jobDescriptionUrl, jobDescription]);
 
   const displayError = contextError || geminiClientError;
 

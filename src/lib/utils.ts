@@ -132,3 +132,23 @@ export const cleanJobDescriptionText = (text: string): string => {
 
   return filteredWords.join(' ').trim();
 };
+
+/**
+ * Formats a date string into a human-readable format (e.g., "Month Day, Year").
+ * @param dateString The date string to format.
+ * @param options Optional Intl.DateTimeFormatOptions for custom formatting.
+ * @returns The formatted date string, or an empty string if null/invalid.
+ */
+export const formatDate = (dateString: string | null, options?: Intl.DateTimeFormatOptions): string => {
+  if (!dateString) return "";
+  try {
+    const defaultOptions: Intl.DateTimeFormatOptions = {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+    };
+    return new Date(dateString).toLocaleDateString('en-US', options || defaultOptions);
+  } catch {
+    return dateString; // Fallback for invalid date strings
+  }
+};

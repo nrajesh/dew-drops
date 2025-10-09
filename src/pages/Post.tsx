@@ -14,6 +14,7 @@ import { showSuccess, showError, showLoading, dismissToast } from '@/utils/toast
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { extractDescriptionFromContent, ensureContentHasTripleBackticks } from "@/components/blog/BlogManagementUtils"; // Import utility functions
+import { formatDate } from '@/lib/utils'; // Import centralized formatDate
 
 const PLACEHOLDER_IMAGE_URL = "/gallery/placeholder.svg";
 
@@ -164,15 +165,6 @@ const Post = () => {
     if (isRightSwipe && postNav.prev) navigate(`/blog/${postNav.prev.id}`);
     setTouchStart(null);
     setTouchEnd(null);
-  };
-
-  const formatDate = (dateString: string | null) => {
-    if (!dateString) return "";
-    return new Date(dateString).toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric',
-    });
   };
 
   const handleFormSubmit = async (values: PostFormData) => {
