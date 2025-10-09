@@ -72,8 +72,8 @@ Match breakdown: Experience ${breakdown.experience.toFixed(0)}%, Education ${bre
 Provide the response strictly in the format below, using Markdown. Ensure each point starts with '+ ' or '- ' and is left-aligned.
 
 ## Matching Areas
-+ [Succinct point describing a strength, using specific data points from my resume/portfolio (e.g., "My 10 years of experience in X aligns with...", "My project Y demonstrates Z skill..."). Focus on how my existing skills and experience directly match the job requirements.]
-+ [Another point with specific data]
++ **[Concise Title]:** [Succinct point describing a strength, using specific data points from my resume/portfolio (e.g., "My 10 years of experience in X aligns with...", "My project Y demonstrates Z skill..."). Focus on how my existing skills and experience directly match the job requirements.]
++ **[Another Concise Title]:** [Another point with specific data]
 ...
 
 ## Gaps
