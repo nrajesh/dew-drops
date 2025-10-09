@@ -4,12 +4,10 @@ import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
-import { showError, showSuccess } from "@/utils/toast";
+import { showError } from "@/utils/toast";
 import { useNavigate } from "react-router-dom";
 import { usePortfolioContext } from "@/hooks/usePortfolioContext";
 import { Loader2 } from "lucide-react";
-import { calculateMatchPercentage } from "@/utils/pythonRunner";
-import { sendMessageToGemini } from "@/integrations/gemini/client";
 
 interface JobMatchPopupProps {
   isOpen: boolean;
@@ -22,7 +20,6 @@ export const JobMatchPopup = ({ isOpen, onOpenChange, onMatchRequest }: JobMatch
   const [isButtonEnabled, setIsButtonEnabled] = useState(false);
   const [isMatching, setIsMatching] = useState(false);
   const [matchResult, setMatchResult] = useState<{ percentage: number; reasoning: string } | null>(null);
-  const [error, setError] = useState<string | null>(null);
   const navigate = useNavigate();
   const { context, loading: contextLoading, error: contextError } = usePortfolioContext();
 
@@ -33,7 +30,6 @@ export const JobMatchPopup = ({ isOpen, onOpenChange, onMatchRequest }: JobMatch
       setIsButtonEnabled(false);
       setIsMatching(false);
       setMatchResult(null);
-      setError(null);
     }
   }, [isOpen]);
 
@@ -41,59 +37,57 @@ export const JobMatchPopup = ({ isOpen, onOpenChange, onMatchRequest }: JobMatch
     const value = e.target.value;
     setJobDescription(value);
     setIsButtonEnabled(value.length >= 80);
-    setError(null); // Clear error when user starts typing
   };
 
-  const generateReasoning = async (matchPercentage: number): Promise<string> => {
-    if (!context || contextError) throw new Error("Knowledge base is not available.");
+  const calculateMatchPercentage = (description: string, context: string): number => {
+    // Simple keyword matching for demonstration
+    const descriptionKeywords = description.toLowerCase().split(/\s+/);
+    const contextKeywords = context.toLowerCase().split(/\s+/);
 
-    // Use the chatbot to generate reasoning based on the match percentage
-    const systemPrompt = `You are a world-class hiring manager analyzing a job description against a candidate's profile.
-    Match Percentage: ${matchPercentage}%
+    const commonKeywords = descriptionKeywords.filter(keyword =>
+      contextKeywords.includes(keyword) && keyword.length > 3
+    );
 
-    Provide a concise reasoning (2-3 sentences) explaining why this is a ${matchPercentage}% match or why it isn't.
-    If the match is high, highlight specific skills or experiences that align.
-    If the match is low, suggest areas where the candidate might need to improve or where the job description might need to be adjusted.
-    Be professional and constructive in your assessment.
+    const matchPercentage = Math.min(100, Math.round((commonKeywords.length / descriptionKeywords.length) * 100));
+    return matchPercentage;
+  };
 
-    CONTEXT:
-    ---
-    ${context}
-    ---
-    `;
-
-    // Use the existing chatbot function to generate the reasoning
-    const response = await sendMessageToGemini(systemPrompt);
-    return response;
+  const generateReasoning = (description: string, context: string, matchPercentage: number): string => {
+    // Simple reasoning generation based on match percentage
+    if (matchPercentage >= 70) {
+      return `This is a strong match (${matchPercentage}%) because the job description aligns well with Rajesh's skills and experiences.`;
+    } else if (matchPercentage >= 40) {
+      return `This is a moderate match (${matchPercentage}%). While there are some relevant skills, there may be areas where Rajesh's experience could be enhanced to better fit the role.`;
+    } else {
+      return `This is a low match (${matchPercentage}%). The job description may require skills or experiences that Rajesh doesn't currently have, or may need significant adjustments to align with the role.`;
+    }
   };
 
   const handleSubmit = async () => {
     if (jobDescription.length < 80) {
-      setError("Please enter at least 80 characters for a meaningful match.");
+      showError("Please enter at least 80 characters for a meaningful match.");
       return;
     }
 
     if (!context || contextError) {
-      setError("Knowledge base is not available for matching.");
+      showError("Knowledge base is not available for matching.");
       return;
     }
 
     setIsMatching(true);
-    setError(null);
 
     try {
-      // Calculate match percentage using the new Python-based calculation
-      const matchPercentage = await calculateMatchPercentage(context, jobDescription);
+      // Calculate match percentage
+      const matchPercentage = calculateMatchPercentage(jobDescription, context);
 
       // Generate reasoning
-      const reasoning = await generateReasoning(matchPercentage);
+      const reasoning = generateReasoning(jobDescription, context, matchPercentage);
 
       // Set the match result
-      setMatchResult({ percentage: Math.round(matchPercentage), reasoning });
+      setMatchResult({ percentage: matchPercentage, reasoning });
     } catch (error: any) {
       console.error("Error in job matching:", error);
-      setError(error.message || "Sorry, an error occurred while analyzing the job description. Please try again later.");
-      setMatchResult(null);
+      showError("Sorry, an error occurred while analyzing the job description. Please try again later.");
     } finally {
       setIsMatching(false);
     }
@@ -109,7 +103,6 @@ export const JobMatchPopup = ({ isOpen, onOpenChange, onMatchRequest }: JobMatch
     setMatchResult(null);
     setJobDescription("");
     setIsButtonEnabled(false);
-    setError(null);
   };
 
   return (
@@ -122,12 +115,6 @@ export const JobMatchPopup = ({ isOpen, onOpenChange, onMatchRequest }: JobMatch
           </DialogDescription>
         </DialogHeader>
         <div className="py-4">
-          {error && (
-            <div className="bg-destructive/10 text-destructive p-3 rounded-md mb-4">
-              {error}
-            </div>
-          )}
-
           {matchResult ? (
             <div className="space-y-4">
               <div className="text-center">
