@@ -27,8 +27,8 @@ const languageNames: { [key: string]: string } = {
   "lt": "Lithuanian", "is": "Icelandic", "ga": "Irish", "cy": "Welsh", "mt": "Maltese", "sq": "Albanian",
   "mk": "Macedonian", "ka": "Georgian", "hy": "Armenian", "az": "Azerbaijani", "eu": "Basque", "ca": "Catalan",
   "gl": "Galician", "af": "Afrikaans", "sw": "Swahili", "am": "Amharic", "ne": "Nepali", "ur": "Urdu",
-  "pa": "Punjabi", "gu": "Gujarati", "kn": "Kannada", "ml": "Malayalam", "mar": "Marathi", "ta": "Tamil",
-  "tel": "Telugu", "sin": "Sinhala", "km": "Khmer", "lo": "Lao", "my": "Burmese", "mn": "Mongolian",
+  "pa": "Punjabi", "gu": "Gujarati", "kn": "Kannada", "ml": "Malayalam", "mr": "Marathi", "ta": "Tamil",
+  "te": "Telugu", "sin": "Sinhala", "km": "Khmer", "lo": "Lao", "my": "Burmese", "mn": "Mongolian",
   "uz": "Uzbek", "kk": "Kazakh", "ky": "Kyrgyz", "tg": "Tajik", "ug": "Uyghur", "tk": "Turkmen", "tt": "Tatar",
   "ba": "Bashkir", "cv": "Chuvash", "os": "Ossetian", "ab": "Abkhazian", "ce": "Chechen", "av": "Avaric",
   "lez": "Lezghian", "inh": "Ingush", "kbd": "Kabardian", "ady": "Adyghe", "xal": "Kalmyk", "sah": "Sakha",
@@ -143,14 +143,12 @@ export const CareerFitAnalyst = () => {
     };
   }, [currentOverallStepIndex, displayStepIndex, isPreProcessing, isMatching, totalOverallSteps, originalLanguage]); // Add originalLanguage to dependencies
 
-
   // Reset displayStepIndex when analysis starts or resets
   useEffect(() => {
     if (!isPreProcessing && !isMatching && !matchResult) {
       setDisplayStepIndex(0);
     }
   }, [isPreProcessing, isMatching, matchResult]);
-
 
   const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     const value = e.target.value;
@@ -263,6 +261,11 @@ export const CareerFitAnalyst = () => {
             </div>
             <Loader2 className="mx-auto h-8 w-8 animate-spin text-primary" />
             <Progress value={progressValue} className="w-full" />
+            {displayStepIndex === totalOverallSteps - 1 && (
+              <p className="text-sm text-muted-foreground">
+                This step may take 5-15 seconds depending on the length of your job description and the number of matching criteria.
+              </p>
+            )}
           </div>
         ) : (
           <>
