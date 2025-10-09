@@ -11,8 +11,8 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { JobMatchPopup } from "@/components/JobMatchPopup";
 import { usePortfolioContext } from "@/hooks/usePortfolioContext";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog"; // Added this import
-import Chat from "@/pages/Chat"; // Added this import
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import Chat from "@/pages/Chat";
 
 const RESUME_URL = import.meta.env.VITE_RESUME_URL;
 
@@ -175,15 +175,16 @@ const CurriculumVitae = () => {
         )}
       </Card>
 
-      {/* Add the new "Add Your Job Description" button */}
+      {/* Add the new "Add Your Job Description" button with wave animation */}
       <div className="flex justify-center mt-4">
         <Button
           variant="default"
           size="lg"
-          className="animate-pulse shadow-lg hover:shadow-xl transition-shadow duration-300"
+          className="relative overflow-hidden group"
           onClick={() => setIsJobMatchOpen(true)}
         >
-          Add Your Job Description
+          <span className="relative z-10">Add Your Job Description</span>
+          <span className="absolute inset-0 bg-gradient-to-r from-primary/20 via-primary/30 to-primary/20 transform -translate-x-full group-hover:translate-x-full transition-transform duration-500 ease-in-out"></span>
         </Button>
       </div>
 
