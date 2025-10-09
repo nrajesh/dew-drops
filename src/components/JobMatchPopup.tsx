@@ -49,8 +49,7 @@ export const JobMatchPopup = ({ isOpen, onOpenChange, onMatchRequest }: JobMatch
     jobRequirements: string[],
     cvSkills: string[]
   ): string => {
-    let reason = `This is a **${totalPercentage.toFixed(0)}%** overall match.`;
-    reason += `\n\n**Breakdown:**\n`;
+    let reason = `**Breakdown:**\n`;
     reason += `- **Experience:** ${breakdown.experience.toFixed(0)}%\n`;
     reason += `- **Education:** ${breakdown.education.toFixed(0)}%\n`;
     reason += `- **Skills:** ${breakdown.skills.toFixed(0)}%\n\n`;

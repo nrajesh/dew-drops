@@ -116,7 +116,11 @@ const Chat = ({ jobDescription, onClose }: ChatProps) => {
     const overlaps = Array.from(jobReqSet).filter(req => cvSkillsSet.has(req));
     const missing = Array.from(jobReqSet).filter(req => !cvSkillsSet.has(req));
 
-    let feedback = "";
+    let feedback = `**Breakdown:**\n`;
+    feedback += `- **Experience:** ${breakdown.experience.toFixed(0)}%\n`;
+    feedback += `- **Education:** ${breakdown.education.toFixed(0)}%\n`;
+    feedback += `- **Skills:** ${breakdown.skills.toFixed(0)}%\n\n`;
+
     if (overlaps.length > 0) {
       feedback += `**Key Overlapping Skills/Requirements:**\n- ${overlaps.join(', ')}\n\n`;
     }
@@ -129,7 +133,6 @@ const Chat = ({ jobDescription, onClose }: ChatProps) => {
     Job Description: ${description}
     Candidate Profile (summary from CV and chatbot knowledge): ${context}
     Overall Match Percentage: ${totalPercentage.toFixed(0)}%
-    Breakdown: Experience Match: ${breakdown.experience.toFixed(0)}%, Education Match: ${breakdown.education.toFixed(0)}%, Skills Match: ${breakdown.skills.toFixed(0)}%.
     
     ${feedback}
 
