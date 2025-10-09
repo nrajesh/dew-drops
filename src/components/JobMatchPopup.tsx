@@ -9,12 +9,6 @@ import { useNavigate } from "react-router-dom";
 import { usePortfolioContext } from "@/hooks/usePortfolioContext";
 import { Loader2 } from "lucide-react";
 import { calculateCosineSimilarity } from "@/utils/cosineSimilarity"; // Import the new utility
-import ReactMarkdown from 'react-markdown'; // Import ReactMarkdown
-import remarkGfm from 'remark-gfm'; // Import remarkGfm for GitHub Flavored Markdown
-import { ScrollArea } from "@/components/ui/scroll-area"; // Import ScrollArea
-import { Progress } from "@/components/ui/progress"; // Import Progress component
-
-let sendMessageToGemini: (message: string) => Promise<string>; // Declare Gemini function
 
 interface JobMatchPopupProps {
   isOpen: boolean;
@@ -27,22 +21,8 @@ export const JobMatchPopup = ({ isOpen, onOpenChange, onMatchRequest }: JobMatch
   const [isButtonEnabled, setIsButtonEnabled] = useState(false);
   const [isMatching, setIsMatching] = useState(false);
   const [matchResult, setMatchResult] = useState<{ percentage: number; reasoning: string } | null>(null);
-  const [progress, setProgress] = useState(0); // New state for progress
   const navigate = useNavigate();
   const { context, loading: contextLoading, error: contextError } = usePortfolioContext();
-  const [apiKeyError, setApiKeyError] = useState<string | null>(null);
-
-  useEffect(() => {
-    const initGemini = async () => {
-      try {
-        const module = await import('@/integrations/gemini/client');
-        sendMessageToGemini = module.sendMessageToGemini;
-      } catch (error: any) {
-        setApiKeyError(error.message);
-      }
-    };
-    initGemini();
-  }, []);
 
   useEffect(() => {
     if (!isOpen) {
@@ -51,7 +31,6 @@ export const JobMatchPopup = ({ isOpen, onOpenChange, onMatchRequest }: JobMatch
       setIsButtonEnabled(false);
       setIsMatching(false);
       setMatchResult(null);
-      setProgress(0); // Reset progress
     }
   }, [isOpen]);
 
@@ -61,22 +40,15 @@ export const JobMatchPopup = ({ isOpen, onOpenChange, onMatchRequest }: JobMatch
     setIsButtonEnabled(value.length >= 80);
   };
 
-  const generateReasoning = async (description: string, context: string, matchPercentage: number): Promise<string> => {
-    if (!sendMessageToGemini) throw new Error("Chat client is not initialized.");
-
-    const systemPrompt = `You are a world-class hiring manager analyzing a job description against a candidate's profile.
-    Job Description: ${description}
-    Candidate Profile: ${context}
-    Match Percentage: ${matchPercentage.toFixed(0)}%
-
-    Based on the job description and the candidate's profile, perform a keyword matching and gap analysis.
-    Provide a concise reasoning (2-3 sentences) explaining why this is a ${matchPercentage.toFixed(0)}% match or why it isn't.
-    If the match is high, highlight specific skills or experiences that align.
-    If the match is low, suggest areas where the candidate might need to improve or where the job description might need to be adjusted.
-    Be professional and constructive in your assessment.`;
-
-    const response = await sendMessageToGemini(systemPrompt);
-    return response;
+  const generateReasoning = (description: string, context: string, matchPercentage: number): string => {
+    // Simple reasoning generation based on match percentage
+    if (matchPercentage >= 70) {
+      return `This is a strong match (${matchPercentage.toFixed(0)}%) because the job description aligns well with Rajesh's skills and experiences.`;
+    } else if (matchPercentage >= 40) {
+      return `This is a moderate match (${matchPercentage.toFixed(0)}%). While there are some relevant skills, there may be areas where Rajesh's experience could be enhanced to better fit the role.`;
+    } else {
+      return `This is a low match (${matchPercentage.toFixed(0)}%). The job description may require skills or experiences that Rajesh doesn't currently have, or may need significant adjustments to align with the role.`;
+    }
   };
 
   const handleSubmit = async () => {
@@ -89,29 +61,21 @@ export const JobMatchPopup = ({ isOpen, onOpenChange, onMatchRequest }: JobMatch
       showError("Knowledge base is not available for matching.");
       return;
     }
-    if (apiKeyError) {
-      showError(`AI service configuration error: ${apiKeyError}`);
-      return;
-    }
 
     setIsMatching(true);
-    setProgress(10); // Start progress
 
     try {
       // Calculate match percentage using cosine similarity
       const matchPercentage = calculateCosineSimilarity(jobDescription, context);
-      setProgress(50); // After client-side calculation
 
-      // Generate reasoning using Gemini for keyword matching and gap analysis
-      const reasoning = await generateReasoning(jobDescription, context, matchPercentage);
-      setProgress(100); // After AI response
+      // Generate reasoning
+      const reasoning = generateReasoning(jobDescription, context, matchPercentage);
 
       // Set the match result
       setMatchResult({ percentage: matchPercentage, reasoning });
     } catch (error: any) {
       console.error("Error in job matching:", error);
       showError("Sorry, an error occurred while analyzing the job description. Please try again later.");
-      setProgress(0); // Reset progress on error
     } finally {
       setIsMatching(false);
     }
@@ -127,7 +91,6 @@ export const JobMatchPopup = ({ isOpen, onOpenChange, onMatchRequest }: JobMatch
     setMatchResult(null);
     setJobDescription("");
     setIsButtonEnabled(false);
-    setProgress(0); // Reset progress
   };
 
   return (
@@ -140,23 +103,15 @@ export const JobMatchPopup = ({ isOpen, onOpenChange, onMatchRequest }: JobMatch
           </DialogDescription>
         </DialogHeader>
         <div className="py-4">
-          {isMatching && !matchResult ? (
-            <div className="space-y-4 text-center">
-              <Loader2 className="mx-auto h-8 w-8 animate-spin text-primary" />
-              <p className="text-muted-foreground">Analyzing your job description...</p>
-              <Progress value={progress} className="w-full" />
-            </div>
-          ) : matchResult ? (
+          {matchResult ? (
             <div className="space-y-4">
               <div className="text-center">
                 <p className="text-4xl font-bold text-primary">{matchResult.percentage.toFixed(0)}%</p>
                 <p className="text-sm text-muted-foreground mt-1">Match Percentage</p>
               </div>
-              <ScrollArea className="h-48 bg-muted p-4 rounded-lg prose dark:prose-invert max-w-none">
-                <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                  {matchResult.reasoning}
-                </ReactMarkdown>
-              </ScrollArea>
+              <div className="bg-muted p-4 rounded-lg">
+                <p className="text-sm">{matchResult.reasoning}</p>
+              </div>
             </div>
           ) : (
             <>
@@ -193,7 +148,7 @@ export const JobMatchPopup = ({ isOpen, onOpenChange, onMatchRequest }: JobMatch
           ) : (
             <Button
               onClick={handleSubmit}
-              disabled={!isButtonEnabled || isMatching || contextLoading || apiKeyError !== null}
+              disabled={!isButtonEnabled || isMatching}
               className="w-full"
             >
               {isMatching ? (

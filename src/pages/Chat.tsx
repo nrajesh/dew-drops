@@ -85,7 +85,6 @@ const Chat = ({ jobDescription, onClose }: ChatProps) => {
     Candidate Profile: ${context}
     Match Percentage: ${matchPercentage.toFixed(0)}%
 
-    Based on the job description and the candidate's profile, perform a keyword matching and gap analysis.
     Provide a concise reasoning (2-3 sentences) explaining why this is a ${matchPercentage.toFixed(0)}% match or why it isn't.
     If the match is high, highlight specific skills or experiences that align.
     If the match is low, suggest areas where the candidate might need to improve or where the job description might need to be adjusted.
@@ -124,7 +123,7 @@ const Chat = ({ jobDescription, onClose }: ChatProps) => {
 
       const response = await sendMessageToGemini(systemPrompt);
       const assistantMessage: Message = { role: "assistant", content: response };
-      setMessages((prev) => [...prev, assistantMessage]); // Fixed: Changed errorMessage to assistantMessage
+      setMessages((prev) => [...prev, assistantMessage]);
     } catch (error: any) {
       console.error("Error fetching chat response:", error);
       let displayMessage = `Sorry, an error occurred: ${error.message}`;
