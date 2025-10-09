@@ -51,6 +51,10 @@ const Chat = ({ jobDescription, onClose }: ChatProps) => {
   }, [jobDescription]);
 
   const handleJobMatch = async (description: string) => {
+    if (contextLoading) {
+      setMessages([{ role: "assistant", content: "Portfolio context is still loading. Please wait." }]);
+      return;
+    }
     if (!resume) {
       setMessages([{ role: "assistant", content: "Sorry, resume data is not available for matching. Please ensure VITE_RESUME_URL is set and accessible." }]);
       return;

@@ -24,12 +24,13 @@ export const useJobMatching = () => {
   }, []);
 
   const performJobMatch = useCallback(async (jobDescription: string) => {
+    if (contextLoading) {
+      throw new Error("Portfolio context is still loading. Please wait.");
+    }
     if (!resume || contextError || geminiClientError) {
       throw new Error(contextError || geminiClientError || "Resume data or Gemini client not available.");
     }
-    if (contextLoading) {
-      throw new Error("Portfolio context is still loading.");
-    }
+    
 
     setIsMatching(true);
     setMatchResult(null); // Clear previous result
