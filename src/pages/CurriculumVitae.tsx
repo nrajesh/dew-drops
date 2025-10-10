@@ -163,7 +163,7 @@ const CurriculumVitae = () => {
       </Card>
 
       {basics.summary && (
-        <div className="flex justify-end print:hidden">
+        <div className="flex justify-center print:hidden"> {/* Changed justify-end to justify-center */}
           <Link to="/match-cv" className="shrink-0">
             <Button className="flex items-center gap-2">
               <Sparkles className="h-4 w-4" /> Match CV
