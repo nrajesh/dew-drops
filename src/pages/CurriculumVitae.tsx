@@ -244,11 +244,18 @@ const CurriculumVitae = () => {
               </CollapsibleTrigger>
             </CardHeader>
             <CollapsibleContent>
-              <CardContent className="flex flex-wrap gap-2">
+              <CardContent className="space-y-4">
                 {skills.map((skill: ResumeSkill, index: number) => (
-                  <Badge key={index} variant="secondary" className="px-3 py-1">
-                    {skill.name} {skill.level && `(${skill.level})`}
-                  </Badge>
+                  <div key={index} className="border-b pb-4 last:border-b-0 last:pb-0">
+                    <h3 className="text-lg font-semibold">
+                      {skill.name} {skill.level && `(${skill.level})`}
+                    </h3>
+                    {skill.keywords && skill.keywords.length > 0 && (
+                      <p className="text-sm text-muted-foreground mt-1">
+                        {skill.keywords.join(', ')}
+                      </p>
+                    )}
+                  </div>
                 ))}
               </CardContent>
             </CollapsibleContent>

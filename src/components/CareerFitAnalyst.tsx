@@ -7,7 +7,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Loader2, Sparkles, AlertTriangle, Download, Link as LinkIcon, FileText } from "lucide-react";
 import ReactMarkdown from 'react-markdown';
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { useJobMatching, analysisSteps } from "@/hooks/useJobMatching";
+import { useJobMatching, analysisSteps } from "@/hooks/useJobMatching"; // Import updated analysisSteps
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { showError } from "@/utils/toast";
 import { Progress } from "@/components/ui/progress";
@@ -16,9 +16,9 @@ import { cn, limitGapsInMarkdown, markdownToPlainText, cleanJobDescriptionText }
 import { analyzeAndTranslateJobDescription } from "@/utils/aiTextAnalysis";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
-import { supabase } from "@/integrations/supabase/client"; // Import supabase client
-import { generateCareerFitPdf } from "@/utils/pdfGenerator"; // Import the new PDF utility
-import { marked } from 'marked'; // Import marked for markdown to HTML conversion
+import { supabase } from "@/integrations/supabase/client";
+import { generateCareerFitPdf } from "@/utils/pdfGenerator";
+import { marked } from 'marked';
 
 const MIN_JOB_DESCRIPTION_LENGTH = 250;
 
@@ -38,10 +38,10 @@ const languageNames: { [key: string]: string } = {
   "ba": "Bashkir", "cv": "Chuvash", "os": "Ossetian", "ab": "Abkhazian", "ce": "Chechen", "av": "Avaric",
   "lez": "Lezghian", "inh": "Ingush", "kbd": "Kabardian", "ady": "Adyghe", "xal": "Kalmyk", "sah": "Sakha",
   "tyv": "Tuvan", "alt": "Southern Altai", "krc": "Karachay-Balkar", "nog": "Nogai", "gag": "Gagauz",
-  "crh": "Crimean Tatar", "udm": "Udmurt", "mdf": "Moksha", "myv": "Erzya", "mrj": "Western Mari",
-  "mhr": "Eastern Mari", "kpv": "Komi-Zyrian", "koi": "Komi-Permyak", "vep": "Veps", "olo": "Olonets Karelian",
-  "krl": "Karelian", "sjd": "Kildin Sami", "sje": "Pite Sami", "sjt": "Ter Sami", "sjk": "Skolt Sami",
-  "smn": "Inari Sami", "sms": "Skolt Sami", "smj": "Lule Sami", "sma": "Southern Sami", "se": "Northern Sami",
+  "crh": "Crimean Tatar", "udm": "Udmurt", "mdf": "Moksha", "myv": "Erzya", "mhr": "Eastern Mari",
+  "kpv": "Komi-Zyrian", "koi": "Komi-Permyak", "vep": "Veps", "olo": "Olonets Karelian", "krl": "Karelian",
+  "sjd": "Kildin Sami", "sje": "Pite Sami", "sjt": "Ter Sami", "sjk": "Skolt Sami", "smn": "Inari Sami",
+  "sms": "Skolt Sami", "smj": "Lule Sami", "sma": "Southern Sami", "se": "Northern Sami",
   "fin": "Finnish", "est": "Estonian", "lav": "Latvian", "lit": "Lithuanian", "hun": "Hungarian",
   "ces": "Czech", "slk": "Slovak", "pol": "Polish", "ukr": "Ukrainian", "be": "Belarusian", "rus": "Russian",
   "bul": "Bulgarian", "mkd": "Macedonian", "srp": "Serbian", "hrv": "Croatian", "bs": "Bosnian",
@@ -101,7 +101,7 @@ export const CareerFitAnalyst = () => {
 
   const overallSteps = useMemo(() => [
     "Validating entered text",
-    ...analysisSteps
+    ...analysisSteps // Use updated analysisSteps from hook
   ], []);
   const totalOverallSteps = overallSteps.length;
 
@@ -211,8 +211,8 @@ export const CareerFitAnalyst = () => {
 
       if (inputMethod === "url") {
         const fetchedHtml = await fetchJobDescriptionFromUrl(jobDescriptionUrl);
-        textToAnalyze = cleanJobDescriptionText(fetchedHtml); // Use the new cleaning function
-        setJobDescription(textToAnalyze); // Set the fetched and cleaned content to jobDescription state
+        textToAnalyze = cleanJobDescriptionText(fetchedHtml);
+        setJobDescription(textToAnalyze);
       }
 
       const analysisResult = await analyzeAndTranslateJobDescription(textToAnalyze);
@@ -268,7 +268,6 @@ export const CareerFitAnalyst = () => {
       return;
     }
 
-    // Convert markdown reasoning to HTML
     const renderedMarkdownHtml = marked.parse(limitedReasoning);
 
     const contentToPrint = `
@@ -288,6 +287,11 @@ export const CareerFitAnalyst = () => {
   }, [matchResult, limitedReasoning, inputMethod, jobDescriptionUrl, jobDescription]);
 
   const displayError = contextError || geminiClientError;
+
+  const effectivePercentage = useMemo(() => {
+    if (!matchResult) return 0;
+    return matchResult.percentage;
+  }, [matchResult]);
 
   return (
     <Card className="w-full max-w-3xl mx-auto">
@@ -409,6 +413,26 @@ export const CareerFitAnalyst = () => {
 
         {matchResult && !isMatching && !contextLoading && !isPreProcessing && (
           <div className="space-y-4 mt-6">
+            <div className="flex items-center justify-center gap-2 mb-4">
+              <div className="flex-1 h-2 flex items-center justify-center gap-1">
+                {Array.from({ length: 10 }).map((_, i) => {
+                  const roundedPercentage = Math.round(effectivePercentage / 10) * 10;
+                  const isLit = (i + 1) * 10 <= roundedPercentage;
+                  return (
+                    <div
+                      key={i}
+                      className={cn(
+                        "h-2 w-2 rounded-full",
+                        isLit ? "bg-primary" : "bg-muted-foreground/30"
+                      )}
+                    />
+                  );
+                })}
+              </div>
+            </div>
+            <div className="text-center text-sm text-muted-foreground -mt-2 mb-4">
+              <p>Match Percentage: {effectivePercentage}%</p>
+            </div>
             <div className="flex justify-end gap-2 mb-4 pdf-hidden">
               <Button
                 onClick={handleDownloadText}

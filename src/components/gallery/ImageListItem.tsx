@@ -2,18 +2,20 @@ import type { GalleryImage } from '@/types';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Button } from '@/components/ui/button';
 import { Edit, Image as ImageIcon, Eye } from 'lucide-react';
+import { Switch } from '@/components/ui/switch';
 
-interface UnpublishedImageListItemProps {
+interface ImageListItemProps {
   image: GalleryImage;
   isSelected: boolean;
   onSelect: (id: string) => void;
-  onPublish: (image: GalleryImage) => void;
+  onTogglePublish: (image: GalleryImage) => void;
   onEdit: (image: GalleryImage) => void;
   onView: (image: GalleryImage) => void;
   isBulkActionMode: boolean;
+  isPublished: boolean; // New prop to determine if it's a published image
 }
 
-export const UnpublishedImageListItem = ({ image, isSelected, onSelect, onPublish, onEdit, onView, isBulkActionMode }: UnpublishedImageListItemProps) => {
+export const ImageListItem = ({ image, isSelected, onSelect, onTogglePublish, onEdit, onView, isBulkActionMode, isPublished }: ImageListItemProps) => {
   const readableFileName = image.file_name.split('/').pop()?.split('_').slice(1).join('_') || image.file_name;
 
   return (
@@ -32,7 +34,16 @@ export const UnpublishedImageListItem = ({ image, isSelected, onSelect, onPublis
         </div>
       </div>
       <div className="flex items-center gap-2 shrink-0">
-        <Button variant="outline" size="sm" onClick={() => onPublish(image)} disabled={isBulkActionMode}>Publish</Button>
+        {isPublished ? (
+          <Switch
+            checked={image.published}
+            onCheckedChange={() => onTogglePublish(image)}
+            aria-label="Publish status"
+            disabled={isBulkActionMode}
+          />
+        ) : (
+          <Button variant="outline" size="sm" onClick={() => onTogglePublish(image)} disabled={isBulkActionMode}>Publish</Button>
+        )}
         <Button variant="ghost" size="icon" onClick={() => onEdit(image)} aria-label="Edit metadata" disabled={isBulkActionMode}>
           <Edit className="h-4 w-4" />
         </Button>

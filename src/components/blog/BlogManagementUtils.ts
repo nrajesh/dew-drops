@@ -225,14 +225,14 @@ export const processUploads = async (userId: string, inserts: NewPost[], updates
   }
 };
 
-export const handleBulkDelete = async (selectedPosts: Set<string>) => {
-  const toastId = showLoading(`Deleting ${selectedPosts.size} posts...`);
-  const { error } = await supabase.from("posts").delete().in("id", Array.from(selectedPosts));
+export const handleBulkDelete = async (postIds: string[], allPosts: Post[]): Promise<boolean> => {
+  const toastId = showLoading(`Deleting ${postIds.length} posts...`);
+  const { error } = await supabase.from("posts").delete().in("id", postIds);
   if (error) {
     updateToastError(toastId, error.message);
     return false;
   } else {
-    updateToastError(toastId, `${selectedPosts.size} posts removed.`);
+    updateToastSuccess(toastId, `${postIds.length} posts removed.`);
     return true;
   }
 };
@@ -270,11 +270,11 @@ export const handleBulkStatusChange = async (selectedPosts: Set<string>, publish
   }
 };
 
-export const handleBulkDownload = async (posts: Post[], selectedPosts: Set<string>) => {
-  const toastId = showLoading(`Preparing ${selectedPosts.size} post(s) for download...`);
+export const handleBulkDownload = async (postIds: Set<string>, allPosts: Post[]): Promise<void> => {
+  const toastId = showLoading(`Preparing ${postIds.size} post(s) for download...`);
   try {
     const zip = new JSZip();
-    const postsToDownload = posts.filter(post => selectedPosts.has(post.id));
+    const postsToDownload = allPosts.filter(post => postIds.has(post.id));
 
     postsToDownload.forEach(post => {
       const tagsString = post.tags && post.tags.length > 0 ? `\ntags: "${post.tags.join(', ').replace(/"/g, '\\"')}"` : '';
@@ -310,9 +310,7 @@ published: ${post.published}${tagsString}${coverImageIdString}${youtubeVideoIdSt
     URL.revokeObjectURL(link.href);
 
     updateToastSuccess(toastId, `${postsToDownload.length} post(s) downloaded.`);
-    return true;
   } catch (error: any) {
     updateToastError(toastId, `Download failed: ${error.message}`);
-    return false;
   }
 };

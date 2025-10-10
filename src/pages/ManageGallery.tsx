@@ -28,32 +28,45 @@ const ManageGallery = () => {
   const {
     selectedFiles,
     isUploading,
-    isLoading,
-    selectedImages,
     editingImage,
-    currentPage,
-    unpublishedCurrentPage,
-    imagesPerPage,
-    loadImages,
-    setSelectedFiles,
     setEditingImage,
+    setSelectedFiles,
     handleUpload,
-    handleDeleteWrapper,
-    handleTogglePublish,
-    handleBulkPublishWrapper,
-    handleGenerateTagsWrapper,
-    handleBulkDownloadWrapper,
-    handleSelectImage,
-    handleSelectAll,
-    setCurrentPage,
-    setUnpublishedCurrentPage,
-    setImagesPerPage,
+    reloadAllGalleryData,
+
     publishedImages,
-    unpublishedImages,
     paginatedPublishedImages,
+    isLoadingPublished,
+    selectedPublishedImages,
+    publishedCurrentPage,
+    publishedTotalPages,
+    allPublishedOnPageSelected,
+    setPublishedCurrentPage,
+    handleSelectPublishedImage,
+    handleSelectAllPublished,
+    handleBulkDeletePublished,
+    handleBulkPublishPublished,
+    handleGenerateTagsPublished,
+    handleBulkDownloadPublished,
+    handleTogglePublishStatus,
+    publishedItemsPerPage, // New: Access itemsPerPage from publishedManagement
+    setImagesPerPage,
+
+    unpublishedImages,
     paginatedUnpublishedImages,
-    totalPages,
+    isLoadingUnpublished,
+    selectedUnpublishedImages,
+    unpublishedCurrentPage,
     unpublishedTotalPages,
+    allUnpublishedOnPageSelected,
+    setUnpublishedCurrentPage,
+    handleSelectUnpublishedImage,
+    handleSelectAllUnpublished,
+    handleBulkDeleteUnpublished,
+    handleBulkPublishUnpublished,
+    handleGenerateTagsUnpublished,
+    handleBulkDownloadUnpublished,
+    unpublishedItemsPerPage, // New: Access itemsPerPage from unpublishedManagement
   } = useGalleryManagement();
 
   const containerRef = useRef<HTMLDivElement>(null);
@@ -74,10 +87,11 @@ const ManageGallery = () => {
     }
   }, [editingImage, form]);
 
+  // Use pagination navigation for the currently active tab
   usePaginationNavigation({
-    currentPage,
-    totalPages,
-    onPageChange: setCurrentPage,
+    currentPage: activeLightboxList === 'published' ? publishedCurrentPage : unpublishedCurrentPage,
+    totalPages: activeLightboxList === 'published' ? publishedTotalPages : unpublishedTotalPages,
+    onPageChange: activeLightboxList === 'published' ? setPublishedCurrentPage : setUnpublishedCurrentPage,
     targetRef: containerRef,
     enabled: !editingImage && lightboxImageIndex === null,
   });
@@ -97,7 +111,7 @@ const ManageGallery = () => {
       dismissToast(toastId);
       showSuccess("Image data updated successfully!");
       setEditingImage(null);
-      loadImages();
+      reloadAllGalleryData();
     } catch (error: any) {
       dismissToast(toastId);
       showError(`Update failed: ${error.message}`);
@@ -152,22 +166,22 @@ const ManageGallery = () => {
               description="These images are visible on your public gallery. Select images to perform bulk actions."
               images={publishedImages}
               paginatedImages={paginatedPublishedImages}
-              selectedImages={selectedImages}
-              isLoading={isLoading}
-              onSelectImage={handleSelectImage}
-              onSelectAll={handleSelectAll}
+              selectedImages={selectedPublishedImages}
+              isLoading={isLoadingPublished}
+              onSelectImage={handleSelectPublishedImage}
+              onSelectAll={handleSelectAllPublished}
               onEdit={setEditingImage}
               onView={openLightbox}
-              onDelete={handleDeleteWrapper}
-              onBulkPublish={handleBulkPublishWrapper}
-              onGenerateTags={handleGenerateTagsWrapper}
-              onDownload={handleBulkDownloadWrapper}
-              onTogglePublish={handleTogglePublish}
+              onDelete={handleBulkDeletePublished}
+              onBulkPublish={handleBulkPublishPublished}
+              onGenerateTags={handleGenerateTagsPublished}
+              onDownload={handleBulkDownloadPublished}
+              onTogglePublish={handleTogglePublishStatus}
               paginationProps={{
-                currentPage,
-                totalPages,
-                onPageChange: setCurrentPage,
-                itemsPerPage: imagesPerPage,
+                currentPage: publishedCurrentPage,
+                totalPages: publishedTotalPages,
+                onPageChange: setPublishedCurrentPage,
+                itemsPerPage: publishedItemsPerPage, // Use the exposed prop
                 onItemsPerPageChange: setImagesPerPage,
                 totalItems: publishedImages.length,
               }}
@@ -180,22 +194,22 @@ const ManageGallery = () => {
               description="These images are not visible on your public gallery. Select images to perform bulk actions."
               images={unpublishedImages}
               paginatedImages={paginatedUnpublishedImages}
-              selectedImages={selectedImages}
-              isLoading={isLoading}
-              onSelectImage={handleSelectImage}
-              onSelectAll={handleSelectAll}
+              selectedImages={selectedUnpublishedImages}
+              isLoading={isLoadingUnpublished}
+              onSelectImage={handleSelectUnpublishedImage}
+              onSelectAll={handleSelectAllUnpublished}
               onEdit={setEditingImage}
               onView={openLightbox}
-              onDelete={handleDeleteWrapper}
-              onBulkPublish={handleBulkPublishWrapper}
-              onGenerateTags={handleGenerateTagsWrapper}
-              onDownload={handleBulkDownloadWrapper}
-              onTogglePublish={handleTogglePublish}
+              onDelete={handleBulkDeleteUnpublished}
+              onBulkPublish={handleBulkPublishUnpublished}
+              onGenerateTags={handleGenerateTagsUnpublished}
+              onDownload={handleBulkDownloadUnpublished}
+              onTogglePublish={handleTogglePublishStatus}
               paginationProps={{
                 currentPage: unpublishedCurrentPage,
                 totalPages: unpublishedTotalPages,
                 onPageChange: setUnpublishedCurrentPage,
-                itemsPerPage: imagesPerPage,
+                itemsPerPage: unpublishedItemsPerPage, // Use the exposed prop
                 onItemsPerPageChange: setImagesPerPage,
                 totalItems: unpublishedImages.length,
               }}
@@ -262,7 +276,7 @@ const ManageGallery = () => {
           onNavigate={navigateLightbox}
           hasNext={lightboxList.length > 1}
           hasPrev={lightboxList.length > 1}
-          onUpdate={loadImages}
+          onUpdate={reloadAllGalleryData}
         />
       </Suspense>
     </>

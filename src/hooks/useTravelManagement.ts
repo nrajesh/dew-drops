@@ -16,46 +16,59 @@ import {
   handleBulkDownload,
 } from "@/components/travel/TravelManagementUtils.ts";
 import { LocationFormData } from "@/components/travel/TravelLocationForm.tsx";
+import { useManagement } from "./useManagement"; // Import the generic hook
 
 type LocationUpdateItem = { existingId: string; existingTitle: string; newData: any };
 
 export const useTravelManagement = (containerRef: React.RefObject<HTMLDivElement>) => {
   const { user } = useAuth();
-  const [locations, setLocations] = useState<TravelLocation[]>([]);
   const [blogPosts, setBlogPosts] = useState<Pick<Post, 'id' | 'title'>[]>([]);
   const [editingLocation, setEditingLocation] = useState<TravelLocation | null>(null);
   const [editingImageUrl, setEditingImageUrl] = useState<string | null>(null);
   const [uploadFile, setUploadFile] = useState<File | null>(null);
   const [isUploading, setIsUploading] = useState(false);
-  const [selectedLocations, setSelectedLocations] = useState<Set<string>>(new Set());
-
-  const [currentPage, setCurrentPage] = useState(1);
-  const [locationsPerPage, setLocationsPerPage] = useState(10);
 
   const [isUpdateDialogVisible, setIsUpdateDialogVisible] = useState(false);
   const [locationsToInsert, setLocationsToInsert] = useState<any[]>([]);
   const [locationsToUpdate, setLocationsToUpdate] = useState<LocationUpdateItem[]>([]);
   const [selectedUpdates, setSelectedUpdates] = useState<Set<string>>(new Set());
 
-  const loadData = useCallback(async () => {
-    const [fetchedLocations, fetchedBlogPosts] = await Promise.all([
-      fetchLocations(),
-      fetchBlogPosts(),
-    ]);
-    setLocations(fetchedLocations);
-    setBlogPosts(fetchedBlogPosts);
-  }, []);
+  const {
+    allItems: locations,
+    paginatedItems: paginatedLocations,
+    isLoading,
+    selectedItems,
+    // setSelectedItems, // Already destructured
+    currentPage,
+    totalPages,
+    itemsPerPage: locationsPerPage,
+    totalItems: totalLocations,
+    loadItems: loadLocations,
+    handlePageChange: setCurrentPage,
+    handleItemsPerPageChange: setLocationsPerPage,
+    handleSelectItem: handleSelectLocation,
+    handleSelectAllOnPage: handleSelectAll,
+    handleBulkDelete: genericHandleBulkDelete,
+    handleBulkStatusChange: genericHandleBulkPublish,
+    handleBulkDownload: genericHandleBulkDownload,
+    handleToggleStatus: genericHandleToggleStatus, // Renamed to avoid conflict with local handleToggleStatus
+    allOnPageSelected,
+  } = useManagement<TravelLocation>({
+    fetchData: fetchLocations,
+    deleteItems: handleBulkDelete,
+    updateItemStatus: handleBulkPublish,
+    downloadItems: (ids, allItems) => handleBulkDownload(ids, allItems, blogPosts), // Pass blogPosts as extraData
+    idKey: 'id',
+    statusKey: 'published',
+  });
 
   useEffect(() => {
-    loadData();
-  }, [loadData]);
-
-  const paginatedLocations = useMemo(() => {
-    const startIndex = (currentPage - 1) * locationsPerPage;
-    return locations.slice(startIndex, startIndex + locationsPerPage);
-  }, [locations, currentPage, locationsPerPage]);
-
-  const totalPages = Math.ceil(locations.length / locationsPerPage);
+    const fetchInitialBlogPosts = async () => {
+      const fetchedBlogPosts = await fetchBlogPosts();
+      setBlogPosts(fetchedBlogPosts);
+    };
+    fetchInitialBlogPosts();
+  }, []);
 
   usePaginationNavigation({
     currentPage,
@@ -64,11 +77,6 @@ export const useTravelManagement = (containerRef: React.RefObject<HTMLDivElement
     targetRef: containerRef,
     enabled: !isUpdateDialogVisible,
   });
-
-  const handleItemsPerPageChange = useCallback((value: number) => {
-    setLocationsPerPage(value);
-    setCurrentPage(1);
-  }, []);
 
   const onSubmit = useCallback(async (values: LocationFormData) => {
     if (!user) {
@@ -150,12 +158,12 @@ export const useTravelManagement = (containerRef: React.RefObject<HTMLDivElement
       dismissToast(toastId);
       showSuccess(`Location ${editingLocation ? "updated" : "added"} successfully!`);
       cancelEdit();
-      loadData();
+      loadLocations();
     } catch (error: any) {
       dismissToast(toastId);
       showError(`Operation failed: ${error.message}`);
     }
-  }, [user, editingLocation, locations, loadData]);
+  }, [user, editingLocation, locations, loadLocations]);
 
   const handleEdit = useCallback((location: TravelLocation) => {
     setEditingLocation(location);
@@ -177,12 +185,12 @@ export const useTravelManagement = (containerRef: React.RefObject<HTMLDivElement
       dismissToast(toastId);
       showSuccess("Image removed successfully.");
       setEditingImageUrl(null);
-      loadData();
+      loadLocations();
     } catch (error: any) {
       dismissToast(toastId);
       showError(error.message);
     }
-  }, [editingLocation, editingImageUrl, loadData]);
+  }, [editingLocation, editingImageUrl, loadLocations]);
   
   const cancelEdit = useCallback(() => {
     setEditingLocation(null);
@@ -277,7 +285,7 @@ export const useTravelManagement = (containerRef: React.RefObject<HTMLDivElement
         setIsUpdateDialogVisible(true);
       } else if (newLocations.length > 0) {
         await processUploads(user.id, newLocations, []);
-        loadData();
+        loadLocations();
       } else if (failedRows.length === 0) {
         showSuccess("No new locations to import.");
       }
@@ -290,7 +298,7 @@ export const useTravelManagement = (containerRef: React.RefObject<HTMLDivElement
       setUploadFile(null);
       if (fileInputRef.current) fileInputRef.current.value = "";
     }
-  }, [uploadFile, user, blogPosts, locations, loadData]);
+  }, [uploadFile, user, blogPosts, locations, loadLocations]);
 
   const handleConfirmAndProcessUploads = useCallback(async () => {
     if (!user) return;
@@ -309,75 +317,13 @@ export const useTravelManagement = (containerRef: React.RefObject<HTMLDivElement
       if (skippedCount > 0) {
         showError(`${skippedCount} potential updates were skipped.`);
       }
-      loadData();
+      loadLocations();
     }
     
     setLocationsToInsert([]);
     setLocationsToUpdate([]);
     setSelectedUpdates(new Set());
-  }, [user, locationsToInsert, locationsToUpdate, selectedUpdates, loadData]);
-
-  const handleBulkDeleteWrapper = useCallback(async () => {
-    const success = await handleBulkDelete(selectedLocations, locations);
-    if (success) {
-      loadData();
-      setSelectedLocations(new Set());
-    }
-  }, [selectedLocations, locations, loadData]);
-
-  const handleBulkPublishWrapper = useCallback(async (publishStatus: boolean) => {
-    const success = await handleBulkPublish(selectedLocations, publishStatus);
-    if (success) {
-      loadData();
-      setSelectedLocations(new Set());
-    }
-  }, [selectedLocations, loadData]);
-
-  const handleBulkDownloadWrapper = useCallback(async () => {
-    await handleBulkDownload(selectedLocations, locations, blogPosts);
-  }, [selectedLocations, locations, blogPosts]);
-
-  const handleSelectLocation = useCallback((id: string) => {
-    setSelectedLocations(prev => {
-      const newSelected = new Set(prev);
-      newSelected.has(id) ? newSelected.delete(id) : newSelected.add(id);
-      return newSelected;
-    });
-  }, []);
-
-  const handleSelectAll = useCallback((checked: boolean) => {
-    const pageIds = new Set(paginatedLocations.map(l => l.id));
-    if (checked) {
-      setSelectedLocations(prev => new Set([...prev, ...pageIds]));
-    } else {
-      setSelectedLocations(prev => {
-        const newSet = new Set(prev);
-        pageIds.forEach(id => newSet.delete(id));
-        return newSet;
-      });
-    }
-  }, [paginatedLocations]);
-
-  const handleTogglePublish = useCallback(async (location: TravelLocation) => {
-    const newPublishedStatus = !location.published;
-    const toastId = showLoading(newPublishedStatus ? "Publishing..." : "Unpublishing...");
-
-    const { error } = await supabase
-      .from("travel_locations")
-      .update({ published: newPublishedStatus })
-      .eq("id", location.id);
-
-    if (error) {
-      dismissToast(toastId);
-      showError(`Failed to update status: ${error.message}`);
-    } else {
-      dismissToast(toastId);
-      showSuccess(`Location ${newPublishedStatus ? "published" : "unpublished"}.`);
-      setLocations(locations.map(l => l.id === location.id ? { ...l, published: newPublishedStatus } : l));
-    }
-  }, [locations]);
-
-  const allOnPageSelected = paginatedLocations.length > 0 && paginatedLocations.every(l => selectedLocations.has(l.id));
+  }, [user, locationsToInsert, locationsToUpdate, selectedUpdates, loadLocations]);
 
   return {
     locations,
@@ -386,7 +332,7 @@ export const useTravelManagement = (containerRef: React.RefObject<HTMLDivElement
     editingImageUrl,
     uploadFile,
     isUploading,
-    selectedLocations,
+    selectedLocations: selectedItems, // Expose as selectedLocations for component compatibility
     currentPage,
     locationsPerPage,
     isUpdateDialogVisible,
@@ -407,13 +353,15 @@ export const useTravelManagement = (containerRef: React.RefObject<HTMLDivElement
     handleFileSelect,
     handleBulkUpload,
     handleConfirmAndProcessUploads,
-    handleBulkDeleteWrapper,
-    handleBulkPublishWrapper,
-    handleBulkDownloadWrapper,
+    handleBulkDeleteWrapper: genericHandleBulkDelete,
+    handleBulkPublishWrapper: genericHandleBulkPublish,
+    handleBulkDownloadWrapper: genericHandleBulkDownload,
     handleSelectLocation,
     handleSelectAll,
-    handleTogglePublish,
+    handleTogglePublish: genericHandleToggleStatus, // Expose as handleTogglePublish for component compatibility
     setCurrentPage,
-    handleItemsPerPageChange,
+    handleItemsPerPageChange: setLocationsPerPage, // Corrected shorthand property
+    totalItems: totalLocations, // Expose as totalItems for component compatibility
+    isLoading,
   };
 };

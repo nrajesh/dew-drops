@@ -20,7 +20,7 @@ This README provides a comprehensive guide to understanding, customizing, and ma
 -   **Text Readability Controls:** Users can adjust base font size and line spacing for a personalized reading experience.
 -   **Fully Responsive:** Designed to look great on all devices, from desktops to mobile phones.
 -   **Enhanced Navigation:** All content pages are paginated and can be navigated using keyboard arrows or swipe gestures on mobile.
--   **CV/Portfolio Page:** A dedicated page to display a professional curriculum vitae, with collapsible sections for easy viewing and print-friendly formatting, including a "Print to PDF" option.
+-   **CV/Portfolio Page:** A dedicated page to display a professional curriculum vitae, with collapsible sections for easy viewing, an enhanced skills display, and print-friendly formatting, including a "Print to PDF" option.
 
 ---
 

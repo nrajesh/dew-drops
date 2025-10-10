@@ -1,21 +1,15 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useContext, ReactNode, useRef, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import { showError } from '@/utils/toast';
 import type { JsonResume } from '@/types/resume'; // Import JsonResume type
 
-const RESUME_URL = import.meta.env.VITE_RESUME_URL;
-
-interface PortfolioContextType {
-  chatbotKnowledge: string | null;
-  resume: JsonResume | null;
-  loading: boolean;
-  error: string | null;
-}
-
-export const usePortfolioContext = (): PortfolioContextType => {
+export const usePortfolioData = (): { chatbotKnowledge: string | null; resume: JsonResume | null; loading: boolean; error: string | null; } => {
   const [chatbotKnowledge, setChatbotKnowledge] = useState<string | null>(null);
   const [resume, setResume] = useState<JsonResume | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  const RESUME_URL = import.meta.env.VITE_RESUME_URL;
 
   useEffect(() => {
     const fetchContext = async () => {
@@ -36,7 +30,7 @@ export const usePortfolioContext = (): PortfolioContextType => {
 
         // Fetch resume data
         if (RESUME_URL) {
-          const response = await fetch(RESUME_URL);
+          const response = await fetch(RESUME_URL, { cache: 'no-store' }); // <--- Added cache: 'no-store'
           if (!response.ok) {
             throw new Error(`Failed to fetch resume from ${RESUME_URL}: ${response.statusText}`);
           }
@@ -56,7 +50,7 @@ export const usePortfolioContext = (): PortfolioContextType => {
     };
 
     fetchContext();
-  }, []);
+  }, [RESUME_URL]); // Added RESUME_URL to dependency array
 
   return { chatbotKnowledge, resume, loading, error };
 };

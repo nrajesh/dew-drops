@@ -5,8 +5,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { ManagementPagination } from "@/components/ManagementPagination";
-import { PublishedImageListItem } from "./PublishedImageListItem";
-import { UnpublishedImageListItem } from "./UnpublishedImageListItem";
+import { ImageListItem } from "./ImageListItem"; // Use the new unified component
 import { Download, Trash2 } from "lucide-react";
 
 interface ImageManagementCardProps {
@@ -17,13 +16,13 @@ interface ImageManagementCardProps {
   selectedImages: Set<string>;
   isLoading: boolean;
   onSelectImage: (id: string) => void;
-  onSelectAll: (checked: boolean, images: GalleryImage[]) => void;
+  onSelectAll: (checked: boolean) => void; // Simplified prop
   onEdit: (image: GalleryImage) => void;
   onView: (image: GalleryImage, listType: 'published' | 'unpublished') => void;
-  onDelete: (ids: string[]) => void;
+  onDelete: () => void; // Simplified prop
   onBulkPublish: (status: boolean) => void;
   onGenerateTags: () => void;
-  onDownload: () => void;
+  onDownload: () => void; // Simplified prop
   onTogglePublish: (image: GalleryImage) => void;
   paginationProps: {
     currentPage: number;
@@ -102,7 +101,7 @@ export const ImageManagementCard = ({
                   </AlertDialogHeader>
                   <AlertDialogFooter>
                     <AlertDialogCancel>Cancel</AlertDialogCancel>
-                    <AlertDialogAction onClick={() => onDelete(Array.from(selectedImages))}>
+                    <AlertDialogAction onClick={onDelete}>
                       Delete
                     </AlertDialogAction>
                   </AlertDialogFooter>
@@ -116,34 +115,22 @@ export const ImageManagementCard = ({
         {isLoading ? <p>Loading...</p> : images.length > 0 ? (
           <>
             <div className="flex items-center space-x-2 mb-4 pb-4 border-b">
-              <Checkbox id={`select-all-${listType}`} checked={allOnPageSelected} onCheckedChange={(checked) => onSelectAll(Boolean(checked), paginatedImages)} disabled={paginatedImages.length === 0} />
+              <Checkbox id={`select-all-${listType}`} checked={allOnPageSelected} onCheckedChange={(checked) => onSelectAll(Boolean(checked))} disabled={paginatedImages.length === 0} />
               <label htmlFor={`select-all-${listType}`}>Select All on Page</label>
             </div>
             <div className="space-y-2">
               {paginatedImages.map((image) => (
-                listType === 'published' ? (
-                  <PublishedImageListItem
-                    key={image.id}
-                    image={image}
-                    isSelected={selectedImages.has(image.id)}
-                    onSelect={onSelectImage}
-                    onTogglePublish={onTogglePublish}
-                    onEdit={onEdit}
-                    onView={(img) => onView(img, 'published')}
-                    isBulkActionMode={selectedImages.size > 0}
-                  />
-                ) : (
-                  <UnpublishedImageListItem
-                    key={image.id}
-                    image={image}
-                    isSelected={selectedImages.has(image.id)}
-                    onSelect={onSelectImage}
-                    onPublish={onTogglePublish}
-                    onEdit={onEdit}
-                    onView={(img) => onView(img, 'unpublished')}
-                    isBulkActionMode={selectedImages.size > 0}
-                  />
-                )
+                <ImageListItem
+                  key={image.id}
+                  image={image}
+                  isSelected={selectedImages.has(image.id)}
+                  onSelect={onSelectImage}
+                  onTogglePublish={onTogglePublish}
+                  onEdit={onEdit}
+                  onView={(img) => onView(img, listType)}
+                  isBulkActionMode={selectedImages.size > 0}
+                  isPublished={listType === 'published'}
+                />
               ))}
             </div>
           </>

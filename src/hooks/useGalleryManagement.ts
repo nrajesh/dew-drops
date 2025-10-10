@@ -11,48 +11,43 @@ import {
   handleBulkDownload,
 } from "@/components/gallery/GalleryManagementUtils.ts";
 import { processImageUploads, processMetadataUpdate } from "@/components/gallery/GalleryUploadUtils"; // Import new utilities
+import { useManagement } from "./useManagement"; // Import the generic hook
 
 export const useGalleryManagement = () => {
   const { user } = useAuth();
-  const [allImages, setAllImages] = useState<GalleryImage[]>([]);
   const [selectedFiles, setSelectedFiles] = useState<FileList | null>(null);
   const [isUploading, setIsUploading] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
-  const [selectedImages, setSelectedImages] = useState(new Set<string>());
   const [editingImage, setEditingImage] = useState<GalleryImage | null>(null);
 
-  const [currentPage, setCurrentPage] = useState(1);
-  const [unpublishedCurrentPage, setUnpublishedCurrentPage] = useState(1);
-  const [imagesPerPage, setImagesPerPage] = useState(10);
+  const publishedManagement = useManagement<GalleryImage>({
+    fetchData: () => fetchImages().then(imgs => imgs.filter(img => img.published)),
+    deleteItems: handleDelete,
+    updateItemStatus: handleBulkPublish,
+    generateItemTags: handleGenerateTags,
+    downloadItems: handleBulkDownload,
+    initialItemsPerPage: 10,
+    idKey: 'id',
+    statusKey: 'published',
+  });
 
-  const loadImages = useCallback(async () => {
-    setIsLoading(true);
-    const fetchedImages = await fetchImages();
-    setAllImages(fetchedImages);
-    setIsLoading(false);
-  }, []);
+  const unpublishedManagement = useManagement<GalleryImage>({
+    fetchData: () => fetchImages().then(imgs => imgs.filter(img => !img.published)),
+    deleteItems: handleDelete,
+    updateItemStatus: handleBulkPublish,
+    generateItemTags: handleGenerateTags,
+    downloadItems: handleBulkDownload,
+    initialItemsPerPage: 10,
+    idKey: 'id',
+    statusKey: 'published',
+  });
 
-  useEffect(() => {
-    loadImages();
-  }, [loadImages]);
+  // Need a way to reload *both* lists after an upload or status change
+  const reloadAllGalleryData = useCallback(() => {
+    publishedManagement.loadItems();
+    unpublishedManagement.loadItems();
+  }, [publishedManagement.loadItems, unpublishedManagement.loadItems]);
 
-  const publishedImages = useMemo(() => allImages.filter(img => img.published), [allImages]);
-  const unpublishedImages = useMemo(() => allImages.filter(img => !img.published), [allImages]);
-
-  const paginatedPublishedImages = useMemo(() => {
-    const startIndex = (currentPage - 1) * imagesPerPage;
-    return publishedImages.slice(startIndex, startIndex + imagesPerPage);
-  }, [publishedImages, currentPage, imagesPerPage]);
-
-  const paginatedUnpublishedImages = useMemo(() => {
-    const startIndex = (unpublishedCurrentPage - 1) * imagesPerPage;
-    return unpublishedImages.slice(startIndex, startIndex + imagesPerPage);
-  }, [unpublishedImages, unpublishedCurrentPage, imagesPerPage]);
-
-  const totalPages = Math.ceil(publishedImages.length / imagesPerPage);
-  const unpublishedTotalPages = Math.ceil(unpublishedImages.length / imagesPerPage);
-
-  const handleUpload = useCallback(async () => {
+  const handleUploadWrapper = useCallback(async () => {
     if (!selectedFiles || selectedFiles.length === 0 || !user) return;
     setIsUploading(true);
     const toastId = showLoading(`Preparing ${selectedFiles.length} file(s)...`);
@@ -89,7 +84,9 @@ export const useGalleryManagement = () => {
           console.error("Failed image uploads:", failedFiles);
         }
       } else if (metadataFile) {
-        const { updatedCount, notFoundCount, failedUpdates } = await processMetadataUpdate(metadataFile, allImages, toastId);
+        // For metadata updates, we need *all* images to find matches, not just published/unpublished
+        const allCurrentImages = [...publishedManagement.allItems, ...unpublishedManagement.allItems];
+        const { updatedCount, notFoundCount, failedUpdates } = await processMetadataUpdate(metadataFile, allCurrentImages, toastId);
         let summary = `${updatedCount} image(s) updated successfully.`;
         if (notFoundCount > 0) {
           summary += ` ${notFoundCount} file name(s) in your JSON did not match any existing images.`;
@@ -109,99 +106,55 @@ export const useGalleryManagement = () => {
     } finally {
       setIsUploading(false);
       setSelectedFiles(null);
-      loadImages();
+      reloadAllGalleryData(); // Reload both lists
     }
-  }, [selectedFiles, user, allImages, loadImages]);
+  }, [selectedFiles, user, reloadAllGalleryData, publishedManagement.allItems, unpublishedManagement.allItems]);
 
-  const handleDeleteWrapper = useCallback(async (imageIds: string[]) => {
-    if (await handleDelete(imageIds, allImages)) {
-      setSelectedImages(new Set());
-      loadImages();
-    }
-  }, [allImages, loadImages]);
-
-  const handleTogglePublish = useCallback(async (image: GalleryImage) => {
-    const newPublishedStatus = !image.published;
-    const toastId = showLoading(newPublishedStatus ? "Publishing..." : "Unpublishing...");
-    const { error } = await supabase.from("gallery_images").update({ published: newPublishedStatus }).eq("id", image.id);
-    if (error) {
-      dismissToast(toastId);
-      showError(`Failed to update status: ${error.message}`);
-    } else {
-      dismissToast(toastId);
-      showSuccess(`Image ${newPublishedStatus ? "published" : "unpublished"}.`);
-      loadImages();
-    }
-  }, [loadImages]);
-
-  const handleBulkPublishWrapper = useCallback(async (publishStatus: boolean) => {
-    if (await handleBulkPublish(selectedImages, publishStatus)) {
-      setSelectedImages(new Set());
-      loadImages();
-    }
-  }, [selectedImages, loadImages]);
-
-  const handleGenerateTagsWrapper = useCallback(async () => {
-    if ((await handleGenerateTags(selectedImages, allImages)) > 0) {
-      loadImages();
-    }
-    setSelectedImages(new Set());
-  }, [selectedImages, allImages, loadImages]);
-
-  const handleBulkDownloadWrapper = useCallback(async () => {
-    await handleBulkDownload(selectedImages, allImages);
-    setSelectedImages(new Set());
-  }, [selectedImages, allImages]);
-
-  const handleSelectImage = (id: string) => {
-    const newSelection = new Set(selectedImages);
-    newSelection.has(id) ? newSelection.delete(id) : newSelection.add(id);
-    setSelectedImages(newSelection);
-  };
-
-  const handleSelectAll = (checked: boolean, paginatedImages: GalleryImage[]) => {
-    const pageIds = new Set(paginatedImages.map(i => i.id));
-    if (checked) {
-      setSelectedImages(prev => new Set([...prev, ...pageIds]));
-    } else {
-      setSelectedImages(prev => {
-        const newSet = new Set(prev);
-        pageIds.forEach(id => newSet.delete(id));
-        return newSet;
-      });
-    }
-  };
 
   return {
     user,
-    allImages,
     selectedFiles,
     isUploading,
-    isLoading,
-    selectedImages,
     editingImage,
-    currentPage,
-    unpublishedCurrentPage,
-    imagesPerPage,
-    loadImages,
-    setSelectedFiles,
     setEditingImage,
-    handleUpload,
-    handleDeleteWrapper,
-    handleTogglePublish,
-    handleBulkPublishWrapper,
-    handleGenerateTagsWrapper,
-    handleBulkDownloadWrapper,
-    handleSelectImage,
-    handleSelectAll,
-    setCurrentPage,
-    setUnpublishedCurrentPage,
-    setImagesPerPage,
-    publishedImages,
-    unpublishedImages,
-    paginatedPublishedImages,
-    paginatedUnpublishedImages,
-    totalPages,
-    unpublishedTotalPages,
+    setSelectedFiles,
+    handleUpload: handleUploadWrapper,
+    reloadAllGalleryData, // Expose for ImageLightbox onUpdate
+
+    // Published images management
+    publishedImages: publishedManagement.allItems,
+    paginatedPublishedImages: publishedManagement.paginatedItems,
+    isLoadingPublished: publishedManagement.isLoading,
+    selectedPublishedImages: publishedManagement.selectedItems,
+    publishedCurrentPage: publishedManagement.currentPage,
+    publishedTotalPages: publishedManagement.totalPages,
+    allPublishedOnPageSelected: publishedManagement.allOnPageSelected,
+    setPublishedCurrentPage: publishedManagement.handlePageChange,
+    handleSelectPublishedImage: publishedManagement.handleSelectItem,
+    handleSelectAllPublished: publishedManagement.handleSelectAllOnPage,
+    handleBulkDeletePublished: publishedManagement.handleBulkDelete,
+    handleBulkPublishPublished: (status: boolean) => publishedManagement.handleBulkStatusChange(status),
+    handleGenerateTagsPublished: publishedManagement.handleGenerateTags,
+    handleBulkDownloadPublished: publishedManagement.handleBulkDownload,
+    handleTogglePublishStatus: publishedManagement.handleToggleStatus,
+    publishedItemsPerPage: publishedManagement.itemsPerPage, // Expose itemsPerPage
+    setImagesPerPage: publishedManagement.handleItemsPerPageChange, // This will control itemsPerPage for both
+
+    // Unpublished images management
+    unpublishedImages: unpublishedManagement.allItems,
+    paginatedUnpublishedImages: unpublishedManagement.paginatedItems,
+    isLoadingUnpublished: unpublishedManagement.isLoading,
+    selectedUnpublishedImages: unpublishedManagement.selectedItems,
+    unpublishedCurrentPage: unpublishedManagement.currentPage,
+    unpublishedTotalPages: unpublishedManagement.totalPages,
+    allUnpublishedOnPageSelected: unpublishedManagement.allOnPageSelected,
+    setUnpublishedCurrentPage: unpublishedManagement.handlePageChange,
+    handleSelectUnpublishedImage: unpublishedManagement.handleSelectItem,
+    handleSelectAllUnpublished: unpublishedManagement.handleSelectAllOnPage,
+    handleBulkDeleteUnpublished: unpublishedManagement.handleBulkDelete,
+    handleBulkPublishUnpublished: (status: boolean) => unpublishedManagement.handleBulkStatusChange(status),
+    handleGenerateTagsUnpublished: unpublishedManagement.handleGenerateTags,
+    handleBulkDownloadUnpublished: unpublishedManagement.handleBulkDownload,
+    unpublishedItemsPerPage: unpublishedManagement.itemsPerPage, // Expose itemsPerPage
   };
 };
