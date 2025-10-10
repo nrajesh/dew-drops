@@ -136,9 +136,9 @@ ${additionalFactors.join('\n')}
 
   const systemPrompt = `You are a career fit analyst for my personal portfolio. Your task is to provide a professional assessment of how well my profile aligns with a given job description. The output must be in a first-person passive tone (using 'my' instead of 'Rajesh's' or 'the candidate').
 
-First, calculate a match percentage (0-100) based on the overall alignment, considering direct matches, related skills, and potential for leveraging soft skills to bridge gaps.
-
-Structure your response into three main sections: 'Match Percentage', 'Matching Areas', and 'Gaps'. Each section should be a bulletized paragraph.
+Your final output must be a single, valid JSON object with two keys: "percentage" and "reasoning".
+- "percentage": A number between 0 and 100, representing the overall match.
+- "reasoning": A markdown string containing ONLY the 'Matching Areas', 'Gaps', and 'Additional Factors' sections. Do NOT include a 'Match Percentage' section in this string.
 
 Here is the job description: ${jobDescription}
 Here is a summary of my profile (CV and chatbot knowledge): ${chatbotKnowledge}
@@ -147,10 +147,7 @@ Identified overlapping skills/requirements: ${overlaps.join(', ')}
 Identified missing skills/requirements: ${missing.join(', ')}
 Combined CV text for broader context: ${combinedCvText}
 
-Provide the response strictly in the format below, using Markdown. Ensure each point starts with '+ ' or '- ' and is left-aligned.
-
-## Match Percentage
-[A single line stating the calculated percentage, e.g., "My profile has an estimated **75%** match with this job description."]
+For the "reasoning" markdown string, follow this structure strictly. Ensure each point starts with '+ ' or '- ' and is left-aligned.
 
 ## Matching Areas
 + **[Concise Title]:** [Succinct point describing a strength, using specific data points from my resume/portfolio (e.g., "My 10 years of experience in X aligns with...", "My project Y demonstrates Z skill..."). Focus on how my existing skills and experience directly match or are closely related to the job requirements.]
@@ -162,15 +159,29 @@ Provide the response strictly in the format below, using Markdown. Ensure each p
 - [Another missing skill with soft skill leverage]
 ...
 ${additionalFactorsSection}
+
+Now, generate the JSON object.
 `;
 
-  const reasoningText = await sendMessageToGemini(systemPrompt);
-  // Extract percentage from the AI's response
-  const percentageMatch = reasoningText.match(/Match Percentage\n\n.*?(\d{1,3})%/);
-  const percentage = percentageMatch ? parseInt(percentageMatch[1], 10) : 0;
+  const rawResponse = await sendMessageToGemini(systemPrompt);
+  
+  // Gemini might sometimes wrap JSON in markdown code blocks, so we need to extract it.
+  const jsonString = rawResponse.replace(/```json\n([\s\S]*?)\n```/, '$1').trim();
+  
+  try {
+    const result: { percentage: number; reasoning: string } = JSON.parse(jsonString);
+    
+    if (typeof result.percentage !== 'number' || typeof result.reasoning !== 'string') {
+      throw new Error("AI response is not in the expected JSON format.");
+    }
 
-  // Trim multiple consecutive newlines to a maximum of two for better formatting
-  const finalReasoning = reasoningText.replace(/\n{3,}/g, '\n\n').trim();
+    // Trim multiple consecutive newlines to a maximum of two for better formatting
+    const finalReasoning = result.reasoning.replace(/\n{3,}/g, '\n\n').trim();
 
-  return { percentage, reasoning: finalReasoning };
+    return { percentage: result.percentage, reasoning: finalReasoning };
+  } catch (e) {
+    console.error("Failed to parse JSON response from AI:", e);
+    console.error("Raw AI response:", rawResponse);
+    throw new Error("The AI returned an invalid response. Please try again.");
+  }
 };

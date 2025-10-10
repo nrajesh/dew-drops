@@ -290,18 +290,6 @@ export const CareerFitAnalyst = () => {
 
   const effectivePercentage = useMemo(() => {
     if (!matchResult) return 0;
-
-    const reasoningText = matchResult.reasoning || "";
-    const percentageRegex = /(\d{1,3})%/;
-    const match = reasoningText.match(percentageRegex);
-
-    if (match && match[1]) {
-      const parsedPercentage = parseInt(match[1], 10);
-      if (!isNaN(parsedPercentage) && parsedPercentage >= 0 && parsedPercentage <= 100) {
-        return parsedPercentage;
-      }
-    }
-
     return matchResult.percentage;
   }, [matchResult]);
 
