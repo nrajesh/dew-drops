@@ -16,7 +16,7 @@ export const analysisSteps = [
   "Text Preprocessing",
   "Skill & Experience Mapping",
   "Gap Identification & Soft Skill Leverage",
-  "Generating Match Report & Percentage",
+  "Generating Match Results", // Changed from "Generating Match Report & Percentage"
 ];
 
 export const useJobMatching = () => {

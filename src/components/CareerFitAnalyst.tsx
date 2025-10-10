@@ -289,17 +289,17 @@ export const CareerFitAnalyst = () => {
   const displayError = contextError || geminiClientError;
 
   const getDotColorClass = (dotIndex: number, percentage: number) => {
-    const lowerBound = dotIndex * 10;
-    if (percentage > lowerBound) {
-      if (dotIndex < 3) {
+    const roundedPercentage = Math.round(percentage / 10) * 10;
+    if ((dotIndex + 1) * 10 <= roundedPercentage) { // Check if this dot's segment is covered by the rounded percentage
+      if (dotIndex < 3) { // 0-20% (dots 0, 1, 2)
         if (dotIndex === 0) return "bg-red-300";
         if (dotIndex === 1) return "bg-red-500";
         if (dotIndex === 2) return "bg-red-700";
-      } else if (dotIndex < 6) {
-        if (dotIndex === 3) return "bg-amber-300";
-        if (dotIndex === 4) return "bg-amber-500";
-        if (dotIndex === 5) return "bg-amber-700";
-      } else {
+      } else if (dotIndex < 6) { // 30-50% (dots 3, 4, 5)
+        if (dotIndex === 3) return "bg-orange-300";
+        if (dotIndex === 4) return "bg-orange-500";
+        if (dotIndex === 5) return "bg-orange-700";
+      } else { // 60-90% (dots 6, 7, 8, 9)
         if (dotIndex === 6) return "bg-green-300";
         if (dotIndex === 7) return "bg-green-500";
         if (dotIndex === 8) return "bg-green-700";

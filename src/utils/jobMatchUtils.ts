@@ -125,6 +125,15 @@ export const generateJobMatchReasoning = async (
   }
 
   onStepUpdate(4); // Step 5: Generating Match Report & Percentage
+  
+  let additionalFactorsSection = '';
+  if (additionalFactors.length > 0) {
+    additionalFactorsSection = `
+## Additional Factors
+${additionalFactors.join('\n')}
+`;
+  }
+
   const systemPrompt = `You are a career fit analyst for my personal portfolio. Your task is to provide a professional assessment of how well my profile aligns with a given job description. The output must be in a first-person passive tone (using 'my' instead of 'Rajesh's' or 'the candidate').
 
 First, calculate a match percentage (0-100) based on the overall alignment, considering direct matches, related skills, and potential for leveraging soft skills to bridge gaps.
@@ -152,9 +161,7 @@ Provide the response strictly in the format below, using Markdown. Ensure each p
 - [Missing skill/requirement] - [Identify a relevant soft skill from my profile (resume/chatbot knowledge) and explain how it can be leveraged to bridge this gap. E.g., "Missing skill: Cloud Security - My strong problem-solving skills, demonstrated in project X, can be leveraged to quickly learn and adapt to new security frameworks." Focus on how my existing soft skills can compensate or facilitate learning for the identified hard skill gaps.]
 - [Another missing skill with soft skill leverage]
 ...
-
-## Additional Factors
-${additionalFactors.join('\n')}
+${additionalFactorsSection}
 `;
 
   const reasoningText = await sendMessageToGemini(systemPrompt);
