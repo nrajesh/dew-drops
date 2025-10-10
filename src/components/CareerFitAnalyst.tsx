@@ -7,7 +7,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Loader2, Sparkles, AlertTriangle, Download, Link as LinkIcon, FileText } from "lucide-react";
 import ReactMarkdown from 'react-markdown';
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { useJobMatching, analysisSteps } from "@/hooks/useJobMatching";
+import { useJobMatching, analysisSteps } from "@/hooks/useJobMatching"; // Import updated analysisSteps
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { showError } from "@/utils/toast";
 import { Progress } from "@/components/ui/progress";
@@ -16,9 +16,9 @@ import { cn, limitGapsInMarkdown, markdownToPlainText, cleanJobDescriptionText }
 import { analyzeAndTranslateJobDescription } from "@/utils/aiTextAnalysis";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
-import { supabase } from "@/integrations/supabase/client"; // Import supabase client
-import { generateCareerFitPdf } from "@/utils/pdfGenerator"; // Import the new PDF utility
-import { marked } from 'marked'; // Import marked for markdown to HTML conversion
+import { supabase } from "@/integrations/supabase/client";
+import { generateCareerFitPdf } from "@/utils/pdfGenerator";
+import { marked } from 'marked';
 
 const MIN_JOB_DESCRIPTION_LENGTH = 250;
 
@@ -101,7 +101,7 @@ export const CareerFitAnalyst = () => {
 
   const overallSteps = useMemo(() => [
     "Validating entered text",
-    ...analysisSteps
+    ...analysisSteps // Use updated analysisSteps from hook
   ], []);
   const totalOverallSteps = overallSteps.length;
 
@@ -211,8 +211,8 @@ export const CareerFitAnalyst = () => {
 
       if (inputMethod === "url") {
         const fetchedHtml = await fetchJobDescriptionFromUrl(jobDescriptionUrl);
-        textToAnalyze = cleanJobDescriptionText(fetchedHtml); // Use the new cleaning function
-        setJobDescription(textToAnalyze); // Set the fetched and cleaned content to jobDescription state
+        textToAnalyze = cleanJobDescriptionText(fetchedHtml);
+        setJobDescription(textToAnalyze);
       }
 
       const analysisResult = await analyzeAndTranslateJobDescription(textToAnalyze);
@@ -268,7 +268,6 @@ export const CareerFitAnalyst = () => {
       return;
     }
 
-    // Convert markdown reasoning to HTML
     const renderedMarkdownHtml = marked.parse(limitedReasoning);
 
     const contentToPrint = `
@@ -289,26 +288,25 @@ export const CareerFitAnalyst = () => {
 
   const displayError = contextError || geminiClientError;
 
-  // New function to get color class for each dot
   const getDotColorClass = (dotIndex: number, percentage: number) => {
     const lowerBound = dotIndex * 10;
-    if (percentage > lowerBound) { // Light up if percentage is above the lower bound of the 10% segment
-      if (dotIndex < 3) { // Red hues for 0-30%
+    if (percentage > lowerBound) {
+      if (dotIndex < 3) {
         if (dotIndex === 0) return "bg-red-300";
         if (dotIndex === 1) return "bg-red-500";
         if (dotIndex === 2) return "bg-red-700";
-      } else if (dotIndex < 6) { // Amber hues for 31-60%
+      } else if (dotIndex < 6) {
         if (dotIndex === 3) return "bg-amber-300";
         if (dotIndex === 4) return "bg-amber-500";
         if (dotIndex === 5) return "bg-amber-700";
-      } else { // Green hues for 61-100%
+      } else {
         if (dotIndex === 6) return "bg-green-300";
         if (dotIndex === 7) return "bg-green-500";
         if (dotIndex === 8) return "bg-green-700";
         if (dotIndex === 9) return "bg-green-900";
       }
     }
-    return "bg-muted-foreground/30"; // Default for unlit dots
+    return "bg-muted-foreground/30";
   };
 
   return (
@@ -431,8 +429,8 @@ export const CareerFitAnalyst = () => {
 
         {matchResult && !isMatching && !contextLoading && !isPreProcessing && (
           <div className="space-y-4 mt-6">
-            <div className="flex items-center justify-center gap-2 mb-4"> {/* Updated to center the dots */}
-              <div className="flex-1 h-2 flex items-center justify-center gap-1"> {/* Updated to center the dots */}
+            <div className="flex items-center justify-center gap-2 mb-4">
+              <div className="flex-1 h-2 flex items-center justify-center gap-1">
                 {Array.from({ length: 10 }).map((_, i) => (
                   <div
                     key={i}

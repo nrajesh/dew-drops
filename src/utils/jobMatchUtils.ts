@@ -1,6 +1,6 @@
 // src/utils/jobMatchUtils.ts
 import { extractJobKeywords } from "@/integrations/gemini/client";
-import { calculateWeightedMatchPercentage } from "@/utils/cosineSimilarity";
+// Removed: import { calculateWeightedMatchPercentage } from "@/utils/cosineSimilarity";
 import type { JsonResume, ResumeWork, ResumeEducation, ResumeSkill, ResumeLanguage, ResumeAward, ResumePublication, ResumeReference } from "@/types/resume";
 
 // This function will be passed from the component where sendMessageToGemini is available
@@ -12,64 +12,43 @@ export const generateJobMatchReasoning = async (
   resume: JsonResume,
   sendMessageToGemini: SendMessageToGeminiFunction,
   onStepUpdate: (stepIndex: number) => void // New callback for step updates
-): Promise<{ percentage: number; reasoning: string; breakdown: { experience: number; education: number; skills: number; languages: number; publications: number; awards: number; references: number } }> => {
+): Promise<{ percentage: number; reasoning: string }> => { // Simplified return type
   onStepUpdate(0); // Step 1: Extracting Key Criteria
   // Step 1: Extract job requirements using Gemini
   const jobRequirements = await extractJobKeywords(jobDescription);
 
   onStepUpdate(1); // Step 2: Text Preprocessing
-  // Step 2: Prepare CV sections for weighted similarity
-  const cvSections = {
-    experience: resume.work?.map((w: ResumeWork) => `${w.position} at ${w.company} ${w.summary} ${w.highlights?.join(' ')}`).join(' ') || '',
-    education: resume.education?.map((e: ResumeEducation) => `${e.studyType} in ${e.area} from ${e.institution} ${e.courses?.join(' ')}`).join(' ') || '',
-    skills: resume.skills?.map((s: ResumeSkill) => `${s.name} ${s.level} ${s.keywords?.join(' ')}`).join(' ') || '',
-    languages: resume.languages?.map((l: ResumeLanguage) => `${l.language} ${l.fluency}`).join(' ') || '', // Include languages
-    publications: resume.publications?.map((p: ResumePublication) => `${p.name} ${p.summary} ${p.publisher}`).join(' ') || '', // Added
-    awards: resume.awards?.map((a: ResumeAward) => `${a.title} ${a.awarder} ${a.summary}`).join(' ') || '', // Added
-    references: resume.references?.map((r: ResumeReference) => `${r.name} ${r.reference}`).join(' ') || '', // Added
-  };
+  // Step 2: Prepare CV sections for AI consumption
+  const allCvContent: string[] = [];
+  if (resume.basics?.summary) allCvContent.push(resume.basics.summary);
+  resume.work?.forEach((w: ResumeWork) => allCvContent.push(`${w.position} at ${w.company} ${w.summary} ${w.highlights?.join(' ')} ${w.industry || ''}`));
+  resume.education?.forEach((e: ResumeEducation) => allCvContent.push(`${e.studyType} in ${e.area} from ${e.institution} ${e.courses?.join(' ')}`));
+  resume.skills?.forEach((s: ResumeSkill) => allCvContent.push(`${s.name} ${s.level} ${s.keywords?.join(' ')}`));
+  resume.languages?.forEach((l: ResumeLanguage) => allCvContent.push(`${l.language} ${l.fluency}`));
+  resume.publications?.forEach((p: ResumePublication) => allCvContent.push(`${p.name} ${p.summary} ${p.publisher}`));
+  resume.awards?.forEach((a: ResumeAward) => allCvContent.push(`${a.title} ${a.awarder} ${a.summary}`));
+  resume.references?.forEach((r: ResumeReference) => allCvContent.push(`${r.name} ${r.reference}`));
+  const combinedCvText = allCvContent.join(' ');
 
-  onStepUpdate(2); // Step 3: Vectorization & Similarity Calculation
-  // Updated weights for weighted similarity calculation
-  const { totalPercentage, breakdown } = calculateWeightedMatchPercentage(jobDescription, cvSections, {
-    experience: 0.40, // Updated weight for experience
-    skills: 0.40,     // Updated weight for skills
-    education: 0.05,  // Updated weight for education
-    languages: 0.02,   // Updated weight for languages
-    publications: 0.03, // Updated weight for publications
-    awards: 0.05,      // Updated weight for awards
-    references: 0.05,  // Updated weight for references
-  });
-
-  onStepUpdate(3); // Step 4: Keyword Matching & Gap Analysis
+  onStepUpdate(2); // Step 3: Skill & Experience Mapping
   // Step 3: Collect all skills from CV for direct comparison
   const allCvSkills: string[] = [];
   resume.skills?.forEach(s => {
     allCvSkills.push(s.name);
     s.keywords?.forEach(k => allCvSkills.push(k));
   });
-  resume.work?.forEach(w => w.highlights?.forEach(h => allCvSkills.push(h))); // Also consider work highlights as skills
-  resume.languages?.forEach(l => allCvSkills.push(l.language)); // Add languages to skills for direct comparison
-  resume.publications?.forEach(p => allCvSkills.push(p.name, p.publisher)); // Add publication names and publishers
-  resume.awards?.forEach(a => allCvSkills.push(a.title, a.awarder)); // Add award titles and awarders
+  resume.work?.forEach(w => w.highlights?.forEach(h => allCvSkills.push(h)));
+  resume.languages?.forEach(l => allCvSkills.push(l.language));
+  resume.publications?.forEach(p => allCvSkills.push(p.name, p.publisher));
+  resume.awards?.forEach(a => allCvSkills.push(a.title, a.awarder));
 
-  // Step 4: Generate reasoning with Markdown, overlaps, and feedback using Gemini
   const jobReqSet: Set<string> = new Set(jobRequirements.map(s => s.toLowerCase()));
   const cvSkillsSet: Set<string> = new Set(allCvSkills.map(s => s.toLowerCase()));
 
   const overlaps = Array.from(jobReqSet).filter((req: string) => cvSkillsSet.has(req));
   const missing = Array.from(jobReqSet).filter((req: string) => !cvSkillsSet.has(req));
 
-  // Relaxed qualitative assessment based on percentage
-  let qualitativeAssessment = "";
-  if (totalPercentage >= 60) {
-    qualitativeAssessment = `My profile shows a strong alignment with the job's requirements, particularly in areas of experience.`;
-  } else if (totalPercentage >= 30) {
-    qualitativeAssessment = `There's a moderate alignment. While some areas match well, others might require further development or a more tailored approach.`;
-  } else {
-    qualitativeAssessment = `The overall alignment is lower. This suggests the role might require a different set of core competencies or a significant upskilling effort.`;
-  }
-
+  onStepUpdate(3); // Step 4: Gap Identification & Soft Skill Leverage
   // Add additional factors to the analysis
   const additionalFactors = [];
 
@@ -78,7 +57,7 @@ export const generateJobMatchReasoning = async (
     const recentWork = resume.work[0];
     const industryMatch = jobDescription.toLowerCase().includes(recentWork.industry?.toLowerCase() || '');
     if (industryMatch) {
-      additionalFactors.push(`+ **Industry Relevance**: My recent work in ${recentWork.industry || 'the same industry'} aligns well with the job's focus.`);
+      additionalFactors.push(`+ **Industry Relevance**: My recent work in ${recentWork.industry || 'a relevant industry'} aligns well with the job's focus.`);
     } else {
       additionalFactors.push(`- **Industry Relevance**: While my experience is valuable, it's from a different industry than the job's focus.`);
     }
@@ -145,23 +124,27 @@ export const generateJobMatchReasoning = async (
     ).join(', ')}.`);
   }
 
-  onStepUpdate(4); // Step 5: Finalizing Profile Match
+  onStepUpdate(4); // Step 5: Generating Match Report & Percentage
   const systemPrompt = `You are a career fit analyst for my personal portfolio. Your task is to provide a professional assessment of how well my profile aligns with a given job description. The output must be in a first-person passive tone (using 'my' instead of 'Rajesh's' or 'the candidate').
 
-Structure your response into two main sections: 'Matching Areas' and 'Gaps'. Each section should be a bulletized paragraph.
+First, calculate a match percentage (0-100) based on the overall alignment, considering direct matches, related skills, and potential for leveraging soft skills to bridge gaps.
+
+Structure your response into three main sections: 'Match Percentage', 'Matching Areas', and 'Gaps'. Each section should be a bulletized paragraph.
 
 Here is the job description: ${jobDescription}
 Here is a summary of my profile (CV and chatbot knowledge): ${chatbotKnowledge}
 My detailed resume data (JSON): ${JSON.stringify(resume, null, 2)}
 Identified overlapping skills/requirements: ${overlaps.join(', ')}
 Identified missing skills/requirements: ${missing.join(', ')}
-Qualitative assessment: ${qualitativeAssessment}
-Match breakdown: Experience ${breakdown.experience.toFixed(0)}%, Skills ${breakdown.skills.toFixed(0)}%, Education ${breakdown.education.toFixed(0)}%, Languages ${breakdown.languages.toFixed(0)}%, Publications ${breakdown.publications.toFixed(0)}%, Awards ${breakdown.awards.toFixed(0)}%, References ${breakdown.references.toFixed(0)}%.
+Combined CV text for broader context: ${combinedCvText}
 
 Provide the response strictly in the format below, using Markdown. Ensure each point starts with '+ ' or '- ' and is left-aligned.
 
+## Match Percentage
+[A single line stating the calculated percentage, e.g., "My profile has an estimated **75%** match with this job description."]
+
 ## Matching Areas
-+ **[Concise Title]:** [Succinct point describing a strength, using specific data points from my resume/portfolio (e.g., "My 10 years of experience in X aligns with...", "My project Y demonstrates Z skill..."). Focus on how my existing skills and experience directly match the job requirements.]
++ **[Concise Title]:** [Succinct point describing a strength, using specific data points from my resume/portfolio (e.g., "My 10 years of experience in X aligns with...", "My project Y demonstrates Z skill..."). Focus on how my existing skills and experience directly match or are closely related to the job requirements.]
 + **[Another Concise Title]:** [Another point with specific data]
 ...
 
@@ -175,8 +158,12 @@ ${additionalFactors.join('\n')}
 `;
 
   const reasoningText = await sendMessageToGemini(systemPrompt);
+  // Extract percentage from the AI's response
+  const percentageMatch = reasoningText.match(/Match Percentage\n\n.*?(\d{1,3})%/);
+  const percentage = percentageMatch ? parseInt(percentageMatch[1], 10) : 0;
+
   // Trim multiple consecutive newlines to a maximum of two for better formatting
   const finalReasoning = reasoningText.replace(/\n{3,}/g, '\n\n').trim();
 
-  return { percentage: totalPercentage, reasoning: finalReasoning, breakdown };
+  return { percentage, reasoning: finalReasoning };
 };
