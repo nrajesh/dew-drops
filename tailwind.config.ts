@@ -62,6 +62,23 @@ export default {
           border: "hsl(var(--sidebar-border))",
           ring: "hsl(var(--sidebar-ring))",
         },
+        // Custom colors for the match indicator dots
+        red: {
+          300: "hsl(0 78% 70%)",
+          500: "hsl(0 84% 60%)",
+          700: "hsl(0 78% 40%)",
+        },
+        orange: { // Using 'orange' for simplicity, maps to amber hues
+          300: "hsl(36 95% 70%)",
+          500: "hsl(36 95% 58%)",
+          700: "hsl(36 95% 40%)",
+        },
+        green: {
+          300: "hsl(142 76% 70%)",
+          500: "hsl(142 76% 50%)",
+          700: "hsl(142 76% 30%)",
+          900: "hsl(142 76% 15%)",
+        },
       },
       borderRadius: {
         lg: "var(--radius)",
