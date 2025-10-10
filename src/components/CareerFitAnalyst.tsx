@@ -425,6 +425,9 @@ export const CareerFitAnalyst = () => {
                 })}
               </div>
             </div>
+            <div className="text-center text-sm text-muted-foreground -mt-2 mb-4">
+              <p>Match Percentage: {matchResult.percentage}%</p>
+            </div>
             <div className="flex justify-end gap-2 mb-4 pdf-hidden">
               <Button
                 onClick={handleDownloadText}
