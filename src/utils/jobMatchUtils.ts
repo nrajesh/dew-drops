@@ -1,7 +1,7 @@
 // src/utils/jobMatchUtils.ts
 import { extractJobKeywords } from "@/integrations/gemini/client";
 import { calculateWeightedMatchPercentage } from "@/utils/cosineSimilarity";
-import type { JsonResume, ResumeWork, ResumeEducation, ResumeSkill, ResumeLanguage } from "@/types/resume"; // Import ResumeLanguage
+import type { JsonResume, ResumeWork, ResumeEducation, ResumeSkill, ResumeLanguage, ResumeAward, ResumePublication, ResumeReference } from "@/types/resume"; // Import ResumeLanguage
 
 // This function will be passed from the component where sendMessageToGemini is available
 type SendMessageToGeminiFunction = (message: string) => Promise<string>;
@@ -12,7 +12,7 @@ export const generateJobMatchReasoning = async (
   resume: JsonResume,
   sendMessageToGemini: SendMessageToGeminiFunction,
   onStepUpdate: (stepIndex: number) => void // New callback for step updates
-): Promise<{ percentage: number; reasoning: string; breakdown: { experience: number; education: number; skills: number; languages: number } }> => {
+): Promise<{ percentage: number; reasoning: string; breakdown: { experience: number; education: number; skills: number; languages: number; publications: number; awards: number; references: number } }> => {
   onStepUpdate(0); // Step 1: Extracting Key Criteria
   // Step 1: Extract job requirements using Gemini
   const jobRequirements = await extractJobKeywords(jobDescription);
@@ -24,6 +24,9 @@ export const generateJobMatchReasoning = async (
     education: resume.education?.map((e: ResumeEducation) => `${e.studyType} in ${e.area} from ${e.institution} ${e.courses?.join(' ')}`).join(' ') || '',
     skills: resume.skills?.map((s: ResumeSkill) => `${s.name} ${s.level} ${s.keywords?.join(' ')}`).join(' ') || '',
     languages: resume.languages?.map((l: ResumeLanguage) => `${l.language} ${l.fluency}`).join(' ') || '', // Include languages
+    publications: resume.publications?.map((p: ResumePublication) => `${p.name} ${p.summary} ${p.publisher}`).join(' ') || '', // Added
+    awards: resume.awards?.map((a: ResumeAward) => `${a.title} ${a.awarder} ${a.summary}`).join(' ') || '', // Added
+    references: resume.references?.map((r: ResumeReference) => `${r.name} ${r.reference}`).join(' ') || '', // Added
   };
 
   onStepUpdate(2); // Step 3: Vectorization & Similarity Calculation
@@ -38,6 +41,8 @@ export const generateJobMatchReasoning = async (
   });
   resume.work?.forEach(w => w.highlights?.forEach(h => allCvSkills.push(h))); // Also consider work highlights as skills
   resume.languages?.forEach(l => allCvSkills.push(l.language)); // Add languages to skills for direct comparison
+  resume.publications?.forEach(p => allCvSkills.push(p.name, p.publisher)); // Add publication names and publishers
+  resume.awards?.forEach(a => allCvSkills.push(a.title, a.awarder)); // Add award titles and awarders
 
   // Step 4: Generate reasoning with Markdown, overlaps, and feedback using Gemini
   const jobReqSet: Set<string> = new Set(jobRequirements.map(s => s.toLowerCase()));
@@ -67,7 +72,7 @@ My detailed resume data (JSON): ${JSON.stringify(resume, null, 2)}
 Identified overlapping skills/requirements: ${overlaps.join(', ')}
 Identified missing skills/requirements: ${missing.join(', ')}
 Qualitative assessment: ${qualitativeAssessment}
-Match breakdown: Experience ${breakdown.experience.toFixed(0)}%, Education ${breakdown.education.toFixed(0)}%, Skills ${breakdown.skills.toFixed(0)}%, Languages ${breakdown.languages.toFixed(0)}%.
+Match breakdown: Experience ${breakdown.experience.toFixed(0)}%, Education ${breakdown.education.toFixed(0)}%, Skills ${breakdown.skills.toFixed(0)}%, Languages ${breakdown.languages.toFixed(0)}%, Publications ${breakdown.publications.toFixed(0)}%, Awards ${breakdown.awards.toFixed(0)}%, References ${breakdown.references.toFixed(0)}%.
 
 Provide the response strictly in the format below, using Markdown. Ensure each point starts with '+ ' or '- ' and is left-aligned.
 
