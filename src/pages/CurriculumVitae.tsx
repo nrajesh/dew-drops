@@ -10,6 +10,7 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/component
 import { Button } from "@/components/ui/button";
 import { cn, formatDate } from "@/lib/utils";
 import { Link } from "react-router-dom";
+import { supabase } from "@/integrations/supabase/client";
 
 const RESUME_URL = import.meta.env.VITE_RESUME_URL;
 
@@ -17,6 +18,7 @@ const CurriculumVitae = () => {
   const [resume, setResume] = useState<JsonResume | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [isMatchCVEnabled, setIsMatchCVEnabled] = useState(false); // New state for feature toggle
 
   // State for collapsible sections
   const [isWorkOpen, setIsWorkOpen] = useState(true);
@@ -28,6 +30,31 @@ const CurriculumVitae = () => {
   const [isPublicationsOpen, setIsPublicationsOpen] = useState(true);
   const [isReferencesOpen, setIsReferencesOpen] = useState(true);
 
+  // Check if the "Match CV" feature is enabled
+  useEffect(() => {
+    const checkFeatureToggle = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('feature_toggles')
+          .select('is_enabled')
+          .eq('feature_key', 'match_cv')
+          .single();
+
+        if (error) {
+          console.error('Error checking feature toggle:', error);
+          // Default to false if there's an error
+          setIsMatchCVEnabled(false);
+        } else {
+          setIsMatchCVEnabled(data?.is_enabled || false);
+        }
+      } catch (err) {
+        console.error('Error checking feature toggle:', err);
+        setIsMatchCVEnabled(false);
+      }
+    };
+
+    checkFeatureToggle();
+  }, []);
 
   useEffect(() => {
     const fetchResume = async () => {
@@ -60,9 +87,9 @@ const CurriculumVitae = () => {
 
     // Add a class to the body to force light mode for printing
     document.body.classList.add('print-light-mode');
-    
+
     window.print();
-    
+
     // Remove the class after printing
     document.body.classList.remove('print-light-mode');
     document.title = originalTitle;
@@ -162,8 +189,8 @@ const CurriculumVitae = () => {
         )}
       </Card>
 
-      {basics.summary && (
-        <div className="flex justify-center print:hidden"> {/* Changed justify-end to justify-center */}
+      {basics.summary && isMatchCVEnabled && ( // Conditionally render the button based on feature toggle
+        <div className="flex justify-center print:hidden">
           <Link to="/match-cv" className="shrink-0">
             <Button className="flex items-center gap-2">
               <Sparkles className="h-4 w-4" /> Match CV
