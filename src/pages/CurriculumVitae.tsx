@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button";
 import { cn, formatDate } from "@/lib/utils";
 import { Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/contexts/AuthContext"; // Import useAuth
 
 const RESUME_URL = import.meta.env.VITE_RESUME_URL;
 
@@ -31,6 +32,8 @@ const CurriculumVitae = () => {
   const [isInterestsOpen, setIsInterestsOpen] = useState(true);
   const [isPublicationsOpen, setIsPublicationsOpen] = useState(true);
   const [isReferencesOpen, setIsReferencesOpen] = useState(true);
+
+  const { session } = useAuth(); // Get session from AuthContext
 
   // Check if the "Match CV" feature is enabled
   useEffect(() => {
