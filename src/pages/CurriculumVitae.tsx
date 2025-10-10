@@ -10,6 +10,7 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/component
 import { Button } from "@/components/ui/button";
 import { cn, formatDate } from "@/lib/utils";
 import { Link } from "react-router-dom";
+import { supabase } from "@/integrations/supabase/client"; // Import Supabase client
 
 const RESUME_URL = import.meta.env.VITE_RESUME_URL;
 
@@ -17,6 +18,7 @@ const CurriculumVitae = () => {
   const [resume, setResume] = useState<JsonResume | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [isMatchCvEnabled, setIsMatchCvEnabled] = useState(false); // New state for feature toggle
 
   // State for collapsible sections
   const [isWorkOpen, setIsWorkOpen] = useState(true);
@@ -30,28 +32,55 @@ const CurriculumVitae = () => {
 
 
   useEffect(() => {
-    const fetchResume = async () => {
+    const fetchResumeAndFeatureToggle = async () => {
+      setLoading(true);
+      let hasError = false;
+
       if (!RESUME_URL) {
         setError("VITE_RESUME_URL environment variable is not set.");
-        setLoading(false);
-        return;
-      }
-      try {
-        const response = await fetch(RESUME_URL);
-        if (!response.ok) {
-          throw new Error(`Failed to fetch resume: ${response.statusText}`);
+        hasError = true;
+      } else {
+        try {
+          const response = await fetch(RESUME_URL);
+          if (!response.ok) {
+            throw new Error(`Failed to fetch resume: ${response.statusText}`);
+          }
+          const data: JsonResume = await response.json();
+          setResume(data);
+        } catch (err: any) {
+          setError(err.message);
+          console.error("Error fetching resume:", err);
+          hasError = true;
         }
-        const data: JsonResume = await response.json();
-        setResume(data);
+      }
+
+      // Fetch feature toggle status
+      try {
+        const { data, error: toggleError } = await supabase
+          .from('feature_toggles')
+          .select('is_enabled')
+          .eq('feature_key', 'match_cv')
+          .single();
+
+        if (toggleError) {
+          console.error("Error fetching feature toggle:", toggleError.message);
+          // If there's an error fetching, default to false or handle as needed
+          setIsMatchCvEnabled(false); 
+        } else if (data) {
+          setIsMatchCvEnabled(data.is_enabled);
+        } else {
+          // If no entry found, default to false
+          setIsMatchCvEnabled(false);
+        }
       } catch (err: any) {
-        setError(err.message);
-        console.error("Error fetching resume:", err);
+        console.error("Error fetching feature toggle:", err.message);
+        setIsMatchCvEnabled(false);
       } finally {
         setLoading(false);
       }
     };
 
-    fetchResume();
+    fetchResumeAndFeatureToggle();
   }, []);
 
   const handlePrint = useCallback(() => {
@@ -162,8 +191,8 @@ const CurriculumVitae = () => {
         )}
       </Card>
 
-      {basics.summary && (
-        <div className="flex justify-center print:hidden"> {/* Changed justify-end to justify-center */}
+      {basics.summary && isMatchCvEnabled && ( // Conditionally render based on feature toggle
+        <div className="flex justify-center print:hidden">
           <Link to="/match-cv" className="shrink-0">
             <Button className="flex items-center gap-2">
               <Sparkles className="h-4 w-4" /> Match CV
