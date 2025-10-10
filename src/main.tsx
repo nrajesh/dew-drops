@@ -10,6 +10,7 @@ import { SpeedInsights } from "@vercel/speed-insights/react";
 import { AuthProvider } from "./contexts/AuthContext.tsx";
 import { FeatureToggleProvider } from "./contexts/FeatureToggleContext.tsx";
 import { FontSettingsProvider } from "./contexts/FontSettingsContext.tsx"; // Import the new provider
+// The usePortfolioContext import is not directly used here, but it's good practice to ensure no conflicts.
 
 const queryClient = new QueryClient();
 

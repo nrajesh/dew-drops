@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Send, Bot, User as UserIcon, Loader2, AlertTriangle, X } from "lucide-react";
-import { usePortfolioContext } from "@/hooks/usePortfolioContext";
+import { usePortfolioData } from "@/hooks/usePortfolioData"; // Updated import
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { useNavigate } from "react-router-dom";
 import ReactMarkdown from 'react-markdown';
@@ -24,7 +24,7 @@ const Chat = ({ jobDescription, onClose }: ChatProps) => {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [isLoadingChat, setIsLoadingChat] = useState(false);
-  const { chatbotKnowledge, resume, loading: contextLoading, error: contextError } = usePortfolioContext();
+  const { chatbotKnowledge, resume, loading: contextLoading, error: contextError } = usePortfolioData(); // Updated hook name
   const scrollAreaRef = useRef<HTMLDivElement>(null);
   const navigate = useNavigate();
 

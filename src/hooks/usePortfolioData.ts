@@ -1,0 +1,56 @@
+import { useState, useEffect, useContext, ReactNode, useRef, useCallback } from 'react';
+import { supabase } from '@/integrations/supabase/client';
+import { showError } from '@/utils/toast';
+import type { JsonResume } from '@/types/resume'; // Import JsonResume type
+
+export const usePortfolioData = (): { chatbotKnowledge: string | null; resume: JsonResume | null; loading: boolean; error: string | null; } => {
+  const [chatbotKnowledge, setChatbotKnowledge] = useState<string | null>(null);
+  const [resume, setResume] = useState<JsonResume | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const RESUME_URL = import.meta.env.VITE_RESUME_URL;
+
+  useEffect(() => {
+    const fetchContext = async () => {
+      setLoading(true);
+      setError(null); // Clear previous errors
+      try {
+        // Fetch chatbot knowledge
+        const { data: knowledgeData, error: knowledgeError } = await supabase
+          .from('chatbot_knowledge')
+          .select('content')
+          .eq('id', 1)
+          .single();
+
+        if (knowledgeError && knowledgeError.code !== 'PGRST116') { // Ignore "0 rows" error
+          throw knowledgeError;
+        }
+        setChatbotKnowledge(knowledgeData?.content || "No knowledge base has been configured for the chatbot.");
+
+        // Fetch resume data
+        if (RESUME_URL) {
+          const response = await fetch(RESUME_URL, { cache: 'no-store' }); // <--- Added cache: 'no-store'
+          if (!response.ok) {
+            throw new Error(`Failed to fetch resume from ${RESUME_URL}: ${response.statusText}`);
+          }
+          const resumeData: JsonResume = await response.json();
+          setResume(resumeData);
+        } else {
+          console.warn("VITE_RESUME_URL is not set. Resume data will not be available.");
+          setResume(null);
+        }
+
+      } catch (err: any) {
+        setError(err.message);
+        console.error("Failed to fetch portfolio context or resume:", err);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchContext();
+  }, [RESUME_URL]); // Added RESUME_URL to dependency array
+
+  return { chatbotKnowledge, resume, loading, error };
+};

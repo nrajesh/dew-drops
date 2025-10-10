@@ -291,8 +291,8 @@ export const CareerFitAnalyst = () => {
 
   // New function to get color class for each dot
   const getDotColorClass = (dotIndex: number, percentage: number) => {
-    const threshold = (dotIndex + 1) * 10;
-    if (percentage >= threshold) {
+    const lowerBound = dotIndex * 10;
+    if (percentage > lowerBound) { // Light up if percentage is above the lower bound of the 10% segment
       if (dotIndex < 3) { // Red hues for 0-30%
         if (dotIndex === 0) return "bg-red-300";
         if (dotIndex === 1) return "bg-red-500";

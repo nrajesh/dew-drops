@@ -1,6 +1,6 @@
 // src/hooks/useJobMatching.ts
 import { useState, useCallback, useEffect, useMemo } from "react";
-import { usePortfolioContext } from "@/hooks/usePortfolioContext";
+import { usePortfolioData } from "@/hooks/usePortfolioData"; // Updated import
 import { generateJobMatchReasoning } from "@/utils/jobMatchUtils";
 import { sendMessageToGemini, getGeminiInitializationError } from "@/integrations/gemini/client";
 import { showError } from "@/utils/toast"; // Added import for showError
@@ -20,7 +20,7 @@ export const analysisSteps = [
 ];
 
 export const useJobMatching = () => {
-  const { chatbotKnowledge, resume, loading: contextLoading, error: contextError } = usePortfolioContext();
+  const { chatbotKnowledge, resume, loading: contextLoading, error: contextError } = usePortfolioData(); // Updated hook name
   const [isMatching, setIsMatching] = useState(false);
   const [matchResult, setMatchResult] = useState<JobMatchResult | null>(null);
   const [geminiClientError, setGeminiClientError] = useState<string | null>(null);
