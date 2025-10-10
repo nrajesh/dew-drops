@@ -7,7 +7,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Loader2, Sparkles, AlertTriangle, Download, Link as LinkIcon, FileText } from "lucide-react";
 import ReactMarkdown from 'react-markdown';
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { useJobMatching, analysisSteps } from "@/hooks/useJobMatching"; // Import updated analysisSteps
+import { useJobMatching, analysisSteps } from "@/hooks/useJobMatching";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { showError } from "@/utils/toast";
 import { Progress } from "@/components/ui/progress";
@@ -101,7 +101,7 @@ export const CareerFitAnalyst = () => {
 
   const overallSteps = useMemo(() => [
     "Validating entered text",
-    ...analysisSteps // Use updated analysisSteps from hook
+    ...analysisSteps
   ], []);
   const totalOverallSteps = overallSteps.length;
 
@@ -290,23 +290,19 @@ export const CareerFitAnalyst = () => {
 
   const getDotColorClass = (dotIndex: number, percentage: number) => {
     const roundedPercentage = Math.round(percentage / 10) * 10;
-    if ((dotIndex + 1) * 10 <= roundedPercentage) {
-      if (dotIndex < 3) { // 0-20% (dots 0, 1, 2)
-        if (dotIndex === 0) return "bg-red-300";
-        if (dotIndex === 1) return "bg-red-500";
-        if (dotIndex === 2) return "bg-red-700";
-      } else if (dotIndex < 6) { // 30-50% (dots 3, 4, 5)
-        if (dotIndex === 3) return "bg-orange-300";
-        if (dotIndex === 4) return "bg-orange-500";
-        if (dotIndex === 5) return "bg-orange-700";
-      } else { // 60-90% (dots 6, 7, 8, 9)
-        if (dotIndex === 6) return "bg-green-300";
-        if (dotIndex === 7) return "bg-green-500";
-        if (dotIndex === 8) return "bg-green-700";
-        if (dotIndex === 9) return "bg-green-900";
-      }
-    }
-    return "bg-muted-foreground/30";
+    const isActive = (dotIndex + 1) * 10 <= roundedPercentage;
+
+    // Create a gradient that will automatically adapt to light/dark themes
+    // The gradient goes from red (0%) to yellow (50%) to green (100%)
+    // The position is calculated based on the dot's index (0-9)
+    const gradientPosition = (dotIndex / 9) * 100;
+
+    return cn(
+      "h-2 w-2 rounded-full",
+      isActive
+        ? `bg-gradient-to-r from-red-500 via-yellow-500 to-green-500 bg-[length:300%] bg-[position:${gradientPosition}%_0]`
+        : "bg-muted-foreground/30"
+    );
   };
 
   return (
@@ -379,7 +375,7 @@ export const CareerFitAnalyst = () => {
                   {jobDescription.length}/{MIN_JOB_DESCRIPTION_LENGTH} characters minimum
                 </p>
                 <p className="text-sm text-muted-foreground mt-2">
-                  Matching job descriptions longer than 2000 characters in length or using an URL to match can take a several minutes to complete.
+                  Matching job descriptions longer than 2000 characters in length or using a URL to match can take several minutes to complete.
                 </p>
               </TabsContent>
               <TabsContent value="url">
@@ -403,7 +399,7 @@ export const CareerFitAnalyst = () => {
                   Provide a URL where the job description is hosted.
                 </p>
                 <p className="text-sm text-muted-foreground mt-2">
-                  Matching job descriptions longer than 2000 characters in length or using an URL to match can take a several minutes to complete.
+                  Matching job descriptions longer than 2000 characters in length or using a URL to match can take several minutes to complete.
                 </p>
               </TabsContent>
             </Tabs>
@@ -434,10 +430,7 @@ export const CareerFitAnalyst = () => {
                 {Array.from({ length: 10 }).map((_, i) => (
                   <div
                     key={i}
-                    className={cn(
-                      "h-2 w-2 rounded-full",
-                      getDotColorClass(i, matchResult.percentage)
-                    )}
+                    className={getDotColorClass(i, matchResult.percentage)}
                   />
                 ))}
               </div>
