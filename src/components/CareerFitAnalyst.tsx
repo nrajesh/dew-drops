@@ -38,10 +38,10 @@ const languageNames: { [key: string]: string } = {
   "ba": "Bashkir", "cv": "Chuvash", "os": "Ossetian", "ab": "Abkhazian", "ce": "Chechen", "av": "Avaric",
   "lez": "Lezghian", "inh": "Ingush", "kbd": "Kabardian", "ady": "Adyghe", "xal": "Kalmyk", "sah": "Sakha",
   "tyv": "Tuvan", "alt": "Southern Altai", "krc": "Karachay-Balkar", "nog": "Nogai", "gag": "Gagauz",
-  "crh": "Crimean Tatar", "udm": "Udmurt", "mdf": "Moksha", "myv": "Erzya", "mrj": "Marathi",
-  "mhr": "Eastern Mari", "kpv": "Komi-Zyrian", "koi": "Komi-Permyak", "vep": "Veps", "olo": "Olonets Karelian",
-  "krl": "Karelian", "sjd": "Kildin Sami", "sje": "Pite Sami", "sjt": "Ter Sami", "sjk": "Skolt Sami",
-  "smn": "Inari Sami", "sms": "Skolt Sami", "smj": "Lule Sami", "sma": "Southern Sami", "se": "Northern Sami",
+  "crh": "Crimean Tatar", "udm": "Udmurt", "mdf": "Moksha", "myv": "Erzya", "mhr": "Eastern Mari",
+  "kpv": "Komi-Zyrian", "koi": "Komi-Permyak", "vep": "Veps", "olo": "Olonets Karelian", "krl": "Karelian",
+  "sjd": "Kildin Sami", "sje": "Pite Sami", "sjt": "Ter Sami", "sjk": "Skolt Sami", "smn": "Inari Sami",
+  "sms": "Skolt Sami", "smj": "Lule Sami", "sma": "Southern Sami", "se": "Northern Sami",
   "fin": "Finnish", "est": "Estonian", "lav": "Latvian", "lit": "Lithuanian", "hun": "Hungarian",
   "ces": "Czech", "slk": "Slovak", "pol": "Polish", "ukr": "Ukrainian", "be": "Belarusian", "rus": "Russian",
   "bul": "Bulgarian", "mkd": "Macedonian", "srp": "Serbian", "hrv": "Croatian", "bs": "Bosnian",
@@ -289,10 +289,26 @@ export const CareerFitAnalyst = () => {
 
   const displayError = contextError || geminiClientError;
 
-  const getScoreColorClass = (percentage: number) => {
-    if (percentage <= 30) return "bg-red-500";
-    if (percentage <= 60) return "bg-orange-500";
-    return "bg-green-500";
+  // New function to get color class for each dot
+  const getDotColorClass = (dotIndex: number, percentage: number) => {
+    const threshold = (dotIndex + 1) * 10;
+    if (percentage >= threshold) {
+      if (dotIndex < 3) { // Red hues for 0-30%
+        if (dotIndex === 0) return "bg-red-300";
+        if (dotIndex === 1) return "bg-red-500";
+        if (dotIndex === 2) return "bg-red-700";
+      } else if (dotIndex < 6) { // Amber hues for 31-60%
+        if (dotIndex === 3) return "bg-amber-300";
+        if (dotIndex === 4) return "bg-amber-500";
+        if (dotIndex === 5) return "bg-amber-700";
+      } else { // Green hues for 61-100%
+        if (dotIndex === 6) return "bg-green-300";
+        if (dotIndex === 7) return "bg-green-500";
+        if (dotIndex === 8) return "bg-green-700";
+        if (dotIndex === 9) return "bg-green-900";
+      }
+    }
+    return "bg-muted-foreground/30"; // Default for unlit dots
   };
 
   return (
@@ -423,7 +439,7 @@ export const CareerFitAnalyst = () => {
                     key={i}
                     className={cn(
                       "h-2 w-2 rounded-full",
-                      (i + 1) * 10 <= matchResult.percentage ? getScoreColorClass(matchResult.percentage) : "bg-muted-foreground/30"
+                      getDotColorClass(i, matchResult.percentage)
                     )}
                   />
                 ))}
