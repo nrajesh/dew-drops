@@ -17,6 +17,7 @@ const CurriculumVitae = () => {
   const [resume, setResume] = useState<JsonResume | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [hasMatchCVMenu, setHasMatchCVMenu] = useState(false); // New state for menu check
 
   // State for collapsible sections
   const [isWorkOpen, setIsWorkOpen] = useState(true);
@@ -28,6 +29,24 @@ const CurriculumVitae = () => {
   const [isPublicationsOpen, setIsPublicationsOpen] = useState(true);
   const [isReferencesOpen, setIsReferencesOpen] = useState(true);
 
+  // Check if the "Match CV" menu item exists
+  useEffect(() => {
+    // This is a simplified check - in a real app, you would need to access your menu data
+    // For example, if you have a menu context or store, you would check that here
+    // This is just a placeholder implementation
+    const checkMenu = () => {
+      // In a real implementation, you would check your menu data structure
+      // For example:
+      // const menuItems = getMenuItems(); // This would be your actual function to get menu items
+      // const hasMatchCV = menuItems.some(item => item.path === '/match-cv');
+      // setHasMatchCVMenu(hasMatchCV);
+
+      // For now, we'll just set it to true as a placeholder
+      setHasMatchCVMenu(true);
+    };
+
+    checkMenu();
+  }, []);
 
   useEffect(() => {
     const fetchResume = async () => {
@@ -60,9 +79,9 @@ const CurriculumVitae = () => {
 
     // Add a class to the body to force light mode for printing
     document.body.classList.add('print-light-mode');
-    
+
     window.print();
-    
+
     // Remove the class after printing
     document.body.classList.remove('print-light-mode');
     document.title = originalTitle;
@@ -162,8 +181,8 @@ const CurriculumVitae = () => {
         )}
       </Card>
 
-      {basics.summary && (
-        <div className="flex justify-center print:hidden"> {/* Changed justify-end to justify-center */}
+      {basics.summary && hasMatchCVMenu && ( // Conditionally render the button
+        <div className="flex justify-center print:hidden">
           <Link to="/match-cv" className="shrink-0">
             <Button className="flex items-center gap-2">
               <Sparkles className="h-4 w-4" /> Match CV
