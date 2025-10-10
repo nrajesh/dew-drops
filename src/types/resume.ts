@@ -30,6 +30,7 @@ export interface ResumeWork {
   endDate?: string;
   summary?: string;
   highlights?: string[];
+  industry?: string; // Added industry property
 }
 
 export interface ResumeEducation {

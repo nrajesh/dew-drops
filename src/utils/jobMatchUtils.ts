@@ -1,7 +1,7 @@
 // src/utils/jobMatchUtils.ts
 import { extractJobKeywords } from "@/integrations/gemini/client";
 import { calculateWeightedMatchPercentage } from "@/utils/cosineSimilarity";
-import type { JsonResume, ResumeWork, ResumeEducation, ResumeSkill, ResumeLanguage, ResumeAward, ResumePublication, ResumeReference } from "@/types/resume"; // Import ResumeLanguage
+import type { JsonResume, ResumeWork, ResumeEducation, ResumeSkill, ResumeLanguage, ResumeAward, ResumePublication, ResumeReference } from "@/types/resume";
 
 // This function will be passed from the component where sendMessageToGemini is available
 type SendMessageToGeminiFunction = (message: string) => Promise<string>;
@@ -60,14 +60,89 @@ export const generateJobMatchReasoning = async (
   const overlaps = Array.from(jobReqSet).filter((req: string) => cvSkillsSet.has(req));
   const missing = Array.from(jobReqSet).filter((req: string) => !cvSkillsSet.has(req));
 
-  // Qualitative assessment based on percentage, without explicitly stating the percentage
+  // Relaxed qualitative assessment based on percentage
   let qualitativeAssessment = "";
-  if (totalPercentage >= 70) {
+  if (totalPercentage >= 60) {
     qualitativeAssessment = `My profile shows a strong alignment with the job's requirements, particularly in areas of experience.`;
-  } else if (totalPercentage >= 40) {
+  } else if (totalPercentage >= 30) {
     qualitativeAssessment = `There's a moderate alignment. While some areas match well, others might require further development or a more tailored approach.`;
   } else {
     qualitativeAssessment = `The overall alignment is lower. This suggests the role might require a different set of core competencies or a significant upskilling effort.`;
+  }
+
+  // Add additional factors to the analysis
+  const additionalFactors = [];
+
+  // Factor 1: Industry Relevance
+  if (resume.work && resume.work.length > 0) {
+    const recentWork = resume.work[0];
+    const industryMatch = jobDescription.toLowerCase().includes(recentWork.industry?.toLowerCase() || '');
+    if (industryMatch) {
+      additionalFactors.push(`+ **Industry Relevance**: My recent work in ${recentWork.industry || 'the same industry'} aligns well with the job's focus.`);
+    } else {
+      additionalFactors.push(`- **Industry Relevance**: While my experience is valuable, it's from a different industry than the job's focus.`);
+    }
+  }
+
+  // Factor 2: Career Progression
+  if (resume.work && resume.work.length > 1) {
+    const progression = resume.work.reduce((acc, curr, i, arr) => {
+      if (i > 0) {
+        const prev = arr[i-1];
+        if (curr.startDate && prev.endDate) {
+          const years = new Date(curr.startDate).getFullYear() - new Date(prev.endDate).getFullYear();
+          if (years < 2) {
+            acc.push(`Transitioned from ${prev.position} to ${curr.position} within ${years} years`);
+          }
+        }
+      }
+      return acc;
+    }, [] as string[]);
+
+    if (progression.length > 0) {
+      additionalFactors.push(`+ **Career Progression**: I have demonstrated career progression with ${progression.join(', ')}.`);
+    }
+  }
+
+  // Factor 3: Soft Skills
+  const softSkills = [
+    "communication", "teamwork", "problem-solving", "adaptability", "leadership",
+    "time management", "creativity", "critical thinking", "collaboration", "negotiation"
+  ];
+
+  const hasSoftSkills = softSkills.some(skill =>
+    allCvSkills.some(cvSkill => cvSkill.toLowerCase().includes(skill))
+  );
+
+  if (hasSoftSkills) {
+    additionalFactors.push(`+ **Soft Skills**: I possess strong soft skills such as ${softSkills.filter(skill =>
+      allCvSkills.some(cvSkill => cvSkill.toLowerCase().includes(skill))
+    ).join(', ')} which are valuable in many roles.`);
+  }
+
+  // Factor 4: Adaptability
+  if (resume.work && resume.work.length > 2) {
+    const roles = resume.work.map(w => w.position.toLowerCase());
+    const uniqueRoles = new Set(roles);
+    if (uniqueRoles.size > 1) {
+      additionalFactors.push(`+ **Adaptability**: I have experience transitioning between different roles (${Array.from(uniqueRoles).join(', ')}), demonstrating adaptability.`);
+    }
+  }
+
+  // Factor 5: Cultural Fit
+  const culturalFitKeywords = [
+    "team player", "collaborative", "supportive", "mentorship", "inclusive",
+    "diverse", "equitable", "respectful", "cultural awareness", "global mindset"
+  ];
+
+  const hasCulturalFit = culturalFitKeywords.some(keyword =>
+    allCvSkills.some(cvSkill => cvSkill.toLowerCase().includes(keyword))
+  );
+
+  if (hasCulturalFit) {
+    additionalFactors.push(`+ **Cultural Fit**: I have demonstrated cultural awareness and teamwork through ${culturalFitKeywords.filter(keyword =>
+      allCvSkills.some(cvSkill => cvSkill.toLowerCase().includes(keyword))
+    ).join(', ')}.`);
   }
 
   onStepUpdate(4); // Step 5: Finalizing Profile Match
@@ -94,6 +169,9 @@ Provide the response strictly in the format below, using Markdown. Ensure each p
 - [Missing skill/requirement] - [Identify a relevant soft skill from my profile (resume/chatbot knowledge) and explain how it can be leveraged to bridge this gap. E.g., "Missing skill: Cloud Security - My strong problem-solving skills, demonstrated in project X, can be leveraged to quickly learn and adapt to new security frameworks." Focus on how my existing soft skills can compensate or facilitate learning for the identified hard skill gaps.]
 - [Another missing skill with soft skill leverage]
 ...
+
+## Additional Factors
+${additionalFactors.join('\n')}
 `;
 
   const reasoningText = await sendMessageToGemini(systemPrompt);
