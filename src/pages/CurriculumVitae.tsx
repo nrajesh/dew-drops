@@ -2,14 +2,14 @@ import { useEffect, useState, useCallback } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Terminal, Mail, Phone, Globe, MapPin, Briefcase, GraduationCap, Zap, Link as LinkIcon, Award, Languages, Heart, BookOpen, Users, Printer, ChevronDown, Linkedin, Sparkles } from "lucide-react"; // Added Sparkles
+import { Terminal, Mail, Phone, Globe, MapPin, Briefcase, GraduationCap, Zap, Link as LinkIcon, Award, Languages, Heart, BookOpen, Users, Printer, ChevronDown, Linkedin, Sparkles } from "lucide-react";
 import type { JsonResume, ResumeWork, ResumeEducation, ResumeSkill, ResumeAward, ResumeLanguage, ResumeInterest, ResumePublication, ResumeReference } from "@/types/resume";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Button } from "@/components/ui/button";
-import { cn, formatDate } from "@/lib/utils"; // Import centralized formatDate
-import { Link } from "react-router-dom"; // Added Link for navigation
+import { cn, formatDate } from "@/lib/utils";
+import { Link } from "react-router-dom";
 
 const RESUME_URL = import.meta.env.VITE_RESUME_URL;
 
@@ -156,16 +156,21 @@ const CurriculumVitae = () => {
           </div>
         </CardHeader>
         {basics.summary && (
-          <CardContent className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-            <p className="text-muted-foreground flex-1">{basics.summary}</p>
-            <Link to="/match-cv" className="shrink-0">
-              <Button className="flex items-center gap-2">
-                <Sparkles className="h-4 w-4" /> Match CV
-              </Button>
-            </Link>
+          <CardContent>
+            <p className="text-muted-foreground">{basics.summary}</p>
           </CardContent>
         )}
       </Card>
+
+      {basics.summary && (
+        <div className="flex justify-end print:hidden">
+          <Link to="/match-cv" className="shrink-0">
+            <Button className="flex items-center gap-2">
+              <Sparkles className="h-4 w-4" /> Match CV
+            </Button>
+          </Link>
+        </div>
+      )}
 
       {work && work.length > 0 && (
         <Card>
