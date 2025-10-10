@@ -68,7 +68,7 @@ export default {
           500: "hsl(0 84% 60%)",
           700: "hsl(0 78% 40%)",
         },
-        orange: { // Using 'orange' for simplicity, maps to amber hues
+        amber: { // Changed from 'orange' to 'amber' for better Tailwind compatibility
           300: "hsl(36 95% 70%)",
           500: "hsl(36 95% 58%)",
           700: "hsl(36 95% 40%)",
