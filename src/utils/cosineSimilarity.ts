@@ -38,7 +38,7 @@ const calculateTermFrequency = (tokens: string[]): Map<string, number> => {
  * @returns A Map where keys are terms and values are their IDF scores.
  */
 const calculateInverseDocumentFrequency = (
-  allTokens: string[][], // Array of tokenized documents
+  allTokens: string[][],
   vocabulary: Map<string, number>
 ): Map<string, number> => {
   const idf = new Map<string, number>();
@@ -141,6 +141,7 @@ const calculateVectorCosineSimilarity = (vec1: number[], vec2: number[]): number
  * Calculates the weighted match percentage between a job description and structured CV sections.
  * @param jobDescription The job description text.
  * @param cvSections An object containing different sections of the CV (e.g., experience, education, skills, languages, publications, awards, references).
+ * @param weights An object containing weights for each section.
  * @returns An object with totalPercentage and a breakdown of match for each section.
  */
 export const calculateWeightedMatchPercentage = (
@@ -153,6 +154,15 @@ export const calculateWeightedMatchPercentage = (
     publications: string; // Added
     awards: string;       // Added
     references: string;   // Added
+  },
+  weights: {
+    experience: number;
+    skills: number;
+    education: number;
+    languages: number;
+    publications: number; // Added
+    awards: number;       // Added
+    references: number;   // Added
   }
 ): {
   totalPercentage: number;
@@ -167,17 +177,6 @@ export const calculateWeightedMatchPercentage = (
   };
 } => {
   const jobDescriptionTokens = tokenize(jobDescription);
-
-  // Define weights for different sections
-  const weights = {
-    experience: 0.50,
-    skills: 0.30,
-    education: 0.05,
-    languages: 0.05,
-    publications: 0.05, // Added
-    awards: 0.03,       // Added
-    references: 0.02,   // Added
-  };
 
   let totalWeightedSimilarity = 0;
   let totalWeight = 0;
@@ -236,10 +235,10 @@ export const calculateWeightedMatchPercentage = (
       const sectionVector = createTfidfVector(tokens, sectionTf, idf, vocabulary);
 
       const similarity = calculateVectorCosineSimilarity(jobDescriptionVector, sectionVector);
-      
+
       totalWeightedSimilarity += similarity * weights[sectionName];
       totalWeight += weights[sectionName];
-      
+
       // Store breakdown percentage
       breakdown[sectionName] = parseFloat((similarity * 100).toFixed(2));
     }

@@ -30,7 +30,16 @@ export const generateJobMatchReasoning = async (
   };
 
   onStepUpdate(2); // Step 3: Vectorization & Similarity Calculation
-  const { totalPercentage, breakdown } = calculateWeightedMatchPercentage(jobDescription, cvSections);
+  // Updated weights for weighted similarity calculation
+  const { totalPercentage, breakdown } = calculateWeightedMatchPercentage(jobDescription, cvSections, {
+    experience: 0.40, // Updated weight for experience
+    skills: 0.40,     // Updated weight for skills
+    education: 0.05,  // Updated weight for education
+    languages: 0.02,   // Updated weight for languages
+    publications: 0.03, // Updated weight for publications
+    awards: 0.05,      // Updated weight for awards
+    references: 0.05,  // Updated weight for references
+  });
 
   onStepUpdate(3); // Step 4: Keyword Matching & Gap Analysis
   // Step 3: Collect all skills from CV for direct comparison
@@ -72,7 +81,7 @@ My detailed resume data (JSON): ${JSON.stringify(resume, null, 2)}
 Identified overlapping skills/requirements: ${overlaps.join(', ')}
 Identified missing skills/requirements: ${missing.join(', ')}
 Qualitative assessment: ${qualitativeAssessment}
-Match breakdown: Experience ${breakdown.experience.toFixed(0)}%, Education ${breakdown.education.toFixed(0)}%, Skills ${breakdown.skills.toFixed(0)}%, Languages ${breakdown.languages.toFixed(0)}%, Publications ${breakdown.publications.toFixed(0)}%, Awards ${breakdown.awards.toFixed(0)}%, References ${breakdown.references.toFixed(0)}%.
+Match breakdown: Experience ${breakdown.experience.toFixed(0)}%, Skills ${breakdown.skills.toFixed(0)}%, Education ${breakdown.education.toFixed(0)}%, Languages ${breakdown.languages.toFixed(0)}%, Publications ${breakdown.publications.toFixed(0)}%, Awards ${breakdown.awards.toFixed(0)}%, References ${breakdown.references.toFixed(0)}%.
 
 Provide the response strictly in the format below, using Markdown. Ensure each point starts with '+ ' or '- ' and is left-aligned.
 
