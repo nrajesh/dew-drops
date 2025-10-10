@@ -69,10 +69,10 @@ export const processUploads = async (userId: string, inserts: any[], updates: {e
   }
 };
 
-export const handleBulkDelete = async (locationIds: Set<string>, allLocations: TravelLocation[]): Promise<boolean> => {
-  const toastId = showLoading(`Deleting ${locationIds.size} locations...`);
+export const handleBulkDelete = async (locationIds: string[], allLocations: TravelLocation[]): Promise<boolean> => {
+  const toastId = showLoading(`Deleting ${locationIds.length} locations...`);
   try {
-      const locationsToDelete = allLocations.filter(loc => locationIds.has(loc.id));
+      const locationsToDelete = allLocations.filter(loc => locationIds.includes(loc.id));
       const imageFilesToDelete = locationsToDelete
           .map(loc => loc.marker_image_url)
           .filter((url): url is string => !!url)
@@ -86,10 +86,10 @@ export const handleBulkDelete = async (locationIds: Set<string>, allLocations: T
           }
       }
 
-      const { error } = await supabase.from("travel_locations").delete().in("id", Array.from(locationIds));
+      const { error } = await supabase.from("travel_locations").delete().in("id", locationIds);
       if (error) throw error;
 
-      updateToastError(toastId, `${locationIds.size} locations removed.`);
+      updateToastSuccess(toastId, `${locationIds.length} locations removed.`);
       return true;
   } catch (error: any) {
       updateToastError(toastId, error.message);

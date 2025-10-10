@@ -54,6 +54,8 @@ const ManageTravel = () => {
     handleTogglePublish,
     setCurrentPage,
     handleItemsPerPageChange,
+    totalItems,
+    isLoading,
   } = useTravelManagement(containerRef);
 
   return (
@@ -90,7 +92,8 @@ const ManageTravel = () => {
           locationsPerPage={locationsPerPage}
           onPageChange={setCurrentPage}
           onItemsPerPageChange={handleItemsPerPageChange}
-          totalItems={locations.length}
+          totalItems={totalItems}
+          isLoading={isLoading}
         />
       </div>
       <Dialog open={isUpdateDialogVisible} onOpenChange={setIsUpdateDialogVisible}>

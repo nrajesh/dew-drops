@@ -18,6 +18,7 @@ import {
   ensureContentHasTripleBackticks
 } from "@/components/blog/BlogManagementUtils";
 import { PostFormData } from "@/components/blog/BlogForm";
+import { useManagement } from "./useManagement"; // Import the generic hook
 
 type NewPost = Omit<Post, 'id' | 'created_at' | 'user_id'>;
 
@@ -26,41 +27,61 @@ export const useBlogManagement = () => {
   const location = useLocation();
   const navigate = useNavigate();
 
-  const [posts, setPosts] = useState<Post[]>([]);
   const [galleryImages, setGalleryImages] = useState<GalleryImage[]>([]);
   const [uniqueTags, setUniqueTags] = useState<string[]>([]);
   const [editingPost, setEditingPost] = useState<Post | null>(null);
   const [selectedFiles, setSelectedFiles] = useState<FileList | null>(null);
   const [isUploading, setIsUploading] = useState(false);
-  const [selectedPosts, setSelectedPosts] = useState<Set<string>>(new Set());
 
   const [isUpdateDialogVisible, setIsUpdateDialogVisible] = useState(false);
   const [postsToInsert, setPostsToInsert] = useState<NewPost[]>([]);
   const [postsToUpdate, setPostsToUpdate] = useState<{ existingId: string; existingTitle: string; newData: NewPost }[]>([]);
   const [selectedUpdates, setSelectedUpdates] = useState<Set<string>>(new Set());
 
-  const [currentPage, setCurrentPage] = useState(1);
-  const [postsPerPage, setPostsPerPage] = useState(10);
+  const {
+    allItems: posts,
+    paginatedItems: paginatedPosts,
+    isLoading,
+    selectedItems,
+    // setSelectedItems, // Already destructured
+    currentPage,
+    totalPages,
+    itemsPerPage: postsPerPage,
+    totalItems: totalPosts, // Renamed from totalItems
+    loadItems: loadPosts,
+    handlePageChange: setCurrentPage,
+    handleItemsPerPageChange: setPostsPerPage,
+    handleSelectItem: handleSelectPost,
+    handleSelectAllOnPage: handleSelectAll,
+    handleBulkDelete: genericHandleBulkDelete,
+    handleBulkStatusChange: genericHandleBulkStatusChange,
+    handleBulkTagUpdate: genericHandleBulkTagUpdate,
+    handleBulkDownload: genericHandleBulkDownload,
+  } = useManagement<Post>({
+    fetchData: fetchPosts,
+    deleteItems: handleBulkDelete,
+    updateItemStatus: handleBulkStatusChange,
+    updateItemTags: handleBulkTagUpdate,
+    downloadItems: handleBulkDownload, // This is now correctly typed
+    idKey: 'id',
+    statusKey: 'published',
+  });
 
-  const loadData = useCallback(async () => {
-    const [fetchedPosts, fetchedGalleryImages] = await Promise.all([
-      fetchPosts(),
-      fetchGalleryImages()
-    ]);
-
-    setPosts(fetchedPosts);
-    setGalleryImages(fetchedGalleryImages);
-
-    const allTags = new Set<string>();
-    fetchedPosts.forEach(post => {
-      post.tags?.forEach(tag => allTags.add(tag));
-    });
-    setUniqueTags(Array.from(allTags).sort());
+  useEffect(() => {
+    const fetchInitialGalleryImages = async () => {
+      const fetchedGalleryImages = await fetchGalleryImages();
+      setGalleryImages(fetchedGalleryImages);
+    };
+    fetchInitialGalleryImages();
   }, []);
 
   useEffect(() => {
-    loadData();
-  }, [loadData]);
+    const allTags = new Set<string>();
+    posts.forEach(post => {
+      post.tags?.forEach(tag => allTags.add(tag));
+    });
+    setUniqueTags(Array.from(allTags).sort());
+  }, [posts]);
 
   const handleFormSubmit = useCallback(async (values: PostFormData) => {
     if (!user) {
@@ -94,9 +115,9 @@ export const useBlogManagement = () => {
     } else {
       showSuccess(`Post ${editingPost ? "updated" : "added"} successfully!`);
       setEditingPost(null);
-      loadData();
+      loadPosts();
     }
-  }, [user, editingPost, loadData]);
+  }, [user, editingPost, loadPosts]);
 
   useEffect(() => {
     if (location.state?.newPostData) {
@@ -146,7 +167,7 @@ export const useBlogManagement = () => {
         setIsUpdateDialogVisible(true);
       } else if (newPostsToInsert.length > 0) {
         if (await processUploads(user.id, newPostsToInsert, [])) {
-          loadData();
+          loadPosts();
         }
       } else {
         showSuccess("No new posts to import.");
@@ -158,7 +179,7 @@ export const useBlogManagement = () => {
       setIsUploading(false);
       setSelectedFiles(null);
     }
-  }, [selectedFiles, user, posts, loadData]);
+  }, [selectedFiles, user, posts, loadPosts]);
 
   const handleConfirmAndProcessUploads = useCallback(async () => {
     if (!user) return;
@@ -169,69 +190,13 @@ export const useBlogManagement = () => {
 
     if (await processUploads(user.id, postsToInsert, updatesToPerform)) {
       if (skippedCount > 0) showError(`${skippedCount} potential updates were skipped.`);
-      loadData();
+      loadPosts();
     }
 
     setPostsToInsert([]);
     setPostsToUpdate([]);
     setSelectedUpdates(new Set());
-  }, [user, postsToInsert, postsToUpdate, selectedUpdates, loadData]);
-
-  const handleBulkDeleteWrapper = useCallback(async () => {
-    if (await handleBulkDelete(selectedPosts)) {
-      setSelectedPosts(new Set());
-      loadData();
-    }
-  }, [selectedPosts, loadData]);
-
-  const handleBulkTagUpdateWrapper = useCallback(async (tags: string[]) => {
-    if (await handleBulkTagUpdate(selectedPosts, tags)) {
-      setSelectedPosts(new Set());
-      loadData();
-    }
-  }, [selectedPosts, loadData]);
-
-  const handleBulkStatusChangeWrapper = useCallback(async (published: boolean) => {
-    if (await handleBulkStatusChange(selectedPosts, published)) {
-      setSelectedPosts(new Set());
-      loadData();
-    }
-  }, [selectedPosts, loadData]);
-
-  const handleBulkDownloadWrapper = useCallback(async () => {
-    await handleBulkDownload(posts, selectedPosts);
-  }, [posts, selectedPosts]);
-
-  const paginatedPosts = useMemo(() => {
-    const startIndex = (currentPage - 1) * postsPerPage;
-    return posts.slice(startIndex, startIndex + postsPerPage);
-  }, [posts, currentPage, postsPerPage]);
-
-  const totalPages = Math.ceil(posts.length / postsPerPage);
-
-  const handleItemsPerPageChange = (value: number) => {
-    setPostsPerPage(value);
-    setCurrentPage(1);
-  };
-
-  const handleSelectPost = (id: string) => {
-    const newSelection = new Set(selectedPosts);
-    newSelection.has(id) ? newSelection.delete(id) : newSelection.add(id);
-    setSelectedPosts(newSelection);
-  };
-
-  const handleSelectAll = (checked: boolean) => {
-    const pageIds = new Set(paginatedPosts.map(p => p.id));
-    if (checked) {
-      setSelectedPosts(prev => new Set([...prev, ...pageIds]));
-    } else {
-      setSelectedPosts(prev => {
-        const newSet = new Set(prev);
-        pageIds.forEach(id => newSet.delete(id));
-        return newSet;
-      });
-    }
-  };
+  }, [user, postsToInsert, postsToUpdate, selectedUpdates, loadPosts]);
 
   return {
     posts,
@@ -242,7 +207,7 @@ export const useBlogManagement = () => {
     selectedFiles,
     setSelectedFiles,
     isUploading,
-    selectedPosts,
+    selectedPosts: selectedItems, // Expose as selectedPosts for component compatibility
     isUpdateDialogVisible,
     setIsUpdateDialogVisible,
     postsToInsert,
@@ -252,17 +217,19 @@ export const useBlogManagement = () => {
     handleFormSubmit,
     handleUpload,
     handleConfirmAndProcessUploads,
-    handleBulkDeleteWrapper,
-    handleBulkTagUpdateWrapper,
-    handleBulkStatusChangeWrapper,
-    handleBulkDownloadWrapper,
+    handleBulkDeleteWrapper: genericHandleBulkDelete,
+    handleBulkTagUpdateWrapper: genericHandleBulkTagUpdate,
+    handleBulkStatusChangeWrapper: genericHandleBulkStatusChange,
+    handleBulkDownloadWrapper: genericHandleBulkDownload,
     paginatedPosts,
     currentPage,
     totalPages,
     postsPerPage,
     setCurrentPage,
-    handleItemsPerPageChange,
+    handleItemsPerPageChange: setPostsPerPage,
     handleSelectPost,
     handleSelectAll,
+    totalItems: totalPosts, // Expose as totalItems for component compatibility
+    isLoading,
   };
 };

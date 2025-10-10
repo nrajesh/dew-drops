@@ -39,6 +39,8 @@ const ManageBlog = () => {
     handleItemsPerPageChange,
     handleSelectPost,
     handleSelectAll,
+    totalItems,
+    isLoading,
   } = useBlogManagement();
 
   const containerRef = useRef<HTMLDivElement>(null);
@@ -76,7 +78,8 @@ const ManageBlog = () => {
           onPageChange={setCurrentPage}
           itemsPerPage={postsPerPage}
           onItemsPerPageChange={handleItemsPerPageChange}
-          totalItems={posts.length}
+          totalItems={totalItems}
+          isLoading={isLoading}
         />
       </div>
       <UpdatePostsDialog

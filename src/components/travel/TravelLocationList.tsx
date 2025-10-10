@@ -20,7 +20,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { ManagementPagination } from "@/components/ManagementPagination";
-import type { TravelLocation, Post } from "@/types";
+import type { TravelLocation } from "@/types";
 import { Download, Edit, Trash2 } from "lucide-react";
 import React from "react";
 
@@ -41,6 +41,7 @@ interface TravelLocationListProps {
   onPageChange: (page: number) => void;
   onItemsPerPageChange: (value: number) => void;
   totalItems: number;
+  isLoading: boolean; // Added isLoading prop
 }
 
 export const TravelLocationList: React.FC<TravelLocationListProps> = ({
@@ -60,6 +61,7 @@ export const TravelLocationList: React.FC<TravelLocationListProps> = ({
   onPageChange,
   onItemsPerPageChange,
   totalItems,
+  isLoading,
 }) => {
   return (
     <Card>
@@ -102,32 +104,34 @@ export const TravelLocationList: React.FC<TravelLocationListProps> = ({
         </div>
       </CardHeader>
       <CardContent>
-        <div className="flex items-center border-b pb-2 mb-2 space-x-3">
-          <Checkbox id="select-all" onCheckedChange={(checked) => onSelectAll(Boolean(checked))} checked={allOnPageSelected} disabled={paginatedLocations.length === 0}/>
-          <label htmlFor="select-all" className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">Select All</label>
-        </div>
-        <div className="space-y-2 mt-4">
-          {paginatedLocations.length > 0 ? (
-            paginatedLocations.map((location) => (
-              <div key={location.id} className="flex items-center justify-between p-2 rounded-lg border">
-                <div className="flex items-center gap-3">
-                  <Checkbox id={`select-${location.id}`} checked={selectedLocations.has(location.id)} onCheckedChange={() => onSelectLocation(location.id)}/>
-                  <label htmlFor={`select-${location.id}`} className="font-medium truncate pr-2 cursor-pointer">{location.title}</label>
+        {isLoading ? <p>Loading locations...</p> : paginatedLocations.length > 0 ? (
+          <>
+            <div className="flex items-center border-b pb-2 mb-2 space-x-3">
+              <Checkbox id="select-all" onCheckedChange={(checked) => onSelectAll(Boolean(checked))} checked={allOnPageSelected} disabled={paginatedLocations.length === 0}/>
+              <label htmlFor="select-all" className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">Select All</label>
+            </div>
+            <div className="space-y-2 mt-4">
+              {paginatedLocations.map((location) => (
+                <div key={location.id} className="flex items-center justify-between p-2 rounded-lg border">
+                  <div className="flex items-center gap-3">
+                    <Checkbox id={`select-${location.id}`} checked={selectedLocations.has(location.id)} onCheckedChange={() => onSelectLocation(location.id)}/>
+                    <label htmlFor={`select-${location.id}`} className="font-medium truncate pr-2 cursor-pointer">{location.title}</label>
+                  </div>
+                  <div className="flex items-center gap-2 shrink-0">
+                    <Switch
+                      checked={location.published}
+                      onCheckedChange={() => onTogglePublish(location)}
+                      aria-label="Publish status"
+                    />
+                    <Button variant="ghost" size="icon" onClick={() => onEdit(location)}><Edit className="h-4 w-4" /></Button>
+                  </div>
                 </div>
-                <div className="flex items-center gap-2 shrink-0">
-                  <Switch
-                    checked={location.published}
-                    onCheckedChange={() => onTogglePublish(location)}
-                    aria-label="Publish status"
-                  />
-                  <Button variant="ghost" size="icon" onClick={() => onEdit(location)}><Edit className="h-4 w-4" /></Button>
-                </div>
-              </div>
-            ))
-          ) : (
-            <p className="text-muted-foreground text-center pt-4">No locations yet. Add one using the form!</p>
-          )}
-        </div>
+              ))}
+            </div>
+          </>
+        ) : (
+          <p className="text-muted-foreground text-center pt-4">No locations yet. Add one using the form!</p>
+        )}
       </CardContent>
       <CardFooter>
         <ManagementPagination

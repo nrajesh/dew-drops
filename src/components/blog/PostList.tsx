@@ -39,6 +39,7 @@ interface PostListProps {
   itemsPerPage: number;
   onItemsPerPageChange: (value: number) => void;
   totalItems: number;
+  isLoading: boolean; // Added isLoading prop
 }
 
 export const PostList = ({
@@ -57,7 +58,8 @@ export const PostList = ({
   onPageChange,
   itemsPerPage,
   onItemsPerPageChange,
-  totalItems
+  totalItems,
+  isLoading,
 }: PostListProps) => {
   const [isTagDialogOpen, setIsTagDialogOpen] = useState(false);
   const [bulkEditTags, setBulkEditTags] = useState<string[]>([]);
@@ -124,35 +126,37 @@ export const PostList = ({
           </div>
         </CardHeader>
         <CardContent>
-          <div className="flex items-center border-b pb-2 mb-2 space-x-3">
-            <Checkbox id="select-all" onCheckedChange={(checked) => onSelectAll(Boolean(checked))} checked={allOnPageSelected} disabled={posts.length === 0} />
-            <label htmlFor="select-all" className="text-sm font-medium">Select All</label>
-          </div>
-          <div className="space-y-2 mt-4">
-            {posts.length > 0 ? (
-              posts.map((post) => (
-                <div key={post.id} className="flex items-center justify-between p-2 rounded-lg border">
-                  <div className="flex items-center gap-3">
-                    <Checkbox id={`select-${post.id}`} checked={selectedPosts.has(post.id)} onCheckedChange={() => onSelectPost(post.id)} />
-                    <span
-                      className={cn("h-2 w-2 rounded-full", post.published ? "bg-green-500" : "bg-gray-400")}
-                      title={post.published ? "Published" : "Unpublished"}
-                    />
-                    <label htmlFor={`select-${post.id}`} className="font-medium truncate pr-2 cursor-pointer">{post.title}</label>
+          {isLoading ? <p>Loading posts...</p> : posts.length > 0 ? (
+            <>
+              <div className="flex items-center border-b pb-2 mb-2 space-x-3">
+                <Checkbox id="select-all" onCheckedChange={(checked) => onSelectAll(Boolean(checked))} checked={allOnPageSelected} disabled={posts.length === 0} />
+                <label htmlFor="select-all" className="text-sm font-medium">Select All</label>
+              </div>
+              <div className="space-y-2 mt-4">
+                {posts.map((post) => (
+                  <div key={post.id} className="flex items-center justify-between p-2 rounded-lg border">
+                    <div className="flex items-center gap-3">
+                      <Checkbox id={`select-${post.id}`} checked={selectedPosts.has(post.id)} onCheckedChange={() => onSelectPost(post.id)} />
+                      <span
+                        className={cn("h-2 w-2 rounded-full", post.published ? "bg-green-500" : "bg-gray-400")}
+                        title={post.published ? "Published" : "Unpublished"}
+                      />
+                      <label htmlFor={`select-${post.id}`} className="font-medium truncate pr-2 cursor-pointer">{post.title}</label>
+                    </div>
+                    <div className="flex items-center gap-2 shrink-0">
+                      {session && (
+                        <Button variant="ghost" size="icon" onClick={() => onEdit(post)}>
+                          <Pencil className="h-4 w-4" />
+                        </Button>
+                      )}
+                    </div>
                   </div>
-                  <div className="flex items-center gap-2 shrink-0">
-                    {session && (
-                      <Button variant="ghost" size="icon" onClick={() => onEdit(post)}>
-                        <Pencil className="h-4 w-4" />
-                      </Button>
-                    )}
-                  </div>
-                </div>
-              ))
-            ) : (
-              <p className="text-muted-foreground text-center pt-4">No posts yet. Add one using the form!</p>
-            )}
-          </div>
+                ))}
+              </div>
+            </>
+          ) : (
+            <p className="text-muted-foreground text-center pt-4">No posts yet. Add one using the form!</p>
+          )}
         </CardContent>
         <CardFooter>
           <ManagementPagination
