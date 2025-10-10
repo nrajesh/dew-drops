@@ -2,16 +2,13 @@ import { useEffect, useState, useCallback } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Terminal, Mail, Phone, Globe, MapPin, Briefcase, GraduationCap, Zap, Link as LinkIcon, Award, Languages, Heart, BookOpen, Users, Printer, ChevronDown, Linkedin, Sparkles } from "lucide-react";
+import { Terminal, Mail, Phone, Globe, MapPin, Briefcase, GraduationCap, Zap, Link as LinkIcon, Award, Languages, Heart, BookOpen, Users, Printer, ChevronDown, Linkedin } from "lucide-react";
 import type { JsonResume, ResumeWork, ResumeEducation, ResumeSkill, ResumeAward, ResumeLanguage, ResumeInterest, ResumePublication, ResumeReference } from "@/types/resume";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Button } from "@/components/ui/button";
-import { cn, formatDate } from "@/lib/utils";
-import { Link } from "react-router-dom";
-import { supabase } from "@/integrations/supabase/client";
-import { useAuth } from "@/contexts/AuthContext"; // Import useAuth
+import { cn, formatDate } from "@/lib/utils"; // Import centralized formatDate
 
 const RESUME_URL = import.meta.env.VITE_RESUME_URL;
 
@@ -19,9 +16,6 @@ const CurriculumVitae = () => {
   const [resume, setResume] = useState<JsonResume | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [isMatchCVEnabled, setIsMatchCVEnabled] = useState(false);
-  const [featureToggleLoading, setFeatureToggleLoading] = useState(true);
-  const [featureToggleError, setFeatureToggleError] = useState<string | null>(null);
 
   // State for collapsible sections
   const [isWorkOpen, setIsWorkOpen] = useState(true);
@@ -33,39 +27,6 @@ const CurriculumVitae = () => {
   const [isPublicationsOpen, setIsPublicationsOpen] = useState(true);
   const [isReferencesOpen, setIsReferencesOpen] = useState(true);
 
-  const { session } = useAuth(); // Get session from AuthContext
-
-  // Check if the "Match CV" feature is enabled
-  useEffect(() => {
-    const checkFeatureToggle = async () => {
-      try {
-        setFeatureToggleLoading(true);
-        setFeatureToggleError(null);
-
-        const { data, error } = await supabase
-          .from('feature_toggles')
-          .select('is_enabled')
-          .eq('feature_key', 'match_cv')
-          .single();
-
-        if (error) {
-          console.error('Error checking feature toggle:', error);
-          setFeatureToggleError('Failed to check feature toggle status');
-          setIsMatchCVEnabled(false);
-        } else {
-          setIsMatchCVEnabled(data?.is_enabled || false);
-        }
-      } catch (err) {
-        console.error('Error checking feature toggle:', err);
-        setFeatureToggleError('Failed to check feature toggle status');
-        setIsMatchCVEnabled(false);
-      } finally {
-        setFeatureToggleLoading(false);
-      }
-    };
-
-    checkFeatureToggle();
-  }, []);
 
   useEffect(() => {
     const fetchResume = async () => {
@@ -98,9 +59,9 @@ const CurriculumVitae = () => {
 
     // Add a class to the body to force light mode for printing
     document.body.classList.add('print-light-mode');
-
+    
     window.print();
-
+    
     // Remove the class after printing
     document.body.classList.remove('print-light-mode');
     document.title = originalTitle;
@@ -199,37 +160,6 @@ const CurriculumVitae = () => {
           </CardContent>
         )}
       </Card>
-
-      {/* Show loading state while checking feature toggle */}
-      {featureToggleLoading && (
-        <div className="flex justify-center print:hidden">
-          <Skeleton className="h-10 w-32" />
-        </div>
-      )}
-
-      {/* Show error if feature toggle check failed */}
-      {featureToggleError && (
-        <div className="flex justify-center print:hidden">
-          <Alert variant="destructive" className="max-w-md">
-            <Terminal className="h-4 w-4" />
-            <AlertTitle>Error checking feature status</AlertTitle>
-            <AlertDescription>
-              {featureToggleError}. The "Match CV" button may not be available.
-            </AlertDescription>
-          </Alert>
-        </div>
-      )}
-
-      {/* Show button only if feature is enabled and no loading/error */}
-      {basics.summary && !featureToggleLoading && !featureToggleError && isMatchCVEnabled && (
-        <div className="flex justify-center print:hidden">
-          <Link to="/match-cv" className="shrink-0">
-            <Button className="flex items-center gap-2">
-              <Sparkles className="h-4 w-4" /> Match CV
-            </Button>
-          </Link>
-        </div>
-      )}
 
       {work && work.length > 0 && (
         <Card>

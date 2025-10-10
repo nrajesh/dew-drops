@@ -19,7 +19,6 @@ import { Input } from "@/components/ui/input";
 import { supabase } from "@/integrations/supabase/client"; // Import supabase client
 import { generateCareerFitPdf } from "@/utils/pdfGenerator"; // Import the new PDF utility
 import { marked } from 'marked'; // Import marked for markdown to HTML conversion
-import { useAuth } from "@/contexts/AuthContext"; // Import useAuth
 
 const MIN_JOB_DESCRIPTION_LENGTH = 250;
 
@@ -73,8 +72,6 @@ export const CareerFitAnalyst = () => {
   const [originalLanguage, setOriginalLanguage] = useState<string | null>(null);
   const [inputMethod, setInputMethod] = useState<"text" | "url">("text");
   const [isFetchingUrl, setIsFetchingUrl] = useState(false);
-
-  const { session } = useAuth(); // Get session from AuthContext
 
   const {
     isMatching,
@@ -432,7 +429,7 @@ export const CareerFitAnalyst = () => {
           </>
         )}
 
-        {matchResult && !isMatching && !contextLoading && !isPreProcessing && session && ( // Only render if session exists
+        {matchResult && !isMatching && !contextLoading && !isPreProcessing && (
           <div className="space-y-4 mt-6">
             <div className="flex items-center gap-2 mb-4">
               <span className="font-semibold text-lg">{matchResult.percentage.toFixed(0)}% Match</span>
