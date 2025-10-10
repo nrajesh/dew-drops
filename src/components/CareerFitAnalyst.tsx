@@ -291,20 +291,7 @@ export const CareerFitAnalyst = () => {
   const getDotColorClass = (dotIndex: number, percentage: number) => {
     const roundedPercentage = Math.round(percentage / 10) * 10;
     if ((dotIndex + 1) * 10 <= roundedPercentage) {
-      if (dotIndex < 3) { // 0-20% (dots 0, 1, 2)
-        if (dotIndex === 0) return "bg-red-300";
-        if (dotIndex === 1) return "bg-red-500";
-        if (dotIndex === 2) return "bg-red-700";
-      } else if (dotIndex < 6) { // 30-50% (dots 3, 4, 5)
-        if (dotIndex === 3) return "bg-orange-300";
-        if (dotIndex === 4) return "bg-orange-500";
-        if (dotIndex === 5) return "bg-orange-700";
-      } else { // 60-90% (dots 6, 7, 8, 9)
-        if (dotIndex === 6) return "bg-green-300";
-        if (dotIndex === 7) return "bg-green-500";
-        if (dotIndex === 8) return "bg-green-700";
-        if (dotIndex === 9) return "bg-green-900";
-      }
+      return "bg-primary";
     }
     return "bg-muted-foreground/30";
   };
