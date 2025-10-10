@@ -19,6 +19,7 @@ import { Input } from "@/components/ui/input";
 import { supabase } from "@/integrations/supabase/client"; // Import supabase client
 import { generateCareerFitPdf } from "@/utils/pdfGenerator"; // Import the new PDF utility
 import { marked } from 'marked'; // Import marked for markdown to HTML conversion
+import { useAuth } from "@/contexts/AuthContext"; // Import useAuth
 
 const MIN_JOB_DESCRIPTION_LENGTH = 250;
 
@@ -72,6 +73,8 @@ export const CareerFitAnalyst = () => {
   const [originalLanguage, setOriginalLanguage] = useState<string | null>(null);
   const [inputMethod, setInputMethod] = useState<"text" | "url">("text");
   const [isFetchingUrl, setIsFetchingUrl] = useState(false);
+
+  const { session } = useAuth(); // Get session from AuthContext
 
   const {
     isMatching,
@@ -431,20 +434,26 @@ export const CareerFitAnalyst = () => {
 
         {matchResult && !isMatching && !contextLoading && !isPreProcessing && (
           <div className="space-y-4 mt-6">
-            <div className="flex items-center gap-2 mb-4">
-              <span className="font-semibold text-lg">{matchResult.percentage.toFixed(0)}% Match</span>
-              <div className="flex-1 h-2 flex items-center gap-1">
-                {Array.from({ length: 10 }).map((_, i) => (
-                  <div
-                    key={i}
-                    className={cn(
-                      "h-2 w-2 rounded-full",
-                      getDotColorClass(i, matchResult.percentage)
-                    )}
-                  />
-                ))}
+            {session ? ( // Conditionally render percentage for logged-in users
+              <div className="flex items-center gap-2 mb-4">
+                <span className="font-semibold text-lg">{matchResult.percentage.toFixed(0)}% Match</span>
+                <div className="flex-1 h-2 flex items-center gap-1">
+                  {Array.from({ length: 10 }).map((_, i) => (
+                    <div
+                      key={i}
+                      className={cn(
+                        "h-2 w-2 rounded-full",
+                        getDotColorClass(i, matchResult.percentage)
+                      )}
+                    />
+                  ))}
+                </div>
               </div>
-            </div>
+            ) : (
+              <div className="text-center text-muted-foreground mb-4">
+                Log in to see the detailed match percentage.
+              </div>
+            )}
             <div className="flex justify-end gap-2 mb-4 pdf-hidden">
               <Button
                 onClick={handleDownloadText}
