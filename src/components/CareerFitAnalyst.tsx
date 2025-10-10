@@ -290,7 +290,7 @@ export const CareerFitAnalyst = () => {
 
   const getDotColorClass = (dotIndex: number, percentage: number) => {
     const roundedPercentage = Math.round(percentage / 10) * 10;
-    if ((dotIndex + 1) * 10 <= roundedPercentage) { // Check if this dot's segment is covered by the rounded percentage
+    if ((dotIndex + 1) * 10 <= roundedPercentage) {
       if (dotIndex < 3) { // 0-20% (dots 0, 1, 2)
         if (dotIndex === 0) return "bg-red-300";
         if (dotIndex === 1) return "bg-red-500";
