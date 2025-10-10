@@ -18,7 +18,9 @@ const CurriculumVitae = () => {
   const [resume, setResume] = useState<JsonResume | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [isMatchCVEnabled, setIsMatchCVEnabled] = useState(false); // New state for feature toggle
+  const [isMatchCVEnabled, setIsMatchCVEnabled] = useState(false);
+  const [featureToggleLoading, setFeatureToggleLoading] = useState(true);
+  const [featureToggleError, setFeatureToggleError] = useState<string | null>(null);
 
   // State for collapsible sections
   const [isWorkOpen, setIsWorkOpen] = useState(true);
@@ -34,6 +36,9 @@ const CurriculumVitae = () => {
   useEffect(() => {
     const checkFeatureToggle = async () => {
       try {
+        setFeatureToggleLoading(true);
+        setFeatureToggleError(null);
+
         const { data, error } = await supabase
           .from('feature_toggles')
           .select('is_enabled')
@@ -42,14 +47,17 @@ const CurriculumVitae = () => {
 
         if (error) {
           console.error('Error checking feature toggle:', error);
-          // Default to false if there's an error
+          setFeatureToggleError('Failed to check feature toggle status');
           setIsMatchCVEnabled(false);
         } else {
           setIsMatchCVEnabled(data?.is_enabled || false);
         }
       } catch (err) {
         console.error('Error checking feature toggle:', err);
+        setFeatureToggleError('Failed to check feature toggle status');
         setIsMatchCVEnabled(false);
+      } finally {
+        setFeatureToggleLoading(false);
       }
     };
 
@@ -189,7 +197,28 @@ const CurriculumVitae = () => {
         )}
       </Card>
 
-      {basics.summary && isMatchCVEnabled && ( // Conditionally render the button based on feature toggle
+      {/* Show loading state while checking feature toggle */}
+      {featureToggleLoading && (
+        <div className="flex justify-center print:hidden">
+          <Skeleton className="h-10 w-32" />
+        </div>
+      )}
+
+      {/* Show error if feature toggle check failed */}
+      {featureToggleError && (
+        <div className="flex justify-center print:hidden">
+          <Alert variant="destructive" className="max-w-md">
+            <Terminal className="h-4 w-4" />
+            <AlertTitle>Error checking feature status</AlertTitle>
+            <AlertDescription>
+              {featureToggleError}. The "Match CV" button may not be available.
+            </AlertDescription>
+          </Alert>
+        </div>
+      )}
+
+      {/* Show button only if feature is enabled and no loading/error */}
+      {basics.summary && !featureToggleLoading && !featureToggleError && isMatchCVEnabled && (
         <div className="flex justify-center print:hidden">
           <Link to="/match-cv" className="shrink-0">
             <Button className="flex items-center gap-2">
