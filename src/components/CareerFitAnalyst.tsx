@@ -431,9 +431,8 @@ export const CareerFitAnalyst = () => {
 
         {matchResult && !isMatching && !contextLoading && !isPreProcessing && (
           <div className="space-y-4 mt-6">
-            <div className="flex items-center gap-2 mb-4">
-              <span className="font-semibold text-lg">{matchResult.percentage.toFixed(0)}% Match</span>
-              <div className="flex-1 h-2 flex items-center gap-1">
+            <div className="flex items-center justify-center gap-2 mb-4"> {/* Updated to center the dots */}
+              <div className="flex-1 h-2 flex items-center justify-center gap-1"> {/* Updated to center the dots */}
                 {Array.from({ length: 10 }).map((_, i) => (
                   <div
                     key={i}
