@@ -432,28 +432,22 @@ export const CareerFitAnalyst = () => {
           </>
         )}
 
-        {matchResult && !isMatching && !contextLoading && !isPreProcessing && (
+        {matchResult && !isMatching && !contextLoading && !isPreProcessing && session && ( // Only render if session exists
           <div className="space-y-4 mt-6">
-            {session ? ( // Conditionally render percentage for logged-in users
-              <div className="flex items-center gap-2 mb-4">
-                <span className="font-semibold text-lg">{matchResult.percentage.toFixed(0)}% Match</span>
-                <div className="flex-1 h-2 flex items-center gap-1">
-                  {Array.from({ length: 10 }).map((_, i) => (
-                    <div
-                      key={i}
-                      className={cn(
-                        "h-2 w-2 rounded-full",
-                        getDotColorClass(i, matchResult.percentage)
-                      )}
-                    />
-                  ))}
-                </div>
+            <div className="flex items-center gap-2 mb-4">
+              <span className="font-semibold text-lg">{matchResult.percentage.toFixed(0)}% Match</span>
+              <div className="flex-1 h-2 flex items-center gap-1">
+                {Array.from({ length: 10 }).map((_, i) => (
+                  <div
+                    key={i}
+                    className={cn(
+                      "h-2 w-2 rounded-full",
+                      getDotColorClass(i, matchResult.percentage)
+                    )}
+                  />
+                ))}
               </div>
-            ) : (
-              <div className="text-center text-muted-foreground mb-4">
-                Log in to see the detailed match percentage.
-              </div>
-            )}
+            </div>
             <div className="flex justify-end gap-2 mb-4 pdf-hidden">
               <Button
                 onClick={handleDownloadText}
