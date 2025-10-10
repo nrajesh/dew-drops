@@ -38,7 +38,7 @@ const languageNames: { [key: string]: string } = {
   "ba": "Bashkir", "cv": "Chuvash", "os": "Ossetian", "ab": "Abkhazian", "ce": "Chechen", "av": "Avaric",
   "lez": "Lezghian", "inh": "Ingush", "kbd": "Kabardian", "ady": "Adyghe", "xal": "Kalmyk", "sah": "Sakha",
   "tyv": "Tuvan", "alt": "Southern Altai", "krc": "Karachay-Balkar", "nog": "Nogai", "gag": "Gagauz",
-  "crh": "Crimean Tatar", "udm": "Udmurt", "mdf": "Moksha", "myv": "Erzya", "mrj": "Western Mari",
+  "crh": "Crimean Tatar", "udm": "Udmurt", "mdf": "Moksha", "myv": "Erzya", "mrj": "Marathi",
   "mhr": "Eastern Mari", "kpv": "Komi-Zyrian", "koi": "Komi-Permyak", "vep": "Veps", "olo": "Olonets Karelian",
   "krl": "Karelian", "sjd": "Kildin Sami", "sje": "Pite Sami", "sjt": "Ter Sami", "sjk": "Skolt Sami",
   "smn": "Inari Sami", "sms": "Skolt Sami", "smj": "Lule Sami", "sma": "Southern Sami", "se": "Northern Sami",
@@ -289,6 +289,12 @@ export const CareerFitAnalyst = () => {
 
   const displayError = contextError || geminiClientError;
 
+  const getScoreColorClass = (percentage: number) => {
+    if (percentage <= 30) return "bg-red-500";
+    if (percentage <= 60) return "bg-orange-500";
+    return "bg-green-500";
+  };
+
   return (
     <Card className="w-full max-w-3xl mx-auto">
       <CardHeader>
@@ -409,6 +415,20 @@ export const CareerFitAnalyst = () => {
 
         {matchResult && !isMatching && !contextLoading && !isPreProcessing && (
           <div className="space-y-4 mt-6">
+            <div className="flex items-center gap-2 mb-4">
+              <span className="font-semibold text-lg">{matchResult.percentage.toFixed(0)}% Match</span>
+              <div className="flex-1 h-2 flex items-center gap-1">
+                {Array.from({ length: 10 }).map((_, i) => (
+                  <div
+                    key={i}
+                    className={cn(
+                      "h-2 w-2 rounded-full",
+                      (i + 1) * 10 <= matchResult.percentage ? getScoreColorClass(matchResult.percentage) : "bg-muted-foreground/30"
+                    )}
+                  />
+                ))}
+              </div>
+            </div>
             <div className="flex justify-end gap-2 mb-4 pdf-hidden">
               <Button
                 onClick={handleDownloadText}
