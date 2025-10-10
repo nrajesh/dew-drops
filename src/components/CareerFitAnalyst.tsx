@@ -288,6 +288,23 @@ export const CareerFitAnalyst = () => {
 
   const displayError = contextError || geminiClientError;
 
+  const effectivePercentage = useMemo(() => {
+    if (!matchResult) return 0;
+
+    const reasoningText = matchResult.reasoning || "";
+    const percentageRegex = /(\d{1,3})%/;
+    const match = reasoningText.match(percentageRegex);
+
+    if (match && match[1]) {
+      const parsedPercentage = parseInt(match[1], 10);
+      if (!isNaN(parsedPercentage) && parsedPercentage >= 0 && parsedPercentage <= 100) {
+        return parsedPercentage;
+      }
+    }
+
+    return matchResult.percentage;
+  }, [matchResult]);
+
   return (
     <Card className="w-full max-w-3xl mx-auto">
       <CardHeader>
@@ -411,7 +428,7 @@ export const CareerFitAnalyst = () => {
             <div className="flex items-center justify-center gap-2 mb-4">
               <div className="flex-1 h-2 flex items-center justify-center gap-1">
                 {Array.from({ length: 10 }).map((_, i) => {
-                  const roundedPercentage = Math.round(matchResult.percentage / 10) * 10;
+                  const roundedPercentage = Math.round(effectivePercentage / 10) * 10;
                   const isLit = (i + 1) * 10 <= roundedPercentage;
                   return (
                     <div
@@ -426,7 +443,7 @@ export const CareerFitAnalyst = () => {
               </div>
             </div>
             <div className="text-center text-sm text-muted-foreground -mt-2 mb-4">
-              <p>Match Percentage: {matchResult.percentage}%</p>
+              <p>Match Percentage: {effectivePercentage}%</p>
             </div>
             <div className="flex justify-end gap-2 mb-4 pdf-hidden">
               <Button
