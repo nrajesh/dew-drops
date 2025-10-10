@@ -288,14 +288,6 @@ export const CareerFitAnalyst = () => {
 
   const displayError = contextError || geminiClientError;
 
-  const getDotColorClass = (dotIndex: number, percentage: number) => {
-    const roundedPercentage = Math.round(percentage / 10) * 10;
-    if ((dotIndex + 1) * 10 <= roundedPercentage) {
-      return "bg-primary";
-    }
-    return "bg-muted-foreground/30";
-  };
-
   return (
     <Card className="w-full max-w-3xl mx-auto">
       <CardHeader>
@@ -418,15 +410,19 @@ export const CareerFitAnalyst = () => {
           <div className="space-y-4 mt-6">
             <div className="flex items-center justify-center gap-2 mb-4">
               <div className="flex-1 h-2 flex items-center justify-center gap-1">
-                {Array.from({ length: 10 }).map((_, i) => (
-                  <div
-                    key={i}
-                    className={cn(
-                      "h-2 w-2 rounded-full",
-                      getDotColorClass(i, matchResult.percentage)
-                    )}
-                  />
-                ))}
+                {Array.from({ length: 10 }).map((_, i) => {
+                  const roundedPercentage = Math.round(matchResult.percentage / 10) * 10;
+                  const isLit = (i + 1) * 10 <= roundedPercentage;
+                  return (
+                    <div
+                      key={i}
+                      className={cn(
+                        "h-2 w-2 rounded-full",
+                        isLit ? "bg-primary" : "bg-muted-foreground/30"
+                      )}
+                    />
+                  );
+                })}
               </div>
             </div>
             <div className="flex justify-end gap-2 mb-4 pdf-hidden">
