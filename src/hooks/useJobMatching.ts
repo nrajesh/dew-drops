@@ -16,7 +16,7 @@ export const analysisSteps = [
   "Text Preprocessing",
   "Skill & Experience Mapping",
   "Gap Identification & Soft Skill Leverage",
-  "Generating Match Results", // Changed from "Generating Match Report & Percentage"
+  "Generating Match Results",
 ];
 
 export const useJobMatching = () => {
@@ -26,8 +26,6 @@ export const useJobMatching = () => {
   const [geminiClientError, setGeminiClientError] = useState<string | null>(null);
   const [currentStepIndex, setCurrentStepIndex] = useState(0);
 
-  const memoizedAnalysisSteps = useMemo(() => analysisSteps, []);
-
   useEffect(() => {
     const initError = getGeminiInitializationError();
     if (initError) {
@@ -36,6 +34,30 @@ export const useJobMatching = () => {
       setGeminiClientError(null);
     }
   }, []);
+
+  const getErrorMessage = (error: any): string => {
+    if (error instanceof Error && error.message) {
+      if (error.message.includes("API key not valid")) {
+        return "Gemini API key is not valid. Please check VITE_GEMINI_API_KEY.";
+      } else if (error.message.includes("The model is overloaded") || (error.message.includes("503") && error.message.includes("generateContent"))) {
+        return "The AI service is currently busy. Please try again in a few moments.";
+      } else if (error.message.includes("400") && error.message.includes("Bad Request")) {
+        return "The request to the AI model was malformed. This might be a temporary issue or an invalid prompt.";
+      } else if (error.message.includes("429") || error.message.includes("rate limit")) {
+        return "You've hit the AI service rate limit. Please wait a moment and try again.";
+      } else if (error.message.includes("VITE_GEMINI_API_KEY is not set") || error.message.includes("VITE_GEMINI_MODEL_NAME is not set")) {
+        return "AI service is not configured. Please ensure VITE_GEMINI_API_KEY and VITE_GEMINI_MODEL_NAME are set.";
+      } else if (error.message.includes("Failed to parse JSON response from AI")) {
+        return "The AI returned an unexpected response format. Please try again.";
+      } else if (error.message.includes("The provided text does not appear to be a formal job description")) {
+        return error.message; // Specific error from analyzeAndTranslateJobDescription
+      }
+      return error.message; // Use the specific error message if none of the above match
+    } else if (typeof error === 'string') {
+      return `AI analysis error: ${error}`;
+    }
+    return "Sorry, an unexpected error occurred during AI analysis. Please try again later.";
+  };
 
   const performJobMatch = useCallback(async (jobDescription: string) => {
     if (contextLoading) {
@@ -66,22 +88,7 @@ export const useJobMatching = () => {
       setMatchResult({ percentage, reasoning });
       return { percentage, reasoning };
     } catch (error: any) {
-      console.error("Error performing job match:", error);
-      let errorMessage = "Sorry, an error occurred while analyzing the job description. Please try again later.";
-
-      if (error.message) {
-        if (error.message.includes("API key not valid")) {
-          errorMessage = "Gemini API key is not valid. Please check VITE_GEMINI_API_KEY.";
-        } else if (error.message.includes("The model is overloaded") || (error.message.includes("503") && error.message.includes("generateContent"))) {
-          errorMessage = "The AI service is currently busy. Please try again in a few moments.";
-        } else if (error.message.includes("400") && error.message.includes("Bad Request")) {
-          errorMessage = "The request to the AI model was malformed. This might be a temporary issue or an invalid prompt.";
-        } else if (error.message.includes("429") || error.message.includes("rate limit")) {
-          errorMessage = "You've hit the AI service rate limit. Please wait a moment and try again.";
-        } else if (error.message.includes("VITE_GEMINI_API_KEY is not set") || error.message.includes("VITE_GEMINI_MODEL_NAME is not set")) {
-          errorMessage = "AI service is not configured. Please ensure VITE_GEMINI_API_KEY and VITE_GEMINI_MODEL_NAME are set.";
-        }
-      }
+      const errorMessage = getErrorMessage(error);
       showError(errorMessage);
       throw new Error(errorMessage);
     } finally {
@@ -106,7 +113,7 @@ export const useJobMatching = () => {
     resume,
     chatbotKnowledge,
     currentStepIndex,
-    currentStepTitle: memoizedAnalysisSteps[currentStepIndex],
-    totalSteps: memoizedAnalysisSteps.length,
+    currentStepTitle: analysisSteps[currentStepIndex],
+    totalSteps: analysisSteps.length,
   };
 };

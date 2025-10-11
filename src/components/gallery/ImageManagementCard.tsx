@@ -42,8 +42,8 @@ export const ImageManagementCard = ({
   paginatedImages,
   selectedImages,
   isLoading,
-  onSelectImage,
   onSelectAll,
+  onSelectImage,
   onEdit,
   onView,
   onDelete,
@@ -115,7 +115,7 @@ export const ImageManagementCard = ({
         {isLoading ? <p>Loading...</p> : images.length > 0 ? (
           <>
             <div className="flex items-center space-x-2 mb-4 pb-4 border-b">
-              <Checkbox id={`select-all-${listType}`} checked={allOnPageSelected} onCheckedChange={(checked) => onSelectAll(Boolean(checked))} disabled={paginatedImages.length === 0} />
+              <Checkbox id={`select-all-${listType}`} checked={allOnPageSelected} onCheckedChange={onSelectAll} disabled={paginatedImages.length === 0} />
               <label htmlFor={`select-all-${listType}`}>Select All on Page</label>
             </div>
             <div className="space-y-2">

@@ -7,7 +7,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Loader2, Sparkles, AlertTriangle, Download, Link as LinkIcon, FileText } from "lucide-react";
 import ReactMarkdown from 'react-markdown';
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { useJobMatching, analysisSteps } from "@/hooks/useJobMatching"; // Import updated analysisSteps
+import { useJobMatching, analysisSteps } from "@/hooks/useJobMatching";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { showError } from "@/utils/toast";
 import { Progress } from "@/components/ui/progress";
@@ -19,6 +19,7 @@ import { Input } from "@/components/ui/input";
 import { supabase } from "@/integrations/supabase/client";
 import { generateCareerFitPdf } from "@/utils/pdfGenerator";
 import { marked } from 'marked';
+import { User } from "@supabase/supabase-js";
 
 const MIN_JOB_DESCRIPTION_LENGTH = 250;
 
@@ -72,6 +73,24 @@ export const CareerFitAnalyst = () => {
   const [originalLanguage, setOriginalLanguage] = useState<string | null>(null);
   const [inputMethod, setInputMethod] = useState<"text" | "url">("text");
   const [isFetchingUrl, setIsFetchingUrl] = useState(false);
+  const [user, setUser] = useState<User | null>(null);
+
+  useEffect(() => {
+    const checkUser = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      setUser(session?.user ?? null);
+    };
+
+    checkUser();
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setUser(session?.user ?? null);
+    });
+
+    return () => {
+      subscription.unsubscribe();
+    };
+  }, []);
 
   const {
     isMatching,
@@ -83,13 +102,10 @@ export const CareerFitAnalyst = () => {
     geminiClientError,
     resume,
     currentStepIndex,
-    currentStepTitle,
     totalSteps,
   } = useJobMatching();
 
   const [limitedReasoning, setLimitedReasoning] = useState<string>('');
-  const [displayStepIndex, setDisplayStepIndex] = useState(0);
-  const glowTimerRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
     if (matchResult?.reasoning) {
@@ -101,54 +117,27 @@ export const CareerFitAnalyst = () => {
 
   const overallSteps = useMemo(() => [
     "Validating entered text",
-    ...analysisSteps // Use updated analysisSteps from hook
+    ...analysisSteps
   ], []);
   const totalOverallSteps = overallSteps.length;
 
   const currentOverallStepIndex = useMemo(() => {
     if (isPreProcessing) return 0;
     if (isMatching) return currentStepIndex + 1;
-    return -1;
+    return -1; // No active process
   }, [isPreProcessing, isMatching, currentStepIndex]);
 
   const progressValue = useMemo(() => {
-    if (totalOverallSteps === 0 || (!isPreProcessing && !isMatching)) return 0;
-    return ((displayStepIndex + 1) / totalOverallSteps) * 100;
-  }, [totalOverallSteps, isPreProcessing, isMatching, displayStepIndex]);
+    if (totalOverallSteps === 0 || currentOverallStepIndex === -1) return 0;
+    return ((currentOverallStepIndex + 1) / totalOverallSteps) * 100;
+  }, [totalOverallSteps, currentOverallStepIndex]);
 
   useEffect(() => {
-    if (glowTimerRef.current) {
-      clearTimeout(glowTimerRef.current);
-      glowTimerRef.current = null;
-    }
-
-    if (currentOverallStepIndex > displayStepIndex) {
-      setDisplayStepIndex(currentOverallStepIndex);
-    }
-
-    const glowDuration = originalLanguage && originalLanguage !== 'en' ? 5000 : 3000;
-
-    if ((isPreProcessing || isMatching) && displayStepIndex < totalOverallSteps - 1) {
-      glowTimerRef.current = setTimeout(() => {
-        setDisplayStepIndex(prev => Math.min(prev + 1, totalOverallSteps - 1));
-      }, glowDuration);
-    } else if (!(isPreProcessing || isMatching)) {
-      setDisplayStepIndex(0);
+    // Reset originalLanguage when no process is active
+    if (!(isPreProcessing || isMatching)) {
       setOriginalLanguage(null);
     }
-
-    return () => {
-      if (glowTimerRef.current) {
-        clearTimeout(glowTimerRef.current);
-      }
-    };
-  }, [currentOverallStepIndex, displayStepIndex, isPreProcessing, isMatching, totalOverallSteps, originalLanguage]);
-
-  useEffect(() => {
-    if (!isPreProcessing && !isMatching && !matchResult) {
-      setDisplayStepIndex(0);
-    }
-  }, [isPreProcessing, isMatching, matchResult]);
+  }, [isPreProcessing, isMatching]);
 
   const handleInputChange = useCallback((e: React.ChangeEvent<HTMLTextAreaElement>) => {
     const value = e.target.value;
@@ -181,19 +170,6 @@ export const CareerFitAnalyst = () => {
   }, []);
 
   const handleSubmit = useCallback(async () => {
-    if (inputMethod === "text") {
-      if (jobDescription.length < MIN_JOB_DESCRIPTION_LENGTH) {
-        showError(`Please enter at least ${MIN_JOB_DESCRIPTION_LENGTH} characters for a meaningful match.`);
-        return;
-      }
-    } else {
-      if (!jobDescriptionUrl.trim()) {
-        showError("Please enter a valid URL.");
-        return;
-      }
-      setIsFetchingUrl(true);
-    }
-
     if (!resume) {
       showError("Resume data is not available for matching. Please ensure VITE_RESUME_URL is set and accessible.");
       return;
@@ -203,8 +179,20 @@ export const CareerFitAnalyst = () => {
       return;
     }
 
+    if (inputMethod === "text") {
+      if (jobDescription.length < MIN_JOB_DESCRIPTION_LENGTH) {
+        showError(`Please enter at least ${MIN_JOB_DESCRIPTION_LENGTH} characters for a meaningful match.`);
+        return;
+      }
+    } else { // inputMethod === "url"
+      if (!jobDescriptionUrl.trim()) {
+        showError("Please enter a valid URL.");
+        return;
+      }
+      setIsFetchingUrl(true);
+    }
+
     setIsPreProcessing(true);
-    setDisplayStepIndex(0);
 
     try {
       let textToAnalyze = jobDescription;
@@ -212,21 +200,20 @@ export const CareerFitAnalyst = () => {
       if (inputMethod === "url") {
         const fetchedHtml = await fetchJobDescriptionFromUrl(jobDescriptionUrl);
         textToAnalyze = cleanJobDescriptionText(fetchedHtml);
-        setJobDescription(textToAnalyze);
+        setJobDescription(textToAnalyze); // Update textarea with cleaned content
       }
 
       const analysisResult = await analyzeAndTranslateJobDescription(textToAnalyze);
       setOriginalLanguage(analysisResult.originalLanguage);
 
       if (!analysisResult.isValidJobDescription) {
-        showError(analysisResult.processedText);
-        return;
+        throw new Error(analysisResult.processedText); // Throw error to be caught below
       }
 
       await performJobMatch(analysisResult.processedText);
     } catch (error: any) {
       console.error("Error in pre-analysis or career fit analysis:", error);
-      showError(error.message || "Sorry, an error occurred during job description validation or analysis. Please try again later.");
+      showError(error.message || "Sorry, an error occurred during job description validation or analysis. Please check your input and try again.");
     } finally {
       setIsPreProcessing(false);
       setIsFetchingUrl(false);
@@ -249,7 +236,6 @@ export const CareerFitAnalyst = () => {
     setIsButtonEnabled(false);
     setLimitedReasoning('');
     setIsPreProcessing(false);
-    setDisplayStepIndex(0);
     setOriginalLanguage(null);
   }, [resetMatch]);
 
@@ -323,7 +309,7 @@ export const CareerFitAnalyst = () => {
                   <span
                     className={cn(
                       "text-sm transition-colors duration-300",
-                      index === displayStepIndex
+                      index === currentOverallStepIndex
                         ? "text-primary font-bold animate-pulse"
                         : "text-muted-foreground"
                     )}
@@ -338,7 +324,7 @@ export const CareerFitAnalyst = () => {
             </div>
             <Loader2 className="mx-auto h-8 w-8 animate-spin text-primary" />
             <Progress value={progressValue} className="w-full" />
-            {displayStepIndex === totalOverallSteps - 1 && (
+            {currentOverallStepIndex === totalOverallSteps - 1 && (
               <p className="text-sm text-muted-foreground">
                 This step may take a few minutes depending on the length of your job description and the number of matching criteria.
               </p>
@@ -430,10 +416,12 @@ export const CareerFitAnalyst = () => {
                 })}
               </div>
             </div>
-            <div className="text-center text-sm text-muted-foreground -mt-2 mb-4">
-              <p>Match Percentage: {effectivePercentage}%</p>
-            </div>
-            <div className="flex justify-end gap-2 mb-4 pdf-hidden">
+            {user && (
+              <div className="text-center text-sm text-muted-foreground -mt-2 mb-4">
+                <p>Match Percentage: {effectivePercentage}%</p>
+              </div>
+            )}
+            <div className="flex justify-center gap-2 mb-4 pdf-hidden">
               <Button
                 onClick={handleDownloadText}
                 variant="outline"

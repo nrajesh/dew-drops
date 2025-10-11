@@ -5,6 +5,7 @@ export interface ResumeBasics {
   email?: string;
   phone?: string;
   url?: string;
+  website?: string; // Added website property
   summary?: string;
   location?: {
     address?: string;
