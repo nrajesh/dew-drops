@@ -150,11 +150,7 @@ const CurriculumVitae = () => {
                   <Phone className="h-4 w-4" /> {basics.phone}
                 </a>
               )}
-              {basics.website && (
-                <a href={basics.website} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 hover:text-primary transition-colors">
-                  <Globe className="h-4 w-4" /> {basics.website.replace(/^(https?:\/\/)?(www\.)?/, '')}
-                </a>
-              )}
+              {/* Removed the duplicate website link from here */}
               {basics.location?.city && (
                 <span className="flex items-center gap-1 text-muted-foreground">
                   <MapPin className="h-4 w-4" /> {basics.location.city}, {basics.location.countryCode}
