@@ -19,8 +19,19 @@ export const useGalleryManagement = () => {
   const [isUploading, setIsUploading] = useState(false);
   const [editingImage, setEditingImage] = useState<GalleryImage | null>(null);
 
+  // Define fetchData functions using useCallback
+  const fetchPublishedImages = useCallback(async () => {
+    const imgs = await fetchImages();
+    return imgs.filter(img => img.published);
+  }, []);
+
+  const fetchUnpublishedImages = useCallback(async () => {
+    const imgs = await fetchImages();
+    return imgs.filter(img => !img.published);
+  }, []);
+
   const publishedManagement = useManagement<GalleryImage>({
-    fetchData: () => fetchImages().then(imgs => imgs.filter(img => img.published)),
+    fetchData: fetchPublishedImages,
     deleteItems: handleDelete,
     updateItemStatus: handleBulkPublish,
     generateItemTags: handleGenerateTags,
@@ -31,7 +42,7 @@ export const useGalleryManagement = () => {
   });
 
   const unpublishedManagement = useManagement<GalleryImage>({
-    fetchData: () => fetchImages().then(imgs => imgs.filter(img => !img.published)),
+    fetchData: fetchUnpublishedImages,
     deleteItems: handleDelete,
     updateItemStatus: handleBulkPublish,
     generateItemTags: handleGenerateTags,
@@ -108,7 +119,7 @@ export const useGalleryManagement = () => {
       setSelectedFiles(null);
       reloadAllGalleryData(); // Reload both lists
     }
-  }, [selectedFiles, user, reloadAllGalleryData, publishedManagement.allItems, unpublishedManagement.allItems]);
+  }, [selectedFiles, user, reloadAllGalleryData, publishedManagement.allItems, unpublishedManagement.allItems, fetchPublishedImages, fetchUnpublishedImages]);
 
 
   return {
