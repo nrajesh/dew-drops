@@ -161,9 +161,9 @@ const CurriculumVitae = () => {
                 </span>
               )}
             </div>
-            {basics.profiles && basics.profiles.length > 0 && (
+            {(basics.profiles && basics.profiles.length > 0) || basics.url ? (
               <div className="flex flex-wrap justify-center sm:justify-start gap-2 mt-4">
-                {basics.profiles.map((profile, index) => {
+                {basics.profiles && basics.profiles.map((profile, index) => {
                   const isLinkedIn = profile.network.toLowerCase() === 'linkedin';
                   const displayUrl = isLinkedIn ? 'https://linkedin.com/in/nrajesh' : profile.url;
                   return (
@@ -173,8 +173,13 @@ const CurriculumVitae = () => {
                     </a>
                   );
                 })}
+                {basics.url && (
+                  <a href={basics.url} target="_blank" rel="noopener noreferrer" className="text-sm text-primary hover:underline flex items-center gap-1">
+                    <Globe className="h-4 w-4" /> Website
+                  </a>
+                )}
               </div>
-            )}
+            ) : null}
           </div>
         </CardHeader>
         {basics.summary && (
