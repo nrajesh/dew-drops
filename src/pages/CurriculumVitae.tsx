@@ -150,7 +150,6 @@ const CurriculumVitae = () => {
                   <Phone className="h-4 w-4" /> {basics.phone}
                 </a>
               )}
-              {/* Removed the duplicate website link from here */}
               {basics.location?.city && (
                 <span className="flex items-center gap-1 text-muted-foreground">
                   <MapPin className="h-4 w-4" /> {basics.location.city}, {basics.location.countryCode}
@@ -184,7 +183,7 @@ const CurriculumVitae = () => {
           </CardContent>
         )}
         {matchCvFeatureEnabled && (
-          <div className="flex justify-center mt-4 pb-6"> {/* Added pb-6 for padding at the bottom of the card */}
+          <div className="flex justify-center mt-4 pb-6 print:hidden"> {/* Added print:hidden here */}
             <Link to="/match-cv">
               <Button>
                 Match CV with a Job
