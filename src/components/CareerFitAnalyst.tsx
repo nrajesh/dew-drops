@@ -7,7 +7,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Loader2, Sparkles, AlertTriangle, Download, Link as LinkIcon, FileText } from "lucide-react";
 import ReactMarkdown from 'react-markdown';
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { useJobMatching, analysisSteps } from "@/hooks/useJobMatching"; // Import updated analysisSteps
+import { useJobMatching, analysisSteps } from "@/hooks/useJobMatching";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { showError } from "@/utils/toast";
 import { Progress } from "@/components/ui/progress";
@@ -102,13 +102,11 @@ export const CareerFitAnalyst = () => {
     geminiClientError,
     resume,
     currentStepIndex,
-    currentStepTitle,
-    totalSteps,
+    // currentStepTitle, // No longer directly used for display, derived from overallSteps
+    // totalSteps, // No longer directly used for display, derived from overallSteps
   } = useJobMatching();
 
   const [limitedReasoning, setLimitedReasoning] = useState<string>('');
-  const [displayStepIndex, setDisplayStepIndex] = useState(0);
-  const glowTimerRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
     if (matchResult?.reasoning) {
@@ -120,54 +118,30 @@ export const CareerFitAnalyst = () => {
 
   const overallSteps = useMemo(() => [
     "Validating entered text",
-    ...analysisSteps // Use updated analysisSteps from hook
+    ...analysisSteps
   ], []);
   const totalOverallSteps = overallSteps.length;
 
   const currentOverallStepIndex = useMemo(() => {
     if (isPreProcessing) return 0;
     if (isMatching) return currentStepIndex + 1;
-    return -1;
+    return -1; // No active process
   }, [isPreProcessing, isMatching, currentStepIndex]);
 
   const progressValue = useMemo(() => {
-    if (totalOverallSteps === 0 || (!isPreProcessing && !isMatching)) return 0;
-    return ((displayStepIndex + 1) / totalOverallSteps) * 100;
-  }, [totalOverallSteps, isPreProcessing, isMatching, displayStepIndex]);
+    if (totalOverallSteps === 0 || currentOverallStepIndex === -1) return 0;
+    return ((currentOverallStepIndex + 1) / totalOverallSteps) * 100;
+  }, [totalOverallSteps, currentOverallStepIndex]);
+
+  // Removed the complex useEffect for displayStepIndex and glowTimerRef
+  // The progress bar and step text will now directly reflect currentOverallStepIndex
 
   useEffect(() => {
-    if (glowTimerRef.current) {
-      clearTimeout(glowTimerRef.current);
-      glowTimerRef.current = null;
-    }
-
-    if (currentOverallStepIndex > displayStepIndex) {
-      setDisplayStepIndex(currentOverallStepIndex);
-    }
-
-    const glowDuration = originalLanguage && originalLanguage !== 'en' ? 5000 : 3000;
-
-    if ((isPreProcessing || isMatching) && displayStepIndex < totalOverallSteps - 1) {
-      glowTimerRef.current = setTimeout(() => {
-        setDisplayStepIndex(prev => Math.min(prev + 1, totalOverallSteps - 1));
-      }, glowDuration);
-    } else if (!(isPreProcessing || isMatching)) {
-      setDisplayStepIndex(0);
+    // Reset originalLanguage when no process is active
+    if (!(isPreProcessing || isMatching)) {
       setOriginalLanguage(null);
     }
-
-    return () => {
-      if (glowTimerRef.current) {
-        clearTimeout(glowTimerRef.current);
-      }
-    };
-  }, [currentOverallStepIndex, displayStepIndex, isPreProcessing, isMatching, totalOverallSteps, originalLanguage]);
-
-  useEffect(() => {
-    if (!isPreProcessing && !isMatching && !matchResult) {
-      setDisplayStepIndex(0);
-    }
-  }, [isPreProcessing, isMatching, matchResult]);
+  }, [isPreProcessing, isMatching]);
 
   const handleInputChange = useCallback((e: React.ChangeEvent<HTMLTextAreaElement>) => {
     const value = e.target.value;
@@ -223,7 +197,8 @@ export const CareerFitAnalyst = () => {
     }
 
     setIsPreProcessing(true);
-    setDisplayStepIndex(0);
+    // Reset currentStepIndex in useJobMatching via performJobMatch
+    // setDisplayStepIndex(0); // No longer needed
 
     try {
       let textToAnalyze = jobDescription;
@@ -245,8 +220,7 @@ export const CareerFitAnalyst = () => {
       await performJobMatch(analysisResult.processedText);
     } catch (error: any) {
       console.error("Error in pre-analysis or career fit analysis:", error);
-      const displayErrorMessage = error.message || "Sorry, an unexpected error occurred during job description validation or AI analysis. Please check your input and try again.";
-      showError(displayErrorMessage);
+      showError(error.message || "Sorry, an error occurred during job description validation or analysis. Please check your input and try again.");
     } finally {
       setIsPreProcessing(false);
       setIsFetchingUrl(false);
@@ -269,7 +243,7 @@ export const CareerFitAnalyst = () => {
     setIsButtonEnabled(false);
     setLimitedReasoning('');
     setIsPreProcessing(false);
-    setDisplayStepIndex(0);
+    // setDisplayStepIndex(0); // No longer needed
     setOriginalLanguage(null);
   }, [resetMatch]);
 
@@ -343,7 +317,7 @@ export const CareerFitAnalyst = () => {
                   <span
                     className={cn(
                       "text-sm transition-colors duration-300",
-                      index === displayStepIndex
+                      index === currentOverallStepIndex
                         ? "text-primary font-bold animate-pulse"
                         : "text-muted-foreground"
                     )}
@@ -358,7 +332,7 @@ export const CareerFitAnalyst = () => {
             </div>
             <Loader2 className="mx-auto h-8 w-8 animate-spin text-primary" />
             <Progress value={progressValue} className="w-full" />
-            {displayStepIndex === totalOverallSteps - 1 && (
+            {currentOverallStepIndex === totalOverallSteps - 1 && (
               <p className="text-sm text-muted-foreground">
                 This step may take a few minutes depending on the length of your job description and the number of matching criteria.
               </p>
