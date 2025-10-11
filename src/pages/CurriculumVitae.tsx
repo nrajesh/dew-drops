@@ -150,9 +150,9 @@ const CurriculumVitae = () => {
                   <Phone className="h-4 w-4" /> {basics.phone}
                 </a>
               )}
-              {basics.url && (
-                <a href={basics.url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 hover:text-primary transition-colors">
-                  <Globe className="h-4 w-4" /> {basics.url.replace(/^(https?:\/\/)?(www\.)?/, '')}
+              {basics.website && (
+                <a href={basics.website} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 hover:text-primary transition-colors">
+                  <Globe className="h-4 w-4" /> {basics.website.replace(/^(https?:\/\/)?(www\.)?/, '')}
                 </a>
               )}
               {basics.location?.city && (
@@ -161,7 +161,7 @@ const CurriculumVitae = () => {
                 </span>
               )}
             </div>
-            {(basics.profiles && basics.profiles.length > 0) || basics.url ? (
+            {(basics.profiles && basics.profiles.length > 0) || basics.website ? (
               <div className="flex flex-wrap justify-center sm:justify-start gap-2 mt-4">
                 {basics.profiles && basics.profiles.map((profile, index) => {
                   const isLinkedIn = profile.network.toLowerCase() === 'linkedin';
@@ -173,8 +173,8 @@ const CurriculumVitae = () => {
                     </a>
                   );
                 })}
-                {basics.url && (
-                  <a href={basics.url} target="_blank" rel="noopener noreferrer" className="text-sm text-primary hover:underline flex items-center gap-1">
+                {basics.website && (
+                  <a href={basics.website} target="_blank" rel="noopener noreferrer" className="text-sm text-primary hover:underline flex items-center gap-1">
                     <Globe className="h-4 w-4" /> Website
                   </a>
                 )}
