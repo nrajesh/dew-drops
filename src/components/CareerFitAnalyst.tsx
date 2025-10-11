@@ -19,6 +19,7 @@ import { Input } from "@/components/ui/input";
 import { supabase } from "@/integrations/supabase/client";
 import { generateCareerFitPdf } from "@/utils/pdfGenerator";
 import { marked } from 'marked';
+import { User } from "@supabase/supabase-js";
 
 const MIN_JOB_DESCRIPTION_LENGTH = 250;
 
@@ -72,6 +73,24 @@ export const CareerFitAnalyst = () => {
   const [originalLanguage, setOriginalLanguage] = useState<string | null>(null);
   const [inputMethod, setInputMethod] = useState<"text" | "url">("text");
   const [isFetchingUrl, setIsFetchingUrl] = useState(false);
+  const [user, setUser] = useState<User | null>(null);
+
+  useEffect(() => {
+    const checkUser = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      setUser(session?.user ?? null);
+    };
+
+    checkUser();
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setUser(session?.user ?? null);
+    });
+
+    return () => {
+      subscription.unsubscribe();
+    };
+  }, []);
 
   const {
     isMatching,
@@ -430,10 +449,12 @@ export const CareerFitAnalyst = () => {
                 })}
               </div>
             </div>
-            <div className="text-center text-sm text-muted-foreground -mt-2 mb-4">
-              <p>Match Percentage: {effectivePercentage}%</p>
-            </div>
-            <div className="flex justify-end gap-2 mb-4 pdf-hidden">
+            {user && (
+              <div className="text-center text-sm text-muted-foreground -mt-2 mb-4">
+                <p>Match Percentage: {effectivePercentage}%</p>
+              </div>
+            )}
+            <div className="flex justify-center gap-2 mb-4 pdf-hidden">
               <Button
                 onClick={handleDownloadText}
                 variant="outline"
