@@ -74,6 +74,7 @@ export const CareerFitAnalyst = () => {
   const [inputMethod, setInputMethod] = useState<"text" | "url">("text");
   const [isFetchingUrl, setIsFetchingUrl] = useState(false);
   const [user, setUser] = useState<User | null>(null);
+  const [displayOverallStepIndex, setDisplayOverallStepIndex] = useState(-1); // New state for visual progress
 
   useEffect(() => {
     const checkUser = async () => {
@@ -128,9 +129,9 @@ export const CareerFitAnalyst = () => {
   }, [isPreProcessing, isMatching, currentStepIndex]);
 
   const progressValue = useMemo(() => {
-    if (totalOverallSteps === 0 || currentOverallStepIndex === -1) return 0;
-    return ((currentOverallStepIndex + 1) / totalOverallSteps) * 100;
-  }, [totalOverallSteps, currentOverallStepIndex]);
+    if (totalOverallSteps === 0 || displayOverallStepIndex === -1) return 0;
+    return ((displayOverallStepIndex + 1) / totalOverallSteps) * 100;
+  }, [totalOverallSteps, displayOverallStepIndex]);
 
   useEffect(() => {
     // Reset originalLanguage when no process is active
@@ -138,6 +139,42 @@ export const CareerFitAnalyst = () => {
       setOriginalLanguage(null);
     }
   }, [isPreProcessing, isMatching]);
+
+  // Effect to advance the display index every 4 seconds
+  useEffect(() => {
+    let interval: NodeJS.Timeout | undefined;
+
+    if (contextLoading || isMatching || isPreProcessing || isFetchingUrl) {
+      interval = setInterval(() => {
+        setDisplayOverallStepIndex((prevDisplayIndex) => {
+          // Advance the display index, but don't go beyond the total number of steps
+          return Math.min(prevDisplayIndex + 1, totalOverallSteps - 1);
+        });
+      }, 4000);
+    } else {
+      // Reset when no process is active
+      setDisplayOverallStepIndex(-1);
+    }
+
+    return () => {
+      if (interval) clearInterval(interval);
+    };
+  }, [contextLoading, isMatching, isPreProcessing, isFetchingUrl, totalOverallSteps]);
+
+  // Effect to ensure display index never lags behind the actual progress
+  useEffect(() => {
+    if (currentOverallStepIndex > displayOverallStepIndex) {
+      setDisplayOverallStepIndex(currentOverallStepIndex);
+    }
+  }, [currentOverallStepIndex, displayOverallStepIndex]);
+
+  // Initialize displayOverallStepIndex when a process starts
+  useEffect(() => {
+    if ((contextLoading || isMatching || isPreProcessing || isFetchingUrl) && displayOverallStepIndex === -1) {
+      setDisplayOverallStepIndex(0);
+    }
+  }, [contextLoading, isMatching, isPreProcessing, isFetchingUrl, displayOverallStepIndex]);
+
 
   const handleInputChange = useCallback((e: React.ChangeEvent<HTMLTextAreaElement>) => {
     const value = e.target.value;
@@ -237,6 +274,7 @@ export const CareerFitAnalyst = () => {
     setLimitedReasoning('');
     setIsPreProcessing(false);
     setOriginalLanguage(null);
+    setDisplayOverallStepIndex(-1); // Reset display index
   }, [resetMatch]);
 
   const handleDownloadText = useCallback(() => {
@@ -279,6 +317,10 @@ export const CareerFitAnalyst = () => {
     return matchResult.percentage;
   }, [matchResult]);
 
+  const isGeneratingMatchResults = useMemo(() => {
+    return overallSteps[displayOverallStepIndex] === "Generating Match Results";
+  }, [overallSteps, displayOverallStepIndex]);
+
   return (
     <Card className="w-full max-w-3xl mx-auto">
       <CardHeader>
@@ -309,7 +351,7 @@ export const CareerFitAnalyst = () => {
                   <span
                     className={cn(
                       "text-sm transition-colors duration-300",
-                      index === currentOverallStepIndex
+                      index === displayOverallStepIndex // Use displayOverallStepIndex for animation
                         ? "text-primary font-bold animate-pulse"
                         : "text-muted-foreground"
                     )}
@@ -324,7 +366,7 @@ export const CareerFitAnalyst = () => {
             </div>
             <Loader2 className="mx-auto h-8 w-8 animate-spin text-primary" />
             <Progress value={progressValue} className="w-full" />
-            {currentOverallStepIndex === totalOverallSteps - 1 && (
+            {isGeneratingMatchResults && (
               <p className="text-sm text-muted-foreground">
                 This step may take a few minutes depending on the length of your job description and the number of matching criteria.
               </p>
