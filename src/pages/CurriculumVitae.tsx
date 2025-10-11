@@ -9,6 +9,8 @@ import { Badge } from "@/components/ui/badge";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Button } from "@/components/ui/button";
 import { cn, formatDate } from "@/lib/utils"; // Import centralized formatDate
+import { Link } from 'react-router-dom'; // Import Link for navigation
+import { supabase } from "@/integrations/supabase/client"; // Import Supabase client
 
 const RESUME_URL = import.meta.env.VITE_RESUME_URL;
 
@@ -16,6 +18,7 @@ const CurriculumVitae = () => {
   const [resume, setResume] = useState<JsonResume | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [matchCvFeatureEnabled, setMatchCvFeatureEnabled] = useState(false); // New state for feature flag
 
   // State for collapsible sections
   const [isWorkOpen, setIsWorkOpen] = useState(true);
@@ -29,7 +32,8 @@ const CurriculumVitae = () => {
 
 
   useEffect(() => {
-    const fetchResume = async () => {
+    const fetchResumeAndFeatureFlags = async () => {
+      // Fetch resume data
       if (!RESUME_URL) {
         setError("VITE_RESUME_URL environment variable is not set.");
         setLoading(false);
@@ -48,9 +52,28 @@ const CurriculumVitae = () => {
       } finally {
         setLoading(false);
       }
+
+      // Fetch feature flag status
+      try {
+        const { data, error: dbError } = await supabase
+          .from('feature_toggles')
+          .select('is_enabled')
+          .eq('feature_key', 'match_cv')
+          .single();
+
+        if (dbError) {
+          console.error("Error fetching feature flag 'match_cv':", dbError);
+          setMatchCvFeatureEnabled(false); // Default to false on error
+        } else {
+          setMatchCvFeatureEnabled(data?.is_enabled || false);
+        }
+      } catch (err) {
+        console.error("Unexpected error fetching feature flag:", err);
+        setMatchCvFeatureEnabled(false); // Default to false on unexpected error
+      }
     };
 
-    fetchResume();
+    fetchResumeAndFeatureFlags();
   }, []);
 
   const handlePrint = useCallback(() => {
@@ -158,6 +181,15 @@ const CurriculumVitae = () => {
           <CardContent>
             <p className="text-muted-foreground">{basics.summary}</p>
           </CardContent>
+        )}
+        {matchCvFeatureEnabled && (
+          <div className="flex justify-center mt-4 pb-6"> {/* Added pb-6 for padding at the bottom of the card */}
+            <Link to="/match-cv">
+              <Button>
+                Match CV with a Job
+              </Button>
+            </Link>
+          </div>
         )}
       </Card>
 
