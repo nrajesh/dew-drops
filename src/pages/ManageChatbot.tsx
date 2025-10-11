@@ -31,7 +31,7 @@ const formatResumeData = (resumeData: JsonResume): string => {
     if (basics.summary) resumeContext += `Summary: ${basics.summary}\n`;
     if (basics.email) resumeContext += `Email: ${basics.email}\n`;
     if (basics.phone) resumeContext += `Phone: ${basics.phone}\n`;
-    if (basics.website) resumeContext += `Website: ${basics.website}\n`; // Updated to use basics.website
+    if (basics.website) resumeContext += `Website: ${basics.website}\n`;
     if (basics.location?.city) resumeContext += `Location: ${basics.location.city}, ${basics.location.countryCode}\n`;
     
     if (basics.profiles && basics.profiles.length > 0) {

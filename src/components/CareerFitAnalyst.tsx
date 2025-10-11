@@ -102,8 +102,7 @@ export const CareerFitAnalyst = () => {
     geminiClientError,
     resume,
     currentStepIndex,
-    // currentStepTitle, // No longer directly used for display, derived from overallSteps
-    // totalSteps, // No longer directly used for display, derived from overallSteps
+    totalSteps,
   } = useJobMatching();
 
   const [limitedReasoning, setLimitedReasoning] = useState<string>('');
@@ -132,9 +131,6 @@ export const CareerFitAnalyst = () => {
     if (totalOverallSteps === 0 || currentOverallStepIndex === -1) return 0;
     return ((currentOverallStepIndex + 1) / totalOverallSteps) * 100;
   }, [totalOverallSteps, currentOverallStepIndex]);
-
-  // Removed the complex useEffect for displayStepIndex and glowTimerRef
-  // The progress bar and step text will now directly reflect currentOverallStepIndex
 
   useEffect(() => {
     // Reset originalLanguage when no process is active
@@ -174,19 +170,6 @@ export const CareerFitAnalyst = () => {
   }, []);
 
   const handleSubmit = useCallback(async () => {
-    if (inputMethod === "text") {
-      if (jobDescription.length < MIN_JOB_DESCRIPTION_LENGTH) {
-        showError(`Please enter at least ${MIN_JOB_DESCRIPTION_LENGTH} characters for a meaningful match.`);
-        return;
-      }
-    } else {
-      if (!jobDescriptionUrl.trim()) {
-        showError("Please enter a valid URL.");
-        return;
-      }
-      setIsFetchingUrl(true);
-    }
-
     if (!resume) {
       showError("Resume data is not available for matching. Please ensure VITE_RESUME_URL is set and accessible.");
       return;
@@ -196,9 +179,20 @@ export const CareerFitAnalyst = () => {
       return;
     }
 
+    if (inputMethod === "text") {
+      if (jobDescription.length < MIN_JOB_DESCRIPTION_LENGTH) {
+        showError(`Please enter at least ${MIN_JOB_DESCRIPTION_LENGTH} characters for a meaningful match.`);
+        return;
+      }
+    } else { // inputMethod === "url"
+      if (!jobDescriptionUrl.trim()) {
+        showError("Please enter a valid URL.");
+        return;
+      }
+      setIsFetchingUrl(true);
+    }
+
     setIsPreProcessing(true);
-    // Reset currentStepIndex in useJobMatching via performJobMatch
-    // setDisplayStepIndex(0); // No longer needed
 
     try {
       let textToAnalyze = jobDescription;
@@ -206,15 +200,14 @@ export const CareerFitAnalyst = () => {
       if (inputMethod === "url") {
         const fetchedHtml = await fetchJobDescriptionFromUrl(jobDescriptionUrl);
         textToAnalyze = cleanJobDescriptionText(fetchedHtml);
-        setJobDescription(textToAnalyze);
+        setJobDescription(textToAnalyze); // Update textarea with cleaned content
       }
 
       const analysisResult = await analyzeAndTranslateJobDescription(textToAnalyze);
       setOriginalLanguage(analysisResult.originalLanguage);
 
       if (!analysisResult.isValidJobDescription) {
-        showError(analysisResult.processedText);
-        return;
+        throw new Error(analysisResult.processedText); // Throw error to be caught below
       }
 
       await performJobMatch(analysisResult.processedText);
@@ -243,7 +236,6 @@ export const CareerFitAnalyst = () => {
     setIsButtonEnabled(false);
     setLimitedReasoning('');
     setIsPreProcessing(false);
-    // setDisplayStepIndex(0); // No longer needed
     setOriginalLanguage(null);
   }, [resetMatch]);
 
