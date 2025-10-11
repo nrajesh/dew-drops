@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -31,7 +31,7 @@ const formatResumeData = (resumeData: JsonResume): string => {
     if (basics.summary) resumeContext += `Summary: ${basics.summary}\n`;
     if (basics.email) resumeContext += `Email: ${basics.email}\n`;
     if (basics.phone) resumeContext += `Phone: ${basics.phone}\n`;
-    if (basics.url) resumeContext += `Website: ${basics.url}\n`;
+    if (basics.website) resumeContext += `Website: ${basics.website}\n`; // Updated to use basics.website
     if (basics.location?.city) resumeContext += `Location: ${basics.location.city}, ${basics.location.countryCode}\n`;
     
     if (basics.profiles && basics.profiles.length > 0) {
@@ -137,6 +137,7 @@ Key Features:
 - Interactive Travel Map: A map to pin travel destinations, with bulk import/export and management features.
 - Contact Form: A secure, serverless contact form.
 - AI Chatbot: An integrated chatbot (the one you are using now) to answer questions about the portfolio, using an editable knowledge base. It includes an auto-generate feature to populate the knowledge base from your content.
+- AI-Powered Career Fit Analyst: An advanced tool that analyzes job descriptions against my resume and portfolio content, providing a detailed breakdown of matching areas and potential gaps, with the ability to download the analysis as text or PDF.
 - Comprehensive Data Management: The administrator can export, import, and reset all portfolio data.
 - User Profile Management: The administrator can update their profile and password.
 - Feature Toggles: The administrator can enable or disable entire sections of the portfolio.
@@ -144,7 +145,7 @@ Key Features:
 - Text Readability Controls: Users can adjust base font size and line spacing for a personalized reading experience.
 - Fully Responsive: Designed for all devices.
 - Enhanced Navigation: All content pages are paginated and can be navigated using keyboard arrows or swipe gestures on mobile.
-- CV/Portfolio Page: A dedicated page to display a professional curriculum vitae, with collapsible sections for easy viewing and printing. The content for this page is fetched from a public JSON Resume Gist.
+- CV/Portfolio Page: A dedicated page to display a professional curriculum vitae, with collapsible sections for easy viewing, an enhanced skills display, and print-friendly formatting, including a "Print to PDF" option. The content for this page is fetched from a public JSON Resume Gist.
 
 The tech stack includes React, Vite, TypeScript, Tailwind CSS, shadcn/ui, and Supabase for the backend (database, storage, and serverless functions). The AI features are powered by Google Gemini.
 
