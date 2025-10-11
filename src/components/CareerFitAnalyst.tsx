@@ -245,7 +245,8 @@ export const CareerFitAnalyst = () => {
       await performJobMatch(analysisResult.processedText);
     } catch (error: any) {
       console.error("Error in pre-analysis or career fit analysis:", error);
-      showError(error.message || "Sorry, an error occurred during job description validation or analysis. Please try again later.");
+      const displayErrorMessage = error.message || "Sorry, an unexpected error occurred during job description validation or AI analysis. Please check your input and try again.";
+      showError(displayErrorMessage);
     } finally {
       setIsPreProcessing(false);
       setIsFetchingUrl(false);

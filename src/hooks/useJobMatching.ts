@@ -67,9 +67,9 @@ export const useJobMatching = () => {
       return { percentage, reasoning };
     } catch (error: any) {
       console.error("Error performing job match:", error);
-      let errorMessage = "Sorry, an error occurred while analyzing the job description. Please try again later.";
+      let errorMessage = "Sorry, an unexpected error occurred during AI analysis. Please try again later.";
 
-      if (error.message) {
+      if (error instanceof Error && error.message) {
         if (error.message.includes("API key not valid")) {
           errorMessage = "Gemini API key is not valid. Please check VITE_GEMINI_API_KEY.";
         } else if (error.message.includes("The model is overloaded") || (error.message.includes("503") && error.message.includes("generateContent"))) {
@@ -80,8 +80,15 @@ export const useJobMatching = () => {
           errorMessage = "You've hit the AI service rate limit. Please wait a moment and try again.";
         } else if (error.message.includes("VITE_GEMINI_API_KEY is not set") || error.message.includes("VITE_GEMINI_MODEL_NAME is not set")) {
           errorMessage = "AI service is not configured. Please ensure VITE_GEMINI_API_KEY and VITE_GEMINI_MODEL_NAME are set.";
+        } else if (error.message.includes("Failed to parse JSON response from AI")) {
+          errorMessage = "The AI returned an unexpected response format. Please try again.";
+        } else {
+          errorMessage = error.message; // Use the specific error message if none of the above match
         }
+      } else if (typeof error === 'string') {
+        errorMessage = `AI analysis error: ${error}`;
       }
+      
       showError(errorMessage);
       throw new Error(errorMessage);
     } finally {
