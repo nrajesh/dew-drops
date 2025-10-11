@@ -129,9 +129,9 @@ export const CareerFitAnalyst = () => {
   }, [isPreProcessing, isMatching, currentStepIndex]);
 
   const progressValue = useMemo(() => {
-    if (totalOverallSteps === 0 || currentOverallStepIndex === -1) return 0;
-    return ((currentOverallStepIndex + 1) / totalOverallSteps) * 100;
-  }, [totalOverallSteps, currentOverallStepIndex]);
+    if (totalOverallSteps === 0 || displayOverallStepIndex === -1) return 0;
+    return ((displayOverallStepIndex + 1) / totalOverallSteps) * 100;
+  }, [totalOverallSteps, displayOverallStepIndex]);
 
   useEffect(() => {
     // Reset originalLanguage when no process is active
@@ -317,6 +317,10 @@ export const CareerFitAnalyst = () => {
     return matchResult.percentage;
   }, [matchResult]);
 
+  const isGeneratingMatchResults = useMemo(() => {
+    return overallSteps[displayOverallStepIndex] === "Generating Match Results";
+  }, [overallSteps, displayOverallStepIndex]);
+
   return (
     <Card className="w-full max-w-3xl mx-auto">
       <CardHeader>
@@ -362,7 +366,7 @@ export const CareerFitAnalyst = () => {
             </div>
             <Loader2 className="mx-auto h-8 w-8 animate-spin text-primary" />
             <Progress value={progressValue} className="w-full" />
-            {currentOverallStepIndex === totalOverallSteps - 1 && (
+            {isGeneratingMatchResults && (
               <p className="text-sm text-muted-foreground">
                 This step may take a few minutes depending on the length of your job description and the number of matching criteria.
               </p>
