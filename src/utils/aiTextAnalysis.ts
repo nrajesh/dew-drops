@@ -29,7 +29,7 @@ Your final output should be in JSON format with the following structure:
 {
   "isValidJobDescription": boolean,
   "originalLanguage": string, // e.g., "en", "fr", "de"
-  "processedText": string // The English translation or original English text, or "INVALID_JOB_DESCRIPTION" if not a JD
+  "processedText": string // The English translation or original English text, or "INVALID_JOB_DESCRIPTION" if not a JD. Ensure this string is JSON-escaped (e.g., double quotes are \\" and newlines are \\n).
 }
 
 Example 1 (Not a JD):
@@ -68,6 +68,7 @@ ${jobDescriptionText}
     const rawResponse = await sendMessageToGemini(prompt);
     // Gemini might sometimes wrap JSON in markdown code blocks, so we need to extract it.
     const jsonString = rawResponse.replace(/```json\n([\s\S]*?)\n```/, '$1').trim();
+    console.log("Attempting to parse JSON (analyzeAndTranslateJobDescription):", jsonString); // Debugging line
     const result: JobDescriptionAnalysisResult = JSON.parse(jsonString);
 
     if (!result.isValidJobDescription && result.processedText === "INVALID_JOB_DESCRIPTION") {

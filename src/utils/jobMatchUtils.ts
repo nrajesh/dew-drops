@@ -1,6 +1,4 @@
-// src/utils/jobMatchUtils.ts
 import { extractJobKeywords } from "@/integrations/gemini/client";
-// Removed: import { calculateWeightedMatchPercentage } from "@/utils/cosineSimilarity";
 import type { JsonResume, ResumeWork, ResumeEducation, ResumeSkill, ResumeLanguage, ResumeAward, ResumePublication, ResumeReference } from "@/types/resume";
 
 // This function will be passed from the component where sendMessageToGemini is available
@@ -57,7 +55,7 @@ export const generateJobMatchReasoning = async (
 
 Your final output must be a single, valid JSON object with two keys: "percentage" and "reasoning".
 - "percentage": A number between 0 and 100, representing the overall match.
-- "reasoning": A markdown string containing ONLY the 'Matching Areas' and 'Gaps' sections. Do NOT include any other sections.
+- "reasoning": A JSON-escaped markdown string containing ONLY the 'Matching Areas' and 'Gaps' sections. Do NOT include any other sections. Ensure all double quotes within the markdown are escaped with a backslash (\\") and all newlines are escaped as (\\n).
 
 Here is the job description: ${jobDescription}
 Here is a summary of my profile (CV and chatbot knowledge): ${chatbotKnowledge}
@@ -85,7 +83,7 @@ Now, generate the JSON object.
   
   // Gemini might sometimes wrap JSON in markdown code blocks, so we need to extract it.
   const jsonString = rawResponse.replace(/```json\n([\s\S]*?)\n```/, '$1').trim();
-  
+  console.log("Attempting to parse JSON (generateJobMatchReasoning):", jsonString); // Debugging line
   try {
     const result: { percentage: number; reasoning: string } = JSON.parse(jsonString);
     
