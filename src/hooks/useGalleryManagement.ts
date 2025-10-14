@@ -121,6 +121,9 @@ export const useGalleryManagement = () => {
     }
   }, [selectedFiles, user, reloadAllGalleryData, publishedManagement.allItems, unpublishedManagement.allItems, fetchPublishedImages, fetchUnpublishedImages]);
 
+  // Debug log to verify itemsPerPage is being passed correctly
+  console.log("Published itemsPerPage:", publishedManagement.itemsPerPage);
+  console.log("Unpublished itemsPerPage:", unpublishedManagement.itemsPerPage);
 
   return {
     user,
