@@ -35,7 +35,11 @@ export const ManagementPagination = ({
         <p className="text-sm font-medium">Rows per page</p>
         <Select
           value={`${itemsPerPage}`}
-          onValueChange={(value) => onItemsPerPageChange(Number(value))}
+          onValueChange={(value) => {
+            const newValue = Number(value);
+            console.log("Items per page changed to:", newValue); // Debugging line
+            onItemsPerPageChange(newValue);
+          }}
         >
           <SelectTrigger className="h-8 w-[70px]">
             <SelectValue placeholder={itemsPerPage} />
