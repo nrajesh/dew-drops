@@ -14,7 +14,7 @@ import { supabase } from "@/integrations/supabase/client"; // Import Supabase cl
 
 const RESUME_URL = import.meta.env.VITE_RESUME_URL;
 
-const CurriculumVitae = () => {
+const Portfolio = () => {
   const [resume, setResume] = useState<JsonResume | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -438,4 +438,4 @@ const CurriculumVitae = () => {
   );
 };
 
-export default CurriculumVitae;
+export default Portfolio;
