@@ -232,7 +232,7 @@ export const ImageLightbox: React.FC<ImageLightboxProps> = ({
         <DialogContent className="sm:max-w-[425px] md:max-w-lg">
           <DialogHeader>
             <DialogTitle className="flex items-center">
-              <Info className="h-5 w-5 mr-2" /> EXIF Data for {image?.file_name || 'Image'}
+              <Info className="h-5 w-5 mr-2" /> EXIF Data
             </DialogTitle>
           </DialogHeader>
           <ExifDataDisplay exifData={image?.exif_data} />
