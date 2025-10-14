@@ -15,32 +15,32 @@ interface FeatureToggleContextType {
 
 const FeatureToggleContext = createContext<FeatureToggleContextType | undefined>(undefined);
 
+const defaultToggles = (): Toggles => {
+  try {
+    return {
+      [navFeatures.HOME]: true,
+      [navFeatures.BLOG]: true,
+      [navFeatures.GALLERY]: true,
+      [navFeatures.PORTFOLIO]: false,
+      [navFeatures.TRAVEL]: true,
+      [navFeatures.CONTACT]: true,
+      [navFeatures.CHATBOT]: false,
+      [navFeatures.MATCH_CV]: true,
+      [navFeatures.MANAGE_BLOG]: false,
+      [navFeatures.MANAGE_GALLERY]: false,
+      [navFeatures.MANAGE_TRAVEL]: false,
+      [navFeatures.FEATURE_TOGGLES]: true,
+    };
+  } catch (e) {
+    console.error("Error constructing default toggles, navFeatures might be incomplete:", e);
+    return { [navFeatures.HOME]: true }; // Minimal safe default on error
+  }
+};
+
 const fetchToggles = async (): Promise<Toggles> => {
   try {
     const { data, error } = await supabase.from('feature_toggles').select('feature_key, is_enabled');
     if (error) throw error;
-
-    const defaultToggles = () => {
-      try {
-        return {
-          [navFeatures.HOME]: true,
-          [navFeatures.BLOG]: true,
-          [navFeatures.GALLERY]: true,
-          [navFeatures.PORTFOLIO]: false,
-          [navFeatures.TRAVEL]: true,
-          [navFeatures.CONTACT]: true,
-          [navFeatures.CHATBOT]: false,
-          [navFeatures.MATCH_CV]: true, // New feature toggle, default to true
-          [navFeatures.MANAGE_BLOG]: false,
-          [navFeatures.MANAGE_GALLERY]: false,
-          [navFeatures.MANAGE_TRAVEL]: false,
-          [navFeatures.FEATURE_TOGGLES]: true,
-        };
-      } catch (e) {
-        console.error("Error constructing default toggles, navFeatures might be incomplete:", e);
-        return { [navFeatures.HOME]: true }; // Minimal safe default on error
-      }
-    };
 
     const toggles = defaultToggles();
     data.forEach(toggle => {
@@ -48,8 +48,8 @@ const fetchToggles = async (): Promise<Toggles> => {
     });
     return toggles;
   } catch (error) {
-    console.error(error);
-    return { [navFeatures.HOME]: true }; // Minimal safe default on error
+    console.error("Failed to fetch feature toggles from DB, using defaults:", error);
+    return defaultToggles(); // Return defaults on error
   }
 };
 

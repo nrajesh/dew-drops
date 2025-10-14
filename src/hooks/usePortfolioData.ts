@@ -3,6 +3,26 @@ import { supabase } from '@/integrations/supabase/client';
 import { showError } from '@/utils/toast';
 import type { JsonResume } from '@/types/resume'; // Import JsonResume type
 
+const fetchWithTimeout = async (url: string, options: RequestInit = {}, timeout = 10000) => {
+  const controller = new AbortController();
+  const id = setTimeout(() => controller.abort(), timeout);
+
+  try {
+    const response = await fetch(url, {
+      ...options,
+      signal: controller.signal,
+    });
+    clearTimeout(id);
+    return response;
+  } catch (error) {
+    clearTimeout(id);
+    if (error instanceof DOMException && error.name === 'AbortError') {
+      throw new Error(`Request timed out after ${timeout / 1000} seconds.`);
+    }
+    throw error;
+  }
+};
+
 export const usePortfolioData = (): { chatbotKnowledge: string | null; resume: JsonResume | null; loading: boolean; error: string | null; } => {
   const [chatbotKnowledge, setChatbotKnowledge] = useState<string | null>(null);
   const [resume, setResume] = useState<JsonResume | null>(null);
@@ -30,7 +50,7 @@ export const usePortfolioData = (): { chatbotKnowledge: string | null; resume: J
 
         // Fetch resume data
         if (RESUME_URL) {
-          const response = await fetch(RESUME_URL, { cache: 'no-store' }); // <--- Added cache: 'no-store'
+          const response = await fetchWithTimeout(RESUME_URL, { cache: 'no-store' }, 15000); // 15 second timeout
           if (!response.ok) {
             throw new Error(`Failed to fetch resume from ${RESUME_URL}: ${response.statusText}`);
           }
