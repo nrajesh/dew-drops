@@ -5,24 +5,24 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { ManagementPagination } from "@/components/ManagementPagination";
-import { ImageListItem } from "./ImageListItem"; // Use the new unified component
+import { ImageListItem } from "./ImageListItem";
 import { Download, Trash2 } from "lucide-react";
 
 interface ImageManagementCardProps {
   title: string;
   description: string;
-  images: GalleryImage[];
+  images: GalleryImage[]; // All images in this category (published/unpublished)
   paginatedImages: GalleryImage[];
   selectedImages: Set<string>;
   isLoading: boolean;
   onSelectImage: (id: string) => void;
-  onSelectAll: (checked: boolean) => void; // Simplified prop
+  onSelectAll: (checked: boolean) => void;
   onEdit: (image: GalleryImage) => void;
   onView: (image: GalleryImage, listType: 'published' | 'unpublished') => void;
-  onDelete: () => void; // Simplified prop
+  onDelete: () => void;
   onBulkPublish: (status: boolean) => void;
   onGenerateTags: () => void;
-  onDownload: () => void; // Simplified prop
+  onDownload: () => void;
   onTogglePublish: (image: GalleryImage) => void;
   paginationProps: {
     currentPage: number;
