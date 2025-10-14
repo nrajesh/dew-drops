@@ -10,59 +10,142 @@ import {
   handleGenerateTags,
   handleBulkDownload,
 } from "@/components/gallery/GalleryManagementUtils.ts";
-import { processImageUploads, processMetadataUpdate } from "@/components/gallery/GalleryUploadUtils"; // Import new utilities
-import { useManagement } from "./useManagement"; // Import the generic hook
+import { processImageUploads, processMetadataUpdate } from "@/components/gallery/GalleryUploadUtils";
+import { useManagement } from "./useManagement";
 
 export const useGalleryManagement = () => {
   const { user } = useAuth();
   const [selectedFiles, setSelectedFiles] = useState<FileList | null>(null);
   const [isUploading, setIsUploading] = useState(false);
   const [editingImage, setEditingImage] = useState<GalleryImage | null>(null);
+  const [imagesPerPage, setImagesPerPage] = useState(10);
 
-  // Define fetchData functions using useCallback
-  const fetchPublishedImages = useCallback(async () => {
-    const imgs = await fetchImages();
-    return imgs.filter(img => img.published);
-  }, []);
-
-  const fetchUnpublishedImages = useCallback(async () => {
-    const imgs = await fetchImages();
-    return imgs.filter(img => !img.published);
-  }, []);
-
-  const publishedManagement = useManagement<GalleryImage>({
-    fetchData: fetchPublishedImages,
+  // Use a single instance of useManagement for ALL images
+  const allImagesManagement = useManagement<GalleryImage>({
+    fetchData: fetchImages, // Fetches all images regardless of status
     deleteItems: handleDelete,
     updateItemStatus: handleBulkPublish,
     generateItemTags: handleGenerateTags,
     downloadItems: handleBulkDownload,
-    initialItemsPerPage: 10,
+    initialItemsPerPage: imagesPerPage,
     idKey: 'id',
     statusKey: 'published',
   });
 
-  const unpublishedManagement = useManagement<GalleryImage>({
-    fetchData: fetchUnpublishedImages,
-    deleteItems: handleDelete,
-    updateItemStatus: handleBulkPublish,
-    generateItemTags: handleGenerateTags,
-    downloadItems: handleBulkDownload,
-    initialItemsPerPage: 10,
-    idKey: 'id',
-    statusKey: 'published',
-  });
+  const {
+    allItems: allImages,
+    isLoading: isLoadingAll,
+    loadItems: reloadAllGalleryData,
+    handleBulkDelete: genericDelete, // Renamed
+    handleBulkStatusChange: genericPublish, // Renamed
+    handleGenerateTags: genericGenerateTags, // Renamed
+    handleBulkDownload: genericDownload, // Renamed
+    handleToggleStatus: handleTogglePublishStatus,
+    handleItemsPerPageChange: setAllItemsPerPage,
+  } = allImagesManagement;
 
-  // Need a way to reload *both* lists after an upload or status change
-  const reloadAllGalleryData = useCallback(() => {
-    publishedManagement.loadItems();
-    unpublishedManagement.loadItems();
-  }, [publishedManagement.loadItems, unpublishedManagement.loadItems]);
+  // Split all images into published and unpublished lists
+  const publishedImages = useMemo(() => allImages.filter(img => img.published), [allImages]);
+  const unpublishedImages = useMemo(() => allImages.filter(img => !img.published), [allImages]);
 
-  // Shared handler for itemsPerPage that updates both published and unpublished lists
+  // --- Published Management Logic ---
+  const [selectedPublishedImages, setSelectedPublishedImages] = useState<Set<string>>(new Set());
+  const [publishedCurrentPage, setPublishedCurrentPage] = useState(1);
+
+  const publishedTotalPages = useMemo(() => Math.ceil(publishedImages.length / imagesPerPage), [publishedImages, imagesPerPage]);
+  const paginatedPublishedImages = useMemo(() => {
+    const startIndex = (publishedCurrentPage - 1) * imagesPerPage;
+    return publishedImages.slice(startIndex, startIndex + imagesPerPage);
+  }, [publishedImages, publishedCurrentPage, imagesPerPage]);
+
+  const handleSelectPublishedImage = useCallback((id: string) => {
+    setSelectedPublishedImages(prev => {
+      const newSelection = new Set(prev);
+      newSelection.has(id) ? newSelection.delete(id) : newSelection.add(id);
+      return newSelection;
+    });
+  }, []);
+
+  const handleSelectAllPublished = useCallback((checked: boolean) => {
+    const pageIds = new Set(paginatedPublishedImages.map(item => item.id));
+    setSelectedPublishedImages(prev => {
+      const newSet = new Set(prev);
+      if (checked) {
+        pageIds.forEach(id => newSet.add(id));
+      } else {
+        pageIds.forEach(id => newSet.delete(id));
+      }
+      return newSet;
+    });
+  }, [paginatedPublishedImages]);
+
+  const allPublishedOnPageSelected = paginatedPublishedImages.length > 0 && paginatedPublishedImages.every(item => selectedPublishedImages.has(item.id));
+
+  // --- Unpublished Management Logic ---
+  const [selectedUnpublishedImages, setSelectedUnpublishedImages] = useState<Set<string>>(new Set());
+  const [unpublishedCurrentPage, setUnpublishedCurrentPage] = useState(1);
+
+  const unpublishedTotalPages = useMemo(() => Math.ceil(unpublishedImages.length / imagesPerPage), [unpublishedImages, imagesPerPage]);
+  const paginatedUnpublishedImages = useMemo(() => {
+    const startIndex = (unpublishedCurrentPage - 1) * imagesPerPage;
+    return unpublishedImages.slice(startIndex, startIndex + imagesPerPage);
+  }, [unpublishedImages, unpublishedCurrentPage, imagesPerPage]);
+
+  const handleSelectUnpublishedImage = useCallback((id: string) => {
+    setSelectedUnpublishedImages(prev => {
+      const newSelection = new Set(prev);
+      newSelection.has(id) ? newSelection.delete(id) : newSelection.add(id);
+      return newSelection;
+    });
+  }, []);
+
+  const handleSelectAllUnpublished = useCallback((checked: boolean) => {
+    const pageIds = new Set(paginatedUnpublishedImages.map(item => item.id));
+    setSelectedUnpublishedImages(prev => {
+      const newSet = new Set(prev);
+      if (checked) {
+        pageIds.forEach(id => newSet.add(id));
+      } else {
+        pageIds.forEach(id => newSet.delete(id));
+      }
+      return newSet;
+    });
+  }, [paginatedUnpublishedImages]);
+
+  const allUnpublishedOnPageSelected = paginatedUnpublishedImages.length > 0 && paginatedUnpublishedImages.every(item => selectedUnpublishedImages.has(item.id));
+
+  // Reset page if current page is out of bounds after filtering/loading
+  useEffect(() => {
+    if (publishedCurrentPage > publishedTotalPages && publishedTotalPages > 0) {
+      setPublishedCurrentPage(publishedTotalPages);
+    } else if (publishedCurrentPage === 0 && publishedTotalPages > 0) {
+      setPublishedCurrentPage(1);
+    }
+    if (unpublishedCurrentPage > unpublishedTotalPages && unpublishedTotalPages > 0) {
+      setUnpublishedCurrentPage(unpublishedTotalPages);
+    } else if (unpublishedCurrentPage === 0 && unpublishedTotalPages > 0) {
+      setUnpublishedCurrentPage(1);
+    }
+  }, [publishedTotalPages, unpublishedTotalPages]);
+
+  // Shared handler for itemsPerPage
   const handleSharedItemsPerPageChange = useCallback((value: number) => {
-    publishedManagement.handleItemsPerPageChange(value);
-    unpublishedManagement.handleItemsPerPageChange(value);
-  }, [publishedManagement.handleItemsPerPageChange, unpublishedManagement.handleItemsPerPageChange]);
+    setImagesPerPage(value);
+    setPublishedCurrentPage(1);
+    setUnpublishedCurrentPage(1);
+  }, []);
+
+  // --- Bulk action wrappers (now correctly defined using renamed generic handlers) ---
+
+  const handleBulkDeletePublished = useCallback(() => genericDelete(selectedPublishedImages, setSelectedPublishedImages, allImages), [genericDelete, selectedPublishedImages, allImages]);
+  const handleBulkPublishPublished = useCallback((status: boolean) => genericPublish(selectedPublishedImages, setSelectedPublishedImages, status), [genericPublish, selectedPublishedImages]);
+  const handleGenerateTagsPublished = useCallback(() => genericGenerateTags(selectedPublishedImages, setSelectedPublishedImages, allImages), [genericGenerateTags, selectedPublishedImages, allImages]);
+  const handleBulkDownloadPublished = useCallback(() => genericDownload(selectedPublishedImages, setSelectedPublishedImages, allImages), [genericDownload, selectedPublishedImages, allImages]);
+
+  const handleBulkDeleteUnpublished = useCallback(() => genericDelete(selectedUnpublishedImages, setSelectedUnpublishedImages, allImages), [genericDelete, selectedUnpublishedImages, allImages]);
+  const handleBulkPublishUnpublished = useCallback((status: boolean) => genericPublish(selectedUnpublishedImages, setSelectedUnpublishedImages, status), [genericPublish, selectedUnpublishedImages]);
+  const handleGenerateTagsUnpublished = useCallback(() => genericGenerateTags(selectedUnpublishedImages, setSelectedUnpublishedImages, allImages), [genericGenerateTags, selectedUnpublishedImages, allImages]);
+  const handleBulkDownloadUnpublished = useCallback(() => genericDownload(selectedUnpublishedImages, setSelectedUnpublishedImages, allImages), [genericDownload, selectedUnpublishedImages, allImages]);
 
   const handleUploadWrapper = useCallback(async () => {
     if (!selectedFiles || selectedFiles.length === 0 || !user) return;
@@ -101,9 +184,7 @@ export const useGalleryManagement = () => {
           console.error("Failed image uploads:", failedFiles);
         }
       } else if (metadataFile) {
-        // For metadata updates, we need *all* images to find matches, not just published/unpublished
-        const allCurrentImages = [...publishedManagement.allItems, ...unpublishedManagement.allItems];
-        const { updatedCount, notFoundCount, failedUpdates } = await processMetadataUpdate(metadataFile, allCurrentImages, toastId);
+        const { updatedCount, notFoundCount, failedUpdates } = await processMetadataUpdate(metadataFile, allImages, toastId);
         let summary = `${updatedCount} image(s) updated successfully.`;
         if (notFoundCount > 0) {
           summary += ` ${notFoundCount} file name(s) in your JSON did not match any existing images.`;
@@ -123,10 +204,9 @@ export const useGalleryManagement = () => {
     } finally {
       setIsUploading(false);
       setSelectedFiles(null);
-      reloadAllGalleryData(); // Reload both lists
+      reloadAllGalleryData();
     }
-  }, [selectedFiles, user, reloadAllGalleryData, publishedManagement.allItems, unpublishedManagement.allItems, fetchPublishedImages, fetchUnpublishedImages]);
-
+  }, [selectedFiles, user, reloadAllGalleryData, allImages]);
 
   return {
     user,
@@ -136,42 +216,43 @@ export const useGalleryManagement = () => {
     setEditingImage,
     setSelectedFiles,
     handleUpload: handleUploadWrapper,
-    reloadAllGalleryData, // Expose for ImageLightbox onUpdate
+    reloadAllGalleryData,
+    imagesPerPage, // Expose imagesPerPage
+    setImagesPerPage: handleSharedItemsPerPageChange, // Expose setter
 
     // Published images management
-    publishedImages: publishedManagement.allItems,
-    paginatedPublishedImages: publishedManagement.paginatedItems,
-    isLoadingPublished: publishedManagement.isLoading,
-    selectedPublishedImages: publishedManagement.selectedItems,
-    publishedCurrentPage: publishedManagement.currentPage,
-    publishedTotalPages: publishedManagement.totalPages,
-    allPublishedOnPageSelected: publishedManagement.allOnPageSelected,
-    setPublishedCurrentPage: publishedManagement.handlePageChange,
-    handleSelectPublishedImage: publishedManagement.handleSelectItem,
-    handleSelectAllPublished: publishedManagement.handleSelectAllOnPage,
-    handleBulkDeletePublished: publishedManagement.handleBulkDelete,
-    handleBulkPublishPublished: (status: boolean) => publishedManagement.handleBulkStatusChange(status),
-    handleGenerateTagsPublished: publishedManagement.handleGenerateTags,
-    handleBulkDownloadPublished: publishedManagement.handleBulkDownload,
-    handleTogglePublishStatus: publishedManagement.handleToggleStatus,
-    publishedItemsPerPage: publishedManagement.itemsPerPage, // Expose itemsPerPage
-    setImagesPerPage: handleSharedItemsPerPageChange, // Use the shared handler
+    publishedImages,
+    paginatedPublishedImages,
+    isLoadingPublished: isLoadingAll,
+    selectedPublishedImages,
+    publishedCurrentPage,
+    publishedTotalPages,
+    allPublishedOnPageSelected,
+    setPublishedCurrentPage,
+    handleSelectPublishedImage,
+    handleSelectAllPublished,
+    handleBulkDeletePublished,
+    handleBulkPublishPublished: (status: boolean) => handleBulkPublishPublished(status),
+    handleGenerateTagsPublished,
+    handleBulkDownloadPublished,
+    handleTogglePublishStatus,
+    publishedItemsPerPage: imagesPerPage,
 
     // Unpublished images management
-    unpublishedImages: unpublishedManagement.allItems,
-    paginatedUnpublishedImages: unpublishedManagement.paginatedItems,
-    isLoadingUnpublished: unpublishedManagement.isLoading,
-    selectedUnpublishedImages: unpublishedManagement.selectedItems,
-    unpublishedCurrentPage: unpublishedManagement.currentPage,
-    unpublishedTotalPages: unpublishedManagement.totalPages,
-    allUnpublishedOnPageSelected: unpublishedManagement.allOnPageSelected,
-    setUnpublishedCurrentPage: unpublishedManagement.handlePageChange,
-    handleSelectUnpublishedImage: unpublishedManagement.handleSelectItem,
-    handleSelectAllUnpublished: unpublishedManagement.handleSelectAllOnPage,
-    handleBulkDeleteUnpublished: unpublishedManagement.handleBulkDelete,
-    handleBulkPublishUnpublished: (status: boolean) => unpublishedManagement.handleBulkStatusChange(status),
-    handleGenerateTagsUnpublished: unpublishedManagement.handleGenerateTags,
-    handleBulkDownloadUnpublished: unpublishedManagement.handleBulkDownload,
-    unpublishedItemsPerPage: unpublishedManagement.itemsPerPage, // Expose itemsPerPage
+    unpublishedImages,
+    paginatedUnpublishedImages,
+    isLoadingUnpublished: isLoadingAll,
+    selectedUnpublishedImages,
+    unpublishedCurrentPage,
+    unpublishedTotalPages,
+    allUnpublishedOnPageSelected,
+    setUnpublishedCurrentPage,
+    handleSelectUnpublishedImage,
+    handleSelectAllUnpublished,
+    handleBulkDeleteUnpublished,
+    handleBulkPublishUnpublished: (status: boolean) => handleBulkPublishUnpublished(status),
+    handleGenerateTagsUnpublished,
+    handleBulkDownloadUnpublished,
+    unpublishedItemsPerPage: imagesPerPage,
   };
 };

@@ -5,8 +5,8 @@ import { showError } from "@/utils/toast";
 interface UseManagementOptions<T> {
   fetchData: () => Promise<T[]>;
   deleteItems: (ids: string[], allItems: T[]) => Promise<boolean>;
-  updateItemStatus?: (ids: Set<string>, status: boolean, allItems: T[]) => Promise<boolean>;
-  updateItemTags?: (ids: Set<string>, tags: string[], allItems: T[]) => Promise<boolean>;
+  updateItemStatus?: (ids: Set<string>, status: boolean) => Promise<boolean>; // Removed allItems from signature here, as it's often not needed in the utility function itself
+  updateItemTags?: (ids: Set<string>, tags: string[]) => Promise<boolean>; // Removed allItems
   generateItemTags?: (ids: Set<string>, allItems: T[]) => Promise<number>;
   downloadItems?: (ids: Set<string>, allItems: T[], extraData?: any) => Promise<void>;
   initialItemsPerPage?: number;
@@ -85,67 +85,69 @@ export const useManagement = <T extends { id: string }>(
     });
   }, [paginatedItems, idKey]);
 
-  const handleBulkDelete = useCallback(async () => {
+  // --- Generic Bulk Handlers (now exposed for external use) ---
+
+  const handleBulkDelete = useCallback(async (ids: Set<string>, setter: (s: Set<string>) => void, allItems: T[]) => {
     if (!user) {
       showError("You must be logged in to delete items.");
       return;
     }
-    if (selectedItems.size === 0) return;
+    if (ids.size === 0) return;
 
-    const success = await deleteItems(Array.from(selectedItems), allItems);
+    const success = await deleteItems(Array.from(ids), allItems);
     if (success) {
-      setSelectedItems(new Set());
+      setter(new Set());
       loadItems();
     }
-  }, [user, selectedItems, deleteItems, allItems, loadItems]);
+  }, [user, deleteItems, loadItems]);
 
-  const handleBulkStatusChange = useCallback(async (status: boolean) => {
+  const handleBulkStatusChange = useCallback(async (ids: Set<string>, setter: (s: Set<string>) => void, status: boolean) => {
     if (!user) {
       showError("You must be logged in to change item status.");
       return;
     }
-    if (selectedItems.size === 0 || !updateItemStatus) return;
+    if (ids.size === 0 || !updateItemStatus) return;
 
-    const success = await updateItemStatus(selectedItems, status, allItems);
+    const success = await updateItemStatus(ids, status);
     if (success) {
-      setSelectedItems(new Set());
+      setter(new Set());
       loadItems();
     }
-  }, [user, selectedItems, updateItemStatus, allItems, loadItems]);
+  }, [user, updateItemStatus, loadItems]);
 
-  const handleBulkTagUpdate = useCallback(async (tags: string[]) => {
+  const handleBulkTagUpdate = useCallback(async (ids: Set<string>, setter: (s: Set<string>) => void, tags: string[]) => {
     if (!user) {
       showError("You must be logged in to update tags.");
       return;
     }
-    if (selectedItems.size === 0 || !updateItemTags) return;
+    if (ids.size === 0 || !updateItemTags) return;
 
-    const success = await updateItemTags(selectedItems, tags, allItems);
+    const success = await updateItemTags(ids, tags);
     if (success) {
-      setSelectedItems(new Set());
+      setter(new Set());
       loadItems();
     }
-  }, [user, selectedItems, updateItemTags, allItems, loadItems]);
+  }, [user, updateItemTags, loadItems]);
 
-  const handleGenerateTags = useCallback(async () => {
+  const handleGenerateTags = useCallback(async (ids: Set<string>, setter: (s: Set<string>) => void, allItems: T[]) => {
     if (!user) {
       showError("You must be logged in to generate tags.");
       return;
     }
-    if (selectedItems.size === 0 || !generateItemTags) return;
+    if (ids.size === 0 || !generateItemTags) return;
 
-    const successCount = await generateItemTags(selectedItems, allItems);
+    const successCount = await generateItemTags(ids, allItems);
     if (successCount > 0) {
-      setSelectedItems(new Set());
+      setter(new Set());
       loadItems();
     }
-  }, [user, selectedItems, generateItemTags, allItems, loadItems]);
+  }, [user, generateItemTags, loadItems]);
 
-  const handleBulkDownload = useCallback(async (extraData?: any) => {
-    if (selectedItems.size === 0 || !downloadItems) return;
-    await downloadItems(selectedItems, allItems, extraData);
-    setSelectedItems(new Set());
-  }, [selectedItems, downloadItems, allItems]);
+  const handleBulkDownload = useCallback(async (ids: Set<string>, setter: (s: Set<string>) => void, allItems: T[], extraData?: any) => {
+    if (ids.size === 0 || !downloadItems) return;
+    await downloadItems(ids, allItems, extraData);
+    setter(new Set());
+  }, [downloadItems]);
 
   const handleToggleStatus = useCallback(async (item: T) => {
     if (!user) {
@@ -155,11 +157,11 @@ export const useManagement = <T extends { id: string }>(
     if (!updateItemStatus) return;
 
     const currentStatus = item[statusKey] as unknown as boolean; // Cast to boolean
-    const success = await updateItemStatus(new Set([String(item[idKey])]), !currentStatus, allItems);
+    const success = await updateItemStatus(new Set([String(item[idKey])]), !currentStatus);
     if (success) {
       loadItems();
     }
-  }, [user, updateItemStatus, allItems, loadItems, idKey, statusKey]);
+  }, [user, updateItemStatus, loadItems, idKey, statusKey]);
 
   const allOnPageSelected = paginatedItems.length > 0 && paginatedItems.every(item => selectedItems.has(String(item[idKey])));
 
@@ -178,6 +180,7 @@ export const useManagement = <T extends { id: string }>(
     handleItemsPerPageChange,
     handleSelectItem,
     handleSelectAllOnPage,
+    // Expose generic handlers with explicit signatures for use in other hooks
     handleBulkDelete,
     handleBulkStatusChange,
     handleBulkTagUpdate,

@@ -155,10 +155,6 @@ const Chat = ({ jobDescription, onClose }: ChatProps) => {
           <Button variant="outline" size="sm" onClick={handleResetChat} disabled={currentLoadingState}>
             Reset
           </Button>
-          <Button variant="ghost" size="icon" onClick={onClose}>
-            <X className="h-5 w-5" />
-            <span className="sr-only">Close chat</span>
-          </Button>
         </div>
       </div>
       <ScrollArea className="flex-1 p-4" ref={scrollAreaRef}>

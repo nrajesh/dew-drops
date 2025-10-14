@@ -38,7 +38,7 @@ export const useTravelManagement = (containerRef: React.RefObject<HTMLDivElement
     paginatedItems: paginatedLocations,
     isLoading,
     selectedItems,
-    // setSelectedItems, // Already destructured
+    setSelectedItems, // Keep setSelectedItems for local use
     currentPage,
     totalPages,
     itemsPerPage: locationsPerPage,
@@ -51,7 +51,7 @@ export const useTravelManagement = (containerRef: React.RefObject<HTMLDivElement
     handleBulkDelete: genericHandleBulkDelete,
     handleBulkStatusChange: genericHandleBulkPublish,
     handleBulkDownload: genericHandleBulkDownload,
-    handleToggleStatus: genericHandleToggleStatus, // Renamed to avoid conflict with local handleToggleStatus
+    handleToggleStatus: handleTogglePublish, // Renamed to match component prop
     allOnPageSelected,
   } = useManagement<TravelLocation>({
     fetchData: fetchLocations,
@@ -325,6 +325,12 @@ export const useTravelManagement = (containerRef: React.RefObject<HTMLDivElement
     setSelectedUpdates(new Set());
   }, [user, locationsToInsert, locationsToUpdate, selectedUpdates, loadLocations]);
 
+  // --- Wrappers to match TravelLocationList component signatures ---
+  const handleBulkDeleteWrapper = useCallback(() => genericHandleBulkDelete(selectedItems, setSelectedItems, locations), [genericHandleBulkDelete, selectedItems, setSelectedItems, locations]);
+  const handleBulkPublishWrapper = useCallback((status: boolean) => genericHandleBulkPublish(selectedItems, setSelectedItems, status), [genericHandleBulkPublish, selectedItems, setSelectedItems]);
+  const handleBulkDownloadWrapper = useCallback(() => genericHandleBulkDownload(selectedItems, setSelectedItems, locations), [genericHandleBulkDownload, selectedItems, setSelectedItems, locations]);
+  // -----------------------------------------------------------------
+
   return {
     locations,
     blogPosts,
@@ -353,12 +359,12 @@ export const useTravelManagement = (containerRef: React.RefObject<HTMLDivElement
     handleFileSelect,
     handleBulkUpload,
     handleConfirmAndProcessUploads,
-    handleBulkDeleteWrapper: genericHandleBulkDelete,
-    handleBulkPublishWrapper: genericHandleBulkPublish,
-    handleBulkDownloadWrapper: genericHandleBulkDownload,
+    handleBulkDeleteWrapper,
+    handleBulkPublishWrapper,
+    handleBulkDownloadWrapper,
     handleSelectLocation,
     handleSelectAll,
-    handleTogglePublish: genericHandleToggleStatus, // Expose as handleTogglePublish for component compatibility
+    handleTogglePublish, // Expose as handleTogglePublish for component compatibility
     setCurrentPage,
     handleItemsPerPageChange: setLocationsPerPage, // Corrected shorthand property
     totalItems: totalLocations, // Expose as totalItems for component compatibility

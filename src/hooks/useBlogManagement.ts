@@ -43,7 +43,7 @@ export const useBlogManagement = () => {
     paginatedItems: paginatedPosts,
     isLoading,
     selectedItems,
-    // setSelectedItems, // Already destructured
+    setSelectedItems,
     currentPage,
     totalPages,
     itemsPerPage: postsPerPage,
@@ -198,6 +198,13 @@ export const useBlogManagement = () => {
     setSelectedUpdates(new Set());
   }, [user, postsToInsert, postsToUpdate, selectedUpdates, loadPosts]);
 
+  // --- Wrappers to match PostList component signatures ---
+  const handleBulkDeleteWrapper = useCallback(() => genericHandleBulkDelete(selectedItems, setSelectedItems, posts), [genericHandleBulkDelete, selectedItems, setSelectedItems, posts]);
+  const handleBulkDownloadWrapper = useCallback(() => genericHandleBulkDownload(selectedItems, setSelectedItems, posts), [genericHandleBulkDownload, selectedItems, setSelectedItems, posts]);
+  const handleBulkTagUpdateWrapper = useCallback((tags: string[]) => genericHandleBulkTagUpdate(selectedItems, setSelectedItems, tags), [genericHandleBulkTagUpdate, selectedItems, setSelectedItems]);
+  const handleBulkStatusChangeWrapper = useCallback((published: boolean) => genericHandleBulkStatusChange(selectedItems, setSelectedItems, published), [genericHandleBulkStatusChange, selectedItems, setSelectedItems]);
+  // -------------------------------------------------------
+
   return {
     posts,
     galleryImages,
@@ -217,10 +224,10 @@ export const useBlogManagement = () => {
     handleFormSubmit,
     handleUpload,
     handleConfirmAndProcessUploads,
-    handleBulkDeleteWrapper: genericHandleBulkDelete,
-    handleBulkTagUpdateWrapper: genericHandleBulkTagUpdate,
-    handleBulkStatusChangeWrapper: genericHandleBulkStatusChange,
-    handleBulkDownloadWrapper: genericHandleBulkDownload,
+    handleBulkDeleteWrapper,
+    handleBulkTagUpdateWrapper,
+    handleBulkStatusChangeWrapper,
+    handleBulkDownloadWrapper,
     paginatedPosts,
     currentPage,
     totalPages,

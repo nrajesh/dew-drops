@@ -33,6 +33,8 @@ const ManageGallery = () => {
     setSelectedFiles,
     handleUpload,
     reloadAllGalleryData,
+    imagesPerPage, // Added this line
+    setImagesPerPage,
 
     publishedImages,
     paginatedPublishedImages,
@@ -49,8 +51,6 @@ const ManageGallery = () => {
     handleGenerateTagsPublished,
     handleBulkDownloadPublished,
     handleTogglePublishStatus,
-    publishedItemsPerPage, // New: Access itemsPerPage from publishedManagement
-    setImagesPerPage,
 
     unpublishedImages,
     paginatedUnpublishedImages,
@@ -66,12 +66,12 @@ const ManageGallery = () => {
     handleBulkPublishUnpublished,
     handleGenerateTagsUnpublished,
     handleBulkDownloadUnpublished,
-    unpublishedItemsPerPage, // New: Access itemsPerPage from unpublishedManagement
   } = useGalleryManagement();
 
   const containerRef = useRef<HTMLDivElement>(null);
   const [lightboxImageIndex, setLightboxImageIndex] = useState<number | null>(null);
   const [activeLightboxList, setActiveLightboxList] = useState<'published' | 'unpublished' | null>(null);
+  const [activeTab, setActiveTab] = useState<'published' | 'unpublished'>('published');
 
   const form = useForm<z.infer<typeof editSchema>>({
     resolver: zodResolver(editSchema),
@@ -89,9 +89,9 @@ const ManageGallery = () => {
 
   // Use pagination navigation for the currently active tab
   usePaginationNavigation({
-    currentPage: activeLightboxList === 'published' ? publishedCurrentPage : unpublishedCurrentPage,
-    totalPages: activeLightboxList === 'published' ? publishedTotalPages : unpublishedTotalPages,
-    onPageChange: activeLightboxList === 'published' ? setPublishedCurrentPage : setUnpublishedCurrentPage,
+    currentPage: activeTab === 'published' ? publishedCurrentPage : unpublishedCurrentPage,
+    totalPages: activeTab === 'published' ? publishedTotalPages : unpublishedTotalPages,
+    onPageChange: activeTab === 'published' ? setPublishedCurrentPage : setUnpublishedCurrentPage,
     targetRef: containerRef,
     enabled: !editingImage && lightboxImageIndex === null,
   });
@@ -155,7 +155,7 @@ const ManageGallery = () => {
           selectedFiles={selectedFiles}
         />
 
-        <Tabs defaultValue="published">
+        <Tabs defaultValue="published" onValueChange={(value) => setActiveTab(value as 'published' | 'unpublished')}>
           <TabsList className="grid w-full grid-cols-2">
             <TabsTrigger value="published" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">Published ({publishedImages.length})</TabsTrigger>
             <TabsTrigger value="unpublished" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">Unpublished ({unpublishedImages.length})</TabsTrigger>
@@ -173,7 +173,7 @@ const ManageGallery = () => {
               onEdit={setEditingImage}
               onView={openLightbox}
               onDelete={handleBulkDeletePublished}
-              onBulkPublish={handleBulkPublishPublished}
+              onBulkPublish={(status) => handleBulkPublishPublished(status)}
               onGenerateTags={handleGenerateTagsPublished}
               onDownload={handleBulkDownloadPublished}
               onTogglePublish={handleTogglePublishStatus}
@@ -181,7 +181,7 @@ const ManageGallery = () => {
                 currentPage: publishedCurrentPage,
                 totalPages: publishedTotalPages,
                 onPageChange: setPublishedCurrentPage,
-                itemsPerPage: publishedItemsPerPage, // Use the exposed prop
+                itemsPerPage: imagesPerPage,
                 onItemsPerPageChange: setImagesPerPage,
                 totalItems: publishedImages.length,
               }}
@@ -201,7 +201,7 @@ const ManageGallery = () => {
               onEdit={setEditingImage}
               onView={openLightbox}
               onDelete={handleBulkDeleteUnpublished}
-              onBulkPublish={handleBulkPublishUnpublished}
+              onBulkPublish={(status) => handleBulkPublishUnpublished(status)}
               onGenerateTags={handleGenerateTagsUnpublished}
               onDownload={handleBulkDownloadUnpublished}
               onTogglePublish={handleTogglePublishStatus}
@@ -209,7 +209,7 @@ const ManageGallery = () => {
                 currentPage: unpublishedCurrentPage,
                 totalPages: unpublishedTotalPages,
                 onPageChange: setUnpublishedCurrentPage,
-                itemsPerPage: unpublishedItemsPerPage, // Use the exposed prop
+                itemsPerPage: imagesPerPage,
                 onItemsPerPageChange: setImagesPerPage,
                 totalItems: unpublishedImages.length,
               }}
