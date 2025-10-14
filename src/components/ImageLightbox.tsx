@@ -148,7 +148,22 @@ export const ImageLightbox: React.FC<ImageLightboxProps> = ({
     <>
       <Dialog open={!!image} onOpenChange={onClose}>
         <DialogContent className="max-w-4xl p-0 border-none bg-transparent shadow-none">
-          <div className="relative flex items-center justify-center h-[80vh]">
+          {/* Custom Close Button for high visibility, especially on mobile */}
+          <Button
+            variant="ghost"
+            size="icon"
+            className="absolute top-4 right-4 z-50 text-white hover:bg-black/50 rounded-full h-10 w-10"
+            onClick={onClose}
+            aria-label="Close Lightbox"
+          >
+            <X className="h-6 w-6" />
+          </Button>
+
+          {/* Main Image Area - Click to close */}
+          <div 
+            className="relative flex items-center justify-center h-[80vh] cursor-pointer" 
+            onClick={onClose}
+          >
             
             {/* Navigation Buttons */}
             {hasPrev && (
@@ -156,7 +171,10 @@ export const ImageLightbox: React.FC<ImageLightboxProps> = ({
                 variant="ghost"
                 size="icon"
                 className="absolute left-4 z-10 text-white hover:bg-black/50"
-                onClick={() => onNavigate('prev')}
+                onClick={(e) => {
+                  e.stopPropagation(); // Prevent closing on navigation click
+                  onNavigate('prev');
+                }}
               >
                 <ChevronLeft className="h-8 w-8" />
               </Button>
@@ -166,7 +184,10 @@ export const ImageLightbox: React.FC<ImageLightboxProps> = ({
                 variant="ghost"
                 size="icon"
                 className="absolute right-4 z-10 text-white hover:bg-black/50"
-                onClick={() => onNavigate('next')}
+                onClick={(e) => {
+                  e.stopPropagation(); // Prevent closing on navigation click
+                  onNavigate('next');
+                }}
               >
                 <ChevronRight className="h-8 w-8" />
               </Button>
@@ -182,8 +203,11 @@ export const ImageLightbox: React.FC<ImageLightboxProps> = ({
             </div>
           </div>
 
-          {/* Metadata and Actions Bar */}
-          <div className="bg-black/70 p-4 rounded-b-lg text-white flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+          {/* Metadata and Actions Bar - Stop propagation to prevent closing */}
+          <div 
+            className="bg-black/70 p-4 rounded-b-lg text-white flex flex-col md:flex-row justify-between items-start md:items-center gap-4"
+            onClick={(e) => e.stopPropagation()}
+          >
             <div className="flex flex-col">
               {/* Display alt_text instead of file_name */}
               <p className="text-lg font-semibold">{image.alt_text || "Image Details"}</p>
