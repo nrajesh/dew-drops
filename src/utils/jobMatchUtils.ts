@@ -59,7 +59,7 @@ Your final output must be a single, valid JSON object with two keys: "percentage
 
 Here is the job description: ${jobDescription}
 Here is a summary of my profile (CV and chatbot knowledge): ${chatbotKnowledge}
-My detailed resume data (JSON): ${JSON.stringify(resume, null, 2)}
+My detailed resume data (JSON): ${JSON.stringify(resume)}
 Identified overlapping skills/requirements: ${overlaps.join(', ')}
 Identified missing skills/requirements: ${missing.join(', ')}
 Combined CV text for broader context: ${combinedCvText}

@@ -19,7 +19,7 @@ export const mainNavItems = [
   { to: "/", icon: Home, label: "Home", featureKey: navFeatures.HOME },
   { to: "/blog", icon: Newspaper, label: "Blog", featureKey: navFeatures.BLOG },
   { to: "/gallery", icon: ImageIcon, label: "Gallery", featureKey: navFeatures.GALLERY },
-  { to: "/portfolio", icon: FileText, label: "Portfolio", featureKey: navFeatures.PORTFOLIO },
+  { to: "/portfolio", icon: FileText, label: "Portfolio", featureKey: navFeatures.PORTFOLIO }, // Updated path
   { to: "/match-cv", icon: GitCompare, label: "Match CV", featureKey: navFeatures.MATCH_CV }, // New navigation item
   { to: "/travel", icon: Map, label: "Travel", featureKey: navFeatures.TRAVEL },
   { to: "/contact", icon: Send, label: "Contact", featureKey: navFeatures.CONTACT },

@@ -35,15 +35,10 @@ export const ManagementPagination = ({
         <p className="text-sm font-medium">Rows per page</p>
         <Select
           value={`${itemsPerPage}`}
-          onValueChange={(value) => {
-            const newValue = Number(value);
-            console.log("Items per page changed to:", newValue); // Debugging line
-            onItemsPerPageChange(newValue);
-          }}
+          onValueChange={(value) => onItemsPerPageChange(Number(value))}
         >
           <SelectTrigger className="h-8 w-[70px]">
-            {/* SelectValue should automatically display the content of the selected SelectItem based on the 'value' prop of the parent Select */}
-            <SelectValue /> 
+            <SelectValue placeholder={itemsPerPage} />
           </SelectTrigger>
           <SelectContent>
             {[10, 25, 50].map((pageSize) => (

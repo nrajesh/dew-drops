@@ -48,12 +48,6 @@ export const useManagement = <T extends { id: string }>(
     loadItems();
   }, [loadItems]);
 
-  // Reset to first page when itemsPerPage changes
-  useEffect(() => {
-    console.log("Items per page changed to:", itemsPerPage); // Debugging line
-    setCurrentPage(1);
-  }, [itemsPerPage]);
-
   const paginatedItems = useMemo(() => {
     const startIndex = (currentPage - 1) * itemsPerPage;
     return allItems.slice(startIndex, startIndex + itemsPerPage);
