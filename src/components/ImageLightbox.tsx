@@ -1,5 +1,5 @@
 import React, { useEffect, useCallback, useState } from 'react';
-import { X, ChevronLeft, ChevronRight, Trash2, Download, Tag, Info } from 'lucide-react';
+import { X, ChevronLeft, ChevronRight, Trash2, Download, Tag, Info, ShoppingCart } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
@@ -76,6 +76,7 @@ export const ImageLightbox: React.FC<ImageLightboxProps> = ({
   const { user } = useAuth();
   const isAuthenticated = !!user;
   const [showExif, setShowExif] = useState(false);
+  const [showPurchaseOverlay, setShowPurchaseOverlay] = useState(false);
 
   const getImageUrl = (fileName: string) => {
     const { data } = supabase.storage.from('gallery').getPublicUrl(fileName);
@@ -114,10 +115,8 @@ export const ImageLightbox: React.FC<ImageLightboxProps> = ({
     setShowExif(true);
   };
   
-  const handleDownload = () => {
-    if (!image) return;
-    const url = getImageUrl(image.file_name);
-    window.open(url, '_blank');
+  const handlePurchase = () => {
+    setShowPurchaseOverlay(true);
   };
 
 
@@ -206,9 +205,12 @@ export const ImageLightbox: React.FC<ImageLightboxProps> = ({
               <Button variant="secondary" size="sm" onClick={handleShowExif}>
                 <Info className="h-4 w-4 mr-2" /> EXIF Data
               </Button>
-              <Button variant="secondary" size="sm" onClick={handleDownload}>
-                <Download className="h-4 w-4 mr-2" /> Download
+              
+              {/* Purchase Button */}
+              <Button variant="default" size="sm" onClick={handlePurchase}>
+                <ShoppingCart className="h-4 w-4 mr-2" /> Purchase
               </Button>
+
               {isAuthenticated && (
                 <Button variant="destructive" size="sm" onClick={handleDelete}>
                   <Trash2 className="h-4 w-4 mr-2" /> Delete
@@ -228,6 +230,30 @@ export const ImageLightbox: React.FC<ImageLightboxProps> = ({
             </DialogTitle>
           </DialogHeader>
           <ExifDataDisplay exifData={image?.exif_data} />
+        </DialogContent>
+      </Dialog>
+
+      {/* Purchase Coming Soon Dialog */}
+      <Dialog open={showPurchaseOverlay} onOpenChange={setShowPurchaseOverlay}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-xl font-bold text-center">
+              <ShoppingCart className="h-6 w-6 inline mr-2 text-primary" /> Purchase Coming Soon!
+            </DialogTitle>
+          </DialogHeader>
+          <div className="py-4 text-center">
+            <p className="text-lg text-muted-foreground">
+              We are currently setting up our secure payment system.
+            </p>
+            <p className="mt-2 text-sm">
+              Check back soon to purchase high-resolution prints and digital downloads of this image.
+            </p>
+          </div>
+          <div className="flex justify-center pt-2">
+            <Button onClick={() => setShowPurchaseOverlay(false)}>
+              Got It
+            </Button>
+          </div>
         </DialogContent>
       </Dialog>
     </>
