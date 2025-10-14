@@ -96,16 +96,6 @@ export const ImageLightbox: React.FC<ImageLightboxProps> = ({
       <DialogContent className="max-w-4xl p-0 border-none bg-transparent shadow-none">
         <div className="relative flex items-center justify-center h-[80vh]">
           
-          {/* Close Button */}
-          <Button
-            variant="ghost"
-            size="icon"
-            className="absolute top-4 right-4 z-20 text-white hover:bg-black/50"
-            onClick={onClose}
-          >
-            <X className="h-6 w-6" />
-          </Button>
-
           {/* Navigation Buttons */}
           {hasPrev && (
             <Button
