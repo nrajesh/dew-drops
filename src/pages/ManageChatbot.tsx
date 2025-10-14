@@ -133,7 +133,7 @@ PORTFOLIO KNOWLEDGE BASE:
 This is a personal portfolio and blog application designed to showcase work, thoughts, and travels.
 Key Features:
 - Dynamic Blog: A full-featured blog with Markdown support, bulk import/export, and management capabilities.
-- Photo Gallery: A dynamic gallery that preserves all original image metadata (EXIF, dimensions, color profiles) upon upload. It features automatic EXIF data extraction, AI-generated tags, and a unified management interface with Published/Unpublished tabs. The public gallery search is powerful, covering tags, alt text, filenames, and EXIF data.
+- Photo Gallery: A dynamic gallery that preserves all original image metadata (EXIF, dimensions, color profiles) upon upload. It features automatic EXIF data extraction, AI-generated tags, and a unified management interface with Published/Unpublished tabs. The public gallery search is powerful, covering tags, alt text, filenames, and EXIF data. The image lightbox now includes a 'Purchase' button that displays a 'Coming Soon!' overlay.
 - Interactive Travel Map: A map to pin travel destinations, with bulk import/export and management features.
 - Contact Form: A secure, serverless contact form.
 - AI Chatbot: An integrated chatbot (the one you are using now) to answer questions about the portfolio, using an editable knowledge base. It includes an auto-generate feature to populate the knowledge base from your content.
