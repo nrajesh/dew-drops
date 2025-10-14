@@ -25,7 +25,8 @@ const REQUIRED_EXIF_FIELDS = [
   { path: ['F Number', 'description'], label: 'F Number' },
   { path: ['Lens Model', 'description'], label: 'Lens Model' },
   { path: ['Aperture Value', 'description'], label: 'Aperture Value' },
-  { path: ['Focal Length', 'Fired', 'description'], label: 'Focal Length' },
+  { path: ['Focal Length', 'description'], label: 'Focal Length' },
+  { path: ['ISOSpeedRatings', 'description'], label: 'ISO' },
 ];
 
 // Helper function to safely retrieve a deeply nested value
