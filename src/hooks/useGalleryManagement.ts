@@ -58,6 +58,12 @@ export const useGalleryManagement = () => {
     unpublishedManagement.loadItems();
   }, [publishedManagement.loadItems, unpublishedManagement.loadItems]);
 
+  // Shared handler for itemsPerPage that updates both published and unpublished lists
+  const handleSharedItemsPerPageChange = useCallback((value: number) => {
+    publishedManagement.handleItemsPerPageChange(value);
+    unpublishedManagement.handleItemsPerPageChange(value);
+  }, [publishedManagement.handleItemsPerPageChange, unpublishedManagement.handleItemsPerPageChange]);
+
   const handleUploadWrapper = useCallback(async () => {
     if (!selectedFiles || selectedFiles.length === 0 || !user) return;
     setIsUploading(true);
@@ -149,7 +155,7 @@ export const useGalleryManagement = () => {
     handleBulkDownloadPublished: publishedManagement.handleBulkDownload,
     handleTogglePublishStatus: publishedManagement.handleToggleStatus,
     publishedItemsPerPage: publishedManagement.itemsPerPage, // Expose itemsPerPage
-    setImagesPerPage: publishedManagement.handleItemsPerPageChange, // This will control itemsPerPage for both
+    setImagesPerPage: handleSharedItemsPerPageChange, // Use the shared handler
 
     // Unpublished images management
     unpublishedImages: unpublishedManagement.allItems,

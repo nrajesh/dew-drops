@@ -8,7 +8,7 @@ This README provides a comprehensive guide to understanding, customizing, and ma
 
 -   **Core Home Page:** A permanent landing page that always remains active as the main entry point to your site.
 -   **Dynamic Blog:** A full-featured blog powered by a Supabase database, with Markdown support and bulk management capabilities.
--   **Photo Gallery:** A dynamic gallery that preserves all original image metadata (EXIF, dimensions, color profiles) upon upload. It features automatic EXIF data extraction, AI-generated tags, and a unified management interface with Published/Unpublished tabs. The public gallery search is powerful, covering tags, alt text, filenames, and EXIF data.
+-   **Photo Gallery:** A dynamic gallery that preserves all original image metadata (EXIF, dimensions, color profiles) upon upload. It features automatic EXIF data extraction, AI-generated tags, and a unified management interface with Published/Unpublished tabs. The public gallery search is now powered by **Full-Text Search (FTS)**, making it highly robust across tags, alt text, filenames, and EXIF data. The image lightbox now displays alt text and tags instead of the file name.
 -   **Interactive Travel Map:** Pin your travel destinations on a world map, with bulk import/export and management features.
 -   **Contact Form:** A secure, serverless contact form that sends emails directly to you.
 -   **AI Chatbot:** An integrated chatbot powered by Google Gemini that uses an editable knowledge base to provide intelligent answers about your portfolio. It also includes an auto-generate feature to populate the knowledge base from your content.
@@ -78,9 +78,10 @@ The gallery management page uses a two-tab system—**Published** and **Unpublis
     *   **Individual Actions:** Each image has a switch to quickly publish/unpublish it and an "Edit" button to update its alt text and tags.
     *   **Bulk Actions:** Select multiple images to perform actions on them at once: Unpublish, Generate AI Tags, Download, or Delete.
 4.  **Interactive Lightbox:**
-    *   Clicking on any image (in either tab) opens it in a beautiful, full-screen lightbox.
+    *   Clicking on any image (in either tab or the public gallery) opens it in a beautiful, full-screen lightbox.
+    *   The lightbox now displays the image's **Alt Text and Tags** instead of the file name.
     *   Controls for navigation, closing, and viewing EXIF data appear when you tap or click the image and fade out automatically.
-    *   **Enhanced Search:** The public gallery search now includes matching hits from image tags, alt text, filenames, and EXIF data.
+    *   **Enhanced Search:** The public gallery search is now powered by **Full-Text Search (FTS)**, providing highly robust matching across image tags, alt text, filenames, and EXIF data.
 
 ### 🗺️ Managing the Travel Map
 
