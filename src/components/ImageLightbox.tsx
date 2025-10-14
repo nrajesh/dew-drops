@@ -148,17 +148,6 @@ export const ImageLightbox: React.FC<ImageLightboxProps> = ({
     <>
       <Dialog open={!!image} onOpenChange={onClose}>
         <DialogContent className="max-w-4xl p-0 border-none bg-transparent shadow-none">
-          {/* Custom Close Button for high visibility, especially on mobile */}
-          <Button
-            variant="ghost"
-            size="icon"
-            className="absolute top-4 right-4 z-50 text-white hover:bg-black/50 rounded-full h-10 w-10"
-            onClick={onClose}
-            aria-label="Close Lightbox"
-          >
-            <X className="h-6 w-6" />
-          </Button>
-
           <div className="relative flex items-center justify-center h-[80vh]">
             
             {/* Navigation Buttons */}
