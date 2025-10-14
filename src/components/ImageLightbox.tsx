@@ -1,13 +1,14 @@
 import React, { useEffect, useCallback, useState } from 'react';
-import { X, ChevronLeft, ChevronRight, Trash2, Download, Tag, Info } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Trash2, Info } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import type { GalleryImage } from "@/types";
 import { showSuccess, showError } from "@/utils/toast";
-import { useAuth } from "@/contexts/AuthContext"; // Fixed import path
+import { useAuth } from "@/contexts/AuthContext";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Tag } from 'lucide-react';
 
 interface ImageLightboxProps {
   image: GalleryImage | null;
@@ -18,56 +19,67 @@ interface ImageLightboxProps {
   onUpdate: () => void; // Callback to refresh gallery data after deletion/update
 }
 
-// Helper component to display EXIF data
+// Helper component to display selected EXIF data
 const ExifDataDisplay: React.FC<{ exifData: GalleryImage['exif_data'] }> = ({ exifData }) => {
   if (!exifData || Object.keys(exifData).length === 0) {
     return <p className="text-muted-foreground">No EXIF data found for this image.</p>;
   }
 
-  // Function to render nested JSON data
-  const renderData = (data: any, keyPrefix: string = ''): React.ReactNode => {
-    if (typeof data !== 'object' || data === null) {
-      return <p className="text-sm">{String(data)}</p>;
+  // Define the keys we want to extract and their display names
+  const desiredKeys = [
+    { path: ['Make'], label: 'Camera Make' },
+    { path: ['Model'], label: 'Camera Model' },
+    { path: ['ExposureTime'], label: 'Shutter Speed' },
+    { path: ['FNumber'], label: 'Aperture' },
+    { path: ['FocalLength'], label: 'Focal Length' },
+    { path: ['ISO'], label: 'ISO' },
+  ];
+
+  // Function to safely get a value from the nested exifData object
+  const getValue = (data: any, path: string[]): string | null => {
+    let current = data;
+    for (const key of path) {
+      if (current && typeof current === 'object' && key in current) {
+        current = current[key];
+      } else {
+        return null;
+      }
+    }
+    return current !== null && current !== undefined ? String(current) : null;
+  };
+
+  const exifDetails = desiredKeys.map(item => {
+    let value = getValue(exifData, item.path);
+    
+    // Simple formatting for common fields
+    if (item.label === 'Aperture' && value) {
+      value = `f/${value}`;
+    } else if (item.label === 'Focal Length' && value) {
+      value = `${value}mm`;
+    } else if (item.label === 'ISO' && value) {
+      value = `ISO ${value}`;
     }
 
-    return (
-      <ul className="space-y-1">
-        {Object.entries(data).map(([key, value]) => {
-          const fullKey = keyPrefix ? `${keyPrefix}.${key}` : key;
-          const displayKey = key.replace(/([A-Z])/g, ' $1').trim(); // Simple camelCase to Title Case conversion
+    return {
+      label: item.label,
+      value: value,
+    };
+  }).filter(item => item.value !== null);
 
-          if (typeof value === 'object' && value !== null && !Array.isArray(value)) {
-            return (
-              <li key={fullKey} className="mt-2">
-                <strong className="text-sm text-primary block">{displayKey}:</strong>
-                <div className="ml-4 border-l pl-2">{renderData(value, fullKey)}</div>
-              </li>
-            );
-          }
-          
-          // Skip large or complex arrays/objects for simple display
-          if (Array.isArray(value) || (typeof value === 'object' && value !== null)) {
-             return (
-                <li key={fullKey} className="text-sm">
-                    <strong className="text-muted-foreground">{displayKey}:</strong> 
-                    <span className="ml-2 text-xs italic">[{Array.isArray(value) ? 'Array' : 'Object'}]</span>
-                </li>
-             );
-          }
-
-          return (
-            <li key={fullKey} className="text-sm">
-              <strong className="text-muted-foreground">{displayKey}:</strong> <span className="font-mono text-xs ml-2">{String(value)}</span>
-            </li>
-          );
-        })}
-      </ul>
-    );
-  };
+  if (exifDetails.length === 0) {
+    return <p className="text-muted-foreground">No relevant photographic data found in EXIF.</p>;
+  }
 
   return (
     <ScrollArea className="h-96 p-4 border rounded-md">
-      {renderData(exifData)}
+      <dl className="space-y-3">
+        {exifDetails.map((detail, index) => (
+          <div key={index} className="flex justify-between items-center border-b pb-2 last:border-b-0">
+            <dt className="text-sm font-medium text-muted-foreground">{detail.label}</dt>
+            <dd className="text-sm font-semibold text-right">{detail.value}</dd>
+          </div>
+        ))}
+      </dl>
     </ScrollArea>
   );
 };
@@ -122,12 +134,7 @@ export const ImageLightbox: React.FC<ImageLightboxProps> = ({
     setShowExif(true);
   };
   
-  const handleDownload = () => {
-    if (!image) return;
-    const url = getImageUrl(image.file_name);
-    window.open(url, '_blank');
-  };
-
+  // Removed handleDownload function
 
   const handleKeyDown = useCallback((e: KeyboardEvent) => {
     if (!image) return;
@@ -213,9 +220,6 @@ export const ImageLightbox: React.FC<ImageLightboxProps> = ({
             <div className="flex gap-2">
               <Button variant="secondary" size="sm" onClick={handleShowExif}>
                 <Info className="h-4 w-4 mr-2" /> EXIF Data
-              </Button>
-              <Button variant="secondary" size="sm" onClick={handleDownload}>
-                <Download className="h-4 w-4 mr-2" /> Download
               </Button>
               {isAuthenticated && (
                 <Button variant="destructive" size="sm" onClick={handleDelete}>
