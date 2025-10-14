@@ -22,6 +22,7 @@ interface ImageLightboxProps {
 const REQUIRED_EXIF_FIELDS = [
   { path: ['Make', 'description'], label: 'Make' },
   { path: ['Model', 'description'], label: 'Model' },
+  { path: ['ExposureTime', 'description'], label: 'Exposure Time' },
   { path: ['F Number', 'description'], label: 'F Number' },
   { path: ['Lens Model', 'description'], label: 'Lens Model' },
   { path: ['Aperture Value', 'description'], label: 'Aperture Value' },
