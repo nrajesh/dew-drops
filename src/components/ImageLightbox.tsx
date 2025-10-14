@@ -45,7 +45,17 @@ const ExifDataDisplay: React.FC<{ exifData: GalleryImage['exif_data'] }> = ({ ex
         return null;
       }
     }
-    return current !== null && current !== undefined ? String(current) : null;
+    
+    if (current === null || current === undefined) {
+      return null;
+    }
+    
+    // If the final value is an object or array, we skip it as we expect primitives for these fields.
+    if (typeof current === 'object') {
+        return null;
+    }
+
+    return String(current);
   };
 
   const exifDetails = desiredKeys.map(item => {
@@ -53,6 +63,7 @@ const ExifDataDisplay: React.FC<{ exifData: GalleryImage['exif_data'] }> = ({ ex
     
     // Simple formatting for common fields
     if (item.label === 'Aperture' && value) {
+      // Ensure value is treated as a number for formatting if needed, but keep it simple string prefix
       value = `f/${value}`;
     } else if (item.label === 'Focal Length' && value) {
       value = `${value}mm`;
@@ -236,7 +247,7 @@ export const ImageLightbox: React.FC<ImageLightboxProps> = ({
         <DialogContent className="sm:max-w-[425px] md:max-w-lg">
           <DialogHeader>
             <DialogTitle className="flex items-center">
-              <Info className="h-5 w-5 mr-2" /> EXIF Data for {image?.file_name || 'Image'}
+              <Info className="h-5 w-5 mr-2" /> EXIF Data
             </DialogTitle>
           </DialogHeader>
           <ExifDataDisplay exifData={image?.exif_data} />
