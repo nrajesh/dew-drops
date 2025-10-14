@@ -33,7 +33,7 @@ const formatResumeData = (resumeData: JsonResume): string => {
     if (basics.phone) resumeContext += `Phone: ${basics.phone}\n`;
     if (basics.website) resumeContext += `Website: ${basics.website}\n`;
     if (basics.location?.city) resumeContext += `Location: ${basics.location.city}, ${basics.location.countryCode}\n`;
-
+    
     if (basics.profiles && basics.profiles.length > 0) {
       resumeContext += "\nSocial Profiles:\n";
       resumeContext += basics.profiles.map(profile => `- ${profile.network}: ${profile.url}`).join('\n');
@@ -116,6 +116,7 @@ const formatResumeData = (resumeData: JsonResume): string => {
   }
   return resumeContext;
 };
+
 
 const generateContextFromData = async (): Promise<string> => {
   const [postsRes, locationsRes, imagesRes, resumeRes] = await Promise.all([
