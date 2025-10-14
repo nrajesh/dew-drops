@@ -1,1 +1,0 @@
-<dyad-delete path="src/integrations/supabase/session-provider.tsx"></dyad-delete>
