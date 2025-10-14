@@ -42,7 +42,8 @@ export const ManagementPagination = ({
           }}
         >
           <SelectTrigger className="h-8 w-[70px]">
-            <SelectValue placeholder={itemsPerPage} />
+            {/* SelectValue should automatically display the content of the selected SelectItem based on the 'value' prop of the parent Select */}
+            <SelectValue /> 
           </SelectTrigger>
           <SelectContent>
             {[10, 25, 50].map((pageSize) => (
