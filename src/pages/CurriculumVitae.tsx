@@ -30,6 +30,16 @@ const CurriculumVitae = () => {
   const [isPublicationsOpen, setIsPublicationsOpen] = useState(true);
   const [isReferencesOpen, setIsReferencesOpen] = useState(true);
 
+  // Helper to ensure URL has protocol for safe linking
+  const ensureAbsoluteUrl = (url: string) => {
+    if (!url) return url;
+    // Check if the URL already starts with http:// or https://
+    if (!url.startsWith('http://') && !url.startsWith('https://')) {
+      // Prepend https:// to ensure it's treated as an absolute URL
+      return `https://${url}`;
+    }
+    return url;
+  };
 
   useEffect(() => {
     const fetchResumeAndFeatureFlags = async () => {
@@ -160,7 +170,8 @@ const CurriculumVitae = () => {
               <div className="flex flex-wrap justify-center sm:justify-start gap-2 mt-4">
                 {basics.profiles && basics.profiles.map((profile, index) => {
                   const isLinkedIn = profile.network.toLowerCase() === 'linkedin';
-                  const displayUrl = isLinkedIn ? 'https://linkedin.com/in/nrajesh' : profile.url;
+                  // Apply ensureAbsoluteUrl to profile URLs unless it's the hardcoded LinkedIn URL
+                  const displayUrl = isLinkedIn ? 'https://linkedin.com/in/nrajesh' : ensureAbsoluteUrl(profile.url);
                   return (
                     <a key={index} href={displayUrl} target="_blank" rel="noopener noreferrer" className="text-sm text-primary hover:underline flex items-center gap-1">
                       {isLinkedIn ? <Linkedin className="h-4 w-4" /> : <LinkIcon className="h-4 w-4" />}
@@ -169,7 +180,7 @@ const CurriculumVitae = () => {
                   );
                 })}
                 {basics.website && (
-                  <a href={basics.website} target="_blank" rel="noopener noreferrer" className="text-sm text-primary hover:underline flex items-center gap-1">
+                  <a href={ensureAbsoluteUrl(basics.website)} target="_blank" rel="noopener noreferrer" className="text-sm text-primary hover:underline flex items-center gap-1">
                     <Globe className="h-4 w-4" /> Website
                   </a>
                 )}
@@ -389,7 +400,7 @@ const CurriculumVitae = () => {
                     <div key={index} className="border-b pb-4 last:border-b-0 last:pb-0">
                       <h3 className="text-lg font-semibold">
                         {pub.url ? (
-                          <a href={pub.url} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline flex items-center">
+                          <a href={ensureAbsoluteUrl(pub.url)} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline flex items-center">
                             {pub.name}
                             <LinkIcon className="h-4 w-4 inline-block ml-2" />
                           </a>
