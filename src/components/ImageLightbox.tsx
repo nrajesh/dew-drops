@@ -23,9 +23,9 @@ const REQUIRED_EXIF_FIELDS = [
   { path: ['Make', 'description'], label: 'Make' },
   { path: ['Model', 'description'], label: 'Model' },
   { path: ['ExposureTime', 'description'], label: 'Exposure Time' },
-  { path: ['F Number', 'description'], label: 'F Number' },
-  { path: ['Lens Model', 'description'], label: 'Lens Model' },
-  { path: ['Aperture Value', 'description'], label: 'Aperture Value' },
+  { path: ['FNumber', 'description'], label: 'F Number' }, // Updated path: FNumber (no space)
+  { path: ['LensModel', 'description'], label: 'Lens Model' }, // Updated path: LensModel (no space)
+  { path: ['ApertureValue', 'description'], label: 'Aperture Value' }, // Updated path: ApertureValue (no space)
   { path: ['Focal Length', 'description'], label: 'Focal Length' },
   { path: ['ISOSpeedRatings', 'description'], label: 'ISO' },
 ];
