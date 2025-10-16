@@ -41,6 +41,16 @@ const CurriculumVitae = () => {
     return url;
   };
 
+  // Helper function to convert newlines to <br> tags
+  const formatTextWithLineBreaks = (text: string) => {
+    return text.split('\n').map((line, index) => (
+      <span key={index}>
+        {line}
+        {index < text.split('\n').length - 1 && <br />}
+      </span>
+    ));
+  };
+
   useEffect(() => {
     const fetchResumeAndFeatureFlags = async () => {
       // Fetch resume data
@@ -92,9 +102,9 @@ const CurriculumVitae = () => {
 
     // Add a class to the body to force light mode for printing
     document.body.classList.add('print-light-mode');
-    
+
     window.print();
-    
+
     // Remove the class after printing
     document.body.classList.remove('print-light-mode');
     document.title = originalTitle;
@@ -190,7 +200,7 @@ const CurriculumVitae = () => {
         </CardHeader>
         {basics.summary && (
           <CardContent>
-            <p className="text-muted-foreground">{basics.summary}</p>
+            <p className="text-muted-foreground">{formatTextWithLineBreaks(basics.summary)}</p>
           </CardContent>
         )}
         {matchCvFeatureEnabled && (
@@ -224,11 +234,11 @@ const CurriculumVitae = () => {
                       <p className="text-muted-foreground">
                         {formatDate(job.startDate, { year: 'numeric', month: 'short' })} – {job.endDate ? formatDate(job.endDate, { year: 'numeric', month: 'short' }) : "Present"}
                       </p>
-                      {job.summary && <p>{job.summary}</p>}
+                      {job.summary && <p>{formatTextWithLineBreaks(job.summary)}</p>}
                       {job.highlights && job.highlights.length > 0 && (
                         <ul className="list-disc list-inside text-muted-foreground mt-2 space-y-1">
                           {job.highlights.map((highlight, hIndex) => (
-                            <li key={hIndex}>{highlight}</li>
+                            <li key={hIndex}>{formatTextWithLineBreaks(highlight)}</li>
                           ))}
                         </ul>
                       )}
@@ -324,7 +334,7 @@ const CurriculumVitae = () => {
                     <div key={index} className="border-b pb-4 last:border-b-0 last:pb-0">
                       <h3 className="text-lg font-semibold">{award.title}</h3>
                       <p className="text-muted-foreground">{award.awarder} - {formatDate(award.date, { year: 'numeric', month: 'short' })}</p>
-                      {award.summary && <p>{award.summary}</p>}
+                      {award.summary && <p>{formatTextWithLineBreaks(award.summary)}</p>}
                     </div>
                   ))}
                 </div>
@@ -409,7 +419,7 @@ const CurriculumVitae = () => {
                         )}
                       </h3>
                       <p className="text-muted-foreground">{formatDate(pub.releaseDate, { year: 'numeric', month: 'short' })}</p>
-                      {pub.summary && <p>{pub.summary}</p>}
+                      {pub.summary && <p>{formatTextWithLineBreaks(pub.summary)}</p>}
                     </div>
                   ))}
                 </div>
@@ -436,7 +446,7 @@ const CurriculumVitae = () => {
                   {references.map((ref: ResumeReference, index: number) => (
                     <div key={index} className="border-b pb-4 last:border-b-0 last:pb-0">
                       <h3 className="text-lg font-semibold">{ref.name}</h3>
-                      <p className="text-muted-foreground">{ref.reference}</p>
+                      <p className="text-muted-foreground">{formatTextWithLineBreaks(ref.reference)}</p>
                     </div>
                   ))}
                 </div>
