@@ -68,8 +68,8 @@ const ManageBlog = () => {
       published_at: null,
       published: false,
       tags: [],
-      cover_image_id: null,
-      youtube_video_id: null,
+      cover_image_id: "--none--", // Changed from null to "--none--"
+      youtube_video_id: "", // Changed from null to ""
     },
   });
 
@@ -97,8 +97,8 @@ const ManageBlog = () => {
         published_at: editingPost.published_at ? new Date(editingPost.published_at) : null,
         published: editingPost.published,
         tags: editingPost.tags || [],
-        cover_image_id: editingPost.cover_image_id,
-        youtube_video_id: editingPost.youtube_video_id,
+        cover_image_id: editingPost.cover_image_id || "--none--", // Ensure it's "--none--" or actual ID
+        youtube_video_id: editingPost.youtube_video_id || "", // Ensure it's "" or actual ID
       });
       setIsDialogOpen(true);
     } else {
@@ -109,8 +109,8 @@ const ManageBlog = () => {
         published_at: null,
         published: false,
         tags: [],
-        cover_image_id: null,
-        youtube_video_id: null,
+        cover_image_id: "--none--",
+        youtube_video_id: "",
       });
     }
   }, [editingPost, form]);
@@ -156,8 +156,8 @@ const ManageBlog = () => {
         published_at: values.published_at?.toISOString() || null,
         published: values.published,
         tags: values.tags && values.tags.length > 0 ? values.tags.map(normalizeTag) : null,
-        cover_image_id: values.cover_image_id,
-        youtube_video_id: values.youtube_video_id,
+        cover_image_id: values.cover_image_id === "--none--" ? null : values.cover_image_id, // Convert "--none--" back to null for DB
+        youtube_video_id: values.youtube_video_id === "" ? null : values.youtube_video_id, // Convert "" back to null for DB
       };
 
       if (editingPost) {
