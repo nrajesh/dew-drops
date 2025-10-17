@@ -1,11 +1,24 @@
+export interface GalleryImage {
+  id: string;
+  user_id: string;
+  alt_text: string | null;
+  file_name: string;
+  created_at: string;
+  exif_data: any | null;
+  published: boolean;
+  tags: string[] | null;
+  image_url: string | null;
+  tsv: string | null;
+}
+
 export interface Post {
   id: string;
+  user_id: string | null;
   created_at: string;
   title: string;
   description: string | null;
   content: string | null;
   published_at: string | null;
-  user_id: string | null;
   tags: string[] | null;
   cover_image_id: string | null;
   youtube_video_id: string | null;
@@ -14,35 +27,32 @@ export interface Post {
 
 export interface TravelLocation {
   id: string;
+  user_id: string | null;
+  name: string;
+  latitude: number | null;
+  longitude: number | null;
+  blog_url: string | null;
   created_at: string;
   title: string;
-  name: string;
-  description: string | null;
-  latitude: number;
-  longitude: number;
-  blog_url: string | null;
-  blog_title?: string; // Added for map popups
   marker_image_url: string | null;
-  user_id: string | null;
+  description: string | null;
   published: boolean;
 }
 
-export interface GalleryImage {
-  id: string;
-  image_url: string;
-  alt_text: string | null;
-  file_name: string;
-  created_at: string;
-  user_id: string | null;
-  exif_data: Record<string, any> | null;
-  published: boolean;
-  tags: string[] | null;
-}
-
-export interface Profile {
-  id: string;
+export interface ChatbotKnowledge {
+  id: number;
+  content: string | null;
   updated_at: string | null;
-  first_name: string | null;
-  last_name: string | null;
-  avatar_url: string | null;
+  user_id: string | null;
+  source_id: string | null;
+  source_type: string | null;
+}
+
+export interface FeatureToggle {
+  id: string;
+  user_id: string;
+  feature_key: string;
+  is_enabled: boolean;
+  created_at: string;
+  auto_disabled_until: string | null;
 }

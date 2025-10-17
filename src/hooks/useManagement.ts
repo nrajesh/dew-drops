@@ -1,192 +1,402 @@
-import { useState, useEffect, useCallback, useMemo } from "react";
-import { useAuth } from "@/contexts/AuthContext";
-import { showError } from "@/utils/toast";
+"use client";
 
-interface UseManagementOptions<T> {
-  fetchData: () => Promise<T[]>;
-  deleteItems: (ids: string[], allItems: T[]) => Promise<boolean>;
-  updateItemStatus?: (ids: Set<string>, status: boolean) => Promise<boolean>; // Removed allItems from signature here, as it's often not needed in the utility function itself
-  updateItemTags?: (ids: Set<string>, tags: string[]) => Promise<boolean>; // Removed allItems
-  generateItemTags?: (ids: Set<string>, allItems: T[]) => Promise<number>;
-  downloadItems?: (ids: Set<string>, allItems: T[], extraData?: any) => Promise<void>;
-  initialItemsPerPage?: number;
-  idKey?: keyof T; // Key to identify unique items, defaults to 'id'
-  statusKey?: keyof T; // Key for published status, defaults to 'published'
+import { useState, useEffect, useCallback } from 'react';
+import { supabase } from '@/integrations/supabase/client';
+import { useToast } from '@/components/ui/use-toast';
+import { useAuth } from '@/components/AuthContext';
+
+interface ManageableItem {
+  id: string;
+  user_id?: string;
+  published?: boolean;
+  file_name?: string; // For items that might have associated files (like images)
+  image_url?: string; // For items that might have an image URL
+  [key: string]: any;
 }
 
-export const useManagement = <T extends { id: string }>(
-  options: UseManagementOptions<T>
+interface UseManagementOptions {
+  tableName: string;
+  storageBucketName?: string; // Optional, for items with associated files
+}
+
+export const useManagement = <T extends ManageableItem>(
+  fetchFunction: () => Promise<T[]>,
+  options: UseManagementOptions
 ) => {
   const { user } = useAuth();
-  const {
-    fetchData,
-    deleteItems,
-    updateItemStatus,
-    updateItemTags,
-    generateItemTags,
-    downloadItems,
-    initialItemsPerPage = 10,
-    idKey = 'id' as keyof T,
-    statusKey = 'published' as keyof T,
-  } = options;
-
+  const { toast } = useToast();
   const [allItems, setAllItems] = useState<T[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [selectedItems, setSelectedItems] = useState<Set<string>>(new Set());
+  const [searchTerm, setSearchTerm] = useState<string>('');
 
-  const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage, setItemsPerPage] = useState(initialItemsPerPage);
+  const { tableName, storageBucketName } = options;
 
   const loadItems = useCallback(async () => {
     setIsLoading(true);
-    const fetched = await fetchData();
-    setAllItems(fetched);
-    setIsLoading(false);
-  }, [fetchData]);
+    setError(null);
+    try {
+      const data = await fetchFunction();
+      setAllItems(data);
+    } catch (err: any) {
+      setError(err.message || 'Failed to fetch items.');
+      toast({
+        title: 'Error',
+        description: err.message || 'Failed to fetch items.',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  }, [fetchFunction, toast]);
 
   useEffect(() => {
-    loadItems();
-  }, [loadItems]);
+    if (user) {
+      loadItems();
+    } else {
+      setAllItems([]);
+      setIsLoading(false);
+    }
+  }, [user, loadItems]);
 
-  const paginatedItems = useMemo(() => {
-    const startIndex = (currentPage - 1) * itemsPerPage;
-    return allItems.slice(startIndex, startIndex + itemsPerPage);
-  }, [allItems, currentPage, itemsPerPage]);
-
-  const totalPages = useMemo(() => Math.ceil(allItems.length / itemsPerPage), [allItems, itemsPerPage]);
-
-  const handlePageChange = useCallback((page: number) => {
-    setCurrentPage(page);
-  }, []);
-
-  const handleItemsPerPageChange = useCallback((value: number) => {
-    setItemsPerPage(value);
-    setCurrentPage(1); // Reset to first page when items per page changes
-  }, []);
-
-  const handleSelectItem = useCallback((id: string) => {
-    setSelectedItems(prev => {
+  const toggleSelectItem = useCallback((id: string) => {
+    setSelectedItems((prev) => {
       const newSelection = new Set(prev);
-      newSelection.has(id) ? newSelection.delete(id) : newSelection.add(id);
+      if (newSelection.has(id)) {
+        newSelection.delete(id);
+      } else {
+        newSelection.add(id);
+      }
       return newSelection;
     });
   }, []);
 
-  const handleSelectAllOnPage = useCallback((checked: boolean) => {
-    const pageIds = new Set(paginatedItems.map(item => String(item[idKey])));
-    setSelectedItems(prev => {
-      const newSet = new Set(prev);
-      if (checked) {
-        pageIds.forEach(id => newSet.add(id));
-      } else {
-        pageIds.forEach(id => newSet.delete(id));
+  const clearSelectedItems = useCallback(() => {
+    setSelectedItems(new Set());
+  }, []);
+
+  const handleCreate = useCallback(async (formData: Omit<T, 'id' | 'user_id' | 'created_at' | 'image_url'>, file?: File | null) => {
+    if (!user) {
+      setError('User not authenticated.');
+      return;
+    }
+
+    setIsLoading(true);
+    setError(null);
+    try {
+      let itemDataToInsert: Partial<T> = { ...formData, user_id: user.id };
+      let imageUrl: string | undefined;
+
+      if (file && storageBucketName && formData.file_name) {
+        const filePath = `${user.id}/${formData.file_name}`;
+        const { data: uploadData, error: uploadError } = await supabase.storage
+          .from(storageBucketName)
+          .upload(filePath, file, {
+            cacheControl: '3600',
+            upsert: false,
+          });
+
+        if (uploadError) throw uploadError;
+
+        const { data: publicUrlData } = supabase.storage
+          .from(storageBucketName)
+          .getPublicUrl(filePath);
+        imageUrl = publicUrlData.publicUrl;
+        itemDataToInsert.image_url = imageUrl;
       }
-      return newSet;
-    });
-  }, [paginatedItems, idKey]);
 
-  // --- Generic Bulk Handlers (now exposed for external use) ---
+      const { data, error: insertError } = await supabase
+        .from(tableName)
+        .insert(itemDataToInsert)
+        .select()
+        .single();
 
-  const handleBulkDelete = useCallback(async (ids: Set<string>, setter: (s: Set<string>) => void, allItems: T[]) => {
+      if (insertError) throw insertError;
+
+      setAllItems((prev) => [data as T, ...prev]);
+      toast({
+        title: 'Success',
+        description: 'Item created successfully.',
+      });
+    } catch (err: any) {
+      setError(err.message || 'Failed to create item.');
+      toast({
+        title: 'Error',
+        description: err.message || 'Failed to create item.',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  }, [user, toast, tableName, storageBucketName]);
+
+  const handleUpdate = useCallback(async (id: string, formData: Partial<T>, file?: File | null) => {
     if (!user) {
-      showError("You must be logged in to delete items.");
+      setError('User not authenticated.');
       return;
     }
-    if (ids.size === 0) return;
 
-    const success = await deleteItems(Array.from(ids), allItems);
-    if (success) {
-      setter(new Set());
-      loadItems();
+    setIsLoading(true);
+    setError(null);
+    try {
+      let itemDataToUpdate: Partial<T> = { ...formData };
+      let currentItem = allItems.find(item => item.id === id);
+
+      if (file && storageBucketName && currentItem?.file_name) {
+        const filePath = `${user.id}/${currentItem.file_name}`;
+        const { error: uploadError } = await supabase.storage
+          .from(storageBucketName)
+          .upload(filePath, file, {
+            cacheControl: '3600',
+            upsert: true,
+          });
+
+        if (uploadError) throw uploadError;
+
+        const { data: publicUrlData } = supabase.storage
+          .from(storageBucketName)
+          .getPublicUrl(filePath);
+        itemDataToUpdate.image_url = publicUrlData.publicUrl;
+      }
+
+      const { data, error: updateError } = await supabase
+        .from(tableName)
+        .update(itemDataToUpdate)
+        .eq('id', id)
+        .eq('user_id', user.id)
+        .select()
+        .single();
+
+      if (updateError) throw updateError;
+
+      setAllItems((prev) => prev.map((item) => (item.id === id ? (data as T) : item)));
+      toast({
+        title: 'Success',
+        description: 'Item updated successfully.',
+      });
+    } catch (err: any) {
+      setError(err.message || 'Failed to update item.');
+      toast({
+        title: 'Error',
+        description: err.message || 'Failed to update item.',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsLoading(false);
     }
-  }, [user, deleteItems, loadItems]);
+  }, [user, allItems, toast, tableName, storageBucketName]);
 
-  const handleBulkStatusChange = useCallback(async (ids: Set<string>, setter: (s: Set<string>) => void, status: boolean) => {
+  const handleDelete = useCallback(async (ids: string[]) => {
     if (!user) {
-      showError("You must be logged in to change item status.");
+      setError('User not authenticated.');
       return;
     }
-    if (ids.size === 0 || !updateItemStatus) return;
 
-    const success = await updateItemStatus(ids, status);
-    if (success) {
-      setter(new Set());
-      loadItems();
+    setIsLoading(true);
+    setError(null);
+    try {
+      if (storageBucketName) {
+        const filesToDelete = allItems
+          .filter(item => ids.includes(item.id) && item.file_name)
+          .map(item => `${user.id}/${item.file_name}`);
+
+        if (filesToDelete.length > 0) {
+          const { error: deleteFilesError } = await supabase.storage
+            .from(storageBucketName)
+            .remove(filesToDelete);
+
+          if (deleteFilesError) {
+            console.error('Error deleting files from storage:', deleteFilesError);
+          }
+        }
+      }
+
+      const { error: deleteError } = await supabase
+        .from(tableName)
+        .delete()
+        .in('id', ids)
+        .eq('user_id', user.id);
+
+      if (deleteError) throw deleteError;
+
+      setAllItems((prev) => prev.filter((item) => !ids.includes(item.id)));
+      clearSelectedItems();
+      toast({
+        title: 'Success',
+        description: 'Items deleted successfully.',
+      });
+    } catch (err: any) {
+      setError(err.message || 'Failed to delete items.');
+      toast({
+        title: 'Error',
+        description: err.message || 'Failed to delete items.',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsLoading(false);
     }
-  }, [user, updateItemStatus, loadItems]);
+  }, [user, allItems, clearSelectedItems, toast, tableName, storageBucketName]);
 
-  const handleBulkTagUpdate = useCallback(async (ids: Set<string>, setter: (s: Set<string>) => void, tags: string[]) => {
+  const handleTogglePublish = useCallback(async (item: T) => {
     if (!user) {
-      showError("You must be logged in to update tags.");
+      setError('User not authenticated.');
       return;
     }
-    if (ids.size === 0 || !updateItemTags) return;
 
-    const success = await updateItemTags(ids, tags);
-    if (success) {
-      setter(new Set());
-      loadItems();
+    setIsLoading(true);
+    setError(null);
+    try {
+      const newPublishedStatus = !item.published;
+      const { data, error: updateError } = await supabase
+        .from(tableName)
+        .update({ published: newPublishedStatus })
+        .eq('id', item.id)
+        .eq('user_id', user.id)
+        .select()
+        .single();
+
+      if (updateError) throw updateError;
+
+      setAllItems((prev) => prev.map((i) => (i.id === item.id ? (data as T) : i)));
+      toast({
+        title: 'Success',
+        description: `Item ${newPublishedStatus ? 'published' : 'unpublished'} successfully.`,
+      });
+    } catch (err: any) {
+      setError(err.message || 'Failed to toggle publish status.');
+      toast({
+        title: 'Error',
+        description: err.message || 'Failed to toggle publish status.',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsLoading(false);
     }
-  }, [user, updateItemTags, loadItems]);
+  }, [user, toast, tableName]);
 
-  const handleGenerateTags = useCallback(async (ids: Set<string>, setter: (s: Set<string>) => void, allItems: T[]) => {
+  const handleBulkPublish = useCallback(async () => {
     if (!user) {
-      showError("You must be logged in to generate tags.");
+      setError('User not authenticated.');
       return;
     }
-    if (ids.size === 0 || !generateItemTags) return;
+    if (selectedItems.size === 0) return;
 
-    const successCount = await generateItemTags(ids, allItems);
-    if (successCount > 0) {
-      setter(new Set());
-      loadItems();
+    setIsLoading(true);
+    setError(null);
+    try {
+      const ids = Array.from(selectedItems);
+      const { error: updateError } = await supabase
+        .from(tableName)
+        .update({ published: true })
+        .in('id', ids)
+        .eq('user_id', user.id);
+
+      if (updateError) throw updateError;
+
+      setAllItems((prev) =>
+        prev.map((item) => (ids.includes(item.id) ? { ...item, published: true } : item))
+      );
+      clearSelectedItems();
+      toast({
+        title: 'Success',
+        description: 'Selected items published successfully.',
+      });
+    } catch (err: any) {
+      setError(err.message || 'Failed to bulk publish items.');
+      toast({
+        title: 'Error',
+        description: err.message || 'Failed to bulk publish items.',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsLoading(false);
     }
-  }, [user, generateItemTags, loadItems]);
+  }, [user, selectedItems, clearSelectedItems, toast, tableName]);
 
-  const handleBulkDownload = useCallback(async (ids: Set<string>, setter: (s: Set<string>) => void, allItems: T[], extraData?: any) => {
-    if (ids.size === 0 || !downloadItems) return;
-    await downloadItems(ids, allItems, extraData);
-    setter(new Set());
-  }, [downloadItems]);
-
-  const handleToggleStatus = useCallback(async (item: T) => {
+  const handleBulkUnpublish = useCallback(async () => {
     if (!user) {
-      showError("You must be logged in to change item status.");
+      setError('User not authenticated.');
       return;
     }
-    if (!updateItemStatus) return;
+    if (selectedItems.size === 0) return;
 
-    const currentStatus = item[statusKey] as unknown as boolean; // Cast to boolean
-    const success = await updateItemStatus(new Set([String(item[idKey])]), !currentStatus);
-    if (success) {
-      loadItems();
+    setIsLoading(true);
+    setError(null);
+    try {
+      const ids = Array.from(selectedItems);
+      const { error: updateError } = await supabase
+        .from(tableName)
+        .update({ published: false })
+        .in('id', ids)
+        .eq('user_id', user.id);
+
+      if (updateError) throw updateError;
+
+      setAllItems((prev) =>
+        prev.map((item) => (ids.includes(item.id) ? { ...item, published: false } : item))
+      );
+      clearSelectedItems();
+      toast({
+        title: 'Success',
+        description: 'Selected items unpublished successfully.',
+      });
+    } catch (err: any) {
+      setError(err.message || 'Failed to bulk unpublish items.');
+      toast({
+        title: 'Error',
+        description: err.message || 'Failed to bulk unpublish items.',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsLoading(false);
     }
-  }, [user, updateItemStatus, loadItems, idKey, statusKey]);
+  }, [user, selectedItems, clearSelectedItems, toast, tableName]);
 
-  const allOnPageSelected = paginatedItems.length > 0 && paginatedItems.every(item => selectedItems.has(String(item[idKey])));
+  const handleBulkDelete = useCallback(async () => {
+    if (!user) {
+      setError('User not authenticated.');
+      return;
+    }
+    if (selectedItems.size === 0) return;
+
+    setIsLoading(true);
+    setError(null);
+    try {
+      const ids = Array.from(selectedItems);
+      await handleDelete(ids); // Reuse single delete logic
+      toast({
+        title: 'Success',
+        description: 'Selected items deleted successfully.',
+      });
+    } catch (err: any) {
+      setError(err.message || 'Failed to bulk delete items.');
+      toast({
+        title: 'Error',
+        description: err.message || 'Failed to bulk delete items.',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  }, [user, selectedItems, handleDelete, toast]);
 
   return {
     allItems,
-    paginatedItems,
+    setAllItems,
     isLoading,
+    error,
+    searchTerm,
+    setSearchTerm,
     selectedItems,
-    setSelectedItems,
-    currentPage,
-    totalPages,
-    itemsPerPage,
-    totalItems: allItems.length,
-    loadItems,
-    handlePageChange,
-    handleItemsPerPageChange,
-    handleSelectItem,
-    handleSelectAllOnPage,
-    // Expose generic handlers with explicit signatures for use in other hooks
+    toggleSelectItem,
+    clearSelectedItems,
+    handleCreate,
+    handleUpdate,
+    handleDelete,
+    handleTogglePublish,
+    handleBulkPublish,
+    handleBulkUnpublish,
     handleBulkDelete,
-    handleBulkStatusChange,
-    handleBulkTagUpdate,
-    handleGenerateTags,
-    handleBulkDownload,
-    handleToggleStatus,
-    allOnPageSelected,
   };
 };

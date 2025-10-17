@@ -1,148 +1,275 @@
+import React, { useState, useMemo, useCallback, useEffect } from 'react';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { PlusCircle, Upload, Search, Trash2, Eye, Edit, Image as ImageIcon, XCircle } from 'lucide-react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { useToast } from '@/components/ui/use-toast';
+import { useAuth } from '@/components/AuthContext';
+import { ImageListItem } from '@/components/gallery/ImageListItem';
+import { ImageFormDialog } from '@/components/gallery/ImageFormDialog';
+import { ImagePreviewDialog } from '@/components/gallery/ImagePreviewDialog';
+import { BulkActionsSection } from '@/components/gallery/BulkActionsSection';
+import { useManagement } from '@/hooks/useManagement';
 import type { GalleryImage } from '@/types';
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
-import { Checkbox } from "@/components/ui/checkbox";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
-import { ManagementPagination } from "@/components/ManagementPagination";
-import { ImageListItem } from "./ImageListItem";
-import { Download, Trash2 } from "lucide-react";
+import { supabase } from '@/integrations/supabase/client';
 
-interface ImageManagementCardProps {
-  title: string;
-  description: string;
-  images: GalleryImage[]; // All images in this category (published/unpublished)
-  paginatedImages: GalleryImage[];
-  selectedImages: Set<string>;
-  isLoading: boolean;
-  onSelectImage: (id: string) => void;
-  onSelectAll: (checked: boolean) => void;
-  onEdit: (image: GalleryImage) => void;
-  onView: (image: GalleryImage, listType: 'published' | 'unpublished') => void;
-  onDelete: () => void;
-  onBulkPublish: (status: boolean) => void;
-  onGenerateTags: () => void;
-  onDownload: () => void;
-  onTogglePublish: (image: GalleryImage) => void;
-  paginationProps: {
-    currentPage: number;
-    totalPages: number;
-    onPageChange: (page: number) => void;
-    itemsPerPage: number;
-    onItemsPerPageChange: (value: number) => void;
-    totalItems: number;
+export const ImageManagementCard = () => {
+  const { user } = useAuth();
+  const { toast } = useToast();
+  const [isFormDialogOpen, setIsFormDialogOpen] = useState(false);
+  const [isPreviewDialogOpen, setIsPreviewDialogOpen] = useState(false);
+  const [selectedImage, setSelectedImage] = useState<GalleryImage | null>(null);
+  const [listType, setListType] = useState<'all' | 'published' | 'unpublished'>('all');
+
+  const fetchImages = useCallback(async () => {
+    if (!user) return [];
+    const { data, error } = await supabase
+      .from('gallery_images')
+      .select('*')
+      .eq('user_id', user.id)
+      .order('created_at', { ascending: false });
+    if (error) {
+      toast({
+        title: 'Error fetching images',
+        description: error.message,
+        variant: 'destructive',
+      });
+      return [];
+    }
+    return data as GalleryImage[];
+  }, [user, toast]);
+
+  const {
+    allItems: images, // Corrected destructuring
+    setAllItems: setImages, // Corrected destructuring
+    searchTerm,
+    setSearchTerm,
+    selectedItems: selectedImages,
+    toggleSelectItem: toggleSelectImage,
+    clearSelectedItems: clearSelectedImages,
+    handleCreate: handleCreateImage,
+    handleUpdate: handleUpdateImage,
+    handleDelete: handleDeleteImages,
+    handleTogglePublish: handleTogglePublishImage,
+    handleBulkPublish,
+    handleBulkUnpublish,
+    handleBulkDelete,
+    isLoading: loading, // Corrected destructuring
+    error,
+  } = useManagement<GalleryImage>(fetchImages, { tableName: 'gallery_images', storageBucketName: 'gallery-images' }); // Corrected arguments
+
+  useEffect(() => {
+    if (error) {
+      toast({
+        title: 'Operation failed',
+        description: error,
+        variant: 'destructive',
+      });
+    }
+  }, [error, toast]);
+
+  const filteredImages = useMemo(() => {
+    let filtered = images;
+    if (listType === 'published') {
+      filtered = filtered.filter(image => image.published);
+    } else if (listType === 'unpublished') {
+      filtered = filtered.filter(image => !image.published);
+    }
+
+    if (searchTerm) {
+      const lowerCaseSearchTerm = searchTerm.toLowerCase();
+      filtered = filtered.filter(image =>
+        image.file_name.toLowerCase().includes(lowerCaseSearchTerm) ||
+        (image.alt_text && image.alt_text.toLowerCase().includes(lowerCaseSearchTerm)) ||
+        (image.tags && image.tags.some(tag => tag.toLowerCase().includes(lowerCaseSearchTerm)))
+      );
+    }
+    return filtered;
+  }, [images, listType, searchTerm]);
+
+  const handleEditImage = (image: GalleryImage) => {
+    setSelectedImage(image);
+    setIsFormDialogOpen(true);
   };
-  listType: 'published' | 'unpublished';
-}
 
-export const ImageManagementCard = ({
-  title,
-  description,
-  images,
-  paginatedImages,
-  selectedImages,
-  isLoading,
-  onSelectAll,
-  onSelectImage,
-  onEdit,
-  onView,
-  onDelete,
-  onBulkPublish,
-  onGenerateTags,
-  onDownload,
-  onTogglePublish,
-  paginationProps,
-  listType,
-}: ImageManagementCardProps) => {
-  const allOnPageSelected = paginatedImages.length > 0 && paginatedImages.every(i => selectedImages.has(i.id));
+  const handleViewImage = (image: GalleryImage) => {
+    setSelectedImage(image);
+    setIsPreviewDialogOpen(true);
+  };
+
+  const handleNewImage = () => {
+    setSelectedImage(null);
+    setIsFormDialogOpen(true);
+  };
+
+  const handleImageFormSubmit = async (formData: Omit<GalleryImage, 'id' | 'user_id' | 'created_at' | 'image_url'>, file: File | null) => {
+    if (!user) {
+      toast({
+        title: 'Authentication required',
+        description: 'You must be logged in to manage images.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    if (selectedImage) {
+      // Update existing image
+      await handleUpdateImage(selectedImage.id, formData, file);
+    } else {
+      // Create new image
+      await handleCreateImage(formData, file);
+    }
+    setIsFormDialogOpen(false);
+  };
 
   return (
-    <Card>
-      <CardHeader className="flex flex-row items-center justify-between">
-        <div>
-          <CardTitle>{title}</CardTitle>
-          <CardDescription>{description}</CardDescription>
-        </div>
-        <div className="flex gap-2">
-          {selectedImages.size > 0 && (
-            <>
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="outline">
-                    Bulk Actions ({selectedImages.size})
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end">
-                  <DropdownMenuItem onClick={() => onBulkPublish(listType === 'unpublished')}>
-                    {listType === 'unpublished' ? 'Publish Selected' : 'Unpublish Selected'}
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={onGenerateTags}>
-                    Generate Tags
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={onDownload}>
-                    <Download className="h-4 w-4 mr-2" />
-                    Download Selected
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-              <AlertDialog>
-                <AlertDialogTrigger asChild>
-                  <Button variant="destructive">
-                    <Trash2 className="h-4 w-4 mr-2" />
-                    Delete ({selectedImages.size})
-                  </Button>
-                </AlertDialogTrigger>
-                <AlertDialogContent>
-                  <AlertDialogHeader>
-                    <AlertDialogTitle>Are you sure?</AlertDialogTitle>
-                    <AlertDialogDescription>
-                      This will permanently delete the {selectedImages.size} selected image(s). This action cannot be undone.
-                    </AlertDialogDescription>
-                  </AlertDialogHeader>
-                  <AlertDialogFooter>
-                    <AlertDialogCancel>Cancel</AlertDialogCancel>
-                    <AlertDialogAction onClick={onDelete}>
-                      Delete
-                    </AlertDialogAction>
-                  </AlertDialogFooter>
-                </AlertDialogContent>
-              </AlertDialog>
-            </>
+    <div className="space-y-4">
+      <div className="flex justify-between items-center">
+        <h2 className="text-2xl font-bold">Image Gallery Management</h2>
+        <Button onClick={handleNewImage}>
+          <PlusCircle className="mr-2 h-4 w-4" /> Add New Image
+        </Button>
+      </div>
+
+      <div className="flex items-center space-x-2">
+        <div className="relative flex-grow">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input
+            placeholder="Search images..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="pl-9 pr-8"
+          />
+          {searchTerm && (
+            <Button
+              variant="ghost"
+              size="icon"
+              className="absolute right-1 top-1/2 -translate-y-1/2 h-7 w-7 text-muted-foreground"
+              onClick={() => setSearchTerm('')}
+            >
+              <XCircle className="h-4 w-4" />
+            </Button>
           )}
         </div>
-      </CardHeader>
-      <CardContent>
-        {isLoading ? <p>Loading...</p> : images.length > 0 ? (
-          <>
-            <div className="flex items-center space-x-2 mb-4 pb-4 border-b">
-              <Checkbox id={`select-all-${listType}`} checked={allOnPageSelected} onCheckedChange={onSelectAll} disabled={paginatedImages.length === 0} />
-              <label htmlFor={`select-all-${listType}`}>Select All on Page</label>
-            </div>
-            <div className="space-y-2">
-              {paginatedImages.map((image) => (
+      </div>
+
+      <Tabs value={listType} onValueChange={(value) => setListType(value as 'all' | 'published' | 'unpublished')}>
+        <TabsList className="grid w-full grid-cols-3">
+          <TabsTrigger value="all">All ({images.length})</TabsTrigger>
+          <TabsTrigger value="published">Published ({images.filter(img => img.published).length})</TabsTrigger>
+          <TabsTrigger value="unpublished">Unpublished ({images.filter(img => !img.published).length})</TabsTrigger>
+        </TabsList>
+        <TabsContent value="all" className="mt-4">
+          <BulkActionsSection
+            selectedItemCount={selectedImages.size}
+            onPublish={handleBulkPublish}
+            onUnpublish={handleBulkUnpublish}
+            onDelete={handleBulkDelete}
+            itemType="images"
+          />
+          {loading ? (
+            <p>Loading images...</p>
+          ) : filteredImages.length === 0 ? (
+            <p className="text-center text-muted-foreground mt-8">No images found.</p>
+          ) : (
+            <div className="space-y-2 mt-4">
+              {filteredImages.map((image) => (
                 <ImageListItem
                   key={image.id}
                   image={image}
                   isSelected={selectedImages.has(image.id)}
-                  onSelect={onSelectImage}
-                  onTogglePublish={onTogglePublish}
-                  onEdit={onEdit}
-                  onView={(img) => onView(img, listType)}
+                  onSelect={toggleSelectImage}
+                  onTogglePublish={handleTogglePublishImage}
+                  onEdit={handleEditImage}
+                  onView={handleViewImage}
                   isBulkActionMode={selectedImages.size > 0}
-                  isPublished={listType === 'published'}
                 />
               ))}
             </div>
-          </>
-        ) : (
-          <div className="text-center py-10 border-dashed border-2 rounded-lg bg-muted">
-            <p className="text-muted-foreground">No {listType} images found.</p>
-          </div>
-        )}
-      </CardContent>
-      <CardFooter>
-        <ManagementPagination {...paginationProps} />
-      </CardFooter>
-    </Card>
+          )}
+        </TabsContent>
+        <TabsContent value="published" className="mt-4">
+          <BulkActionsSection
+            selectedItemCount={selectedImages.size}
+            onPublish={handleBulkPublish}
+            onUnpublish={handleBulkUnpublish}
+            onDelete={handleBulkDelete}
+            itemType="images"
+          />
+          {loading ? (
+            <p>Loading images...</p>
+          ) : filteredImages.length === 0 ? (
+            <p className="text-center text-muted-foreground mt-8">No published images found.</p>
+          ) : (
+            <div className="space-y-2 mt-4">
+              {filteredImages.map((image) => (
+                <ImageListItem
+                  key={image.id}
+                  image={image}
+                  isSelected={selectedImages.has(image.id)}
+                  onSelect={toggleSelectImage}
+                  onTogglePublish={handleTogglePublishImage}
+                  onEdit={handleEditImage}
+                  onView={handleViewImage}
+                  isBulkActionMode={selectedImages.size > 0}
+                />
+              ))}
+            </div>
+          )}
+        </TabsContent>
+        <TabsContent value="unpublished" className="mt-4">
+          <BulkActionsSection
+            selectedItemCount={selectedImages.size}
+            onPublish={handleBulkPublish}
+            onUnpublish={handleBulkUnpublish}
+            onDelete={handleBulkDelete}
+            itemType="images"
+          />
+          {loading ? (
+            <p>Loading images...</p>
+          ) : filteredImages.length === 0 ? (
+            <p className="text-center text-muted-foreground mt-8">No unpublished images found.</p>
+          ) : (
+            <div className="space-y-2 mt-4">
+              {filteredImages.map((image) => (
+                <ImageListItem
+                  key={image.id}
+                  image={image}
+                  isSelected={selectedImages.has(image.id)}
+                  onSelect={toggleSelectImage}
+                  onTogglePublish={handleTogglePublishImage}
+                  onEdit={handleEditImage}
+                  onView={handleViewImage}
+                  isBulkActionMode={selectedImages.size > 0}
+                />
+              ))}
+            </div>
+          )}
+        </TabsContent>
+      </Tabs>
+
+      <Dialog open={isFormDialogOpen} onOpenChange={setIsFormDialogOpen}>
+        <DialogContent className="sm:max-w-[600px]">
+          <DialogHeader>
+            <DialogTitle>{selectedImage ? 'Edit Image Metadata' : 'Add New Image'}</DialogTitle>
+          </DialogHeader>
+          <ImageFormDialog
+            image={selectedImage}
+            onSubmit={handleImageFormSubmit}
+            onCancel={() => setIsFormDialogOpen(false)}
+          />
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={isPreviewDialogOpen} onOpenChange={setIsPreviewDialogOpen}>
+        <DialogContent className="sm:max-w-[800px]">
+          <DialogHeader>
+            <DialogTitle>Image Preview</DialogTitle>
+          </DialogHeader>
+          {selectedImage && <ImagePreviewDialog image={selectedImage} />}
+        </DialogContent>
+      </Dialog>
+    </div>
   );
 };
