@@ -130,7 +130,9 @@ const Blog = () => {
             paginatedPosts.map((post) => (
               <Card key={post.id} className="flex flex-col h-full">
                 <CardHeader>
-                  <CardTitle>{post.title}</CardTitle>
+                  <Link to={`/blog/${post.id}`} className="hover:underline">
+                    <CardTitle>{post.title}</CardTitle>
+                  </Link>
                   <CardDescription>{formatDate(post.published_at)}</CardDescription>
                 </CardHeader>
                 <CardContent className="flex-grow">
@@ -145,11 +147,7 @@ const Blog = () => {
                     </div>
                   )}
                 </CardContent>
-                <CardFooter className="mt-auto">
-                  <Button asChild variant="link" className="p-0">
-                    <Link to={`/blog/${post.id}`}>Read More</Link>
-                  </Button>
-                </CardFooter>
+                {/* Removed redundant "Read More" button from CardFooter */}
               </Card>
             ))
           ) : (
