@@ -11,6 +11,7 @@ import {
   parseMarkdownFile,
   handleBulkDelete,
   handleBulkTagUpdate,
+  handleBulkStatusChange,
   handleBulkDownload,
   extractDescriptionFromContent,
   ensureContentHasTripleBackticks,
@@ -21,51 +22,56 @@ import { BulkActionsSection } from "@/components/blog/BulkActionsSection";
 import { normalizeTag } from "@/lib/utils";
 import { UpdatePostsDialog } from "@/components/blog/UpdatePostsDialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"; // Import Tabs components
+import { useBlogManagement } from "@/hooks/useBlogManagement"; // Import the refactored hook
 
 type NewPost = Omit<Post, 'id' | 'created_at' | 'user_id'>;
 
 const ManageBlog = () => {
-  const [posts, setPosts] = useState<Post[]>([]);
-  const [galleryImages, setGalleryImages] = useState<GalleryImage[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [isFormDialogOpen, setIsFormDialogOpen] = useState(false);
-  const [editingPost, setEditingPost] = useState<Post | null>(null);
-  const [selectedPosts, setSelectedPosts] = useState<Set<string>>(new Set());
-  const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage, setItemsPerPage] = useState(10);
-  const [uploadFiles, setUploadFiles] = useState<File[]>([]);
-  const [searchTerm, setSearchTerm] = useState("");
-  const [activeTab, setActiveTab] = useState<'published' | 'unpublished'>('published'); // New state for tabs
-
-  const [isUpdateDialogVisible, setIsUpdateDialogVisible] = useState(false);
-  const [postsToInsert, setPostsToInsert] = useState<NewPost[]>([]);
-  const [postsToUpdate, setPostsToUpdate] = useState<{ existingId: string; existingTitle: string; newData: NewPost }[]>([]);
-  const [selectedUpdates, setSelectedUpdates] = useState<Set<string>>(new Set());
-
   const containerRef = useRef<HTMLDivElement>(null);
+  const [activeTab, setActiveTab] = useState<'published' | 'unpublished'>('published'); // New state for tabs
+  const [searchTerm, setSearchTerm] = useState(""); // Global search term for all posts
 
-  const fetchAllData = useCallback(async () => {
-    setIsLoading(true);
-    const [fetchedPosts, fetchedImages] = await Promise.all([
-      fetchPosts(),
-      fetchGalleryImages(),
-    ]);
-    setPosts(fetchedPosts);
-    setGalleryImages(fetchedImages);
-    setIsLoading(false);
-  }, []);
+  const {
+    posts, // All posts from useManagement
+    paginatedPosts,
+    isLoading,
+    selectedPosts,
+    setSelectedPosts,
+    currentPage,
+    totalPages,
+    itemsPerPage,
+    totalItems,
+    loadPosts,
+    setCurrentPage,
+    setItemsPerPage,
+    handleSelectPost,
+    handleSelectAll,
+    allOnPageSelected,
+    handleTogglePublish,
 
-  useEffect(() => {
-    fetchAllData();
-  }, [fetchAllData]);
+    galleryImages,
+    uniqueTags,
+    editingPost,
+    setEditingPost,
+    selectedFiles,
+    setSelectedFiles,
+    isUploading,
+    isUpdateDialogVisible,
+    setIsUpdateDialogVisible,
+    postsToInsert,
+    postsToUpdate,
+    selectedUpdates,
+    setSelectedUpdates,
+    handleFormSubmit: handleFormSubmitFromHook, // Renamed to avoid conflict
+    handleUpload,
+    handleConfirmAndProcessUploads,
+    handleBulkDelete,
+    handleBulkTagUpdate,
+    handleBulkDownload,
+  } = useBlogManagement();
 
-  useEffect(() => {
-    if (editingPost) {
-      setIsFormDialogOpen(true);
-    }
-  }, [editingPost]);
-
-  const filteredPosts = useMemo(() => {
+  // Filter posts based on active tab for display in PostList
+  const filteredPostsForTab = useMemo(() => {
     const lowerCaseSearchTerm = searchTerm.toLowerCase();
     const filteredBySearch = posts.filter(post =>
       post.title.toLowerCase().includes(lowerCaseSearchTerm) ||
@@ -74,287 +80,109 @@ const ManageBlog = () => {
       (post.tags && post.tags.some(tag => normalizeTag(tag).toLowerCase().includes(lowerCaseSearchTerm)))
     );
 
-    // Filter by tab
     return filteredBySearch.filter(post =>
       activeTab === 'published' ? post.published : !post.published
     );
   }, [posts, searchTerm, activeTab]);
 
-  const totalPages = Math.ceil(filteredPosts.length / itemsPerPage);
-  const paginatedPosts = useMemo(() => {
+  const totalPagesForTab = Math.ceil(filteredPostsForTab.length / itemsPerPage);
+  const paginatedPostsForTab = useMemo(() => {
     const startIndex = (currentPage - 1) * itemsPerPage;
     const endIndex = startIndex + itemsPerPage;
-    return filteredPosts.slice(startIndex, endIndex);
-  }, [filteredPosts, currentPage, itemsPerPage]);
+    return filteredPostsForTab.slice(startIndex, endIndex);
+  }, [filteredPostsForTab, currentPage, itemsPerPage]);
 
   usePaginationNavigation({
     currentPage,
-    totalPages,
+    totalPages: totalPagesForTab,
     onPageChange: setCurrentPage,
     targetRef: containerRef,
-    enabled: !isFormDialogOpen && !isUpdateDialogVisible,
+    enabled: !editingPost && !isUpdateDialogVisible,
   });
 
-  const uniqueTags = useMemo(() => {
-    const allTags = posts.flatMap(post => post.tags || []);
-    return Array.from(new Set(allTags.map(normalizeTag))).sort();
-  }, [posts]);
-
-  const handleAddOrUpdatePost = useCallback(async (values: BlogFormValues) => {
-    const toastId = showLoading(editingPost ? "Updating post..." : "Adding post...");
-    try {
-      const postData = {
-        title: values.title,
-        description: values.description || extractDescriptionFromContent(values.content),
-        content: ensureContentHasTripleBackticks(values.content),
-        published_at: values.published_at?.toISOString() || null,
-        published: values.published,
-        tags: values.tags && values.tags.length > 0 ? values.tags.map(normalizeTag) : null,
-        cover_image_id: values.cover_image_id === "--none--" ? null : values.cover_image_id,
-        youtube_video_id: values.youtube_video_id === "" ? null : values.youtube_video_id,
-      };
-
-      if (editingPost) {
-        const { error } = await supabase.from("posts").update(postData).eq("id", editingPost.id);
-        if (error) throw error;
-        updateToastSuccess(toastId, "Post updated successfully!");
-      } else {
-        const { data: { user }, error: userError } = await supabase.auth.getUser();
-        if (userError || !user) throw new Error("User not authenticated.");
-        const { error } = await supabase.from("posts").insert({ ...postData, user_id: user.id });
-        if (error) throw error;
-        updateToastSuccess(toastId, "Post added successfully!");
-      }
-      setIsFormDialogOpen(false);
-      setEditingPost(null);
-      fetchAllData();
-    } catch (error: any) {
-      updateToastError(toastId, `Operation failed: ${error.message}`);
-    }
-  }, [editingPost, fetchAllData]);
-
-  const handleTogglePublish = useCallback(async (post: Post, published: boolean) => {
-    const toastId = showLoading(`Setting post to ${published ? 'published' : 'unpublished'}...`);
-    try {
-      const { error } = await supabase.from("posts").update({ published }).eq("id", post.id);
-      if (error) throw error;
-      updateToastSuccess(toastId, `Post ${published ? 'published' : 'unpublished'} successfully!`);
-      fetchAllData();
-    } catch (error: any) {
-      updateToastError(toastId, `Failed to update post status: ${error.message}`);
-    }
-  }, [fetchAllData]);
-
-  const handleSelectPost = useCallback((id: string) => {
-    setSelectedPosts(prev => {
-      const newSet = new Set(prev);
-      if (newSet.has(id)) {
-        newSet.delete(id);
-      } else {
-        newSet.add(id);
-      }
-      return newSet;
-    });
-  }, []);
-
-  const handleSelectAll = useCallback((checked: boolean) => {
-    if (checked) {
-      const allPostIds = new Set(paginatedPosts.map(post => post.id));
-      setSelectedPosts(allPostIds);
-    } else {
-      setSelectedPosts(new Set());
-    }
-  }, [paginatedPosts]);
-
-  const handleDeleteSelected = useCallback(async () => {
-    const success = await handleBulkDelete(Array.from(selectedPosts), posts);
-    if (success) {
-      setSelectedPosts(new Set());
-      fetchAllData();
-    }
-  }, [selectedPosts, posts, fetchAllData]);
-
-  const handleBulkTagUpdateWrapper = useCallback(async (tags: string[]) => {
-    const success = await handleBulkTagUpdate(selectedPosts, tags);
-    if (success) {
-      setSelectedPosts(new Set());
-      fetchAllData();
-    }
-  }, [selectedPosts, fetchAllData]);
-
-  const handleBulkDownloadWrapper = useCallback(async () => {
-    await handleBulkDownload(selectedPosts, posts);
+  // Adjust selectedPosts when switching tabs to only include items relevant to the new tab
+  useEffect(() => {
     setSelectedPosts(new Set());
-  }, [selectedPosts, posts]);
+    setCurrentPage(1); // Reset page when tab changes
+  }, [activeTab, setSelectedPosts, setCurrentPage]);
 
-  const handleFileUpload = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
-    if (event.target.files) {
-      setUploadFiles(Array.from(event.target.files));
-    }
-  }, []);
-
-  const handleProcessUploads = useCallback(async () => {
-    if (uploadFiles.length === 0) {
-      showError("No files selected for upload.");
-      return;
-    }
-
-    const { data: { user }, error: userError } = await supabase.auth.getUser();
-    if (userError || !user) {
-      showError("User not authenticated.");
-      return;
-    }
-
-    const inserts: NewPost[] = [];
-    const updates: { existingId: string; existingTitle: string; newData: NewPost }[] = [];
-
-    const existingPostTitles = new Set(posts.map(p => p.title));
-
-    for (const file of uploadFiles) {
-      if (file.type === "text/xml" || file.name.endsWith(".xml")) {
-        const xmlString = await file.text();
-        const parsedPosts = await parseWordPressXml(xmlString);
-        parsedPosts.forEach(newPost => {
-          if (existingPostTitles.has(newPost.title)) {
-            const existingPost = posts.find(p => p.title === newPost.title);
-            if (existingPost) {
-              updates.push({ existingId: existingPost.id, existingTitle: existingPost.title, newData: newPost });
-            }
-          } else {
-            inserts.push(newPost);
-          }
-        });
-      } else if (file.type === "text/markdown" || file.name.endsWith(".md")) {
-        const parsedPost = await parseMarkdownFile(file);
-        if (existingPostTitles.has(parsedPost.title)) {
-          const existingPost = posts.find(p => p.title === parsedPost.title);
-            if (existingPost) {
-              updates.push({ existingId: existingPost.id, existingTitle: existingPost.title, newData: parsedPost });
-            }
-          } else {
-            inserts.push(parsedPost);
-          }
-        } else {
-          showError(`Unsupported file type: ${file.name}`);
-        }
-      }
-
-    setUploadFiles([]);
-    
-    setPostsToInsert(inserts);
-    setPostsToUpdate(updates);
-
-    if (updates.length > 0) {
-      setSelectedUpdates(new Set());
-      setIsUpdateDialogVisible(true);
-    } else if (inserts.length > 0) {
-      const success = await processUploads(user.id, inserts, []);
-      if (success) {
-        fetchAllData();
-      }
-    } else {
-      showSuccess("No new posts to import.");
-    }
-  }, [uploadFiles, posts, fetchAllData]);
-
-  const handleConfirmAndProcessUploads = useCallback(async () => {
-    const { data: { user }, error: userError } = await supabase.auth.getUser();
-    if (userError || !user) {
-      showError("User not authenticated.");
-      return;
-    }
-
-    setIsUpdateDialogVisible(false);
-
-    const updatesToPerform = postsToUpdate.filter(u => selectedUpdates.has(u.existingId));
-    const skippedCount = postsToUpdate.length - updatesToPerform.length;
-
-    const success = await processUploads(user.id, postsToInsert, updatesToPerform);
-
-    if (success) {
-      if (skippedCount > 0) showError(`${skippedCount} potential updates were skipped.`);
-      fetchAllData();
-    }
-    
-    setPostsToInsert([]);
-    setPostsToUpdate([]);
-    setSelectedUpdates(new Set());
-  }, [postsToInsert, postsToUpdate, selectedUpdates, fetchAllData]);
 
   return (
     <div className="space-y-8" ref={containerRef}>
       <BulkActionsSection
-        uploadFiles={uploadFiles}
-        onFileUpload={handleFileUpload}
-        onProcessUploads={handleProcessUploads}
+        uploadFiles={selectedFiles ? Array.from(selectedFiles) : []}
+        onFileUpload={(e) => setSelectedFiles(e.target.files)}
+        onProcessUploads={handleUpload}
         selectedPosts={selectedPosts}
-        onBulkTagUpdate={handleBulkTagUpdateWrapper}
-        onBulkDownload={handleBulkDownloadWrapper}
-        onDeleteSelected={handleDeleteSelected}
+        onBulkTagUpdate={handleBulkTagUpdate}
+        onBulkDownload={handleBulkDownload}
+        onDeleteSelected={handleBulkDelete}
         uniqueTags={uniqueTags}
         onCreateNewPost={() => {
           setEditingPost(null);
-          setIsFormDialogOpen(true);
+          // Ensure form dialog is opened
+          // This is handled by the useEffect in useBlogManagement
         }}
+        searchTerm={searchTerm} // Pass searchTerm
+        onSearch={setSearchTerm} // Pass setSearchTerm as onSearch
       />
 
       <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as 'published' | 'unpublished')} className="w-full">
         <TabsList className="grid w-full grid-cols-2">
-          <TabsTrigger value="published">Published Posts</TabsTrigger>
-          <TabsTrigger value="unpublished">Unpublished Posts</TabsTrigger>
+          <TabsTrigger value="published">Published Posts ({posts.filter(p => p.published).length})</TabsTrigger>
+          <TabsTrigger value="unpublished">Unpublished Posts ({posts.filter(p => !p.published).length})</TabsTrigger>
         </TabsList>
         <TabsContent value="published">
           <PostList
-            posts={paginatedPosts}
+            posts={paginatedPostsForTab}
             selectedPosts={selectedPosts}
             onSelectPost={handleSelectPost}
             onSelectAll={handleSelectAll}
             onEdit={(post) => setEditingPost(post)}
-            onDelete={handleDeleteSelected}
-            onDownload={handleBulkDownloadWrapper}
-            onBulkTagUpdate={handleBulkTagUpdateWrapper}
-            onTogglePublish={handleTogglePublish} // New prop
+            onDelete={handleBulkDelete}
+            onDownload={handleBulkDownload}
+            onBulkTagUpdate={handleBulkTagUpdate}
+            onTogglePublish={handleTogglePublish}
             uniqueTags={uniqueTags}
             currentPage={currentPage}
-            totalPages={totalPages}
+            totalPages={totalPagesForTab}
             onPageChange={setCurrentPage}
             itemsPerPage={itemsPerPage}
             onItemsPerPageChange={setItemsPerPage}
-            totalItems={filteredPosts.length}
+            totalItems={filteredPostsForTab.length}
             isLoading={isLoading}
-            searchTerm={searchTerm}
-            onSearch={setSearchTerm}
+            // searchTerm={""} // Removed
+            // onSearch={() => {}} // Removed
           />
         </TabsContent>
         <TabsContent value="unpublished">
           <PostList
-            posts={paginatedPosts}
+            posts={paginatedPostsForTab}
             selectedPosts={selectedPosts}
             onSelectPost={handleSelectPost}
             onSelectAll={handleSelectAll}
             onEdit={(post) => setEditingPost(post)}
-            onDelete={handleDeleteSelected}
-            onDownload={handleBulkDownloadWrapper}
-            onBulkTagUpdate={handleBulkTagUpdateWrapper}
-            onTogglePublish={handleTogglePublish} // New prop
+            onDelete={handleBulkDelete}
+            onDownload={handleBulkDownload}
+            onBulkTagUpdate={handleBulkTagUpdate}
+            onTogglePublish={handleTogglePublish}
             uniqueTags={uniqueTags}
             currentPage={currentPage}
-            totalPages={totalPages}
+            totalPages={totalPagesForTab}
             onPageChange={setCurrentPage}
             itemsPerPage={itemsPerPage}
             onItemsPerPageChange={setItemsPerPage}
-            totalItems={filteredPosts.length}
+            totalItems={filteredPostsForTab.length}
             isLoading={isLoading}
-            searchTerm={searchTerm}
-            onSearch={setSearchTerm}
+            // searchTerm={""} // Removed
+            // onSearch={() => {}} // Removed
           />
         </TabsContent>
       </Tabs>
 
       <BlogFormDialog
-        isOpen={isFormDialogOpen}
+        isOpen={!!editingPost} // Dialog is open if editingPost is not null
         onOpenChange={(isOpen) => {
-          setIsFormDialogOpen(isOpen);
           if (!isOpen) {
             setEditingPost(null);
           }
@@ -362,7 +190,7 @@ const ManageBlog = () => {
         editingPost={editingPost}
         galleryImages={galleryImages}
         uniqueTags={uniqueTags}
-        onSubmit={handleAddOrUpdatePost}
+        onSubmit={handleFormSubmitFromHook} // Use the renamed handler
       />
 
       <UpdatePostsDialog

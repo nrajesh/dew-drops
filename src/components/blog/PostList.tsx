@@ -42,8 +42,8 @@ interface PostListProps {
   onItemsPerPageChange: (value: number) => void;
   totalItems: number;
   isLoading: boolean;
-  searchTerm: string;
-  onSearch: (term: string) => void;
+  // Removed searchTerm: string;
+  // Removed onSearch: (term: string) => void;
 }
 
 export const PostList = ({
@@ -64,8 +64,8 @@ export const PostList = ({
   onItemsPerPageChange,
   totalItems,
   isLoading,
-  searchTerm,
-  onSearch,
+  // Removed searchTerm,
+  // Removed onSearch,
 }: PostListProps) => {
   const [isTagDialogOpen, setIsTagDialogOpen] = useState(false);
   const [bulkEditTags, setBulkEditTags] = useState<string[]>([]);
@@ -93,21 +93,13 @@ export const PostList = ({
               <CardTitle>Post List</CardTitle>
               <CardDescription>Your current list of blog posts.</CardDescription>
             </div>
-            <div className="flex-grow max-w-sm">
-              <Input
-                placeholder="Search by title, tags, or content..."
-                value={searchTerm}
-                onChange={(e) => onSearch(e.target.value)}
-                className="w-full"
-              />
-            </div>
+            {/* Removed search input from here as it's now global in ManageBlog */}
             {selectedPosts.size > 0 && (
               <div className="flex items-center gap-2 mt-4 sm:mt-0">
                 <Button variant="outline" size="sm" onClick={() => setIsTagDialogOpen(true)}>
                   <Tag className="h-4 w-4 mr-2" />
                   Edit Tags
                 </Button>
-                {/* Removed bulk status change dropdown as individual toggles are now used */}
                 <Button variant="outline" size="sm" onClick={onDownload}>
                   <Download className="h-4 w-4 mr-2" />
                   Download ({selectedPosts.size})

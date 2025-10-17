@@ -36,7 +36,7 @@ interface BlogFormDialogProps {
   editingPost: Post | null;
   galleryImages: GalleryImage[];
   uniqueTags: string[];
-  onSubmit: (values: BlogFormValues) => void;
+  onSubmit: (values: Omit<BlogFormValues, 'published_at'> & { published_at: string | null }) => void; // Adjusted onSubmit type
 }
 
 export const BlogFormDialog: React.FC<BlogFormDialogProps> = ({
@@ -88,7 +88,12 @@ export const BlogFormDialog: React.FC<BlogFormDialogProps> = ({
   }, [editingPost, form]);
 
   const handleFormSubmit = (values: BlogFormValues) => {
-    onSubmit(values);
+    // Convert Date object to ISO string before passing to onSubmit
+    const submittedValues = {
+      ...values,
+      published_at: values.published_at ? values.published_at.toISOString() : null,
+    };
+    onSubmit(submittedValues);
     // The parent component will handle closing the dialog and resetting editingPost
   };
 
@@ -261,7 +266,7 @@ export const BlogFormDialog: React.FC<BlogFormDialogProps> = ({
             </div>
             <DialogFooter>
               <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
-              <Button type="submit">{editingPost ? "Save Changes" : "Create Post"}</Button>
+              <Button type="submit">Save Changes</Button>
             </DialogFooter>
           </form>
         </Form>

@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Trash2, Download, Tag, MoreHorizontal } from "lucide-react";
+import { Trash2, Download, Tag, MoreHorizontal, Search } from "lucide-react"; // Import Search icon
 import {
   AlertDialog,
   AlertDialogAction,
@@ -24,11 +24,12 @@ interface BulkActionsSectionProps {
   onProcessUploads: () => void;
   selectedPosts: Set<string>;
   onBulkTagUpdate: (tags: string[]) => void;
-  // Removed onBulkStatusChange as individual toggles are now used
   onBulkDownload: () => void;
   onDeleteSelected: () => void;
   uniqueTags: string[];
   onCreateNewPost: () => void;
+  searchTerm: string; // New prop for global search
+  onSearch: (term: string) => void; // New prop for global search
 }
 
 export const BulkActionsSection: React.FC<BulkActionsSectionProps> = ({
@@ -37,11 +38,12 @@ export const BulkActionsSection: React.FC<BulkActionsSectionProps> = ({
   onProcessUploads,
   selectedPosts,
   onBulkTagUpdate,
-  // Removed onBulkStatusChange
   onBulkDownload,
   onDeleteSelected,
   uniqueTags,
   onCreateNewPost,
+  searchTerm, // Destructure new prop
+  onSearch, // Destructure new prop
 }) => {
   const [isTagDialogOpen, setIsTagDialogOpen] = useState(false);
   const [bulkEditTags, setBulkEditTags] = useState<string[]>([]);
@@ -70,34 +72,44 @@ export const BulkActionsSection: React.FC<BulkActionsSectionProps> = ({
         </div>
       </div>
 
-      {selectedPosts.size > 0 && (
-        <div className="flex flex-wrap items-center gap-2 mt-4">
-          <Button variant="outline" size="sm" onClick={() => setIsTagDialogOpen(true)}>
-            <Tag className="h-4 w-4 mr-2" />
-            Edit Tags
-          </Button>
-          {/* Removed bulk status change dropdown */}
-          <Button variant="outline" size="sm" onClick={onBulkDownload}>
-            <Download className="h-4 w-4 mr-2" />
-            Download ({selectedPosts.size})
-          </Button>
-          <AlertDialog>
-            <AlertDialogTrigger asChild>
-              <Button variant="destructive" size="sm"><Trash2 className="h-4 w-4 mr-2" />Delete ({selectedPosts.size})</Button>
-            </AlertDialogTrigger>
-            <AlertDialogContent>
-              <AlertDialogHeader>
-                <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
-                <AlertDialogDescription>This will permanently delete {selectedPosts.size} selected posts.</AlertDialogDescription>
-              </AlertDialogHeader>
-              <AlertDialogFooter>
-                <AlertDialogCancel>Cancel</AlertDialogCancel>
-                <AlertDialogAction onClick={onDeleteSelected}>Continue</AlertDialogAction>
-              </AlertDialogFooter>
-            </AlertDialogContent>
-          </AlertDialog>
+      <div className="flex flex-col sm:flex-row items-center gap-4 mt-4">
+        <div className="relative flex-grow max-w-sm">
+          <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+          <Input
+            placeholder="Search by title, tags, or content..."
+            value={searchTerm}
+            onChange={(e) => onSearch(e.target.value)}
+            className="w-full pl-8"
+          />
         </div>
-      )}
+        {selectedPosts.size > 0 && (
+          <div className="flex flex-wrap items-center gap-2 mt-4 sm:mt-0">
+            <Button variant="outline" size="sm" onClick={() => setIsTagDialogOpen(true)}>
+              <Tag className="h-4 w-4 mr-2" />
+              Edit Tags
+            </Button>
+            <Button variant="outline" size="sm" onClick={onBulkDownload}>
+              <Download className="h-4 w-4 mr-2" />
+              Download ({selectedPosts.size})
+            </Button>
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button variant="destructive" size="sm"><Trash2 className="h-4 w-4 mr-2" />Delete ({selectedPosts.size})</Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+                  <AlertDialogDescription>This will permanently delete {selectedPosts.size} selected posts.</AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Cancel</AlertDialogCancel>
+                  <AlertDialogAction onClick={onDeleteSelected}>Continue</AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+          </div>
+        )}
+      </div>
 
       <Dialog open={isTagDialogOpen} onOpenChange={setIsTagDialogOpen}>
         <DialogContent>
