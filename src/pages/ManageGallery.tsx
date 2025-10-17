@@ -1,15 +1,285 @@
-"use client";
+import { useMemo, useRef, useEffect, useState, Suspense, lazy } from "react";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import * as z from "zod";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
+import { supabase } from "@/integrations/supabase/client";
+import { showSuccess, showError, showLoading, dismissToast } from "@/utils/toast";
+import { usePaginationNavigation } from "@/hooks/usePaginationNavigation";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useGalleryManagement } from "@/hooks/useGalleryManagement";
+import { generateAltTextFromFileName, normalizeTag } from "@/lib/utils"; // Import normalizeTag
+import type { GalleryImage } from "@/types";
+import { ImageUploadCard } from "@/components/gallery/ImageUploadCard";
+import { ImageManagementCard } from "@/components/gallery/ImageManagementCard";
 
-import React from 'react';
-import { ImageManagementCard } from '@/components/gallery/ImageManagementCard';
-import { Toaster } from '@/components/ui/toaster'; // Import Toaster
+const LazyImageLightbox = lazy(() => import("@/components/ImageLightbox").then(module => ({ default: module.ImageLightbox })));
+
+const editSchema = z.object({
+  alt_text: z.string().max(200, "Alt text cannot exceed 200 characters."),
+  tags: z.string().optional(),
+});
 
 const ManageGallery = () => {
+  const {
+    selectedFiles,
+    isUploading,
+    editingImage,
+    setEditingImage,
+    setSelectedFiles,
+    handleUpload,
+    reloadAllGalleryData,
+    imagesPerPage, // Added this line
+    setImagesPerPage,
+
+    publishedImages,
+    paginatedPublishedImages,
+    isLoadingPublished,
+    selectedPublishedImages,
+    publishedCurrentPage,
+    publishedTotalPages,
+    allPublishedOnPageSelected,
+    setPublishedCurrentPage,
+    handleSelectPublishedImage,
+    handleSelectAllPublished,
+    handleBulkDeletePublished,
+    handleBulkPublishPublished,
+    handleGenerateTagsPublished,
+    handleBulkDownloadPublished,
+    handleTogglePublishStatus,
+
+    unpublishedImages,
+    paginatedUnpublishedImages,
+    isLoadingUnpublished,
+    selectedUnpublishedImages,
+    unpublishedCurrentPage,
+    unpublishedTotalPages,
+    allUnpublishedOnPageSelected,
+    setUnpublishedCurrentPage,
+    handleSelectUnpublishedImage,
+    handleSelectAllUnpublished,
+    handleBulkDeleteUnpublished,
+    handleBulkPublishUnpublished,
+    handleGenerateTagsUnpublished,
+    handleBulkDownloadUnpublished,
+  } = useGalleryManagement();
+
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [lightboxImageIndex, setLightboxImageIndex] = useState<number | null>(null);
+  const [activeLightboxList, setActiveLightboxList] = useState<'published' | 'unpublished' | null>(null);
+  const [activeTab, setActiveTab] = useState<'published' | 'unpublished'>('published');
+
+  const form = useForm<z.infer<typeof editSchema>>({
+    resolver: zodResolver(editSchema),
+    defaultValues: { alt_text: "", tags: "" },
+  });
+
+  useEffect(() => {
+    if (editingImage) {
+      form.reset({
+        alt_text: editingImage.alt_text || '',
+        tags: editingImage.tags?.join(', ') || '',
+      });
+    }
+  }, [editingImage, form]);
+
+  // Use pagination navigation for the currently active tab
+  usePaginationNavigation({
+    currentPage: activeTab === 'published' ? publishedCurrentPage : unpublishedCurrentPage,
+    totalPages: activeTab === 'published' ? publishedTotalPages : unpublishedTotalPages,
+    onPageChange: activeTab === 'published' ? setPublishedCurrentPage : setUnpublishedCurrentPage,
+    targetRef: containerRef,
+    enabled: !editingImage && lightboxImageIndex === null,
+  });
+
+  const handleUpdateImageData = async (values: z.infer<typeof editSchema>) => {
+    if (!editingImage) return;
+    const toastId = showLoading("Updating image data...");
+    try {
+      let finalAltText = values.alt_text;
+      if (!finalAltText || finalAltText.trim() === '') {
+        finalAltText = generateAltTextFromFileName(editingImage.file_name);
+      }
+
+      const tagsArray = values.tags?.split(',').map(t => normalizeTag(t)).filter(Boolean) || []; // Apply normalization here
+      const { error } = await supabase.from("gallery_images").update({ alt_text: finalAltText, tags: tagsArray }).eq("id", editingImage.id);
+      if (error) throw error;
+      dismissToast(toastId);
+      showSuccess("Image data updated successfully!");
+      setEditingImage(null);
+      reloadAllGalleryData();
+    } catch (error: any) {
+      dismissToast(toastId);
+      showError(`Update failed: ${error.message}`);
+    }
+  };
+
+  const openLightbox = (image: GalleryImage, listType: 'published' | 'unpublished') => {
+    const list = listType === 'published' ? publishedImages : unpublishedImages;
+    const index = list.findIndex(img => img.id === image.id);
+    if (index !== -1) {
+      setActiveLightboxList(listType);
+      setLightboxImageIndex(index);
+    }
+  };
+
+  const closeLightbox = () => {
+    setLightboxImageIndex(null);
+    setActiveLightboxList(null);
+  };
+
+  const navigateLightbox = (direction: 'next' | 'prev') => {
+    if (lightboxImageIndex === null || !activeLightboxList) return;
+    const list = activeLightboxList === 'published' ? publishedImages : unpublishedImages;
+    if (direction === 'next') {
+      setLightboxImageIndex((prevIndex) => (prevIndex! + 1) % list.length);
+    } else {
+      setLightboxImageIndex((prevIndex) => (prevIndex! - 1 + list.length) % list.length);
+    }
+  };
+
+  const lightboxList = activeLightboxList === 'published' ? publishedImages : unpublishedImages;
+  const lightboxImage = lightboxImageIndex !== null ? lightboxList[lightboxImageIndex] : null;
+
   return (
-    <div className="container mx-auto p-4">
-      <ImageManagementCard />
-      <Toaster /> {/* Render Toaster here */}
-    </div>
+    <>
+      <div className="space-y-8" ref={containerRef}>
+        <ImageUploadCard
+          onFileChange={setSelectedFiles}
+          onUpload={handleUpload}
+          isUploading={isUploading}
+          selectedFiles={selectedFiles}
+        />
+
+        <Tabs defaultValue="published" onValueChange={(value) => setActiveTab(value as 'published' | 'unpublished')}>
+          <TabsList className="grid w-full grid-cols-2">
+            <TabsTrigger value="published" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">Published ({publishedImages.length})</TabsTrigger>
+            <TabsTrigger value="unpublished" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">Unpublished ({unpublishedImages.length})</TabsTrigger>
+          </TabsList>
+          <TabsContent value="published">
+            <ImageManagementCard
+              title="Published Images"
+              description="These images are visible on your public gallery. Select images to perform bulk actions."
+              images={publishedImages}
+              paginatedImages={paginatedPublishedImages}
+              selectedImages={selectedPublishedImages}
+              isLoading={isLoadingPublished}
+              onSelectImage={handleSelectPublishedImage}
+              onSelectAll={handleSelectAllPublished}
+              onEdit={setEditingImage}
+              onView={openLightbox}
+              onDelete={handleBulkDeletePublished}
+              onBulkPublish={(status) => handleBulkPublishPublished(status)}
+              onGenerateTags={handleGenerateTagsPublished}
+              onDownload={handleBulkDownloadPublished}
+              onTogglePublish={handleTogglePublishStatus}
+              paginationProps={{
+                currentPage: publishedCurrentPage,
+                totalPages: publishedTotalPages,
+                onPageChange: setPublishedCurrentPage,
+                itemsPerPage: imagesPerPage,
+                onItemsPerPageChange: setImagesPerPage,
+                totalItems: publishedImages.length,
+              }}
+              listType="published"
+            />
+          </TabsContent>
+          <TabsContent value="unpublished">
+            <ImageManagementCard
+              title="Unpublished Images"
+              description="These images are not visible on your public gallery. Select images to perform bulk actions."
+              images={unpublishedImages}
+              paginatedImages={paginatedUnpublishedImages}
+              selectedImages={selectedUnpublishedImages}
+              isLoading={isLoadingUnpublished}
+              onSelectImage={handleSelectUnpublishedImage}
+              onSelectAll={handleSelectAllUnpublished}
+              onEdit={setEditingImage}
+              onView={openLightbox}
+              onDelete={handleBulkDeleteUnpublished}
+              onBulkPublish={(status) => handleBulkPublishUnpublished(status)}
+              onGenerateTags={handleGenerateTagsUnpublished}
+              onDownload={handleBulkDownloadUnpublished}
+              onTogglePublish={handleTogglePublishStatus}
+              paginationProps={{
+                currentPage: unpublishedCurrentPage,
+                totalPages: unpublishedTotalPages,
+                onPageChange: setUnpublishedCurrentPage,
+                itemsPerPage: imagesPerPage,
+                onItemsPerPageChange: setImagesPerPage,
+                totalItems: unpublishedImages.length,
+              }}
+              listType="unpublished"
+            />
+          </TabsContent>
+        </Tabs>
+      </div>
+
+      <Dialog open={!!editingImage} onOpenChange={(isOpen) => !isOpen && setEditingImage(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Edit Image Data</DialogTitle>
+            <DialogDescription>
+              Update the alt text and tags for this image.
+            </DialogDescription>
+          </DialogHeader>
+          <Form {...form}>
+            <form onSubmit={form.handleSubmit(handleUpdateImageData)} className="space-y-4">
+              <FormField
+                control={form.control}
+                name="alt_text"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Alt Text</FormLabel>
+                    <FormControl>
+                      <Textarea
+                        placeholder="e.g., A beautiful sunset over the mountains"
+                        {...field}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="tags"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Tags (comma-separated)</FormLabel>
+                    <FormControl>
+                      <Input
+                        placeholder="e.g., nature, mountains, sunset"
+                        {...field}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <DialogFooter>
+                <Button type="button" variant="outline" onClick={() => setEditingImage(null)}>Cancel</Button>
+                <Button type="submit">Save Changes</Button>
+              </DialogFooter>
+            </form>
+          </Form>
+        </DialogContent>
+      </Dialog>
+      <Suspense fallback={null}>
+        <LazyImageLightbox
+          image={lightboxImage}
+          onClose={closeLightbox}
+          onNavigate={navigateLightbox}
+          hasNext={lightboxList.length > 1}
+          hasPrev={lightboxList.length > 1}
+          onUpdate={reloadAllGalleryData}
+        />
+      </Suspense>
+    </>
   );
 };
 

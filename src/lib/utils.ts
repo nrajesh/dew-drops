@@ -1,66 +1,173 @@
-import { type ClassValue, clsx } from "clsx"
-import { twMerge } from "tailwind-merge"
+import { clsx, type ClassValue } from "clsx";
+import { twMerge } from "tailwind-merge";
 
 export function cn(...inputs: ClassValue[]) {
-  return twMerge(clsx(inputs))
+  return twMerge(clsx(inputs));
 }
 
-export const normalizeTag = (tag: string) => tag.normalize('NFC').trim();
+export function sanitizeFileName(fileName: string): string {
+  let decodedName = fileName;
+  try {
+    // Attempt to decode, as filenames from some sources might be URI encoded.
+    decodedName = decodeURIComponent(fileName);
+  } catch (e) {
+    // Ignore error if the filename is not a valid URI component.
+  }
 
-export const sanitizeFileName = (fileName: string): string => {
-  // Replace spaces with underscores, remove special characters, and limit length
-  return fileName
-    .replace(/\s/g, '_')
-    .replace(/[^a-zA-Z0-9_.-]/g, '')
-    .toLowerCase()
-    .substring(0, 100);
+  // Normalize to NFD (Normalization Form Canonical Decomposition).
+  // This separates base characters from their diacritical marks (e.g., "é" becomes "e" + "´").
+  const normalized = decodedName.normalize('NFD');
+
+  // Remove the diacritical marks.
+  const withoutDiacritics = normalized.replace(/[\u0300-\u036f]/g, '');
+
+  // Replace whitespace with a single underscore.
+  const withUnderscores = withoutDiacritics.replace(/\s+/g, '_');
+
+  // Remove any character that is not a letter, number, underscore, dot, or hyphen.
+  // This is a very safe character set for filenames.
+  const sanitized = withUnderscores.replace(/[^a-zA-Z0-9_.-]/g, '');
+
+  // Remove leading/trailing underscores or dots.
+  const finalName = sanitized.replace(/^[_.]+|[_.]+$/g, '');
+
+  // Ensure the filename is not empty after sanitization.
+  return finalName || "sanitized_file";
+}
+
+export function generateAltTextFromFileName(fileName: string): string {
+  if (!fileName) return "";
+  
+  // Get the part of the filename after the last '/'
+  const namePart = fileName.split('/').pop() || fileName;
+  
+  // Find the first underscore (which separates the timestamp from the original name)
+  const firstUnderscoreIndex = namePart.indexOf('_');
+  
+  // If an underscore is found, take the substring after it. Otherwise, use the whole name part.
+  const originalFileName = firstUnderscoreIndex !== -1 
+    ? namePart.substring(firstUnderscoreIndex + 1) 
+    : namePart;
+    
+  // Remove the file extension and replace underscores with spaces.
+  return originalFileName.replace(/\.[^/.]+$/, "").replace(/_/g, ' ');
+}
+
+/**
+ * Helper function to limit gaps in markdown output for display
+ * to a maximum of 3 bullet points in the 'Gaps' section.
+ */
+export const limitGapsInMarkdown = (markdown: string): string => {
+  const lines = markdown.split('\n');
+  let inGapsSection = false;
+  let gapCount = 0;
+  const newLines: string[] = [];
+
+  for (const line of lines) {
+    if (line.startsWith('## Gaps')) {
+      inGapsSection = true;
+      newLines.push(line);
+      continue;
+    }
+
+    if (inGapsSection) {
+      // If it's a bullet point for a gap
+      if (line.trim().startsWith('- ') || line.trim().startsWith('+ ')) {
+        if (gapCount < 3) { // This is the limit
+          newLines.push(line);
+          gapCount++;
+        }
+      } else if (line.trim().length > 0 && !line.trim().startsWith('##')) {
+        // Keep non-bullet point text within the gaps section (like 'No significant gaps identified.')
+        // but only if it's not another heading
+        newLines.push(line);
+      } else {
+        // Keep empty lines or other non-bullet, non-heading content
+        newLines.push(line);
+      }
+    } else {
+      newLines.push(line);
+    }
+  }
+  return newLines.join('\n');
 };
 
-export const formatDate = (dateString: string | null, options?: Intl.DateTimeFormatOptions): string => {
-  if (!dateString) return "N/A";
-  const date = new Date(dateString);
-  if (isNaN(date.getTime())) return "Invalid Date";
-  return date.toLocaleDateString('en-US', options || { year: 'numeric', month: 'long', day: 'numeric' });
-};
-
-export const generateAltTextFromFileName = (fileName: string): string => {
-  const nameWithoutExtension = fileName.split('/').pop()?.split('.').slice(0, -1).join('.') || fileName;
-  return nameWithoutExtension.replace(/[-_]/g, ' ').replace(/\b\w/g, char => char.toUpperCase());
-};
-
-export const limitGapsInMarkdown = (markdown: string, maxConsecutiveNewlines = 2): string => {
-  if (!markdown) return '';
-  const regex = new RegExp(`\\n{${maxConsecutiveNewlines + 1},}`, 'g');
-  return markdown.replace(regex, '\n'.repeat(maxConsecutiveNewlines));
-};
-
+/**
+ * Helper function to convert markdown to plain text for download,
+ * removing markdown formatting like headings, bold, and italics.
+ */
 export const markdownToPlainText = (markdown: string): string => {
-  // Remove code blocks
-  let plainText = markdown.replace(/```[\s\S]*?```/g, '');
-  // Remove markdown headers
-  plainText = plainText.replace(/^(#+\s.*)$/gm, '');
-  // Remove bold and italics
-  plainText = plainText.replace(/(\*\*|__)(.*?)\1/g, '$2');
-  plainText = plainText.replace(/(\*|_)(.*?)\1/g, '$2');
-  // Remove links (keep link text)
-  plainText = plainText.replace(/\[(.*?)\]\(.*?\)/g, '$1');
-  // Remove list markers
-  plainText = plainText.replace(/^(\s*[-*+]\s)/gm, '');
-  // Replace multiple newlines with single newlines
-  plainText = plainText.replace(/\n\s*\n/g, '\n');
-  // Trim whitespace from each line and then the whole string
-  plainText = plainText.split('\n').map(line => line.trim()).join('\n').trim();
+  let plainText = markdown;
+  // Remove headings (e.g., ## Matching Areas)
+  plainText = plainText.replace(/^#+\s/gm, '');
+  // Remove bold/italic markers
+  plainText = plainText.replace(/\*\*([^*]+?)\*\*/g, '$1'); // **bold** -> bold
+  plainText = plainText.replace(/\*([^*]+?)\*/g, '$1');   // *italic* -> italic
+  plainText = plainText.replace(/_([^_]+?)_/g, '$1');     // _italic_ -> italic
   return plainText;
 };
 
-export const cleanJobDescriptionText = (htmlContent: string): string => {
-  // Create a temporary div to parse the HTML
-  const doc = new DOMParser().parseFromString(htmlContent, 'text/html');
-  const bodyText = doc.body.textContent || '';
+/**
+ * Cleans job description text by stripping HTML tags, removing excessive newlines,
+ * and filtering out single-word paragraphs.
+ * @param text The input string, potentially containing HTML.
+ * @returns The cleaned plain text.
+ */
+export const cleanJobDescriptionText = (text: string): string => {
+  // 1. Strip HTML tags
+  const doc = new DOMParser().parseFromString(text, 'text/html');
+  let plainText = doc.body.textContent || "";
 
-  // Remove excessive whitespace and normalize newlines
-  let cleanedText = bodyText.replace(/\s+/g, ' ').trim();
-  cleanedText = cleanedText.replace(/(\r\n|\n|\r){2,}/g, '\n\n'); // Reduce multiple newlines to at most two
+  // 2. Remove specific LinkedIn boilerplate text more robustly
+  // This regex targets the common start and end phrases of the LinkedIn privacy banner
+  const linkedInBoilerplateRegex = /LinkedIn\s*respects\s*your\s*privacy[\s\S]*?(?:Skip\s*to\s*main\s*content|You\s*can\s*update\s*your\s*choices\s*at\s*any\s*time\s*in\s*your\s*settings\.)/gi;
+  plainText = plainText.replace(linkedInBoilerplateRegex, '');
 
-  return cleanedText;
+  // 3. Replace all newlines with a single space, then normalize multiple spaces
+  plainText = plainText.replace(/(\r\n|\n|\r)/g, ' ').replace(/\s\s+/g, ' ').trim();
+
+  // 4. Split the text into words and filter out single-character words or very short words
+  const words = plainText.split(/\s+/);
+  const filteredWords = words.filter(word => word.length > 1); // Keep words longer than 1 character
+
+  return filteredWords.join(' ').trim();
+};
+
+/**
+ * Formats a date string into a human-readable format (e.g., "Month Day, Year").
+ * @param dateString The date string to format.
+ * @param options Optional Intl.DateTimeFormatOptions for custom formatting.
+ * @returns The formatted date string, or an empty string if null/invalid.
+ */
+export const formatDate = (dateString: string | null, options?: Intl.DateTimeFormatOptions): string => {
+  if (!dateString) return "";
+  try {
+    const defaultOptions: Intl.DateTimeFormatOptions = {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+    };
+    return new Date(dateString).toLocaleDateString('en-US', options || defaultOptions);
+  } catch {
+    return dateString; // Fallback for invalid date strings
+  }
+};
+
+/**
+ * Normalizes a tag string to Unicode Normalization Form C (NFC) and trims whitespace.
+ * This helps ensure consistent representation and comparison of tags, especially with Unicode characters.
+ * It also attempts to decode URI components, in case the tag is URL-encoded.
+ * @param tag The tag string to normalize.
+ * @returns The normalized and trimmed tag string.
+ */
+export const normalizeTag = (tag: string): string => {
+  let decodedTag = tag;
+  try {
+    // Attempt to decode URI components first, in case the tag is URL-encoded
+    decodedTag = decodeURIComponent(tag);
+  } catch (e) {
+    // If decoding fails (e.g., not a valid URI sequence), use the original tag
+    console.warn("Failed to decode URI component for tag:", tag, e);
+  }
+  return decodedTag.normalize('NFC').trim();
 };

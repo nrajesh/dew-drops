@@ -6,9 +6,9 @@ import { useAuth } from "@/contexts/AuthContext";
 import {
   fetchImages,
   handleDelete,
-  handleBulkPublish as galleryHandleBulkPublish, // Renamed to avoid conflict
+  handleBulkPublish,
   handleGenerateTags,
-  handleBulkDownload as galleryHandleBulkDownload, // Renamed to avoid conflict
+  handleBulkDownload,
 } from "@/components/gallery/GalleryManagementUtils.ts";
 import { processImageUploads, processMetadataUpdate } from "@/components/gallery/GalleryUploadUtils";
 import { useManagement } from "./useManagement";
@@ -21,41 +21,28 @@ export const useGalleryManagement = () => {
   const [imagesPerPage, setImagesPerPage] = useState(10);
 
   // Use a single instance of useManagement for ALL images
-  const {
-    allItems: allImages,
-    paginatedItems: paginatedAllImages,
-    isLoading: isLoadingAll,
-    selectedItems: selectedAllImages,
-    toggleSelectItem: toggleSelectAllImage,
-    clearSelectedItems: clearSelectedAllImages,
-    handleCreate: handleCreateImage,
-    handleUpdate: handleUpdateImage,
-    handleDelete: genericDelete,
-    handleToggleStatus: handleTogglePublishStatus,
-    handleBulkStatusChange: genericPublish,
-    // handleBulkTagUpdate: genericGenerateTags, // Removed as it's a specific action, not a generic update
-    handleBulkDownload: genericDownload,
-    loadItems: reloadAllGalleryData,
-    currentPage: allImagesCurrentPage,
-    totalPages: allImagesTotalPages,
-    itemsPerPage: allImagesItemsPerPage,
-    totalItems: allImagesTotalItems,
-    handlePageChange: setAllImagesCurrentPage,
-    handleItemsPerPageChange: setAllImagesItemsPerPage,
-    handleSelectAllOnPage: handleSelectAllOnAllImagesPage,
-    allOnPageSelected: allImagesAllOnPageSelected,
-  } = useManagement<GalleryImage>({
+  const allImagesManagement = useManagement<GalleryImage>({
     fetchData: fetchImages, // Fetches all images regardless of status
-    tableName: 'gallery_images',
-    storageBucketName: 'gallery',
+    deleteItems: handleDelete,
+    updateItemStatus: handleBulkPublish,
+    generateItemTags: handleGenerateTags,
+    downloadItems: handleBulkDownload,
+    initialItemsPerPage: imagesPerPage,
     idKey: 'id',
     statusKey: 'published',
-    initialItemsPerPage: imagesPerPage,
-    deleteItems: handleDelete,
-    updateItemStatus: galleryHandleBulkPublish,
-    // updateItemTags: handleGenerateTags, // Removed from options
-    downloadItems: galleryHandleBulkDownload,
   });
+
+  const {
+    allItems: allImages,
+    isLoading: isLoadingAll,
+    loadItems: reloadAllGalleryData,
+    handleBulkDelete: genericDelete, // Renamed
+    handleBulkStatusChange: genericPublish, // Renamed
+    handleGenerateTags: genericGenerateTags, // Renamed
+    handleBulkDownload: genericDownload, // Renamed
+    handleToggleStatus: handleTogglePublishStatus,
+    handleItemsPerPageChange: setAllItemsPerPage,
+  } = allImagesManagement;
 
   // Split all images into published and unpublished lists
   const publishedImages = useMemo(() => allImages.filter(img => img.published), [allImages]);
@@ -150,15 +137,15 @@ export const useGalleryManagement = () => {
 
   // --- Bulk action wrappers (now correctly defined using renamed generic handlers) ---
 
-  const handleBulkDeletePublished = useCallback(() => genericDelete(Array.from(selectedPublishedImages), allImages), [genericDelete, selectedPublishedImages, allImages]);
-  const handleBulkPublishPublished = useCallback((status: boolean) => genericPublish(selectedPublishedImages, status), [genericPublish, selectedPublishedImages]);
-  const handleGenerateTagsPublished = useCallback(() => handleGenerateTags(selectedPublishedImages, allImages), [selectedPublishedImages, allImages]); // Direct call
-  const handleBulkDownloadPublished = useCallback(() => genericDownload(selectedPublishedImages, allImages), [genericDownload, selectedPublishedImages, allImages]);
+  const handleBulkDeletePublished = useCallback(() => genericDelete(selectedPublishedImages, setSelectedPublishedImages, allImages), [genericDelete, selectedPublishedImages, allImages]);
+  const handleBulkPublishPublished = useCallback((status: boolean) => genericPublish(selectedPublishedImages, setSelectedPublishedImages, status), [genericPublish, selectedPublishedImages]);
+  const handleGenerateTagsPublished = useCallback(() => genericGenerateTags(selectedPublishedImages, setSelectedPublishedImages, allImages), [genericGenerateTags, selectedPublishedImages, allImages]);
+  const handleBulkDownloadPublished = useCallback(() => genericDownload(selectedPublishedImages, setSelectedPublishedImages, allImages), [genericDownload, selectedPublishedImages, allImages]);
 
-  const handleBulkDeleteUnpublished = useCallback(() => genericDelete(Array.from(selectedUnpublishedImages), allImages), [genericDelete, selectedUnpublishedImages, allImages]);
-  const handleBulkPublishUnpublished = useCallback((status: boolean) => genericPublish(selectedUnpublishedImages, status), [genericPublish, selectedUnpublishedImages]);
-  const handleGenerateTagsUnpublished = useCallback(() => handleGenerateTags(selectedUnpublishedImages, allImages), [selectedUnpublishedImages, allImages]); // Direct call
-  const handleBulkDownloadUnpublished = useCallback(() => genericDownload(selectedUnpublishedImages, allImages), [genericDownload, selectedUnpublishedImages, allImages]);
+  const handleBulkDeleteUnpublished = useCallback(() => genericDelete(selectedUnpublishedImages, setSelectedUnpublishedImages, allImages), [genericDelete, selectedUnpublishedImages, allImages]);
+  const handleBulkPublishUnpublished = useCallback((status: boolean) => genericPublish(selectedUnpublishedImages, setSelectedUnpublishedImages, status), [genericPublish, selectedUnpublishedImages]);
+  const handleGenerateTagsUnpublished = useCallback(() => genericGenerateTags(selectedUnpublishedImages, setSelectedUnpublishedImages, allImages), [genericGenerateTags, selectedUnpublishedImages, allImages]);
+  const handleBulkDownloadUnpublished = useCallback(() => genericDownload(selectedUnpublishedImages, setSelectedUnpublishedImages, allImages), [genericDownload, selectedUnpublishedImages, allImages]);
 
   const handleUploadWrapper = useCallback(async () => {
     if (!selectedFiles || selectedFiles.length === 0 || !user) return;

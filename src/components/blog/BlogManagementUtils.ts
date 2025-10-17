@@ -3,7 +3,7 @@ import type { Post, GalleryImage } from "@/types";
 import { showSuccess, showError, showLoading, updateToastSuccess, updateToastError } from "@/utils/toast";
 import TurndownService from "turndown";
 import JSZip from 'jszip';
-import { sanitizeFileName, normalizeTag } from "@/lib/utils"; // Import sanitizeFileName and normalizeTag
+import { sanitizeFileName, normalizeTag } from "@/lib/utils"; // Import normalizeTag
 
 type NewPost = Omit<Post, 'id' | 'created_at' | 'user_id'>;
 
@@ -225,7 +225,7 @@ export const processUploads = async (userId: string, inserts: NewPost[], updates
   }
 };
 
-export const handleBulkDelete = async (postIds: string[]): Promise<boolean> => {
+export const handleBulkDelete = async (postIds: string[], allPosts: Post[]): Promise<boolean> => {
   const toastId = showLoading(`Deleting ${postIds.length} posts...`);
   const { error } = await supabase.from("posts").delete().in("id", postIds);
   if (error) {
