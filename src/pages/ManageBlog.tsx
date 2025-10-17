@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { showSuccess, showError, showLoading, dismissToast, updateToastSuccess, updateToastError } from "@/utils/toast"; // Import updateToastSuccess and updateToastError
+import { showSuccess, showError, showLoading, dismissToast, updateToastSuccess, updateToastError } from "@/utils/toast";
 import { PostList } from "@/components/blog/PostList";
 import { usePaginationNavigation } from "@/hooks/usePaginationNavigation";
 import {
@@ -11,7 +11,6 @@ import {
   parseMarkdownFile,
   handleBulkDelete,
   handleBulkTagUpdate,
-  handleBulkStatusChange,
   handleBulkDownload,
   extractDescriptionFromContent,
   ensureContentHasTripleBackticks,
@@ -21,6 +20,7 @@ import { BlogFormDialog, BlogFormValues } from "@/components/blog/BlogFormDialog
 import { BulkActionsSection } from "@/components/blog/BulkActionsSection";
 import { normalizeTag } from "@/lib/utils";
 import { UpdatePostsDialog } from "@/components/blog/UpdatePostsDialog";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"; // Import Tabs components
 
 type NewPost = Omit<Post, 'id' | 'created_at' | 'user_id'>;
 
@@ -35,6 +35,7 @@ const ManageBlog = () => {
   const [itemsPerPage, setItemsPerPage] = useState(10);
   const [uploadFiles, setUploadFiles] = useState<File[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
+  const [activeTab, setActiveTab] = useState<'published' | 'unpublished'>('published'); // New state for tabs
 
   const [isUpdateDialogVisible, setIsUpdateDialogVisible] = useState(false);
   const [postsToInsert, setPostsToInsert] = useState<NewPost[]>([]);
@@ -65,15 +66,19 @@ const ManageBlog = () => {
   }, [editingPost]);
 
   const filteredPosts = useMemo(() => {
-    if (!searchTerm) return posts;
     const lowerCaseSearchTerm = searchTerm.toLowerCase();
-    return posts.filter(post =>
+    const filteredBySearch = posts.filter(post =>
       post.title.toLowerCase().includes(lowerCaseSearchTerm) ||
       (post.description && post.description.toLowerCase().includes(lowerCaseSearchTerm)) ||
       (post.content && post.content.toLowerCase().includes(lowerCaseSearchTerm)) ||
       (post.tags && post.tags.some(tag => normalizeTag(tag).toLowerCase().includes(lowerCaseSearchTerm)))
     );
-  }, [posts, searchTerm]);
+
+    // Filter by tab
+    return filteredBySearch.filter(post =>
+      activeTab === 'published' ? post.published : !post.published
+    );
+  }, [posts, searchTerm, activeTab]);
 
   const totalPages = Math.ceil(filteredPosts.length / itemsPerPage);
   const paginatedPosts = useMemo(() => {
@@ -112,23 +117,33 @@ const ManageBlog = () => {
       if (editingPost) {
         const { error } = await supabase.from("posts").update(postData).eq("id", editingPost.id);
         if (error) throw error;
-        updateToastSuccess(toastId, "Post updated successfully!"); // Changed to updateToastSuccess
+        updateToastSuccess(toastId, "Post updated successfully!");
       } else {
         const { data: { user }, error: userError } = await supabase.auth.getUser();
         if (userError || !user) throw new Error("User not authenticated.");
         const { error } = await supabase.from("posts").insert({ ...postData, user_id: user.id });
         if (error) throw error;
-        updateToastSuccess(toastId, "Post added successfully!"); // Changed to updateToastSuccess
+        updateToastSuccess(toastId, "Post added successfully!");
       }
       setIsFormDialogOpen(false);
       setEditingPost(null);
       fetchAllData();
     } catch (error: any) {
-      updateToastError(toastId, `Operation failed: ${error.message}`); // Changed to updateToastError
-    } finally {
-      // dismissToast(toastId); // No longer needed here as updateToastSuccess/Error dismisses it
+      updateToastError(toastId, `Operation failed: ${error.message}`);
     }
   }, [editingPost, fetchAllData]);
+
+  const handleTogglePublish = useCallback(async (post: Post, published: boolean) => {
+    const toastId = showLoading(`Setting post to ${published ? 'published' : 'unpublished'}...`);
+    try {
+      const { error } = await supabase.from("posts").update({ published }).eq("id", post.id);
+      if (error) throw error;
+      updateToastSuccess(toastId, `Post ${published ? 'published' : 'unpublished'} successfully!`);
+      fetchAllData();
+    } catch (error: any) {
+      updateToastError(toastId, `Failed to update post status: ${error.message}`);
+    }
+  }, [fetchAllData]);
 
   const handleSelectPost = useCallback((id: string) => {
     setSelectedPosts(prev => {
@@ -161,14 +176,6 @@ const ManageBlog = () => {
 
   const handleBulkTagUpdateWrapper = useCallback(async (tags: string[]) => {
     const success = await handleBulkTagUpdate(selectedPosts, tags);
-    if (success) {
-      setSelectedPosts(new Set());
-      fetchAllData();
-    }
-  }, [selectedPosts, fetchAllData]);
-
-  const handleBulkStatusChangeWrapper = useCallback(async (published: boolean) => {
-    const success = await handleBulkStatusChange(selectedPosts, published);
     if (success) {
       setSelectedPosts(new Set());
       fetchAllData();
@@ -282,7 +289,6 @@ const ManageBlog = () => {
         onProcessUploads={handleProcessUploads}
         selectedPosts={selectedPosts}
         onBulkTagUpdate={handleBulkTagUpdateWrapper}
-        onBulkStatusChange={handleBulkStatusChangeWrapper}
         onBulkDownload={handleBulkDownloadWrapper}
         onDeleteSelected={handleDeleteSelected}
         uniqueTags={uniqueTags}
@@ -292,29 +298,58 @@ const ManageBlog = () => {
         }}
       />
 
-      <div className="w-full">
-        <PostList
-          posts={paginatedPosts}
-          selectedPosts={selectedPosts}
-          onSelectPost={handleSelectPost}
-          onSelectAll={handleSelectAll}
-          onEdit={(post) => setEditingPost(post)}
-          onDelete={handleDeleteSelected}
-          onDownload={handleBulkDownloadWrapper}
-          onBulkTagUpdate={handleBulkTagUpdateWrapper}
-          onBulkStatusChange={handleBulkStatusChangeWrapper}
-          uniqueTags={uniqueTags}
-          currentPage={currentPage}
-          totalPages={totalPages}
-          onPageChange={setCurrentPage}
-          itemsPerPage={itemsPerPage}
-          onItemsPerPageChange={setItemsPerPage}
-          totalItems={filteredPosts.length}
-          isLoading={isLoading}
-          searchTerm={searchTerm}
-          onSearch={setSearchTerm}
-        />
-      </div>
+      <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as 'published' | 'unpublished')} className="w-full">
+        <TabsList className="grid w-full grid-cols-2">
+          <TabsTrigger value="published">Published Posts</TabsTrigger>
+          <TabsTrigger value="unpublished">Unpublished Posts</TabsTrigger>
+        </TabsList>
+        <TabsContent value="published">
+          <PostList
+            posts={paginatedPosts}
+            selectedPosts={selectedPosts}
+            onSelectPost={handleSelectPost}
+            onSelectAll={handleSelectAll}
+            onEdit={(post) => setEditingPost(post)}
+            onDelete={handleDeleteSelected}
+            onDownload={handleBulkDownloadWrapper}
+            onBulkTagUpdate={handleBulkTagUpdateWrapper}
+            onTogglePublish={handleTogglePublish} // New prop
+            uniqueTags={uniqueTags}
+            currentPage={currentPage}
+            totalPages={totalPages}
+            onPageChange={setCurrentPage}
+            itemsPerPage={itemsPerPage}
+            onItemsPerPageChange={setItemsPerPage}
+            totalItems={filteredPosts.length}
+            isLoading={isLoading}
+            searchTerm={searchTerm}
+            onSearch={setSearchTerm}
+          />
+        </TabsContent>
+        <TabsContent value="unpublished">
+          <PostList
+            posts={paginatedPosts}
+            selectedPosts={selectedPosts}
+            onSelectPost={handleSelectPost}
+            onSelectAll={handleSelectAll}
+            onEdit={(post) => setEditingPost(post)}
+            onDelete={handleDeleteSelected}
+            onDownload={handleBulkDownloadWrapper}
+            onBulkTagUpdate={handleBulkTagUpdateWrapper}
+            onTogglePublish={handleTogglePublish} // New prop
+            uniqueTags={uniqueTags}
+            currentPage={currentPage}
+            totalPages={totalPages}
+            onPageChange={setCurrentPage}
+            itemsPerPage={itemsPerPage}
+            onItemsPerPageChange={setItemsPerPage}
+            totalItems={filteredPosts.length}
+            isLoading={isLoading}
+            searchTerm={searchTerm}
+            onSearch={setSearchTerm}
+          />
+        </TabsContent>
+      </Tabs>
 
       <BlogFormDialog
         isOpen={isFormDialogOpen}

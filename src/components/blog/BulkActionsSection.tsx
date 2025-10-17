@@ -24,7 +24,7 @@ interface BulkActionsSectionProps {
   onProcessUploads: () => void;
   selectedPosts: Set<string>;
   onBulkTagUpdate: (tags: string[]) => void;
-  onBulkStatusChange: (published: boolean) => void;
+  // Removed onBulkStatusChange as individual toggles are now used
   onBulkDownload: () => void;
   onDeleteSelected: () => void;
   uniqueTags: string[];
@@ -37,7 +37,7 @@ export const BulkActionsSection: React.FC<BulkActionsSectionProps> = ({
   onProcessUploads,
   selectedPosts,
   onBulkTagUpdate,
-  onBulkStatusChange,
+  // Removed onBulkStatusChange
   onBulkDownload,
   onDeleteSelected,
   uniqueTags,
@@ -76,15 +76,7 @@ export const BulkActionsSection: React.FC<BulkActionsSectionProps> = ({
             <Tag className="h-4 w-4 mr-2" />
             Edit Tags
           </Button>
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="outline" size="sm">Actions <MoreHorizontal className="ml-2 h-4 w-4" /></Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent>
-              <DropdownMenuItem onClick={() => onBulkStatusChange(true)}>Publish Selected</DropdownMenuItem>
-              <DropdownMenuItem onClick={() => onBulkStatusChange(false)}>Unpublish Selected</DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
+          {/* Removed bulk status change dropdown */}
           <Button variant="outline" size="sm" onClick={onBulkDownload}>
             <Download className="h-4 w-4 mr-2" />
             Download ({selectedPosts.size})

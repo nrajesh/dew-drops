@@ -21,7 +21,8 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { cn } from "@/lib/utils";
 import { ManagementPagination } from "../ManagementPagination";
 import { useAuth } from "@/contexts/AuthContext";
-import { Input } from "@/components/ui/input"; // Import Input component
+import { Input } from "@/components/ui/input";
+import { Switch } from "@/components/ui/switch"; // Import Switch component
 
 interface PostListProps {
   posts: Post[];
@@ -32,7 +33,7 @@ interface PostListProps {
   onDelete: () => void;
   onDownload: () => void;
   onBulkTagUpdate: (tags: string[]) => void;
-  onBulkStatusChange: (published: boolean) => void;
+  onTogglePublish: (post: Post, published: boolean) => void; // New prop for individual publish toggle
   uniqueTags: string[];
   currentPage: number;
   totalPages: number;
@@ -41,8 +42,8 @@ interface PostListProps {
   onItemsPerPageChange: (value: number) => void;
   totalItems: number;
   isLoading: boolean;
-  searchTerm: string; // Added searchTerm prop
-  onSearch: (term: string) => void; // Added onSearch prop
+  searchTerm: string;
+  onSearch: (term: string) => void;
 }
 
 export const PostList = ({
@@ -54,7 +55,7 @@ export const PostList = ({
   onDelete,
   onDownload,
   onBulkTagUpdate,
-  onBulkStatusChange,
+  onTogglePublish, // Destructure new prop
   uniqueTags,
   currentPage,
   totalPages,
@@ -63,8 +64,8 @@ export const PostList = ({
   onItemsPerPageChange,
   totalItems,
   isLoading,
-  searchTerm, // Destructure searchTerm
-  onSearch, // Destructure onSearch
+  searchTerm,
+  onSearch,
 }: PostListProps) => {
   const [isTagDialogOpen, setIsTagDialogOpen] = useState(false);
   const [bulkEditTags, setBulkEditTags] = useState<string[]>([]);
@@ -106,15 +107,7 @@ export const PostList = ({
                   <Tag className="h-4 w-4 mr-2" />
                   Edit Tags
                 </Button>
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button variant="outline" size="sm">Actions <MoreHorizontal className="ml-2 h-4 w-4" /></Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent>
-                    <DropdownMenuItem onClick={() => onBulkStatusChange(true)}>Publish Selected</DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => onBulkStatusChange(false)}>Unpublish Selected</DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
+                {/* Removed bulk status change dropdown as individual toggles are now used */}
                 <Button variant="outline" size="sm" onClick={onDownload}>
                   <Download className="h-4 w-4 mr-2" />
                   Download ({selectedPosts.size})
@@ -150,8 +143,10 @@ export const PostList = ({
                   <div key={post.id} className="flex items-center justify-between p-2 rounded-lg border">
                     <div className="flex items-center gap-3">
                       <Checkbox id={`select-${post.id}`} checked={selectedPosts.has(post.id)} onCheckedChange={() => onSelectPost(post.id)} />
-                      <span
-                        className={cn("h-2 w-2 rounded-full", post.published ? "bg-green-500" : "bg-gray-400")}
+                      <Switch
+                        checked={post.published}
+                        onCheckedChange={(checked) => onTogglePublish(post, checked)}
+                        aria-label={`Toggle publish status for ${post.title}`}
                         title={post.published ? "Published" : "Unpublished"}
                       />
                       <label htmlFor={`select-${post.id}`} className="font-medium truncate pr-2 cursor-pointer">{post.title}</label>
