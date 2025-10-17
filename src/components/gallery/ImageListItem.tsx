@@ -12,10 +12,10 @@ interface ImageListItemProps {
   onEdit: (image: GalleryImage) => void;
   onView: (image: GalleryImage) => void;
   isBulkActionMode: boolean;
-  // Removed isPublished prop as it's no longer needed for conditional rendering of the toggle
+  isPublished: boolean; // New prop to determine if it's a published image
 }
 
-export const ImageListItem = ({ image, isSelected, onSelect, onTogglePublish, onEdit, onView, isBulkActionMode }: ImageListItemProps) => {
+export const ImageListItem = ({ image, isSelected, onSelect, onTogglePublish, onEdit, onView, isBulkActionMode, isPublished }: ImageListItemProps) => {
   const readableFileName = image.file_name.split('/').pop()?.split('_').slice(1).join('_') || image.file_name;
 
   return (
@@ -34,13 +34,16 @@ export const ImageListItem = ({ image, isSelected, onSelect, onTogglePublish, on
         </div>
       </div>
       <div className="flex items-center gap-2 shrink-0">
-        {/* Always show the Switch for publish status */}
-        <Switch
-          checked={image.published}
-          onCheckedChange={() => onTogglePublish(image)}
-          aria-label="Publish status"
-          disabled={isBulkActionMode}
-        />
+        {isPublished ? (
+          <Switch
+            checked={image.published}
+            onCheckedChange={() => onTogglePublish(image)}
+            aria-label="Publish status"
+            disabled={isBulkActionMode}
+          />
+        ) : (
+          <Button variant="outline" size="sm" onClick={() => onTogglePublish(image)} disabled={isBulkActionMode}>Publish</Button>
+        )}
         <Button variant="ghost" size="icon" onClick={() => onEdit(image)} aria-label="Edit metadata" disabled={isBulkActionMode}>
           <Edit className="h-4 w-4" />
         </Button>
