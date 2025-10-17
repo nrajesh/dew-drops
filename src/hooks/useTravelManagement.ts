@@ -11,9 +11,9 @@ import {
   fetchBlogPosts,
   geocodeLocation,
   processUploads,
-  handleBulkDelete,
-  handleBulkPublish,
-  handleBulkDownload,
+  handleBulkDelete as travelHandleBulkDelete, // Renamed to avoid conflict
+  handleBulkPublish as travelHandleBulkPublish, // Renamed to avoid conflict
+  handleBulkDownload as travelHandleBulkDownload, // Renamed to avoid conflict
 } from "@/components/travel/TravelManagementUtils.ts";
 import { LocationFormData } from "@/components/travel/TravelLocationForm.tsx";
 import { useManagement } from "./useManagement"; // Import the generic hook
@@ -35,7 +35,7 @@ export const useTravelManagement = (containerRef: React.RefObject<HTMLDivElement
 
   const {
     allItems: locations,
-    paginatedItems: paginatedLocations,
+    paginatedItems,
     isLoading,
     selectedItems,
     setSelectedItems, // Keep setSelectedItems for local use
@@ -46,20 +46,22 @@ export const useTravelManagement = (containerRef: React.RefObject<HTMLDivElement
     loadItems: loadLocations,
     handlePageChange: setCurrentPage,
     handleItemsPerPageChange: setLocationsPerPage,
-    handleSelectItem: handleSelectLocation,
+    toggleSelectItem: handleSelectLocation,
     handleSelectAllOnPage: handleSelectAll,
-    handleBulkDelete: genericHandleBulkDelete,
+    handleDelete: genericHandleBulkDelete,
     handleBulkStatusChange: genericHandleBulkPublish,
     handleBulkDownload: genericHandleBulkDownload,
     handleToggleStatus: handleTogglePublish, // Renamed to match component prop
     allOnPageSelected,
   } = useManagement<TravelLocation>({
     fetchData: fetchLocations,
-    deleteItems: handleBulkDelete,
-    updateItemStatus: handleBulkPublish,
-    downloadItems: (ids, allItems) => handleBulkDownload(ids, allItems, blogPosts), // Pass blogPosts as extraData
+    tableName: 'travel_locations',
     idKey: 'id',
     statusKey: 'published',
+    initialItemsPerPage: 10,
+    deleteItems: travelHandleBulkDelete,
+    updateItemStatus: travelHandleBulkPublish,
+    downloadItems: (ids, allItems) => travelHandleBulkDownload(ids, allItems, blogPosts), // Pass blogPosts as extraData
   });
 
   useEffect(() => {
@@ -326,9 +328,9 @@ export const useTravelManagement = (containerRef: React.RefObject<HTMLDivElement
   }, [user, locationsToInsert, locationsToUpdate, selectedUpdates, loadLocations]);
 
   // --- Wrappers to match TravelLocationList component signatures ---
-  const handleBulkDeleteWrapper = useCallback(() => genericHandleBulkDelete(selectedItems, setSelectedItems, locations), [genericHandleBulkDelete, selectedItems, setSelectedItems, locations]);
-  const handleBulkPublishWrapper = useCallback((status: boolean) => genericHandleBulkPublish(selectedItems, setSelectedItems, status), [genericHandleBulkPublish, selectedItems, setSelectedItems]);
-  const handleBulkDownloadWrapper = useCallback(() => genericHandleBulkDownload(selectedItems, setSelectedItems, locations), [genericHandleBulkDownload, selectedItems, setSelectedItems, locations]);
+  const handleBulkDeleteWrapper = useCallback(() => genericHandleBulkDelete(Array.from(selectedItems), locations), [genericHandleBulkDelete, selectedItems, locations]);
+  const handleBulkPublishWrapper = useCallback((status: boolean) => genericHandleBulkPublish(selectedItems, status), [genericHandleBulkPublish, selectedItems]);
+  const handleBulkDownloadWrapper = useCallback(() => genericHandleBulkDownload(selectedItems, locations, blogPosts), [genericHandleBulkDownload, selectedItems, locations, blogPosts]);
   // -----------------------------------------------------------------
 
   return {
@@ -345,7 +347,7 @@ export const useTravelManagement = (containerRef: React.RefObject<HTMLDivElement
     locationsToInsert,
     locationsToUpdate,
     selectedUpdates,
-    paginatedLocations,
+    paginatedLocations: paginatedItems,
     totalPages,
     allOnPageSelected,
     setUploadFile,

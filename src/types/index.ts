@@ -37,6 +37,7 @@ export interface TravelLocation {
   marker_image_url: string | null;
   description: string | null;
   published: boolean;
+  blog_title?: string; // Added blog_title for display purposes
 }
 
 export interface ChatbotKnowledge {
@@ -55,4 +56,12 @@ export interface FeatureToggle {
   is_enabled: boolean;
   created_at: string;
   auto_disabled_until: string | null;
+}
+
+export interface Profile {
+  id: string;
+  first_name: string | null;
+  last_name: string | null;
+  avatar_url: string | null;
+  updated_at: string | null;
 }

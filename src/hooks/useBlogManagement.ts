@@ -11,9 +11,9 @@ import {
   parseMarkdownFile,
   processUploads,
   handleBulkDelete,
-  handleBulkTagUpdate,
-  handleBulkStatusChange,
-  handleBulkDownload,
+  handleBulkTagUpdate as blogHandleBulkTagUpdate, // Renamed to avoid conflict
+  handleBulkStatusChange as blogHandleBulkStatusChange, // Renamed to avoid conflict
+  handleBulkDownload as blogHandleBulkDownload, // Renamed to avoid conflict
   extractDescriptionFromContent,
   ensureContentHasTripleBackticks
 } from "@/components/blog/BlogManagementUtils";
@@ -40,10 +40,10 @@ export const useBlogManagement = () => {
   // Use the generic useManagement hook
   const {
     allItems: posts,
-    paginatedItems: paginatedPosts, // Alias paginatedItems to paginatedPosts
+    paginatedItems,
     isLoading,
-    selectedItems: selectedPosts, // Alias selectedItems to selectedPosts
-    setSelectedItems: setSelectedPosts, // Alias setSelectedItems to setSelectedPosts
+    selectedItems: selectedPosts,
+    setSelectedItems, // Keep setSelectedItems for local use
     currentPage,
     totalPages,
     itemsPerPage,
@@ -51,22 +51,24 @@ export const useBlogManagement = () => {
     loadItems: loadPosts,
     handlePageChange: setCurrentPage,
     handleItemsPerPageChange: setItemsPerPage,
-    handleSelectItem: handleSelectPost,
+    toggleSelectItem: handleSelectPost,
     handleSelectAllOnPage: handleSelectAll,
-    handleBulkDelete: genericHandleBulkDelete,
-    handleBulkStatusChange: genericHandleBulkStatusChange,
-    handleBulkTagUpdate: genericHandleBulkTagUpdate,
-    handleBulkDownload: genericHandleBulkDownload,
+    handleDelete: genericHandleDelete, // Renamed to avoid conflict
+    handleBulkStatusChange: genericHandleBulkStatusChange, // Renamed to avoid conflict
+    handleBulkTagUpdate: genericHandleBulkTagUpdate, // Renamed to avoid conflict
+    handleBulkDownload: genericHandleBulkDownload, // Renamed to avoid conflict
     handleToggleStatus: handleTogglePublish,
     allOnPageSelected,
   } = useManagement<Post>({
     fetchData: fetchPosts,
-    deleteItems: handleBulkDelete,
-    updateItemStatus: handleBulkStatusChange,
-    updateItemTags: handleBulkTagUpdate,
-    downloadItems: handleBulkDownload,
+    tableName: 'posts',
     idKey: 'id',
     statusKey: 'published',
+    initialItemsPerPage: 10,
+    deleteItems: handleBulkDelete,
+    updateItemStatus: blogHandleBulkStatusChange,
+    updateItemTags: blogHandleBulkTagUpdate,
+    downloadItems: blogHandleBulkDownload,
   });
 
   useEffect(() => {
@@ -228,13 +230,13 @@ export const useBlogManagement = () => {
     postsToUpdate,
     selectedUpdates,
     setSelectedUpdates,
-    handleFormSubmit,
+    handleFormSubmit, // Corrected alias
     handleUpload,
     handleConfirmAndProcessUploads,
     
     // Expose generic bulk handlers directly
-    handleBulkDelete: useCallback(() => genericHandleBulkDelete(selectedPosts, setSelectedPosts, posts), [genericHandleBulkDelete, selectedPosts, setSelectedPosts, posts]),
-    handleBulkTagUpdate: useCallback((tags: string[]) => genericHandleBulkTagUpdate(selectedPosts, setSelectedPosts, tags), [genericHandleBulkTagUpdate, selectedPosts, setSelectedPosts]),
-    handleBulkDownload: useCallback(() => genericHandleBulkDownload(selectedPosts, setSelectedPosts, posts), [genericHandleBulkDownload, selectedPosts, setSelectedPosts, posts]),
+    handleBulkDelete: useCallback(() => genericHandleDelete(Array.from(selectedPosts), posts), [genericHandleDelete, selectedPosts, posts]),
+    handleBulkTagUpdate: useCallback((tags: string[]) => genericHandleBulkTagUpdate(selectedPosts, tags), [genericHandleBulkTagUpdate, selectedPosts]),
+    handleBulkDownload: useCallback(() => genericHandleBulkDownload(selectedPosts, posts), [genericHandleBulkDownload, selectedPosts, posts]),
   };
 };

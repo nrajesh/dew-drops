@@ -2,7 +2,7 @@ import { createContext, useState, useEffect, useContext, ReactNode, useRef, useC
 import { supabase } from '@/integrations/supabase/client';
 import type { Session, User } from '@supabase/supabase-js';
 import { showError } from '@/utils/toast';
-import type { Profile } from '@/types';
+import type { Profile } from '@/types'; // Corrected import
 
 interface AuthContextType {
   session: Session | null;

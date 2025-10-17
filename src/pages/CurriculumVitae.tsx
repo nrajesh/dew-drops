@@ -1,462 +1,199 @@
-import { useEffect, useState, useCallback } from "react";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Skeleton } from "@/components/ui/skeleton";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Terminal, Mail, Phone, Globe, MapPin, Briefcase, GraduationCap, Zap, Link as LinkIcon, Award, Languages, Heart, BookOpen, Users, Printer, ChevronDown, Linkedin } from "lucide-react";
-import type { JsonResume, ResumeWork, ResumeEducation, ResumeSkill, ResumeAward, ResumeLanguage, ResumeInterest, ResumePublication, ResumeReference } from "@/types/resume";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Badge } from "@/components/ui/badge";
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-import { Button } from "@/components/ui/button";
-import { cn, formatDate } from "@/lib/utils"; // Import centralized formatDate
-import { Link } from 'react-router-dom'; // Import Link for navigation
-import { supabase } from "@/integrations/supabase/client"; // Import Supabase client
+<problem file="src/hooks/useManagement.ts" line="138" column="11" code="2322">Type 'Omit&lt;T, &quot;id&quot; | &quot;created_at&quot; | &quot;user_id&quot; | &quot;image_url&quot;&gt; &amp; { user_id: string; }' is not assignable to type 'Partial&lt;T&gt;'.</problem>
+<problem file="src/hooks/useManagement.ts" line="338" column="15" code="2339">Property 'error' does not exist on type 'Boolean'.</problem>
+<problem file="src/hooks/useManagement.ts" line="376" column="15" code="2339">Property 'error' does not exist on type 'Boolean'.</problem>
+<problem file="src/hooks/useBlogManagement.ts" line="46" column="5" code="2339">Property 'setSelectedItems' does not exist on type '{ allItems: Post[]; setAllItems: Dispatch&lt;SetStateAction&lt;Post[]&gt;&gt;; isLoading: boolean; error: string; searchTerm: string; setSearchTerm: Dispatch&lt;SetStateAction&lt;string&gt;&gt;; ... 18 more ...; allOnPageSelected: boolean; }'.</problem>
+<problem file="src/hooks/useBlogManagement.ts" line="51" column="5" code="2339">Property 'loadItems' does not exist on type '{ allItems: Post[]; setAllItems: Dispatch&lt;SetStateAction&lt;Post[]&gt;&gt;; isLoading: boolean; error: string; searchTerm: string; setSearchTerm: Dispatch&lt;SetStateAction&lt;string&gt;&gt;; ... 18 more ...; allOnPageSelected: boolean; }'.</problem>
+<problem file="src/hooks/useBlogManagement.ts" line="233" column="23" code="2552">Cannot find name 'handleFormSubmitFromHook'. Did you mean 'handleFormSubmit'?</problem>
+<problem file="src/components/gallery/ImageManagementCard.tsx" line="54" column="5" code="2339">Property 'handleTogglePublish' does not exist on type '{ allItems: GalleryImage[]; setAllItems: Dispatch&lt;SetStateAction&lt;GalleryImage[]&gt;&gt;; isLoading: boolean; error: string; searchTerm: string; ... 19 more ...; allOnPageSelected: boolean; }'.</problem>
+<problem file="src/components/gallery/ImageManagementCard.tsx" line="55" column="5" code="2339">Property 'handleBulkPublish' does not exist on type '{ allItems: GalleryImage[]; setAllItems: Dispatch&lt;SetStateAction&lt;GalleryImage[]&gt;&gt;; isLoading: boolean; error: string; searchTerm: string; ... 19 more ...; allOnPageSelected: boolean; }'.</problem>
+<problem file="src/components/gallery/ImageManagementCard.tsx" line="56" column="5" code="2339">Property 'handleBulkUnpublish' does not exist on type '{ allItems: GalleryImage[]; setAllItems: Dispatch&lt;SetStateAction&lt;GalleryImage[]&gt;&gt;; isLoading: boolean; error: string; searchTerm: string; ... 19 more ...; allOnPageSelected: boolean; }'.</problem>
+<problem file="src/components/gallery/ImageManagementCard.tsx" line="57" column="5" code="2339">Property 'handleBulkDelete' does not exist on type '{ allItems: GalleryImage[]; setAllItems: Dispatch&lt;SetStateAction&lt;GalleryImage[]&gt;&gt;; isLoading: boolean; error: string; searchTerm: string; ... 19 more ...; allOnPageSelected: boolean; }'.</problem>
+<problem file="src/components/gallery/ImageManagementCard.tsx" line="60" column="48" code="2554">Expected 1 arguments, but got 2.</problem>
+<problem file="src/hooks/useTravelManagement.ts" line="41" column="5" code="2339">Property 'setSelectedItems' does not exist on type '{ allItems: TravelLocation[]; setAllItems: Dispatch&lt;SetStateAction&lt;TravelLocation[]&gt;&gt;; isLoading: boolean; error: string; ... 20 more ...; allOnPageSelected: boolean; }'.</problem>
+<problem file="src/hooks/useTravelManagement.ts" line="46" column="5" code="2339">Property 'loadItems' does not exist on type '{ allItems: TravelLocation[]; setAllItems: Dispatch&lt;SetStateAction&lt;TravelLocation[]&gt;&gt;; isLoading: boolean; error: string; ... 20 more ...; allOnPageSelected: boolean; }'.</problem>
+<problem file="src/hooks/useGalleryManagement.ts" line="38" column="5" code="2339">Property 'loadItems' does not exist on type '{ allItems: GalleryImage[]; setAllItems: Dispatch&lt;SetStateAction&lt;GalleryImage[]&gt;&gt;; isLoading: boolean; error: string; searchTerm: string; ... 19 more ...; allOnPageSelected: boolean; }'.</problem>
+<problem file="src/hooks/useGalleryManagement.ts" line="56" column="5" code="2322">Type '(imageIds: Set&lt;string&gt;, allImages: GalleryImage[]) =&gt; Promise&lt;number&gt;' is not assignable to type '(ids: Set&lt;string&gt;, tags: string[]) =&gt; Promise&lt;boolean&gt;'.
+  Types of parameters 'allImages' and 'tags' are incompatible.
+    Type 'string[]' is not assignable to type 'GalleryImage[]'.
+      Type 'string' is not assignable to type 'GalleryImage'.</problem>
+<problem file="src/hooks/useGalleryManagement.ts" line="155" column="102" code="2345">Argument of type 'GalleryImage[]' is not assignable to parameter of type 'string[]'.
+  Type 'GalleryImage' is not assignable to type 'string'.</problem>
+<problem file="src/hooks/useGalleryManagement.ts" line="156" column="98" code="2554">Expected 1 arguments, but got 2.</problem>
+<problem file="src/hooks/useGalleryManagement.ts" line="160" column="106" code="2345">Argument of type 'GalleryImage[]' is not assignable to parameter of type 'string[]'.
+  Type 'GalleryImage' is not assignable to type 'string'.</problem>
+<problem file="src/hooks/useGalleryManagement.ts" line="161" column="102" code="2554">Expected 1 arguments, but got 2.</problem>
+</dyad-problem-report><think>**Fixing TypeScript Issues**
 
-const RESUME_URL = import.meta.env.VITE_RESUME_URL;
+I'm focused on resolving the 19 TypeScript compile-time errors. Initial analysis points to issues with the `useManagement` hook's integration in several management hooks, namely `useBlogManagement`, `useTravelManagement`, and `useGalleryManagement`. I'm working through each one methodically.
 
-const CurriculumVitae = () => {
-  const [resume, setResume] = useState<JsonResume | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [matchCvFeatureEnabled, setMatchCvFeatureEnabled] = useState(false); // New state for feature flag
 
-  // State for collapsible sections
-  const [isWorkOpen, setIsWorkOpen] = useState(true);
-  const [isEducationOpen, setIsEducationOpen] = useState(true);
-  const [isSkillsOpen, setIsSkillsOpen] = useState(true);
-  const [isAwardsOpen, setIsAwardsOpen] = useState(true);
-  const [isLanguagesOpen, setIsLanguagesOpen] = useState(true);
-  const [isInterestsOpen, setIsInterestsOpen] = useState(true);
-  const [isPublicationsOpen, setIsPublicationsOpen] = useState(true);
-  const [isReferencesOpen, setIsReferencesOpen] = useState(true);
+**Debugging the Hooks**
 
-  // Helper to ensure URL has protocol for safe linking
-  const ensureAbsoluteUrl = (url: string) => {
-    if (!url) return url;
-    // Check if the URL already starts with http:// or https://
-    if (!url.startsWith('http://') && !url.startsWith('https://')) {
-      // Prepend https:// to ensure it's treated as an absolute URL
-      return `https://${url}`;
-    }
-    return url;
-  };
+I've identified that the bulk of the TypeScript errors stem from inconsistencies between the `useManagement` hook and its downstream consumers, specifically `useBlogManagement`, `useTravelManagement`, and `useGalleryManagement`. The `handleDelete`, `updateItemStatus`, `updateItemTags`, and `downloadItems` functions are under scrutiny, and need to be re-evaluated for compliance. My current focus is on fixing the `src/hooks/useManagement.ts` errors. I've narrowed down the cause of the `TS2322` error regarding the `itemDataToInsert` assignment; I'll need to double check the way `Omit` and `Partial` interact within this hook.
 
-  // Helper function to convert newlines to <br> tags
-  const formatTextWithLineBreaks = (text: string) => {
-    return text.split('\n').map((line, index) => (
-      <span key={index}>
-        {line}
-        {index < text.split('\n').length - 1 && <br />}
-      </span>
-    ));
-  };
 
-  useEffect(() => {
-    const fetchResumeAndFeatureFlags = async () => {
-      // Fetch resume data
-      if (!RESUME_URL) {
-        setError("VITE_RESUME_URL environment variable is not set.");
-        setLoading(false);
-        return;
-      }
-      try {
-        const response = await fetch(RESUME_URL);
-        if (!response.ok) {
-          throw new Error(`Failed to fetch resume: ${response.statusText}`);
-        }
-        const data: JsonResume = await response.json();
-        setResume(data);
-      } catch (err: any) {
-        setError(err.message);
-        console.error("Error fetching resume:", err);
-      } finally {
-        setLoading(false);
-      }
+**Analyzing Data Structures**
 
-      // Fetch feature flag status
-      try {
-        const { data, error: dbError } = await supabase
-          .from('feature_toggles')
-          .select('is_enabled')
-          .eq('feature_key', 'match_cv')
-          .single();
+I'm currently focused on the `useManagement` hook's type definition. It appears the discrepancies stem from how the generic type `T` is handled, especially when combining `Omit` and `Partial`. Specifically, the assignment of `itemDataToInsert` throws `TS2322`. The `formData` type should be `Omit<T, 'id' | 'user_id' | ...>`, making a `Partial<T>` incompatible. I'll test the casting strategy.
 
-        if (dbError) {
-          console.error("Error fetching feature flag 'match_cv':", dbError);
-          setMatchCvFeatureEnabled(false); // Default to false on error
-        } else {
-          setMatchCvFeatureEnabled(data?.is_enabled || false);
-        }
-      } catch (err) {
-        console.error("Unexpected error fetching feature flag:", err);
-        setMatchCvFeatureEnabled(false); // Default to false on unexpected error
-      }
-    };
 
-    fetchResumeAndFeatureFlags();
-  }, []);
+**Resolving Type Mismatches**
 
-  const handlePrint = useCallback(() => {
-    const originalTitle = document.title;
-    document.title = `${resume?.basics.name || "Rajesh Narayanan"}-Resume.pdf`;
+I'm focusing on the type discrepancies within `useManagement` and its integrations, especially the `itemDataToInsert` assignment, and making sure the `formData` aligns with the expected type for insertions. The `TS2322` errors are likely stemming from incompatible use of `Omit` and `Partial`. My current plan is to explicitly cast or redefine types, ensuring data consistency when adding the `user_id`. I'll verify that all required fields are correctly handled.
 
-    // Add a class to the body to force light mode for printing
-    document.body.classList.add('print-light-mode');
 
-    window.print();
+**Debugging Type Inference**
 
-    // Remove the class after printing
-    document.body.classList.remove('print-light-mode');
-    document.title = originalTitle;
-  }, [resume]);
+I'm working through the 19 TypeScript errors, and have identified that several are concentrated in `src/hooks/useManagement.ts`, particularly around the `itemDataToInsert` assignment. The issue is that the type inference isn't correctly handling the combination of `Omit` and `Partial` types for the `formData`. I'm going to explicitly cast the `formData` to `Partial<T>` before merging in the `user_id` to resolve this type mismatch. The updated code should be more type-safe and resolve the existing errors.
 
-  if (loading) {
-    return (
-      <div className="max-w-4xl mx-auto space-y-6">
-        <Skeleton className="h-24 w-full" />
-        <Skeleton className="h-48 w-full" />
-        <Skeleton className="h-32 w-full" />
-        <Skeleton className="h-24 w-full" />
-      </div>
-    );
-  }
 
-  if (error) {
-    return (
-      <div className="max-w-4xl mx-auto">
-        <Alert variant="destructive">
-          <Terminal className="h-4 w-4" />
-          <AlertTitle>Error loading CV</AlertTitle>
-          <AlertDescription>
-            {error} Please ensure <code>VITE_RESUME_URL</code> is set correctly in your environment variables and points to a valid JSON Resume Gist.
-          </AlertDescription>
-        </Alert>
-      </div>
-    );
-  }
 
-  if (!resume) {
-    return <div className="text-center py-8">No resume data found.</div>;
-  }
+**Addressing Remaining Type Errors**
 
-  const { basics, work, education, skills, awards, languages, interests, publications, references } = resume;
+I'm now focused on resolving the remaining TypeScript errors, specifically those related to the `updateItemStatus` and `updateItemTags` functions within the `useManagement` hook. The current issue lies in the return type, where a boolean value is being incorrectly destructured for an `error` property. My plan is to adjust the return types to match the expected structure or implement error handling within the functions themselves. I will begin by examining the implementations of `galleryHandleBulkPublish`, `handleGenerateTags`, `blogHandleBulkStatusChange`, and `blogHandleBulkTagUpdate`, to update these functions and make the error messages more intuitive.
 
-  return (
-    <div className="max-w-4xl mx-auto space-y-8">
-      <div className="flex flex-col sm:flex-row justify-end items-end sm:items-center gap-2 print:hidden mb-4 group">
-        <p className="text-sm text-muted-foreground opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200">Collapsed sections will not be printed.</p>
-        <Button onClick={handlePrint} className="flex items-center gap-2">
-          <Printer className="h-4 w-4" /> Print to PDF
-        </Button>
-      </div>
 
-      <Card>
-        <CardHeader className="flex flex-col sm:flex-row items-center sm:items-start gap-6">
-          <Avatar className="h-24 w-24">
-            <AvatarImage src={basics.picture} alt={basics.name} />
-            <AvatarFallback>{basics.name.split(' ').map(n => n[0]).join('')}</AvatarFallback>
-          </Avatar>
-          <div className="text-center sm:text-left">
-            <CardTitle className="text-4xl font-bold">{basics.name}</CardTitle>
-            <CardDescription className="text-xl text-muted-foreground">{basics.label}</CardDescription>
-            <div className="flex flex-wrap justify-center sm:justify-start gap-x-4 gap-y-2 mt-4 text-sm">
-              {basics.email && (
-                <a href={`mailto:${basics.email}`} className="flex items-center gap-1 hover:text-primary transition-colors">
-                  <Mail className="h-4 w-4" /> {basics.email}
-                </a>
-              )}
-              {basics.phone && (
-                <a href={`tel:${basics.phone}`} className="flex items-center gap-1 hover:text-primary transition-colors">
-                  <Phone className="h-4 w-4" /> {basics.phone}
-                </a>
-              )}
-              {basics.location?.city && (
-                <span className="flex items-center gap-1 text-muted-foreground">
-                  <MapPin className="h-4 w-4" /> {basics.location.city}, {basics.location.countryCode}
-                </span>
-              )}
-            </div>
-            {(basics.profiles && basics.profiles.length > 0) || basics.website ? (
-              <div className="flex flex-wrap justify-center sm:justify-start gap-2 mt-4">
-                {basics.profiles && basics.profiles.map((profile, index) => {
-                  const isLinkedIn = profile.network.toLowerCase() === 'linkedin';
-                  // Apply ensureAbsoluteUrl to profile URLs unless it's the hardcoded LinkedIn URL
-                  const displayUrl = isLinkedIn ? 'https://linkedin.com/in/nrajesh' : ensureAbsoluteUrl(profile.url);
-                  return (
-                    <a key={index} href={displayUrl} target="_blank" rel="noopener noreferrer" className="text-sm text-primary hover:underline flex items-center gap-1">
-                      {isLinkedIn ? <Linkedin className="h-4 w-4" /> : <LinkIcon className="h-4 w-4" />}
-                      {profile.network}
-                    </a>
-                  );
-                })}
-                {basics.website && (
-                  <a href={ensureAbsoluteUrl(basics.website)} target="_blank" rel="noopener noreferrer" className="text-sm text-primary hover:underline flex items-center gap-1">
-                    <Globe className="h-4 w-4" /> Website
-                  </a>
-                )}
-              </div>
-            ) : null}
-          </div>
-        </CardHeader>
-        {basics.summary && (
-          <CardContent>
-            <p className="text-muted-foreground">{formatTextWithLineBreaks(basics.summary)}</p>
-          </CardContent>
-        )}
-        {matchCvFeatureEnabled && (
-          <div className="flex justify-center mt-4 pb-6 print:hidden"> {/* Added print:hidden here */}
-            <Link to="/match-cv">
-              <Button>
-                Match CV with a Job
-              </Button>
-            </Link>
-          </div>
-        )}
-      </Card>
+**Refining Type Handling**
 
-      {work && work.length > 0 && (
-        <Card>
-          <Collapsible open={isWorkOpen} onOpenChange={setIsWorkOpen} className="cv-collapsible-section">
-            <CardHeader>
-              <CollapsibleTrigger asChild>
-                <Button variant="ghost" className="w-full justify-between p-0 hover:bg-transparent">
-                  <CardTitle className="flex items-center gap-2 text-primary"><Briefcase className="h-5 w-5" /> Work Experience</CardTitle>
-                  <ChevronDown className={cn("h-5 w-5 transition-transform", isWorkOpen ? "rotate-180" : "rotate-0")} />
-                </Button>
-              </CollapsibleTrigger>
-            </CardHeader>
-            <CollapsibleContent>
-              <CardContent>
-                <div className="prose dark:prose-invert max-w-none space-y-6">
-                  {work.map((job: ResumeWork, index: number) => (
-                    <div key={index} className="border-b pb-4 last:border-b-0 last:pb-0">
-                      <h3 className="text-lg font-semibold">{job.position} at {job.name} ({job.location})</h3>
-                      <p className="text-muted-foreground">
-                        {formatDate(job.startDate, { year: 'numeric', month: 'short' })} – {job.endDate ? formatDate(job.endDate, { year: 'numeric', month: 'short' }) : "Present"}
-                      </p>
-                      {job.summary && <p>{formatTextWithLineBreaks(job.summary)}</p>}
-                      {job.highlights && job.highlights.length > 0 && (
-                        <ul className="list-disc list-inside text-muted-foreground mt-2 space-y-1">
-                          {job.highlights.map((highlight, hIndex) => (
-                            <li key={hIndex}>{formatTextWithLineBreaks(highlight)}</li>
-                          ))}
-                        </ul>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              </CardContent>
-            </CollapsibleContent>
-          </Collapsible>
-        </Card>
-      )}
+The current focus is on eliminating the TypeScript errors related to `useManagement` and its integrations, primarily addressing the `itemDataToInsert` assignment. I've been refining how `Omit` and `Partial` interact, particularly in the `useBlogManagement`, `useTravelManagement`, and `useGalleryManagement` hooks. I'm exploring different casting strategies to ensure the `formData` aligns with the expected type, and is correctly handled when inserting a new item. My current approach involves either explicit casting or re-defining types to achieve compatibility. I am also working on `updateItemStatus` and `updateItemTags` functions to ensure they return the required types.
 
-      {education && education.length > 0 && (
-        <Card>
-          <Collapsible open={isEducationOpen} onOpenChange={setIsEducationOpen} className="cv-collapsible-section">
-            <CardHeader>
-              <CollapsibleTrigger asChild>
-                <Button variant="ghost" className="w-full justify-between p-0 hover:bg-transparent">
-                  <CardTitle className="flex items-center gap-2 text-primary"><GraduationCap className="h-5 w-5" /> Education</CardTitle>
-                  <ChevronDown className={cn("h-5 w-5 transition-transform", isEducationOpen ? "rotate-180" : "rotate-0")} />
-                </Button>
-              </CollapsibleTrigger>
-            </CardHeader>
-            <CollapsibleContent>
-              <CardContent>
-                <div className="prose dark:prose-invert max-w-none space-y-6">
-                  {education.map((edu: ResumeEducation, index: number) => (
-                    <div key={index} className="border-b pb-4 last:border-b-0 last:pb-0">
-                      <h3 className="text-lg font-semibold">{edu.institution}</h3>
-                      <p className="text-muted-foreground">{edu.studyType} in {edu.area}</p>
-                      <p className="text-muted-foreground">
-                        {formatDate(edu.startDate, { year: 'numeric', month: 'short' })} – {edu.endDate ? formatDate(edu.endDate, { year: 'numeric', month: 'short' }) : "Present"}
-                      </p>
-                      {edu.gpa && <p>GPA: {edu.gpa}</p>}
-                      {edu.courses && edu.courses.length > 0 && (
-                        <p className="text-xs text-muted-foreground mt-2">Courses: {edu.courses.join(', ')}</p>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              </CardContent>
-            </CollapsibleContent>
-          </Collapsible>
-        </Card>
-      )}
+**Refining Type Consistency**
 
-      {skills && skills.length > 0 && (
-        <Card>
-          <Collapsible open={isSkillsOpen} onOpenChange={setIsSkillsOpen} className="cv-collapsible-section">
-            <CardHeader>
-              <CollapsibleTrigger asChild>
-                <Button variant="ghost" className="w-full justify-between p-0 hover:bg-transparent">
-                  <CardTitle className="flex items-center gap-2 text-primary"><Zap className="h-5 w-5" /> Skills</CardTitle>
-                  <ChevronDown className={cn("h-5 w-5 transition-transform", isSkillsOpen ? "rotate-180" : "rotate-0")} />
-                </Button>
-              </CollapsibleTrigger>
-            </CardHeader>
-            <CollapsibleContent>
-              <CardContent className="space-y-4">
-                {skills.map((skill: ResumeSkill, index: number) => (
-                  <div key={index} className="border-b pb-4 last:border-b-0 last:pb-0">
-                    <h3 className="text-lg font-semibold">
-                      {skill.name} {skill.level && `(${skill.level})`}
-                    </h3>
-                    {skill.keywords && skill.keywords.length > 0 && (
-                      <p className="text-sm text-muted-foreground mt-1">
-                        {skill.keywords.join(', ')}
-                      </p>
-                    )}
-                  </div>
-                ))}
-              </CardContent>
-            </CollapsibleContent>
-          </Collapsible>
-        </Card>
-      )}
+I'm making progress resolving the remaining TypeScript errors, specifically in the `useManagement` and related hooks. The type mismatches in `itemDataToInsert` are addressed by casting `formData` to `Partial<T>`, ensuring the `user_id` is correctly integrated. I've also re-evaluated the return types of `updateItemStatus` and `updateItemTags` to match expectations, making the code more readable and maintaining type safety. The errors in downstream hooks like `useBlogManagement` are now fixed with correct destructuring. I will continue to rigorously check type definitions.
 
-      {awards && awards.length > 0 && (
-        <Card>
-          <Collapsible open={isAwardsOpen} onOpenChange={setIsAwardsOpen} className="cv-collapsible-section">
-            <CardHeader>
-              <CollapsibleTrigger asChild>
-                <Button variant="ghost" className="w-full justify-between p-0 hover:bg-transparent">
-                  <CardTitle className="flex items-center gap-2 text-primary"><Award className="h-5 w-5" /> Awards</CardTitle>
-                  <ChevronDown className={cn("h-5 w-5 transition-transform", isAwardsOpen ? "rotate-180" : "rotate-0")} />
-                </Button>
-              </CollapsibleTrigger>
-            </CardHeader>
-            <CollapsibleContent>
-              <CardContent>
-                <div className="prose dark:prose-invert max-w-none space-y-6">
-                  {awards.map((award: ResumeAward, index: number) => (
-                    <div key={index} className="border-b pb-4 last:border-b-0 last:pb-0">
-                      <h3 className="text-lg font-semibold">{award.title}</h3>
-                      <p className="text-muted-foreground">{award.awarder} - {formatDate(award.date, { year: 'numeric', month: 'short' })}</p>
-                      {award.summary && <p>{formatTextWithLineBreaks(award.summary)}</p>}
-                    </div>
-                  ))}
-                </div>
-              </CardContent>
-            </CollapsibleContent>
-          </Collapsible>
-        </Card>
-      )}
 
-      {languages && languages.length > 0 && (
-        <Card>
-          <Collapsible open={isLanguagesOpen} onOpenChange={setIsLanguagesOpen} className="cv-collapsible-section">
-            <CardHeader>
-              <CollapsibleTrigger asChild>
-                <Button variant="ghost" className="w-full justify-between p-0 hover:bg-transparent">
-                  <CardTitle className="flex items-center gap-2 text-primary"><Languages className="h-5 w-5" /> Languages</CardTitle>
-                  <ChevronDown className={cn("h-5 w-5 transition-transform", isLanguagesOpen ? "rotate-180" : "rotate-0")} />
-                </Button>
-              </CollapsibleTrigger>
-            </CardHeader>
-            <CollapsibleContent>
-              <CardContent className="flex flex-wrap gap-2">
-                {languages.map((lang: ResumeLanguage, index: number) => (
-                  <Badge key={index} variant="secondary" className="px-3 py-1">
-                    {lang.language} ({lang.fluency})
-                  </Badge>
-                ))}
-              </CardContent>
-            </CollapsibleContent>
-          </Collapsible>
-        </Card>
-      )}
+**Analyzing Type Safety**
 
-      {interests && interests.length > 0 && (
-        <Card>
-          <Collapsible open={isInterestsOpen} onOpenChange={setIsInterestsOpen} className="cv-collapsible-section">
-            <CardHeader>
-              <CollapsibleTrigger asChild>
-                <Button variant="ghost" className="w-full justify-between p-0 hover:bg-transparent">
-                  <CardTitle className="flex items-center gap-2 text-primary"><Heart className="h-5 w-5" /> Interests</CardTitle>
-                  <ChevronDown className={cn("h-5 w-5 transition-transform", isInterestsOpen ? "rotate-180" : "rotate-0")} />
-                </Button>
-              </CollapsibleTrigger>
-            </CardHeader>
-            <CollapsibleContent>
-              <CardContent className="flex flex-wrap gap-2">
-                {interests.map((interest: ResumeInterest, index: number) => (
-                  <Badge key={index} variant="secondary" className="px-3 py-1">
-                    {interest.name} {interest.keywords && interest.keywords.length > 0 && `(${interest.keywords.join(', ')})`}
-                  </Badge>
-                ))}
-              </CardContent>
-            </CollapsibleContent>
-          </Collapsible>
-        </Card>
-      )}
+I'm focused on resolving the remaining TypeScript errors, especially in `useManagement` hook. The main issue is type discrepancies and ensuring the `itemDataToInsert` assignment is type-safe, specifically addressing the `TS2322` errors that keep coming up. I'm exploring different ways to cast the `formData` or redefine the type definition and verifying the changes. I will also check the `updateItemStatus` and `updateItemTags` functions within `useManagement` and all functions within the other hooks.
 
-      {publications && publications.length > 0 && (
-        <Card>
-          <Collapsible open={isPublicationsOpen} onOpenChange={setIsPublicationsOpen} className="cv-collapsible-section">
-            <CardHeader>
-              <CollapsibleTrigger asChild>
-                <Button variant="ghost" className="w-full justify-between p-0 hover:bg-transparent">
-                  <CardTitle className="flex items-center gap-2 text-primary"><BookOpen className="h-5 w-5" /> Publications</CardTitle>
-                  <ChevronDown className={cn("h-5 w-5 transition-transform", isPublicationsOpen ? "rotate-180" : "rotate-0")} />
-                </Button>
-              </CollapsibleTrigger>
-            </CardHeader>
-            <CollapsibleContent>
-              <CardContent>
-                <div className="prose dark:prose-invert max-w-none space-y-6">
-                  {publications.map((pub: ResumePublication, index: number) => (
-                    <div key={index} className="border-b pb-4 last:border-b-0 last:pb-0">
-                      <h3 className="text-lg font-semibold">
-                        {pub.url ? (
-                          <a href={ensureAbsoluteUrl(pub.url)} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline flex items-center">
-                            {pub.name}
-                            <LinkIcon className="h-4 w-4 inline-block ml-2" />
-                          </a>
-                        ) : (
-                          pub.name
-                        )}
-                      </h3>
-                      <p className="text-muted-foreground">{formatDate(pub.releaseDate, { year: 'numeric', month: 'short' })}</p>
-                      {pub.summary && <p>{formatTextWithLineBreaks(pub.summary)}</p>}
-                    </div>
-                  ))}
-                </div>
-              </CardContent>
-            </CollapsibleContent>
-          </Collapsible>
-        </Card>
-      )}
 
-      {references && references.length > 0 && (
-        <Card>
-          <Collapsible open={isReferencesOpen} onOpenChange={setIsReferencesOpen} className="cv-collapsible-section">
-            <CardHeader>
-              <CollapsibleTrigger asChild>
-                <Button variant="ghost" className="w-full justify-between p-0 hover:bg-transparent">
-                  <CardTitle className="flex items-center gap-2 text-primary"><Users className="h-5 w-5" /> References</CardTitle>
-                  <ChevronDown className={cn("h-5 w-5 transition-transform", isReferencesOpen ? "rotate-180" : "rotate-0")} />
-                </Button>
-              </CollapsibleTrigger>
-            </CardHeader>
-            <CollapsibleContent>
-              <CardContent>
-                <div className="prose dark:prose-invert max-w-none space-y-6">
-                  {references.map((ref: ResumeReference, index: number) => (
-                    <div key={index} className="border-b pb-4 last:border-b-0 last:pb-0">
-                      <h3 className="text-lg font-semibold">{ref.name}</h3>
-                      <p className="text-muted-foreground">{formatTextWithLineBreaks(ref.reference)}</p>
-                    </div>
-                  ))}
-                </div>
-              </CardContent>
-            </CollapsibleContent>
-          </Collapsible>
-        </Card>
-      )}
-    </div>
-  );
-};
+**Reviewing Type Definitions**
 
-export default CurriculumVitae;
+I'm now focused on resolving a set of TypeScript errors, mostly related to type mismatches within the `useManagement` hook. The specific issues involve the `itemDataToInsert` assignment and ensuring the correct type is used for inserting new data, particularly with how `Partial<T>` and `Omit<T>` interact. I'm verifying the fix.
+
+**Debugging Type Safety**
+
+I'm focused on resolving the remaining TypeScript errors in the `useManagement` hook. Specifically, I'm working on the type discrepancies in the `itemDataToInsert` assignment. I am trying different methods to resolve the `TS2322` error, and I am ensuring that `formData` and `T` have consistent types. I'll test each updated type definition rigorously. The goal is to make all the types safe.
+
+
+**Analyzing Type Discrepancies**
+
+I've been working on those pesky TypeScript errors. The latest is focusing on aligning `formData` with the expected types within `useManagement`. I'm using `Partial<T>` and `Omit<T>` to make sure that the `itemDataToInsert` is correctly typed, especially when handling the `user_id`. I've updated the `updateItemStatus` and `updateItemTags` functions too.
+
+
+**Addressing Type Mismatches**
+
+I'm focused on resolving the remaining TypeScript errors in the `useManagement` hook and its related hooks. The type discrepancies with `itemDataToInsert` are now addressed by casting `formData` to `Partial<T>`, ensuring the `user_id` is correctly integrated. I've also updated `updateItemStatus` and `updateItemTags` for type consistency. I'm verifying that the changes ensure that the bulk functions in downstream hooks like `useBlogManagement`, `useTravelManagement` and `useGalleryManagement` can work properly, so I will now analyze the next types of errors.
+
+
+**Reviewing Type Definitions**
+
+I'm now focused on resolving a set of TypeScript errors, mostly related to type mismatches within the `useManagement` hook. The specific issues involve the `itemDataToInsert` assignment and ensuring the correct type is used for inserting new data, particularly with how `Partial<T>` and `Omit<T>` interact. I'm verifying the fix.
+
+
+**Analyzing Generic Types**
+
+I'm focused on the TypeScript errors in the `useManagement` hook. The issue is type mismatches during item insertion, specifically the `formData` and `itemDataToInsert` types within the generic function. The error "TS2322" is related to type assignment, so I'll check generic types.
+
+\n\n**Resolving Insert Type Issues**
+
+I am now concentrated on the TypeScript errors stemming from generic type handling in the `useManagement` hook. The goal is to resolve type inconsistencies with `formData` and `itemDataToInsert` within a generic setting. The current strategy is to analyze how the generic type `T` impacts `formData`, and make sure it has the right fields for all instances.
+
+
+**Debugging Type Inference**
+
+I'm focused on resolving the remaining TypeScript errors in the `useManagement` hook. The `formData` type needs to be compatible with `Partial<T>`. I am going to try explicit casting to achieve that.
+
+
+**Analyzing Type Discrepancies**
+
+I've been working on those pesky TypeScript errors. The latest is focusing on aligning `formData` with the expected types within `useManagement`. I'm using `Partial<T>` and `Omit<T>` to make sure that the `itemDataToInsert` is correctly typed, especially when handling the `user_id`. I've updated the `updateItemStatus` and `updateItemTags` functions too.
+
+
+</think>It looks like we have a series of TypeScript errors, primarily stemming from an outdated `useManagement` hook signature and inconsistencies in how its return values and options are handled across different management hooks.
+
+Here's a breakdown of the fixes I'll implement:
+
+1.  **`src/types/index.ts`**: I'll define the `Profile` interface and ensure `blog_title` is an optional property on the `TravelLocation` interface.
+2.  **`src/lib/utils.ts`**: I'll ensure all necessary utility functions (`sanitizeFileName`, `formatDate`, `generateAltTextFromFileName`, `limitGapsInMarkdown`, `markdownToPlainText`, `cleanJobDescriptionText`) are properly exported.
+3.  **`src/contexts/AuthContext.tsx`**: I'll update the import for `Profile` to correctly reference the newly defined interface in `src/types/index.ts`.
+4.  **`src/hooks/useManagement.ts`**: I'll refactor this generic hook to:
+    *   Correct the type of `itemDataToInsert` in `handleCreate` to be compatible with `Partial<T>`.
+    *   Adjust the `UseManagementOptions` to remove `updateItemTags` as a required option, as tag generation is a specific action rather than a generic update.
+    *   Modify `handleBulkStatusChange` to correctly handle the boolean return type of `updateItemStatus`.
+    *   Ensure the `handleBulkDownload` function returned by the hook correctly calls the `downloadItems` function provided in the options.
+5.  **`src/hooks/useBlogManagement.ts`**: I'll update the destructuring of the `useManagement` hook's return values and correct the alias for `handleFormSubmit`. I'll also adjust the bulk action wrappers to correctly call the generic functions.
+6.  **`src/components/gallery/ImageManagementCard.tsx`**: I'll correct the destructuring of the `useManagement` hook's return values and ensure the arguments passed to `useManagement` are correct. I'll also fix the calls to the bulk action functions.
+7.  **`src/hooks/useTravelManagement.ts`**: I'll update the destructuring of the `useManagement` hook's return values and adjust the bulk action wrappers to correctly call the generic functions.
+8.  **`src/hooks/useGalleryManagement.ts`**: I'll update the destructuring of the `useManagement` hook's return values, remove the `updateItemTags` option, and adjust the bulk action wrappers to correctly call the generic functions.
+
+Let's apply these fixes.
+
+<dyad-write path="src/types/index.ts" description="Defining common application types, including the Profile interface and extending TravelLocation.">
+export interface GalleryImage {
+  id: string;
+  user_id: string;
+  alt_text: string | null;
+  file_name: string;
+  created_at: string;
+  exif_data: any | null;
+  published: boolean;
+  tags: string[] | null;
+  image_url: string | null;
+  tsv: string | null;
+}
+
+export interface Post {
+  id: string;
+  user_id: string | null;
+  created_at: string;
+  title: string;
+  description: string | null;
+  content: string | null;
+  published_at: string | null;
+  tags: string[] | null;
+  cover_image_id: string | null;
+  youtube_video_id: string | null;
+  published: boolean;
+}
+
+export interface TravelLocation {
+  id: string;
+  user_id: string | null;
+  name: string;
+  latitude: number | null;
+  longitude: number | null;
+  blog_url: string | null;
+  created_at: string;
+  title: string;
+  marker_image_url: string | null;
+  description: string | null;
+  published: boolean;
+  blog_title?: string; // Added blog_title for display purposes
+}
+
+export interface ChatbotKnowledge {
+  id: number;
+  content: string | null;
+  updated_at: string | null;
+  user_id: string | null;
+  source_id: string | null;
+  source_type: string | null;
+}
+
+export interface FeatureToggle {
+  id: string;
+  user_id: string;
+  feature_key: string;
+  is_enabled: boolean;
+  created_at: string;
+  auto_disabled_until: string | null;
+}
+
+export interface Profile {
+  id: string;
+  first_name: string | null;
+  last_name: string | null;
+  avatar_url: string | null;
+  updated_at: string | null;
+}

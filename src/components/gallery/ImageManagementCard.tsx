@@ -41,8 +41,8 @@ export const ImageManagementCard = () => {
   }, [user, toast]);
 
   const {
-    allItems: images, // Corrected destructuring
-    setAllItems: setImages, // Corrected destructuring
+    allItems: images,
+    setAllItems: setImages,
     searchTerm,
     setSearchTerm,
     selectedItems: selectedImages,
@@ -51,13 +51,45 @@ export const ImageManagementCard = () => {
     handleCreate: handleCreateImage,
     handleUpdate: handleUpdateImage,
     handleDelete: handleDeleteImages,
-    handleTogglePublish: handleTogglePublishImage,
-    handleBulkPublish,
-    handleBulkUnpublish,
-    handleBulkDelete,
-    isLoading: loading, // Corrected destructuring
+    handleToggleStatus: handleTogglePublishImage,
+    handleBulkStatusChange: handleBulkPublish, // Renamed to match component prop
+    handleBulkStatusChange: handleBulkUnpublish, // Renamed to match component prop
+    handleBulkDelete: handleBulkDeleteGeneric, // Renamed to avoid conflict with local handleDeleteImages
+    isLoading: loading,
     error,
-  } = useManagement<GalleryImage>(fetchImages, { tableName: 'gallery_images', storageBucketName: 'gallery-images' }); // Corrected arguments
+    paginatedItems,
+    currentPage,
+    totalPages,
+    itemsPerPage,
+    totalItems,
+    handlePageChange,
+    handleItemsPerPageChange,
+    handleSelectAllOnPage,
+    allOnPageSelected,
+  } = useManagement<GalleryImage>({
+    fetchData: fetchImages,
+    tableName: 'gallery_images',
+    storageBucketName: 'gallery-images',
+    idKey: 'id',
+    statusKey: 'published',
+    initialItemsPerPage: 10,
+    deleteItems: handleDeleteImages, // Pass the specific delete function
+    updateItemStatus: async (ids, status) => { // Inline implementation for updateItemStatus
+      const { error } = await supabase
+        .from('gallery_images')
+        .update({ published: status })
+        .in('id', Array.from(ids));
+      if (error) {
+        toast({
+          title: 'Error',
+          description: error.message,
+          variant: 'destructive',
+        });
+        return false;
+      }
+      return true;
+    },
+  });
 
   useEffect(() => {
     if (error) {
@@ -163,9 +195,9 @@ export const ImageManagementCard = () => {
         <TabsContent value="all" className="mt-4">
           <BulkActionsSection
             selectedItemCount={selectedImages.size}
-            onPublish={handleBulkPublish}
-            onUnpublish={handleBulkUnpublish}
-            onDelete={handleBulkDelete}
+            onPublish={() => handleBulkPublish(selectedImages, true)}
+            onUnpublish={() => handleBulkPublish(selectedImages, false)}
+            onDelete={() => handleBulkDeleteGeneric(Array.from(selectedImages))}
             itemType="images"
           />
           {loading ? (
@@ -192,9 +224,9 @@ export const ImageManagementCard = () => {
         <TabsContent value="published" className="mt-4">
           <BulkActionsSection
             selectedItemCount={selectedImages.size}
-            onPublish={handleBulkPublish}
-            onUnpublish={handleBulkUnpublish}
-            onDelete={handleBulkDelete}
+            onPublish={() => handleBulkPublish(selectedImages, true)}
+            onUnpublish={() => handleBulkPublish(selectedImages, false)}
+            onDelete={() => handleBulkDeleteGeneric(Array.from(selectedImages))}
             itemType="images"
           />
           {loading ? (
@@ -221,9 +253,9 @@ export const ImageManagementCard = () => {
         <TabsContent value="unpublished" className="mt-4">
           <BulkActionsSection
             selectedItemCount={selectedImages.size}
-            onPublish={handleBulkPublish}
-            onUnpublish={handleBulkUnpublish}
-            onDelete={handleBulkDelete}
+            onPublish={() => handleBulkPublish(selectedImages, true)}
+            onUnpublish={() => handleBulkPublish(selectedImages, false)}
+            onDelete={() => handleBulkDeleteGeneric(Array.from(selectedImages))}
             itemType="images"
           />
           {loading ? (

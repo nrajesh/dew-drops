@@ -2,6 +2,7 @@ import { supabase } from "@/integrations/supabase/client";
 import type { TravelLocation, Post } from "@/types";
 import { showSuccess, showError, showLoading, updateToastSuccess, updateToastError } from "@/utils/toast";
 import JSZip from 'jszip';
+import { sanitizeFileName } from "@/lib/utils"; // Import sanitizeFileName
 
 const MAPBOX_ACCESS_TOKEN = import.meta.env.VITE_MAPBOX_ACCESS_TOKEN;
 
