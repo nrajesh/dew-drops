@@ -21,6 +21,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { cn } from "@/lib/utils";
 import { ManagementPagination } from "../ManagementPagination";
 import { useAuth } from "@/contexts/AuthContext";
+import { Input } from "@/components/ui/input"; // Import Input component
 
 interface PostListProps {
   posts: Post[];
@@ -39,7 +40,9 @@ interface PostListProps {
   itemsPerPage: number;
   onItemsPerPageChange: (value: number) => void;
   totalItems: number;
-  isLoading: boolean; // Added isLoading prop
+  isLoading: boolean;
+  searchTerm: string; // Added searchTerm prop
+  onSearch: (term: string) => void; // Added onSearch prop
 }
 
 export const PostList = ({
@@ -60,6 +63,8 @@ export const PostList = ({
   onItemsPerPageChange,
   totalItems,
   isLoading,
+  searchTerm, // Destructure searchTerm
+  onSearch, // Destructure onSearch
 }: PostListProps) => {
   const [isTagDialogOpen, setIsTagDialogOpen] = useState(false);
   const [bulkEditTags, setBulkEditTags] = useState<string[]>([]);
@@ -82,13 +87,21 @@ export const PostList = ({
     <>
       <Card>
         <CardHeader>
-          <div className="flex items-center justify-between">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
             <div>
               <CardTitle>Post List</CardTitle>
               <CardDescription>Your current list of blog posts.</CardDescription>
             </div>
+            <div className="flex-grow max-w-sm">
+              <Input
+                placeholder="Search by title, tags, or content..."
+                value={searchTerm}
+                onChange={(e) => onSearch(e.target.value)}
+                className="w-full"
+              />
+            </div>
             {selectedPosts.size > 0 && (
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 mt-4 sm:mt-0">
                 <Button variant="outline" size="sm" onClick={() => setIsTagDialogOpen(true)}>
                   <Tag className="h-4 w-4 mr-2" />
                   Edit Tags
