@@ -5,10 +5,10 @@ import * as z from "zod";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDescription } from "@/components/ui/form"; // Added FormDescription
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDescription } from "@/components/ui/form";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { supabase } from "@/integrations/supabase/client";
-import { showSuccess, showError, showLoading, dismissToast, updateToastSuccess, updateToastError } from "@/utils/toast"; // Added updateToastSuccess, updateToastError
+import { showSuccess, showError, showLoading, dismissToast, updateToastSuccess, updateToastError } from "@/utils/toast";
 import { PostList } from "@/components/blog/PostList";
 import { usePaginationNavigation } from "@/hooks/usePaginationNavigation";
 import {
@@ -55,7 +55,7 @@ const ManageBlog = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(10);
   const [uploadFiles, setUploadFiles] = useState<File[]>([]);
-  const [searchTerm, setSearchTerm] = useState(""); // State for search term
+  const [searchTerm, setSearchTerm] = useState("");
 
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -404,14 +404,14 @@ const ManageBlog = () => {
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Cover Image</FormLabel>
-                      <Select onValueChange={field.onChange} value={field.value || ""}>
+                      <Select onValueChange={field.onChange} value={field.value || "--none--"}>
                         <FormControl>
                           <SelectTrigger>
                             <SelectValue placeholder="Select a cover image (optional)" />
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
-                          <SelectItem value="">No Cover Image</SelectItem>
+                          <SelectItem value="--none--">No Cover Image</SelectItem>
                           {galleryImages.map((image) => (
                             <SelectItem key={image.id} value={image.id}>
                               {image.alt_text || generateAltTextFromFileName(image.file_name)}
