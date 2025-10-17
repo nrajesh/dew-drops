@@ -152,3 +152,22 @@ export const formatDate = (dateString: string | null, options?: Intl.DateTimeFor
     return dateString; // Fallback for invalid date strings
   }
 };
+
+/**
+ * Normalizes a tag string to Unicode Normalization Form C (NFC) and trims whitespace.
+ * This helps ensure consistent representation and comparison of tags, especially with Unicode characters.
+ * It also attempts to decode URI components, in case the tag is URL-encoded.
+ * @param tag The tag string to normalize.
+ * @returns The normalized and trimmed tag string.
+ */
+export const normalizeTag = (tag: string): string => {
+  let decodedTag = tag;
+  try {
+    // Attempt to decode URI components first, in case the tag is URL-encoded
+    decodedTag = decodeURIComponent(tag);
+  } catch (e) {
+    // If decoding fails (e.g., not a valid URI sequence), use the original tag
+    console.warn("Failed to decode URI component for tag:", tag, e);
+  }
+  return decodedTag.normalize('NFC').trim();
+};

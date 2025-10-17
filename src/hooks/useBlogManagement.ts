@@ -28,7 +28,6 @@ export const useBlogManagement = () => {
   const navigate = useNavigate();
 
   const [galleryImages, setGalleryImages] = useState<GalleryImage[]>([]);
-  const [uniqueTags, setUniqueTags] = useState<string[]>([]);
   const [editingPost, setEditingPost] = useState<Post | null>(null);
   const [selectedFiles, setSelectedFiles] = useState<FileList | null>(null);
   const [isUploading, setIsUploading] = useState(false);
@@ -38,31 +37,34 @@ export const useBlogManagement = () => {
   const [postsToUpdate, setPostsToUpdate] = useState<{ existingId: string; existingTitle: string; newData: NewPost }[]>([]);
   const [selectedUpdates, setSelectedUpdates] = useState<Set<string>>(new Set());
 
+  // Use the generic useManagement hook
   const {
     allItems: posts,
-    paginatedItems: paginatedPosts,
+    paginatedItems: paginatedPosts, // Alias paginatedItems to paginatedPosts
     isLoading,
-    selectedItems,
-    setSelectedItems,
+    selectedItems: selectedPosts, // Alias selectedItems to selectedPosts
+    setSelectedItems: setSelectedPosts, // Alias setSelectedItems to setSelectedPosts
     currentPage,
     totalPages,
-    itemsPerPage: postsPerPage,
-    totalItems: totalPosts, // Renamed from totalItems
+    itemsPerPage,
+    totalItems,
     loadItems: loadPosts,
     handlePageChange: setCurrentPage,
-    handleItemsPerPageChange: setPostsPerPage,
+    handleItemsPerPageChange: setItemsPerPage,
     handleSelectItem: handleSelectPost,
     handleSelectAllOnPage: handleSelectAll,
     handleBulkDelete: genericHandleBulkDelete,
     handleBulkStatusChange: genericHandleBulkStatusChange,
     handleBulkTagUpdate: genericHandleBulkTagUpdate,
     handleBulkDownload: genericHandleBulkDownload,
+    handleToggleStatus: handleTogglePublish,
+    allOnPageSelected,
   } = useManagement<Post>({
     fetchData: fetchPosts,
     deleteItems: handleBulkDelete,
     updateItemStatus: handleBulkStatusChange,
     updateItemTags: handleBulkTagUpdate,
-    downloadItems: handleBulkDownload, // This is now correctly typed
+    downloadItems: handleBulkDownload,
     idKey: 'id',
     statusKey: 'published',
   });
@@ -75,12 +77,9 @@ export const useBlogManagement = () => {
     fetchInitialGalleryImages();
   }, []);
 
-  useEffect(() => {
-    const allTags = new Set<string>();
-    posts.forEach(post => {
-      post.tags?.forEach(tag => allTags.add(tag));
-    });
-    setUniqueTags(Array.from(allTags).sort());
+  const uniqueTags = useMemo(() => {
+    const allTags = posts.flatMap(post => post.tags || []);
+    return Array.from(new Set(allTags)).sort();
   }, [posts]);
 
   const handleFormSubmit = useCallback(async (values: PostFormData) => {
@@ -115,7 +114,7 @@ export const useBlogManagement = () => {
     } else {
       showSuccess(`Post ${editingPost ? "updated" : "added"} successfully!`);
       setEditingPost(null);
-      loadPosts();
+      loadPosts(); // Refresh posts after add/update
     }
   }, [user, editingPost, loadPosts]);
 
@@ -198,15 +197,24 @@ export const useBlogManagement = () => {
     setSelectedUpdates(new Set());
   }, [user, postsToInsert, postsToUpdate, selectedUpdates, loadPosts]);
 
-  // --- Wrappers to match PostList component signatures ---
-  const handleBulkDeleteWrapper = useCallback(() => genericHandleBulkDelete(selectedItems, setSelectedItems, posts), [genericHandleBulkDelete, selectedItems, setSelectedItems, posts]);
-  const handleBulkDownloadWrapper = useCallback(() => genericHandleBulkDownload(selectedItems, setSelectedItems, posts), [genericHandleBulkDownload, selectedItems, setSelectedItems, posts]);
-  const handleBulkTagUpdateWrapper = useCallback((tags: string[]) => genericHandleBulkTagUpdate(selectedItems, setSelectedItems, tags), [genericHandleBulkTagUpdate, selectedItems, setSelectedItems]);
-  const handleBulkStatusChangeWrapper = useCallback((published: boolean) => genericHandleBulkStatusChange(selectedItems, setSelectedItems, published), [genericHandleBulkStatusChange, selectedItems, setSelectedItems]);
-  // -------------------------------------------------------
-
   return {
-    posts,
+    posts, // All posts (from useManagement)
+    paginatedPosts,
+    isLoading,
+    selectedPosts,
+    setSelectedPosts,
+    currentPage,
+    totalPages,
+    itemsPerPage,
+    totalItems,
+    loadPosts,
+    setCurrentPage,
+    setItemsPerPage,
+    handleSelectPost,
+    handleSelectAll,
+    allOnPageSelected,
+    handleTogglePublish, // Individual publish toggle
+
     galleryImages,
     uniqueTags,
     editingPost,
@@ -214,7 +222,6 @@ export const useBlogManagement = () => {
     selectedFiles,
     setSelectedFiles,
     isUploading,
-    selectedPosts: selectedItems, // Expose as selectedPosts for component compatibility
     isUpdateDialogVisible,
     setIsUpdateDialogVisible,
     postsToInsert,
@@ -224,19 +231,10 @@ export const useBlogManagement = () => {
     handleFormSubmit,
     handleUpload,
     handleConfirmAndProcessUploads,
-    handleBulkDeleteWrapper,
-    handleBulkTagUpdateWrapper,
-    handleBulkStatusChangeWrapper,
-    handleBulkDownloadWrapper,
-    paginatedPosts,
-    currentPage,
-    totalPages,
-    postsPerPage,
-    setCurrentPage,
-    handleItemsPerPageChange: setPostsPerPage,
-    handleSelectPost,
-    handleSelectAll,
-    totalItems: totalPosts, // Expose as totalItems for component compatibility
-    isLoading,
+    
+    // Expose generic bulk handlers directly
+    handleBulkDelete: useCallback(() => genericHandleBulkDelete(selectedPosts, setSelectedPosts, posts), [genericHandleBulkDelete, selectedPosts, setSelectedPosts, posts]),
+    handleBulkTagUpdate: useCallback((tags: string[]) => genericHandleBulkTagUpdate(selectedPosts, setSelectedPosts, tags), [genericHandleBulkTagUpdate, selectedPosts, setSelectedPosts]),
+    handleBulkDownload: useCallback(() => genericHandleBulkDownload(selectedPosts, setSelectedPosts, posts), [genericHandleBulkDownload, selectedPosts, setSelectedPosts, posts]),
   };
 };

@@ -21,6 +21,8 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { cn } from "@/lib/utils";
 import { ManagementPagination } from "../ManagementPagination";
 import { useAuth } from "@/contexts/AuthContext";
+import { Input } from "@/components/ui/input";
+import { Switch } from "@/components/ui/switch"; // Import Switch component
 
 interface PostListProps {
   posts: Post[];
@@ -31,7 +33,7 @@ interface PostListProps {
   onDelete: () => void;
   onDownload: () => void;
   onBulkTagUpdate: (tags: string[]) => void;
-  onBulkStatusChange: (published: boolean) => void;
+  onTogglePublish: (post: Post, published: boolean) => void; // New prop for individual publish toggle
   uniqueTags: string[];
   currentPage: number;
   totalPages: number;
@@ -39,7 +41,9 @@ interface PostListProps {
   itemsPerPage: number;
   onItemsPerPageChange: (value: number) => void;
   totalItems: number;
-  isLoading: boolean; // Added isLoading prop
+  isLoading: boolean;
+  // Removed searchTerm: string;
+  // Removed onSearch: (term: string) => void;
 }
 
 export const PostList = ({
@@ -51,7 +55,7 @@ export const PostList = ({
   onDelete,
   onDownload,
   onBulkTagUpdate,
-  onBulkStatusChange,
+  onTogglePublish, // Destructure new prop
   uniqueTags,
   currentPage,
   totalPages,
@@ -60,6 +64,8 @@ export const PostList = ({
   onItemsPerPageChange,
   totalItems,
   isLoading,
+  // Removed searchTerm,
+  // Removed onSearch,
 }: PostListProps) => {
   const [isTagDialogOpen, setIsTagDialogOpen] = useState(false);
   const [bulkEditTags, setBulkEditTags] = useState<string[]>([]);
@@ -82,26 +88,18 @@ export const PostList = ({
     <>
       <Card>
         <CardHeader>
-          <div className="flex items-center justify-between">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
             <div>
               <CardTitle>Post List</CardTitle>
               <CardDescription>Your current list of blog posts.</CardDescription>
             </div>
+            {/* Removed search input from here as it's now global in ManageBlog */}
             {selectedPosts.size > 0 && (
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 mt-4 sm:mt-0">
                 <Button variant="outline" size="sm" onClick={() => setIsTagDialogOpen(true)}>
                   <Tag className="h-4 w-4 mr-2" />
                   Edit Tags
                 </Button>
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button variant="outline" size="sm">Actions <MoreHorizontal className="ml-2 h-4 w-4" /></Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent>
-                    <DropdownMenuItem onClick={() => onBulkStatusChange(true)}>Publish Selected</DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => onBulkStatusChange(false)}>Unpublish Selected</DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
                 <Button variant="outline" size="sm" onClick={onDownload}>
                   <Download className="h-4 w-4 mr-2" />
                   Download ({selectedPosts.size})
@@ -137,8 +135,10 @@ export const PostList = ({
                   <div key={post.id} className="flex items-center justify-between p-2 rounded-lg border">
                     <div className="flex items-center gap-3">
                       <Checkbox id={`select-${post.id}`} checked={selectedPosts.has(post.id)} onCheckedChange={() => onSelectPost(post.id)} />
-                      <span
-                        className={cn("h-2 w-2 rounded-full", post.published ? "bg-green-500" : "bg-gray-400")}
+                      <Switch
+                        checked={post.published}
+                        onCheckedChange={(checked) => onTogglePublish(post, checked)}
+                        aria-label={`Toggle publish status for ${post.title}`}
                         title={post.published ? "Published" : "Unpublished"}
                       />
                       <label htmlFor={`select-${post.id}`} className="font-medium truncate pr-2 cursor-pointer">{post.title}</label>
