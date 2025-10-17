@@ -11,6 +11,7 @@ import {
 } from "@/components/ui/command";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Button } from "@/components/ui/button";
+import { normalizeTag } from "@/lib/utils"; // Import normalizeTag
 
 interface MultiSelectPopoverProps {
   value: string[];
@@ -31,14 +32,15 @@ export function MultiSelectPopover({
   const [inputValue, setInputValue] = React.useState("");
 
   const handleSelect = (tag: string) => {
-    if (!selected.includes(tag)) {
-      onChange([...selected, tag]);
+    const normalizedTag = normalizeTag(tag);
+    if (!selected.includes(normalizedTag)) {
+      onChange([...selected, normalizedTag]);
     }
     setInputValue(""); // Clear input after selection
   };
 
   const handleCreate = (tag: string) => {
-    const newTag = tag.trim();
+    const newTag = normalizeTag(tag);
     if (newTag && !selected.includes(newTag)) {
       onChange([...selected, newTag]);
     }
@@ -46,7 +48,7 @@ export function MultiSelectPopover({
   };
 
   const handleUnselect = (tag: string) => {
-    onChange(selected.filter((s) => s !== tag));
+    onChange(selected.filter((s) => s !== tag)); // 'tag' here is already normalized from 'selected'
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
@@ -68,13 +70,17 @@ export function MultiSelectPopover({
     }
   };
 
-  const filteredSuggestions = suggestions.filter(
+  const normalizedInputValue = normalizeTag(inputValue);
+  const normalizedSuggestions = suggestions.map(normalizeTag);
+  const normalizedSelected = selected.map(normalizeTag); // Ensure selected tags are also normalized for comparison
+
+  const filteredSuggestions = normalizedSuggestions.filter(
     (suggestion) =>
-      !selected.includes(suggestion) &&
-      suggestion.toLowerCase().includes(inputValue.toLowerCase())
+      !normalizedSelected.includes(suggestion) &&
+      suggestion.toLowerCase().includes(normalizedInputValue.toLowerCase())
   );
 
-  const showCreateOption = canCreate && inputValue && !suggestions.some(s => s.toLowerCase() === inputValue.toLowerCase().trim()) && !selected.includes(inputValue.trim());
+  const showCreateOption = canCreate && normalizedInputValue && !normalizedSuggestions.some(s => s.toLowerCase() === normalizedInputValue.toLowerCase()) && !normalizedSelected.includes(normalizedInputValue);
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
@@ -86,7 +92,7 @@ export function MultiSelectPopover({
         >
           <div className="flex flex-wrap gap-1">
             {selected.length > 0 ? (
-              selected.map((tag) => (
+              selected.map((tag) => ( // Display original selected tag
                 <Badge
                   key={tag}
                   variant="secondary"
@@ -114,7 +120,7 @@ export function MultiSelectPopover({
         <Command>
           <CommandInput
             placeholder="Search or create..."
-            value={inputValue}
+            value={inputValue} // Keep original inputValue for display
             onValueChange={setInputValue}
             onKeyDown={handleKeyDown}
           />
@@ -125,7 +131,7 @@ export function MultiSelectPopover({
             <CommandGroup>
               {showCreateOption && (
                 <CommandItem
-                  value={inputValue}
+                  value={normalizedInputValue} // Use normalized for internal value
                   onSelect={() => handleCreate(inputValue)}
                   className="cursor-pointer"
                 >

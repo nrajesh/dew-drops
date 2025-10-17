@@ -12,7 +12,7 @@ import { showSuccess, showError, showLoading, dismissToast } from "@/utils/toast
 import { usePaginationNavigation } from "@/hooks/usePaginationNavigation";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useGalleryManagement } from "@/hooks/useGalleryManagement";
-import { generateAltTextFromFileName } from "@/lib/utils";
+import { generateAltTextFromFileName, normalizeTag } from "@/lib/utils"; // Import normalizeTag
 import type { GalleryImage } from "@/types";
 import { ImageUploadCard } from "@/components/gallery/ImageUploadCard";
 import { ImageManagementCard } from "@/components/gallery/ImageManagementCard";
@@ -105,7 +105,7 @@ const ManageGallery = () => {
         finalAltText = generateAltTextFromFileName(editingImage.file_name);
       }
 
-      const tagsArray = values.tags?.split(',').map(t => t.trim()).filter(Boolean) || [];
+      const tagsArray = values.tags?.split(',').map(t => normalizeTag(t)).filter(Boolean) || []; // Apply normalization here
       const { error } = await supabase.from("gallery_images").update({ alt_text: finalAltText, tags: tagsArray }).eq("id", editingImage.id);
       if (error) throw error;
       dismissToast(toastId);

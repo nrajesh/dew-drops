@@ -152,3 +152,13 @@ export const formatDate = (dateString: string | null, options?: Intl.DateTimeFor
     return dateString; // Fallback for invalid date strings
   }
 };
+
+/**
+ * Normalizes a tag string to Unicode Normalization Form C (NFC) and trims whitespace.
+ * This helps ensure consistent representation and comparison of tags, especially with Unicode characters.
+ * @param tag The tag string to normalize.
+ * @returns The normalized and trimmed tag string.
+ */
+export const normalizeTag = (tag: string): string => {
+  return tag.normalize('NFC').trim();
+};

@@ -23,6 +23,9 @@ function bufferToBase64(buffer: ArrayBuffer) {
   return btoa(binary);
 }
 
+// Helper to normalize and trim tags (duplicated for Edge Function context)
+const normalizeTag = (tag: string) => tag.normalize('NFC').trim();
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders })
@@ -86,7 +89,7 @@ serve(async (req) => {
     const response = await result.response;
     const text = response.text();
 
-    const tags = text.split(',').map(tag => tag.trim().toLowerCase()).filter(Boolean);
+    const tags = text.split(',').map(tag => normalizeTag(tag.trim().toLowerCase())).filter(Boolean); // Apply normalization here
 
     return new Response(JSON.stringify({ tags }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },

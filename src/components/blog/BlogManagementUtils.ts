@@ -3,7 +3,7 @@ import type { Post, GalleryImage } from "@/types";
 import { showSuccess, showError, showLoading, updateToastSuccess, updateToastError } from "@/utils/toast";
 import TurndownService from "turndown";
 import JSZip from 'jszip';
-import { sanitizeFileName } from "@/lib/utils";
+import { sanitizeFileName, normalizeTag } from "@/lib/utils"; // Import normalizeTag
 
 type NewPost = Omit<Post, 'id' | 'created_at' | 'user_id'>;
 
@@ -84,7 +84,7 @@ export const parseWordPressXml = async (xmlString: string): Promise<NewPost[]> =
       if (domain === 'category' || domain === 'post_tag') {
         const nicename = cat.getAttribute('nicename');
         if (nicename) {
-          tagSet.add(nicename);
+          tagSet.add(normalizeTag(nicename)); // Apply normalization here
         }
       }
     });
@@ -174,7 +174,7 @@ export const parseMarkdownFile = async (file: File): Promise<NewPost> => {
             if (rawTags.startsWith('[') && rawTags.endsWith(']')) {
               rawTags = rawTags.slice(1, -1);
             }
-            tags = rawTags.split(',').map(tag => tag.trim().replace(/^['"]|['"]$/g, '')).filter(Boolean);
+            tags = rawTags.split(',').map(tag => normalizeTag(tag.replace(/^['"]|['"]$/g, ''))).filter(Boolean); // Apply normalization here
             break;
           case 'cover_image_id':
             cover_image_id = value;
@@ -238,10 +238,11 @@ export const handleBulkDelete = async (postIds: string[], allPosts: Post[]): Pro
 };
 
 export const handleBulkTagUpdate = async (selectedPosts: Set<string>, tags: string[]) => {
+  const normalizedTags = tags.map(normalizeTag); // Apply normalization here
   const toastId = showLoading(`Updating tags for ${selectedPosts.size} posts...`);
   const { error } = await supabase
     .from("posts")
-    .update({ tags })
+    .update({ tags: normalizedTags })
     .in("id", Array.from(selectedPosts));
 
   if (error) {
@@ -277,7 +278,7 @@ export const handleBulkDownload = async (postIds: Set<string>, allPosts: Post[])
     const postsToDownload = allPosts.filter(post => postIds.has(post.id));
 
     postsToDownload.forEach(post => {
-      const tagsString = post.tags && post.tags.length > 0 ? `\ntags: "${post.tags.join(', ').replace(/"/g, '\\"')}"` : '';
+      const tagsString = post.tags && post.tags.length > 0 ? `\ntags: "${post.tags.map(normalizeTag).join(', ').replace(/"/g, '\\"')}"` : ''; // Normalize tags for export
       const coverImageIdString = post.cover_image_id ? `\ncover_image_id: "${post.cover_image_id}"` : '';
       const youtubeVideoIdString = post.youtube_video_id ? `\nyoutube_video_id: "${post.youtube_video_id}"` : '';
 

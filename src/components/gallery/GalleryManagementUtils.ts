@@ -2,6 +2,7 @@ import { supabase } from "@/integrations/supabase/client";
 import type { GalleryImage } from "@/types";
 import { showSuccess, showError, showLoading, updateToastSuccess, updateToastError } from "@/utils/toast";
 import JSZip from 'jszip';
+import { normalizeTag } from "@/lib/utils"; // Import normalizeTag
 
 export const fetchImages = async (): Promise<GalleryImage[]> => {
   const { data, error } = await supabase
@@ -100,9 +101,10 @@ export const handleGenerateTags = async (imageIds: Set<string>, allImages: Galle
 
       const { tags } = data;
       if (tags && Array.isArray(tags)) {
+        const normalizedTags = tags.map(normalizeTag); // Apply normalization here
         const { error: updateError } = await supabase
           .from('gallery_images')
-          .update({ tags: tags })
+          .update({ tags: normalizedTags })
           .eq('id', image.id);
 
         if (updateError) throw updateError;
@@ -149,7 +151,7 @@ export const handleBulkDownload = async (imageIds: Set<string>, allImages: Galle
         metadata.push({
           fileName: originalFileName,
           alt_text: image.alt_text,
-          tags: image.tags,
+          tags: image.tags ? image.tags.map(normalizeTag) : [], // Normalize tags for metadata export
         });
       }
     });

@@ -1,7 +1,7 @@
 import { supabase } from "@/integrations/supabase/client";
 import type { GalleryImage } from "@/types";
 import { showSuccess, showError, showLoading, dismissToast, updateToastSuccess, updateToastError, updateToastLoading } from "@/utils/toast";
-import { sanitizeFileName } from "@/lib/utils";
+import { sanitizeFileName, normalizeTag } from "@/lib/utils"; // Import normalizeTag
 import imageCompression from 'browser-image-compression';
 import ExifReader from 'exifreader';
 
@@ -84,7 +84,7 @@ export const processImageUploads = async (
         image_url: publicUrl,
         published: false,
         alt_text: metadata?.alt_text,
-        tags: metadata?.tags,
+        tags: metadata?.tags ? metadata.tags.map(normalizeTag) : undefined, // Apply normalization here
         exif_data: exifData,
       });
       if (dbError) throw dbError;
@@ -134,7 +134,7 @@ export const processMetadataUpdate = async (
       if (existingImage) {
         const updatePayload: { alt_text?: string; tags?: string[] } = {};
         if (typeof meta.alt_text === 'string') updatePayload.alt_text = meta.alt_text;
-        if (Array.isArray(meta.tags)) updatePayload.tags = meta.tags;
+        if (Array.isArray(meta.tags)) updatePayload.tags = meta.tags.map(normalizeTag); // Apply normalization here
 
         if (Object.keys(updatePayload).length > 0) {
           const { error } = await supabase.from('gallery_images').update(updatePayload).eq('id', existingImage.id);
