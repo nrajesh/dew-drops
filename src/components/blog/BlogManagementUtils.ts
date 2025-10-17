@@ -198,7 +198,7 @@ export const parseMarkdownFile = async (file: File): Promise<NewPost> => {
   return { title, description, content: finalContent, published_at, published, tags, cover_image_id, youtube_video_id };
 };
 
-export const processUploads = async (userId: string, inserts: NewPost[], updates: { existingId: string; newData: NewPost }[]) => {
+export const processUploads = async (userId: string, inserts: NewPost[], updates: { existingId: string; existingTitle: string; newData: NewPost }[]) => {
   const toastId = showLoading(`Processing import...`);
   try {
     const insertPromises = [];
