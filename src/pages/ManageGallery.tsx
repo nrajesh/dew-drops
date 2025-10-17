@@ -1,285 +1,223 @@
-import { useMemo, useRef, useEffect, useState, Suspense, lazy } from "react";
-import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
-import * as z from "zod";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
-import { supabase } from "@/integrations/supabase/client";
-import { showSuccess, showError, showLoading, dismissToast } from "@/utils/toast";
-import { usePaginationNavigation } from "@/hooks/usePaginationNavigation";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { useGalleryManagement } from "@/hooks/useGalleryManagement";
-import { generateAltTextFromFileName, normalizeTag } from "@/lib/utils"; // Import normalizeTag
-import type { GalleryImage } from "@/types";
-import { ImageUploadCard } from "@/components/gallery/ImageUploadCard";
-import { ImageManagementCard } from "@/components/gallery/ImageManagementCard";
-
-const LazyImageLightbox = lazy(() => import("@/components/ImageLightbox").then(module => ({ default: module.ImageLightbox })));
-
-const editSchema = z.object({
-  alt_text: z.string().max(200, "Alt text cannot exceed 200 characters."),
-  tags: z.string().optional(),
-});
+import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
+import { supabase } from '@/integrations/supabase/client';
+import { showSuccess, showError, showLoading, dismissToast, updateToastSuccess, updateToastError } from '@/utils/toast';
+import { ImageManagementCard } from '@/components/gallery/ImageManagementCard';
+import { ImageUploadDialog } from '@/components/gallery/ImageUploadDialog';
+import { ImageEditDialog } from '@/components/gallery/ImageEditDialog';
+import { ImageViewDialog } from '@/components/gallery/ImageViewDialog';
+import { usePaginationNavigation } from '@/hooks/usePaginationNavigation';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
+import { PlusCircle, Upload } from 'lucide-react';
+import { generateAltTextFromFileName, normalizeTag } from '@/lib/utils';
+import type { GalleryImage } from '@/types';
 
 const ManageGallery = () => {
-  const {
-    selectedFiles,
-    isUploading,
-    editingImage,
-    setEditingImage,
-    setSelectedFiles,
-    handleUpload,
-    reloadAllGalleryData,
-    imagesPerPage, // Added this line
-    setImagesPerPage,
-
-    publishedImages,
-    paginatedPublishedImages,
-    isLoadingPublished,
-    selectedPublishedImages,
-    publishedCurrentPage,
-    publishedTotalPages,
-    allPublishedOnPageSelected,
-    setPublishedCurrentPage,
-    handleSelectPublishedImage,
-    handleSelectAllPublished,
-    handleBulkDeletePublished,
-    handleBulkPublishPublished,
-    handleGenerateTagsPublished,
-    handleBulkDownloadPublished,
-    handleTogglePublishStatus,
-
-    unpublishedImages,
-    paginatedUnpublishedImages,
-    isLoadingUnpublished,
-    selectedUnpublishedImages,
-    unpublishedCurrentPage,
-    unpublishedTotalPages,
-    allUnpublishedOnPageSelected,
-    setUnpublishedCurrentPage,
-    handleSelectUnpublishedImage,
-    handleSelectAllUnpublished,
-    handleBulkDeleteUnpublished,
-    handleBulkPublishUnpublished,
-    handleGenerateTagsUnpublished,
-    handleBulkDownloadUnpublished,
-  } = useGalleryManagement();
+  const [images, setImages] = useState<GalleryImage[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isUploadDialogOpen, setIsUploadDialogOpen] = useState(false);
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [isViewDialogOpen, setIsViewDialogOpen] = useState(false);
+  const [editingImage, setEditingImage] = useState<GalleryImage | null>(null);
+  const [viewingImage, setViewingImage] = useState<GalleryImage | null>(null);
+  const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
+  const [activeTab, setActiveTab] = useState<'published' | 'unpublished'>('published');
+  const [searchTerm, setSearchTerm] = useState('');
 
   const containerRef = useRef<HTMLDivElement>(null);
-  const [lightboxImageIndex, setLightboxImageIndex] = useState<number | null>(null);
-  const [activeLightboxList, setActiveLightboxList] = useState<'published' | 'unpublished' | null>(null);
-  const [activeTab, setActiveTab] = useState<'published' | 'unpublished'>('published');
 
-  const form = useForm<z.infer<typeof editSchema>>({
-    resolver: zodResolver(editSchema),
-    defaultValues: { alt_text: "", tags: "" },
-  });
+  const fetchImages = useCallback(async () => {
+    setIsLoading(true);
+    const { data, error } = await supabase.from('gallery_images').select('*').order('created_at', { ascending: false });
+    if (error) {
+      showError('Failed to fetch images.');
+      console.error(error);
+      setImages([]);
+    } else {
+      setImages(data as GalleryImage[]);
+    }
+    setIsLoading(false);
+  }, []);
 
   useEffect(() => {
-    if (editingImage) {
-      form.reset({
-        alt_text: editingImage.alt_text || '',
-        tags: editingImage.tags?.join(', ') || '',
-      });
+    fetchImages();
+  }, [fetchImages]);
+
+  const uniqueTags = useMemo(() => {
+    const allTags = images.flatMap(image => image.tags || []);
+    return Array.from(new Set(allTags.map(normalizeTag))).sort();
+  }, [images]);
+
+  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    if (event.target.files) {
+      setSelectedFiles(Array.from(event.target.files));
     }
-  }, [editingImage, form]);
+  };
 
-  // Use pagination navigation for the currently active tab
-  usePaginationNavigation({
-    currentPage: activeTab === 'published' ? publishedCurrentPage : unpublishedCurrentPage,
-    totalPages: activeTab === 'published' ? publishedTotalPages : unpublishedTotalPages,
-    onPageChange: activeTab === 'published' ? setPublishedCurrentPage : setUnpublishedCurrentPage,
-    targetRef: containerRef,
-    enabled: !editingImage && lightboxImageIndex === null,
-  });
+  const handleUpload = async () => {
+    if (selectedFiles.length === 0) {
+      showError('Please select files to upload.');
+      return;
+    }
 
-  const handleUpdateImageData = async (values: z.infer<typeof editSchema>) => {
-    if (!editingImage) return;
-    const toastId = showLoading("Updating image data...");
+    const toastId = showLoading(`Uploading ${selectedFiles.length} images...`);
     try {
-      let finalAltText = values.alt_text;
-      if (!finalAltText || finalAltText.trim() === '') {
-        finalAltText = generateAltTextFromFileName(editingImage.file_name);
-      }
+      const { data: { user }, error: userError } = await supabase.auth.getUser();
+      if (userError || !user) throw new Error("User not authenticated.");
 
-      const tagsArray = values.tags?.split(',').map(t => normalizeTag(t)).filter(Boolean) || []; // Apply normalization here
-      const { error } = await supabase.from("gallery_images").update({ alt_text: finalAltText, tags: tagsArray }).eq("id", editingImage.id);
-      if (error) throw error;
-      dismissToast(toastId);
-      showSuccess("Image data updated successfully!");
-      setEditingImage(null);
-      reloadAllGalleryData();
+      const uploadPromises = selectedFiles.map(async (file) => {
+        const fileName = `${Date.now()}_${file.name}`;
+        const { data: uploadData, error: uploadError } = await supabase.storage
+          .from('gallery')
+          .upload(fileName, file);
+
+        if (uploadError) throw uploadError;
+
+        const { data: publicUrlData } = supabase.storage
+          .from('gallery')
+          .getPublicUrl(uploadData.path);
+
+        const imageUrl = publicUrlData.publicUrl;
+        const altText = generateAltTextFromFileName(file.name);
+
+        const { error: insertError } = await supabase.from('gallery_images').insert({
+          user_id: user.id,
+          file_name: uploadData.path,
+          image_url: imageUrl,
+          alt_text: altText,
+          published: false, // Default to unpublished
+        });
+
+        if (insertError) throw insertError;
+      });
+
+      await Promise.all(uploadPromises);
+      updateToastSuccess(toastId, `${selectedFiles.length} images uploaded successfully!`);
+      setSelectedFiles([]);
+      setIsUploadDialogOpen(false);
+      fetchImages();
     } catch (error: any) {
-      dismissToast(toastId);
-      showError(`Update failed: ${error.message}`);
+      updateToastError(toastId, `Upload failed: ${error.message}`);
+      console.error('Upload error:', error);
     }
   };
 
-  const openLightbox = (image: GalleryImage, listType: 'published' | 'unpublished') => {
-    const list = listType === 'published' ? publishedImages : unpublishedImages;
-    const index = list.findIndex(img => img.id === image.id);
-    if (index !== -1) {
-      setActiveLightboxList(listType);
-      setLightboxImageIndex(index);
+  const handleUpdateImage = async (updatedImage: GalleryImage) => {
+    const toastId = showLoading(`Updating image ${generateAltTextFromFileName(updatedImage.file_name)}...`);
+    try {
+      const { error } = await supabase
+        .from('gallery_images')
+        .update({
+          alt_text: updatedImage.alt_text,
+          tags: updatedImage.tags,
+          published: updatedImage.published,
+        })
+        .eq('id', updatedImage.id);
+
+      if (error) throw error;
+      updateToastSuccess(toastId, `Image ${generateAltTextFromFileName(updatedImage.file_name)} updated successfully!`);
+      setIsEditDialogOpen(false);
+      setEditingImage(null);
+      fetchImages();
+    } catch (error: any) {
+      updateToastError(toastId, `Failed to update image: ${error.message}`);
+      console.error('Update error:', error);
     }
   };
 
-  const closeLightbox = () => {
-    setLightboxImageIndex(null);
-    setActiveLightboxList(null);
-  };
+  const handleEditImage = useCallback((image: GalleryImage) => {
+    setEditingImage(image);
+    setIsEditDialogOpen(true);
+  }, []);
 
-  const navigateLightbox = (direction: 'next' | 'prev') => {
-    if (lightboxImageIndex === null || !activeLightboxList) return;
-    const list = activeLightboxList === 'published' ? publishedImages : unpublishedImages;
-    if (direction === 'next') {
-      setLightboxImageIndex((prevIndex) => (prevIndex! + 1) % list.length);
-    } else {
-      setLightboxImageIndex((prevIndex) => (prevIndex! - 1 + list.length) % list.length);
-    }
-  };
+  const handleViewImage = useCallback((image: GalleryImage) => {
+    setViewingImage(image);
+    setIsViewDialogOpen(true);
+  }, []);
 
-  const lightboxList = activeLightboxList === 'published' ? publishedImages : unpublishedImages;
-  const lightboxImage = lightboxImageIndex !== null ? lightboxList[lightboxImageIndex] : null;
+  const filteredImages = useMemo(() => {
+    const lowerCaseSearchTerm = searchTerm.toLowerCase();
+    return images.filter(image =>
+      image.file_name.toLowerCase().includes(lowerCaseSearchTerm) ||
+      (image.alt_text && image.alt_text.toLowerCase().includes(lowerCaseSearchTerm)) ||
+      (image.tags && image.tags.some(tag => normalizeTag(tag).toLowerCase().includes(lowerCaseSearchTerm)))
+    );
+  }, [images, searchTerm]);
+
+  const publishedImages = useMemo(() => filteredImages.filter(img => img.published), [filteredImages]);
+  const unpublishedImages = useMemo(() => filteredImages.filter(img => !img.published), [filteredImages]);
 
   return (
-    <>
-      <div className="space-y-8" ref={containerRef}>
-        <ImageUploadCard
-          onFileChange={setSelectedFiles}
-          onUpload={handleUpload}
-          isUploading={isUploading}
-          selectedFiles={selectedFiles}
-        />
-
-        <Tabs defaultValue="published" onValueChange={(value) => setActiveTab(value as 'published' | 'unpublished')}>
-          <TabsList className="grid w-full grid-cols-2">
-            <TabsTrigger value="published" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">Published ({publishedImages.length})</TabsTrigger>
-            <TabsTrigger value="unpublished" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">Unpublished ({unpublishedImages.length})</TabsTrigger>
-          </TabsList>
-          <TabsContent value="published">
-            <ImageManagementCard
-              title="Published Images"
-              description="These images are visible on your public gallery. Select images to perform bulk actions."
-              images={publishedImages}
-              paginatedImages={paginatedPublishedImages}
-              selectedImages={selectedPublishedImages}
-              isLoading={isLoadingPublished}
-              onSelectImage={handleSelectPublishedImage}
-              onSelectAll={handleSelectAllPublished}
-              onEdit={setEditingImage}
-              onView={openLightbox}
-              onDelete={handleBulkDeletePublished}
-              onBulkPublish={(status) => handleBulkPublishPublished(status)}
-              onGenerateTags={handleGenerateTagsPublished}
-              onDownload={handleBulkDownloadPublished}
-              onTogglePublish={handleTogglePublishStatus}
-              paginationProps={{
-                currentPage: publishedCurrentPage,
-                totalPages: publishedTotalPages,
-                onPageChange: setPublishedCurrentPage,
-                itemsPerPage: imagesPerPage,
-                onItemsPerPageChange: setImagesPerPage,
-                totalItems: publishedImages.length,
-              }}
-              listType="published"
-            />
-          </TabsContent>
-          <TabsContent value="unpublished">
-            <ImageManagementCard
-              title="Unpublished Images"
-              description="These images are not visible on your public gallery. Select images to perform bulk actions."
-              images={unpublishedImages}
-              paginatedImages={paginatedUnpublishedImages}
-              selectedImages={selectedUnpublishedImages}
-              isLoading={isLoadingUnpublished}
-              onSelectImage={handleSelectUnpublishedImage}
-              onSelectAll={handleSelectAllUnpublished}
-              onEdit={setEditingImage}
-              onView={openLightbox}
-              onDelete={handleBulkDeleteUnpublished}
-              onBulkPublish={(status) => handleBulkPublishUnpublished(status)}
-              onGenerateTags={handleGenerateTagsUnpublished}
-              onDownload={handleBulkDownloadUnpublished}
-              onTogglePublish={handleTogglePublishStatus}
-              paginationProps={{
-                currentPage: unpublishedCurrentPage,
-                totalPages: unpublishedTotalPages,
-                onPageChange: setUnpublishedCurrentPage,
-                itemsPerPage: imagesPerPage,
-                onItemsPerPageChange: setImagesPerPage,
-                totalItems: unpublishedImages.length,
-              }}
-              listType="unpublished"
-            />
-          </TabsContent>
-        </Tabs>
+    <div className="space-y-8" ref={containerRef}>
+      <div className="flex flex-col sm:flex-row justify-between items-center gap-4">
+        <h1 className="text-3xl font-bold">Manage Gallery</h1>
+        <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
+          <Button onClick={() => setIsUploadDialogOpen(true)} className="w-full sm:w-auto">
+            <Upload className="h-4 w-4 mr-2" /> Upload Images
+          </Button>
+        </div>
       </div>
 
-      <Dialog open={!!editingImage} onOpenChange={(isOpen) => !isOpen && setEditingImage(null)}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Edit Image Data</DialogTitle>
-            <DialogDescription>
-              Update the alt text and tags for this image.
-            </DialogDescription>
-          </DialogHeader>
-          <Form {...form}>
-            <form onSubmit={form.handleSubmit(handleUpdateImageData)} className="space-y-4">
-              <FormField
-                control={form.control}
-                name="alt_text"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Alt Text</FormLabel>
-                    <FormControl>
-                      <Textarea
-                        placeholder="e.g., A beautiful sunset over the mountains"
-                        {...field}
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="tags"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Tags (comma-separated)</FormLabel>
-                    <FormControl>
-                      <Input
-                        placeholder="e.g., nature, mountains, sunset"
-                        {...field}
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <DialogFooter>
-                <Button type="button" variant="outline" onClick={() => setEditingImage(null)}>Cancel</Button>
-                <Button type="submit">Save Changes</Button>
-              </DialogFooter>
-            </form>
-          </Form>
-        </DialogContent>
-      </Dialog>
-      <Suspense fallback={null}>
-        <LazyImageLightbox
-          image={lightboxImage}
-          onClose={closeLightbox}
-          onNavigate={navigateLightbox}
-          hasNext={lightboxList.length > 1}
-          hasPrev={lightboxList.length > 1}
-          onUpdate={reloadAllGalleryData}
+      <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as 'published' | 'unpublished')} className="w-full">
+        <TabsList className="grid w-full grid-cols-2">
+          <TabsTrigger value="published">Published ({publishedImages.length})</TabsTrigger>
+          <TabsTrigger value="unpublished">Unpublished ({unpublishedImages.length})</TabsTrigger>
+        </TabsList>
+        <TabsContent value="published">
+          <ImageManagementCard
+            images={publishedImages}
+            isLoading={isLoading}
+            onRefresh={fetchImages}
+            onEditImage={handleEditImage}
+            onViewImage={handleViewImage}
+            uniqueTags={uniqueTags}
+          />
+        </TabsContent>
+        <TabsContent value="unpublished">
+          <ImageManagementCard
+            images={unpublishedImages}
+            isLoading={isLoading}
+            onRefresh={fetchImages}
+            onEditImage={handleEditImage}
+            onViewImage={handleViewImage}
+            uniqueTags={uniqueTags}
+          />
+        </TabsContent>
+      </Tabs>
+
+      <ImageUploadDialog
+        isOpen={isUploadDialogOpen}
+        onOpenChange={setIsUploadDialogOpen}
+        selectedFiles={selectedFiles}
+        onFileChange={handleFileChange}
+        onUpload={handleUpload}
+      />
+
+      {editingImage && (
+        <ImageEditDialog
+          isOpen={isEditDialogOpen}
+          onOpenChange={(isOpen) => {
+            setIsEditDialogOpen(isOpen);
+            if (!isOpen) setEditingImage(null);
+          }}
+          image={editingImage}
+          onSave={handleUpdateImage}
+          uniqueTags={uniqueTags}
         />
-      </Suspense>
-    </>
+      )}
+
+      {viewingImage && (
+        <ImageViewDialog
+          isOpen={isViewDialogOpen}
+          onOpenChange={(isOpen) => {
+            setIsViewDialogOpen(isOpen);
+            if (!isOpen) setViewingImage(null);
+          }}
+          image={viewingImage}
+        />
+      )}
+    </div>
   );
 };
 
