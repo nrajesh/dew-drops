@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { showSuccess, showError, showLoading, dismissToast } from "@/utils/toast";
+import { showSuccess, showError, showLoading, dismissToast, updateToastSuccess, updateToastError } from "@/utils/toast"; // Import updateToastSuccess and updateToastError
 import { PostList } from "@/components/blog/PostList";
 import { usePaginationNavigation } from "@/hooks/usePaginationNavigation";
 import {
@@ -17,10 +17,10 @@ import {
   ensureContentHasTripleBackticks,
 } from "@/components/blog/BlogManagementUtils";
 import type { Post, GalleryImage } from "@/types";
-import { BlogFormDialog, BlogFormValues } from "@/components/blog/BlogFormDialog"; // Import new dialog component
-import { BulkActionsSection } from "@/components/blog/BulkActionsSection"; // Import new bulk actions component
+import { BlogFormDialog, BlogFormValues } from "@/components/blog/BlogFormDialog";
+import { BulkActionsSection } from "@/components/blog/BulkActionsSection";
 import { normalizeTag } from "@/lib/utils";
-import { UpdatePostsDialog } from "@/components/blog/UpdatePostsDialog"; // Already existing component
+import { UpdatePostsDialog } from "@/components/blog/UpdatePostsDialog";
 
 type NewPost = Omit<Post, 'id' | 'created_at' | 'user_id'>;
 
@@ -28,7 +28,7 @@ const ManageBlog = () => {
   const [posts, setPosts] = useState<Post[]>([]);
   const [galleryImages, setGalleryImages] = useState<GalleryImage[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [isFormDialogOpen, setIsFormDialogOpen] = useState(false); // Renamed for clarity
+  const [isFormDialogOpen, setIsFormDialogOpen] = useState(false);
   const [editingPost, setEditingPost] = useState<Post | null>(null);
   const [selectedPosts, setSelectedPosts] = useState<Set<string>>(new Set());
   const [currentPage, setCurrentPage] = useState(1);
@@ -58,7 +58,6 @@ const ManageBlog = () => {
     fetchAllData();
   }, [fetchAllData]);
 
-  // Effect to open dialog when editingPost is set
   useEffect(() => {
     if (editingPost) {
       setIsFormDialogOpen(true);
@@ -113,21 +112,21 @@ const ManageBlog = () => {
       if (editingPost) {
         const { error } = await supabase.from("posts").update(postData).eq("id", editingPost.id);
         if (error) throw error;
-        showSuccess("Post updated successfully!");
+        updateToastSuccess(toastId, "Post updated successfully!"); // Changed to updateToastSuccess
       } else {
         const { data: { user }, error: userError } = await supabase.auth.getUser();
         if (userError || !user) throw new Error("User not authenticated.");
         const { error } = await supabase.from("posts").insert({ ...postData, user_id: user.id });
         if (error) throw error;
-        showSuccess("Post added successfully!");
+        updateToastSuccess(toastId, "Post added successfully!"); // Changed to updateToastSuccess
       }
       setIsFormDialogOpen(false);
       setEditingPost(null);
       fetchAllData();
     } catch (error: any) {
-      showError(`Operation failed: ${error.message}`);
+      updateToastError(toastId, `Operation failed: ${error.message}`); // Changed to updateToastError
     } finally {
-      dismissToast(toastId);
+      // dismissToast(toastId); // No longer needed here as updateToastSuccess/Error dismisses it
     }
   }, [editingPost, fetchAllData]);
 
@@ -200,7 +199,7 @@ const ManageBlog = () => {
     }
 
     const inserts: NewPost[] = [];
-    const updates: { existingId: string; existingTitle: string; newData: NewPost }[] = []; // Corrected type here
+    const updates: { existingId: string; existingTitle: string; newData: NewPost }[] = [];
 
     const existingPostTitles = new Set(posts.map(p => p.title));
 
@@ -222,21 +221,33 @@ const ManageBlog = () => {
         const parsedPost = await parseMarkdownFile(file);
         if (existingPostTitles.has(parsedPost.title)) {
           const existingPost = posts.find(p => p.title === parsedPost.title);
-          if (existingPost) {
-            updates.push({ existingId: existingPost.id, existingTitle: existingPost.title, newData: parsedPost });
+            if (existingPost) {
+              updates.push({ existingId: existingPost.id, existingTitle: existingPost.title, newData: parsedPost });
+            }
+          } else {
+            inserts.push(parsedPost);
           }
         } else {
-          inserts.push(parsedPost);
+          showError(`Unsupported file type: ${file.name}`);
         }
-      } else {
-        showError(`Unsupported file type: ${file.name}`);
       }
-    }
 
-    setUploadFiles([]); // Clear files after processing
+    setUploadFiles([]);
     
     setPostsToInsert(inserts);
     setPostsToUpdate(updates);
+
+    if (updates.length > 0) {
+      setSelectedUpdates(new Set());
+      setIsUpdateDialogVisible(true);
+    } else if (inserts.length > 0) {
+      const success = await processUploads(user.id, inserts, []);
+      if (success) {
+        fetchAllData();
+      }
+    } else {
+      showSuccess("No new posts to import.");
+    }
   }, [uploadFiles, posts, fetchAllData]);
 
   const handleConfirmAndProcessUploads = useCallback(async () => {
@@ -276,7 +287,7 @@ const ManageBlog = () => {
         onDeleteSelected={handleDeleteSelected}
         uniqueTags={uniqueTags}
         onCreateNewPost={() => {
-          setEditingPost(null); // Ensure we're creating a new post
+          setEditingPost(null);
           setIsFormDialogOpen(true);
         }}
       />
@@ -288,10 +299,10 @@ const ManageBlog = () => {
           onSelectPost={handleSelectPost}
           onSelectAll={handleSelectAll}
           onEdit={(post) => setEditingPost(post)}
-          onDelete={handleDeleteSelected} // This is now redundant as BulkActionsSection has its own delete
-          onDownload={handleBulkDownloadWrapper} // This is now redundant as BulkActionsSection has its own download
-          onBulkTagUpdate={handleBulkTagUpdateWrapper} // This is now redundant
-          onBulkStatusChange={handleBulkStatusChangeWrapper} // This is now redundant
+          onDelete={handleDeleteSelected}
+          onDownload={handleBulkDownloadWrapper}
+          onBulkTagUpdate={handleBulkTagUpdateWrapper}
+          onBulkStatusChange={handleBulkStatusChangeWrapper}
           uniqueTags={uniqueTags}
           currentPage={currentPage}
           totalPages={totalPages}
@@ -310,7 +321,7 @@ const ManageBlog = () => {
         onOpenChange={(isOpen) => {
           setIsFormDialogOpen(isOpen);
           if (!isOpen) {
-            setEditingPost(null); // Clear editing post when dialog closes
+            setEditingPost(null);
           }
         }}
         editingPost={editingPost}
