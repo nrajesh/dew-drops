@@ -1,26 +1,36 @@
 # My Awesome React App
 
-This is a modern React application built with TypeScript, React Router, Tailwind CSS, and `shadcn/ui` components. It leverages Supabase for backend services, including authentication, database management, and edge functions.
+This is a modern React application built with TypeScript, React Router, Tailwind CSS, and `shadcn/ui` components. It leverages Supabase for backend services and Google Gemini for AI-powered features.
 
 ## Latest Functionality
 
-This application provides robust content management features, particularly for a blog and a gallery.
+This application provides a comprehensive suite of features for a personal portfolio, including robust content management, AI-driven analysis, and enhanced user experience.
 
-### Gallery Management
+### Core Features
 
-*   **Image Upload**: Easily upload new images to your gallery.
-*   **Image Metadata Editing**: Update alt text and tags for individual images.
-*   **Publish/Unpublish Toggle**: Control the visibility of each image on your public gallery with a simple switch.
-*   **Bulk Actions**: Perform operations like deleting, publishing, unpublishing, generating tags, and downloading multiple selected images at once.
-*   **Image Lightbox**: View images in a full-screen lightbox for a better experience.
+*   **AI-Powered Career Fit Analyst**: A standout feature that analyzes job descriptions against the portfolio's content and a detailed JSON Resume, providing a match percentage and a reasoned breakdown of strengths and gaps.
+*   **Dynamic CV/Portfolio Page**: Displays a professional curriculum vitae from a JSON Resume source, complete with collapsible sections for readability and a print-to-PDF function.
+*   **AI Chatbot**: An integrated chatbot that answers questions about the portfolio using a knowledge base that can be manually edited or automatically generated from all site content, including the CV.
+*   **Text Readability Controls**: Users can adjust the base font size and line height across the site for a comfortable reading experience.
+*   **Enhanced Navigation**: All paginated content (Blog, Gallery, Travel) supports keyboard arrow keys and mobile swipe gestures for navigation.
 
-### Blog Management
+### Content Management
 
-*   **Post Creation & Editing**: Create new blog posts or edit existing ones with a rich form interface, including title, description, content (Markdown), tags, cover image selection from the gallery, and YouTube video ID integration.
-*   **Content Import**: Import blog posts from WordPress XML files or Markdown files, with intelligent handling for existing posts.
-*   **Tabbed Interface**: Organize and view your blog posts in separate "Published" and "Unpublished" tabs.
-*   **Publish/Unpublish Toggle**: Control the visibility of each blog post on your public blog with a simple switch.
-*   **Bulk Actions**: Apply bulk operations such as editing tags, downloading, and deleting multiple selected posts.
+*   **Unified Management UI**: Blog, Gallery, and Travel management pages feature tabbed interfaces to separate "Published" and "Unpublished" content, improving organization.
+*   **Blog Management**:
+    *   Create, edit, and manage posts with a rich Markdown editor.
+    *   Import posts from WordPress XML or Markdown files.
+    *   Perform bulk actions like deleting, downloading, and updating tags.
+    *   Global search functionality to easily find posts.
+*   **Gallery Management**:
+    *   Upload images and automatically extract EXIF data.
+    *   AI-powered tag generation for uploaded images.
+    *   Bulk actions for publishing, deleting, downloading, and tag generation.
+    *   An image lightbox with EXIF data display and a "Purchase" (coming soon) feature.
+*   **Travel Map Management**:
+    *   Pin travel locations on an interactive map.
+    *   Bulk import locations from a CSV file.
+    *   Link travel pins to relevant blog posts.
 
 ## Technologies Used
 
@@ -29,7 +39,8 @@ This application provides robust content management features, particularly for a
 *   **React Router**: For declarative routing in React applications.
 *   **Tailwind CSS**: A utility-first CSS framework for rapidly building custom designs.
 *   **shadcn/ui**: A collection of reusable components built with Radix UI and Tailwind CSS.
-*   **Supabase**: An open-source Firebase alternative providing a PostgreSQL database, authentication, instant APIs, and edge functions.
+*   **Supabase**: An open-source Firebase alternative providing a PostgreSQL database, authentication, storage, and serverless edge functions.
+*   **Google Gemini**: Powers the AI features, including the Career Fit Analyst, chatbot, and image tag generation.
 *   **lucide-react**: A collection of beautiful and consistent icons.
 
 ## Getting Started
@@ -45,9 +56,12 @@ To run this project locally:
     ```bash
     npm install
     ```
-3.  **Set up Supabase**:
-    *   Ensure your Supabase project is configured with the necessary tables and RLS policies as described in the application's development process.
-    *   Update your `.env` file with your Supabase project URL and Anon Key.
+3.  **Set up Environment Variables**:
+    *   Create a `.env` file in the root of the project.
+    *   Add your Supabase project URL and Anon Key.
+    *   Add your Google Gemini API key.
+    *   Add the URL to your public JSON Resume file (e.g., a GitHub Gist).
+    *   Add your Mapbox Access Token.
 4.  **Run the development server**:
     ```bash
     npm run dev
