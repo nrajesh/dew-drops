@@ -22,6 +22,7 @@ const LazyImageLightbox = lazy(() => import("@/components/ImageLightbox").then(m
 const editSchema = z.object({
   alt_text: z.string().max(200, "Alt text cannot exceed 200 characters."),
   tags: z.string().optional(),
+  purchase_link: z.string().url({ message: "Please enter a valid URL." }).optional().or(z.literal('')),
 });
 
 const ManageGallery = () => {
@@ -75,7 +76,7 @@ const ManageGallery = () => {
 
   const form = useForm<z.infer<typeof editSchema>>({
     resolver: zodResolver(editSchema),
-    defaultValues: { alt_text: "", tags: "" },
+    defaultValues: { alt_text: "", tags: "", purchase_link: "" },
   });
 
   useEffect(() => {
@@ -83,6 +84,7 @@ const ManageGallery = () => {
       form.reset({
         alt_text: editingImage.alt_text || '',
         tags: editingImage.tags?.join(', ') || '',
+        purchase_link: editingImage.purchase_link || '',
       });
     }
   }, [editingImage, form]);
@@ -105,8 +107,16 @@ const ManageGallery = () => {
         finalAltText = generateAltTextFromFileName(editingImage.file_name);
       }
 
-      const tagsArray = values.tags?.split(',').map(t => normalizeTag(t)).filter(Boolean) || []; // Apply normalization here
-      const { error } = await supabase.from("gallery_images").update({ alt_text: finalAltText, tags: tagsArray }).eq("id", editingImage.id);
+      const tagsArray = values.tags?.split(',').map(t => normalizeTag(t)).filter(Boolean) || [];
+      
+      const updateData = {
+        alt_text: finalAltText,
+        tags: tagsArray,
+        purchase_link: values.purchase_link || null,
+      };
+
+      const { error } = await supabase.from("gallery_images").update(updateData).eq("id", editingImage.id);
+      
       if (error) throw error;
       dismissToast(toastId);
       showSuccess("Image data updated successfully!");
@@ -224,7 +234,7 @@ const ManageGallery = () => {
           <DialogHeader>
             <DialogTitle>Edit Image Data</DialogTitle>
             <DialogDescription>
-              Update the alt text and tags for this image.
+              Update the alt text, tags, and purchase link for this image.
             </DialogDescription>
           </DialogHeader>
           <Form {...form}>
@@ -254,6 +264,22 @@ const ManageGallery = () => {
                     <FormControl>
                       <Input
                         placeholder="e.g., nature, mountains, sunset"
+                        {...field}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="purchase_link"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Purchase Link</FormLabel>
+                    <FormControl>
+                      <Input
+                        placeholder="e.g., https://your-print-store.com/image"
                         {...field}
                       />
                     </FormControl>
