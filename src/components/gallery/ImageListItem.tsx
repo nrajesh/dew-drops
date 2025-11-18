@@ -44,10 +44,10 @@ export const ImageListItem = ({ image, isSelected, onSelect, onTogglePublish, on
         ) : (
           <Button variant="outline" size="sm" onClick={() => onTogglePublish(image)} disabled={isBulkActionMode}>Publish</Button>
         )}
-        <Button variant="ghost" size="icon" onClick={() => onEdit(image)} aria-label="Edit metadata" disabled={isBulkActionMode}>
+        <Button variant="ghost" size="icon" onClick={() => onEdit(image)} aria-label="Edit metadata">
           <Edit className="h-4 w-4" />
         </Button>
-        <Button variant="ghost" size="icon" onClick={() => onView(image)} aria-label="View image" disabled={isBulkActionMode}>
+        <Button variant="ghost" size="icon" onClick={() => onView(image)} aria-label="View image">
           <Eye className="h-4 w-4" />
         </Button>
       </div>
