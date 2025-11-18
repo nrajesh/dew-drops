@@ -33,6 +33,7 @@ const ManageGallery = () => {
     setEditingImage,
     setSelectedFiles,
     handleUpload,
+    handleMetadataUpdate,
     reloadAllGalleryData,
     imagesPerPage,
     setImagesPerPage,
@@ -166,6 +167,7 @@ const ManageGallery = () => {
         <ImageUploadCard
           onFileChange={setSelectedFiles}
           onUpload={handleUpload}
+          onMetadataApply={handleMetadataUpdate}
           isUploading={isUploading}
           selectedFiles={selectedFiles}
         />

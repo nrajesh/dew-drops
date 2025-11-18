@@ -6,7 +6,7 @@ import { showSuccess, showError, showLoading, dismissToast } from '@/utils/toast
 import { generateTagsForImage, downloadImagesAsZip } from '@/lib/gallery-utils';
 import type { GalleryImage } from '@/types';
 import { useAuth } from '@/contexts/AuthContext';
-import { sanitizeFileName } from '@/lib/utils';
+import { processImageUploads, processMetadataUpdate } from '@/components/gallery/GalleryUploadUtils';
 
 const fetcher = async (key: string) => {
   const [_, isPublishedStr] = key.split(',');
@@ -73,12 +73,12 @@ export const useGalleryManagement = () => {
   } = usePagination(filteredUnpublishedImages, imagesPerPage);
 
   useEffect(() => {
-    if (publishedCurrentPage !== 1) setPublishedCurrentPage(1);
-  }, [publishedSearchQuery, setPublishedCurrentPage, publishedCurrentPage]);
+    if (publishedCurrentPage > 1 && paginatedPublishedImages.length === 0) setPublishedCurrentPage(1);
+  }, [publishedSearchQuery, paginatedPublishedImages, publishedCurrentPage, setPublishedCurrentPage]);
 
   useEffect(() => {
-    if (unpublishedCurrentPage !== 1) setUnpublishedCurrentPage(1);
-  }, [unpublishedSearchQuery, setUnpublishedCurrentPage, unpublishedCurrentPage]);
+    if (unpublishedCurrentPage > 1 && paginatedUnpublishedImages.length === 0) setUnpublishedCurrentPage(1);
+  }, [unpublishedSearchQuery, paginatedUnpublishedImages, unpublishedCurrentPage, setUnpublishedCurrentPage]);
 
   const reloadAllGalleryData = useCallback(() => {
     mutate('gallery_images,true');
@@ -185,50 +185,68 @@ export const useGalleryManagement = () => {
   };
 
   const handleUpload = async (metadata?: any[]) => {
-    if (selectedFiles.length === 0) return;
+    if (selectedFiles.length === 0 || !user) return;
+    setIsUploading(true);
+    const toastId = showLoading(`Starting upload of ${selectedFiles.length} file(s)...`);
+    
+    const metadataMap = new Map<string, { alt_text: string; tags: string[] }>();
+    if (metadata) {
+      metadata.forEach(item => {
+        if (item.file_name) {
+          metadataMap.set(item.file_name, { alt_text: item.alt_text, tags: item.tags });
+        }
+      });
+    }
+  
+    const result = await processImageUploads(selectedFiles, metadataMap, user.id, toastId);
+  
+    if (result.failedFiles.length > 0) {
+      showError(`${result.failedFiles.length} files failed to upload. See console for details.`);
+      console.error("Upload failures:", result.failedFiles);
+    }
+    
+    if (result.successfulUploads > 0) {
+      showSuccess(`${result.successfulUploads} images uploaded successfully.`);
+    }
+  
+    setIsUploading(false);
+    setSelectedFiles([]);
+    reloadAllGalleryData();
+  };
+
+  const handleMetadataUpdate = async (metadataFile: File) => {
     if (!user) {
-      showError("You must be logged in to upload images.");
+      showError("You must be logged in to update metadata.");
       return;
     }
     setIsUploading(true);
-    const toastId = showLoading(`Uploading ${selectedFiles.length} file(s)...`);
+    const toastId = showLoading("Applying metadata...");
+  
     try {
-      const uploadPromises = selectedFiles.map(async file => {
-        const sanitizedName = sanitizeFileName(file.name);
-        const fileName = `${user.id}/${Date.now()}_${sanitizedName}`;
-        const { error: uploadError } = await supabase.storage.from('gallery').upload(fileName, file);
-        if (uploadError) throw uploadError;
-
-        const { data: { publicUrl } } = supabase.storage.from('gallery').getPublicUrl(fileName);
-        
-        const meta = metadata?.find(m => m.file_name === file.name);
-
-        const { error: dbError } = await supabase.from('gallery_images').insert({
-          user_id: user.id,
-          file_name: fileName,
-          image_url: publicUrl,
-          alt_text: meta?.alt_text || null,
-          tags: meta?.tags || null,
-          purchase_link: meta?.purchase_link || null,
-          published: false,
-        });
-        if (dbError) throw dbError;
-      });
-      await Promise.all(uploadPromises);
-      dismissToast(toastId);
-      showSuccess("Upload complete!");
-      setSelectedFiles([]);
+      const allImages = [...(publishedData || []), ...(unpublishedData || [])];
+      const result = await processMetadataUpdate(metadataFile, allImages, toastId);
+  
+      let message = `${result.updatedCount} images updated.`;
+      if (result.notFoundCount > 0) {
+        message += ` ${result.notFoundCount} images from metadata file not found.`;
+      }
+      showSuccess(message);
+  
+      if (result.failedUpdates.length > 0) {
+        showError(`${result.failedUpdates.length} updates failed. See console for details.`);
+        console.error("Metadata update failures:", result.failedUpdates);
+      }
+      
       reloadAllGalleryData();
     } catch (error: any) {
-      dismissToast(toastId);
-      showError(`Upload failed: ${error.message}`);
+      showError(`Failed to apply metadata: ${error.message}`);
     } finally {
       setIsUploading(false);
     }
   };
 
   return {
-    selectedFiles, isUploading, editingImage, setEditingImage, setSelectedFiles, handleUpload, reloadAllGalleryData, imagesPerPage, setImagesPerPage,
+    selectedFiles, isUploading, editingImage, setEditingImage, setSelectedFiles, handleUpload, reloadAllGalleryData, imagesPerPage, setImagesPerPage, handleMetadataUpdate,
     publishedImages, filteredPublishedImages, paginatedPublishedImages, isLoadingPublished, selectedPublishedImages, publishedCurrentPage, publishedTotalPages, allPublishedOnPageSelected, setPublishedCurrentPage, handleSelectPublishedImage, handleSelectAllPublished,
     handleBulkDeletePublished: createBulkAction(handleBulkDelete, "Deleting images...", "Images deleted.", "Delete failed", selectedPublishedImages),
     handleBulkPublishPublished: (status: boolean) => createBulkAction((ids) => handleBulkPublish(ids, status), status ? "Publishing..." : "Unpublishing...", "Update successful.", "Update failed", selectedPublishedImages)(),

@@ -7,11 +7,12 @@ import { Upload, File, X, Download } from 'lucide-react';
 interface ImageUploadCardProps {
   onFileChange: (files: File[]) => void;
   onUpload: (metadata?: any[]) => Promise<void>;
+  onMetadataApply: (metadataFile: File) => Promise<void>;
   isUploading: boolean;
   selectedFiles: File[];
 }
 
-export const ImageUploadCard = ({ onFileChange, onUpload, isUploading, selectedFiles }: ImageUploadCardProps) => {
+export const ImageUploadCard = ({ onFileChange, onUpload, onMetadataApply, isUploading, selectedFiles }: ImageUploadCardProps) => {
   const [metadataFile, setMetadataFile] = useState<File | null>(null);
   const [metadata, setMetadata] = useState<any[] | undefined>(undefined);
 
@@ -73,12 +74,20 @@ export const ImageUploadCard = ({ onFileChange, onUpload, isUploading, selectedF
     event.stopPropagation();
   };
 
+  const handleApplyMetadata = async () => {
+    if (metadataFile) {
+      await onMetadataApply(metadataFile);
+      setMetadataFile(null);
+      setMetadata(undefined);
+    }
+  };
+
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Upload New Images</CardTitle>
+        <CardTitle>Upload & Update</CardTitle>
         <CardDescription>
-          Drag and drop images and an optional JSON metadata file here, or click to select files.
+          Upload new images or apply a JSON metadata file to update existing images.
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
@@ -90,7 +99,7 @@ export const ImageUploadCard = ({ onFileChange, onUpload, isUploading, selectedF
         >
           <Upload className="mx-auto h-12 w-12 text-muted-foreground" />
           <p className="mt-4 text-sm text-muted-foreground">
-            Drag & drop files here, or click to browse
+            Drag & drop images and/or a metadata file here
           </p>
           <Input
             id="image-upload-input"
@@ -104,7 +113,7 @@ export const ImageUploadCard = ({ onFileChange, onUpload, isUploading, selectedF
 
         {selectedFiles.length > 0 && (
           <div className="space-y-2">
-            <h4 className="font-medium">Selected Files ({selectedFiles.length}):</h4>
+            <h4 className="font-medium">Images to Upload ({selectedFiles.length}):</h4>
             <div className="max-h-48 overflow-y-auto space-y-2 pr-2">
               {selectedFiles.map((file, index) => (
                 <div key={index} className="flex items-center justify-between p-2 bg-muted rounded-md">
@@ -157,13 +166,23 @@ export const ImageUploadCard = ({ onFileChange, onUpload, isUploading, selectedF
           </div>
         </div>
 
-        <Button
-          onClick={() => onUpload(metadata)}
-          disabled={isUploading || selectedFiles.length === 0}
-          className="w-full"
-        >
-          {isUploading ? 'Uploading...' : `Upload ${selectedFiles.length} Image(s)`}
-        </Button>
+        {selectedFiles.length > 0 ? (
+          <Button
+            onClick={() => onUpload(metadata)}
+            disabled={isUploading}
+            className="w-full"
+          >
+            {isUploading ? 'Uploading...' : `Upload ${selectedFiles.length} Image(s)`}
+          </Button>
+        ) : metadataFile ? (
+          <Button
+            onClick={handleApplyMetadata}
+            disabled={isUploading}
+            className="w-full"
+          >
+            {isUploading ? 'Applying...' : 'Apply Metadata to Existing Images'}
+          </Button>
+        ) : null}
       </CardContent>
     </Card>
   );
