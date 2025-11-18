@@ -27,24 +27,28 @@ export const ImageUploadCard = ({ onFileChange, onUpload, isUploading, selectedF
     onFileChange(newFiles);
   };
 
+  const processMetadataFile = (file: File) => {
+    setMetadataFile(file);
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try {
+        const content = e.target?.result;
+        if (typeof content === 'string') {
+          const parsed = JSON.parse(content);
+          setMetadata(parsed);
+        }
+      } catch (error) {
+        console.error("Error parsing metadata file:", error);
+        setMetadata(undefined);
+      }
+    };
+    reader.readAsText(file);
+  };
+
   const handleMetadataFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (file) {
-      setMetadataFile(file);
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        try {
-          const content = e.target?.result;
-          if (typeof content === 'string') {
-            const parsed = JSON.parse(content);
-            setMetadata(parsed);
-          }
-        } catch (error) {
-          console.error("Error parsing metadata file:", error);
-          setMetadata(undefined);
-        }
-      };
-      reader.readAsText(file);
+      processMetadataFile(file);
     }
   };
 
@@ -52,9 +56,15 @@ export const ImageUploadCard = ({ onFileChange, onUpload, isUploading, selectedF
     event.preventDefault();
     event.stopPropagation();
     const files = Array.from(event.dataTransfer.files);
+    
     const imageFiles = files.filter(file => file.type.startsWith('image/'));
+    const jsonFile = files.find(file => file.type === 'application/json' || file.name.endsWith('.json'));
+
     if (imageFiles.length > 0) {
       onFileChange(imageFiles);
+    }
+    if (jsonFile) {
+      processMetadataFile(jsonFile);
     }
   }, [onFileChange]);
 
@@ -68,7 +78,7 @@ export const ImageUploadCard = ({ onFileChange, onUpload, isUploading, selectedF
       <CardHeader>
         <CardTitle>Upload New Images</CardTitle>
         <CardDescription>
-          Drag and drop images here, or click to select files. You can also upload an optional JSON file with metadata (alt text, tags).
+          Drag and drop images and an optional JSON metadata file here, or click to select files.
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
@@ -107,6 +117,21 @@ export const ImageUploadCard = ({ onFileChange, onUpload, isUploading, selectedF
                   </Button>
                 </div>
               ))}
+            </div>
+          </div>
+        )}
+
+        {metadataFile && (
+          <div className="space-y-2">
+            <h4 className="font-medium">Metadata File:</h4>
+            <div className="flex items-center justify-between p-2 bg-muted rounded-md">
+              <div className="flex items-center gap-2 truncate">
+                <File className="h-4 w-4 flex-shrink-0" />
+                <span className="text-sm truncate">{metadataFile.name}</span>
+              </div>
+              <Button variant="ghost" size="icon" onClick={() => { setMetadataFile(null); setMetadata(undefined); }} disabled={isUploading}>
+                <X className="h-4 w-4" />
+              </Button>
             </div>
           </div>
         )}
