@@ -1,8 +1,8 @@
 import { supabase } from "@/integrations/supabase/client";
 import type { GalleryImage } from "@/types";
-import { showSuccess, showError, showLoading, dismissToast, updateToastSuccess, updateToastError, updateToastLoading } from "@/utils/toast";
-import { sanitizeFileName, normalizeTag } from "@/lib/utils"; // Import normalizeTag
-import imageCompression from 'browser-image-compression';
+import { showSuccess, showError, showLoading, updateToastSuccess, updateToastError, updateToastLoading } from "@/utils/toast";
+import JSZip from 'jszip';
+import { normalizeTag, sanitizeFileName } from "@/lib/utils"; // Import normalizeTag
 import ExifReader from 'exifreader';
 
 // Helper to sanitize objects for JSON serialization, removing circular references and invalid characters
@@ -127,20 +127,21 @@ export const processMetadataUpdate = async (
     }
 
     const updatePromises = metadataArray.map(async (meta: any) => {
-      if (!meta.fileName) return;
-      const sanitizedMetaFileName = sanitizeFileName(meta.fileName);
+      if (!meta.file_name) return;
+      const sanitizedMetaFileName = sanitizeFileName(meta.file_name);
       const existingImage = allImages.find(img => img.file_name.endsWith(`_${sanitizedMetaFileName}`));
 
       if (existingImage) {
-        const updatePayload: { alt_text?: string; tags?: string[] } = {};
+        const updatePayload: { alt_text?: string; tags?: string[]; purchase_link?: string | null } = {};
         if (typeof meta.alt_text === 'string') updatePayload.alt_text = meta.alt_text;
-        if (Array.isArray(meta.tags)) updatePayload.tags = meta.tags.map(normalizeTag); // Apply normalization here
+        if (Array.isArray(meta.tags)) updatePayload.tags = meta.tags.map(normalizeTag);
+        if (typeof meta.purchase_link === 'string') updatePayload.purchase_link = meta.purchase_link || null;
 
         if (Object.keys(updatePayload).length > 0) {
           const { error } = await supabase.from('gallery_images').update(updatePayload).eq('id', existingImage.id);
           if (error) {
-            failedUpdates.push({ fileName: meta.fileName, error: error.message });
-            console.error(`Failed to update ${meta.fileName}:`, error);
+            failedUpdates.push({ fileName: meta.file_name, error: error.message });
+            console.error(`Failed to update ${meta.file_name}:`, error);
           } else {
             updatedCount++;
           }

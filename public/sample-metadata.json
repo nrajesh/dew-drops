@@ -1,12 +1,18 @@
 [
   {
-    "fileName": "your-image-name.jpg",
-    "alt_text": "A descriptive alt text for the image.",
-    "tags": ["tag1", "tag2", "example"]
+    "file_name": "example-image-1.jpg",
+    "alt_text": "A majestic mountain range at sunrise.",
+    "tags": ["nature", "mountains", "sunrise", "landscape"],
+    "purchase_link": "https://your-print-store.com/products/mountain-sunrise"
   },
   {
-    "fileName": "another-photo.png",
-    "alt_text": "Description for the second photo.",
-    "tags": ["photo", "sample"]
+    "file_name": "example-image-2.png",
+    "alt_text": "A close-up of a vibrant red flower.",
+    "tags": ["flower", "nature", "macro", "red"]
+  },
+  {
+    "file_name": "example-image-3.tiff",
+    "alt_text": "An old cobblestone street in a European city.",
+    "tags": ["city", "travel", "europe", "street"]
   }
 ]

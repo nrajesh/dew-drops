@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Trash2, Download, Tag, MoreHorizontal, Search } from "lucide-react"; // Import Search icon
+import { Trash2, Download, Tag, MoreHorizontal, Search } from "lucide-react";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -28,8 +28,8 @@ interface BulkActionsSectionProps {
   onDeleteSelected: () => void;
   uniqueTags: string[];
   onCreateNewPost: () => void;
-  searchTerm: string; // New prop for global search
-  onSearch: (term: string) => void; // New prop for global search
+  searchTerm: string;
+  onSearch: (term: string) => void;
 }
 
 export const BulkActionsSection: React.FC<BulkActionsSectionProps> = ({
@@ -42,8 +42,8 @@ export const BulkActionsSection: React.FC<BulkActionsSectionProps> = ({
   onDeleteSelected,
   uniqueTags,
   onCreateNewPost,
-  searchTerm, // Destructure new prop
-  onSearch, // Destructure new prop
+  searchTerm,
+  onSearch,
 }) => {
   const [isTagDialogOpen, setIsTagDialogOpen] = useState(false);
   const [bulkEditTags, setBulkEditTags] = useState<string[]>([]);

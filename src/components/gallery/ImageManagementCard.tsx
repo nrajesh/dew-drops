@@ -6,12 +6,13 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { ManagementPagination } from "@/components/ManagementPagination";
 import { ImageListItem } from "./ImageListItem";
-import { Download, Trash2 } from "lucide-react";
+import { Download, Trash2, Search } from "lucide-react";
+import { Input } from "@/components/ui/input";
 
 interface ImageManagementCardProps {
   title: string;
   description: string;
-  images: GalleryImage[]; // All images in this category (published/unpublished)
+  images: GalleryImage[];
   paginatedImages: GalleryImage[];
   selectedImages: Set<string>;
   isLoading: boolean;
@@ -33,6 +34,8 @@ interface ImageManagementCardProps {
     totalItems: number;
   };
   listType: 'published' | 'unpublished';
+  searchValue: string;
+  onSearchChange: (value: string) => void;
 }
 
 export const ImageManagementCard = ({
@@ -53,62 +56,75 @@ export const ImageManagementCard = ({
   onTogglePublish,
   paginationProps,
   listType,
+  searchValue,
+  onSearchChange,
 }: ImageManagementCardProps) => {
   const allOnPageSelected = paginatedImages.length > 0 && paginatedImages.every(i => selectedImages.has(i.id));
 
   return (
     <Card>
-      <CardHeader className="flex flex-row items-center justify-between">
-        <div>
-          <CardTitle>{title}</CardTitle>
-          <CardDescription>{description}</CardDescription>
+      <CardHeader className="gap-4">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
+          <div className="flex-1">
+            <CardTitle>{title}</CardTitle>
+            <CardDescription>{description}</CardDescription>
+          </div>
+          <div className="flex gap-2 self-start sm:self-center">
+            {selectedImages.size > 0 && (
+              <>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="outline">
+                      Bulk Actions ({selectedImages.size})
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
+                    <DropdownMenuItem onClick={() => onBulkPublish(listType === 'unpublished')}>
+                      {listType === 'unpublished' ? 'Publish Selected' : 'Unpublish Selected'}
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={onGenerateTags}>
+                      Generate Tags
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={onDownload}>
+                      <Download className="h-4 w-4 mr-2" />
+                      Download Selected
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+                <AlertDialog>
+                  <AlertDialogTrigger asChild>
+                    <Button variant="destructive">
+                      <Trash2 className="h-4 w-4 mr-2" />
+                      Delete ({selectedImages.size})
+                    </Button>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                      <AlertDialogDescription>
+                        This will permanently delete the {selectedImages.size} selected image(s). This action cannot be undone.
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel>Cancel</AlertDialogCancel>
+                      <AlertDialogAction onClick={onDelete}>
+                        Delete
+                      </AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
+              </>
+            )}
+          </div>
         </div>
-        <div className="flex gap-2">
-          {selectedImages.size > 0 && (
-            <>
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="outline">
-                    Bulk Actions ({selectedImages.size})
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end">
-                  <DropdownMenuItem onClick={() => onBulkPublish(listType === 'unpublished')}>
-                    {listType === 'unpublished' ? 'Publish Selected' : 'Unpublish Selected'}
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={onGenerateTags}>
-                    Generate Tags
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={onDownload}>
-                    <Download className="h-4 w-4 mr-2" />
-                    Download Selected
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-              <AlertDialog>
-                <AlertDialogTrigger asChild>
-                  <Button variant="destructive">
-                    <Trash2 className="h-4 w-4 mr-2" />
-                    Delete ({selectedImages.size})
-                  </Button>
-                </AlertDialogTrigger>
-                <AlertDialogContent>
-                  <AlertDialogHeader>
-                    <AlertDialogTitle>Are you sure?</AlertDialogTitle>
-                    <AlertDialogDescription>
-                      This will permanently delete the {selectedImages.size} selected image(s). This action cannot be undone.
-                    </AlertDialogDescription>
-                  </AlertDialogHeader>
-                  <AlertDialogFooter>
-                    <AlertDialogCancel>Cancel</AlertDialogCancel>
-                    <AlertDialogAction onClick={onDelete}>
-                      Delete
-                    </AlertDialogAction>
-                  </AlertDialogFooter>
-                </AlertDialogContent>
-              </AlertDialog>
-            </>
-          )}
+        <div className="relative">
+          <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+          <Input
+            placeholder="Search by name, alt text, or tag..."
+            value={searchValue}
+            onChange={(e) => onSearchChange(e.target.value)}
+            className="pl-8 w-full"
+          />
         </div>
       </CardHeader>
       <CardContent>
@@ -136,7 +152,9 @@ export const ImageManagementCard = ({
           </>
         ) : (
           <div className="text-center py-10 border-dashed border-2 rounded-lg bg-muted">
-            <p className="text-muted-foreground">No {listType} images found.</p>
+            <p className="text-muted-foreground">
+              {searchValue ? `No images found for "${searchValue}".` : `No ${listType} images found.`}
+            </p>
           </div>
         )}
       </CardContent>

@@ -1,6 +1,6 @@
 import React, { useEffect, useCallback, useState } from 'react';
 import { X, ChevronLeft, ChevronRight, Trash2, Download, Tag, Info, ShoppingCart } from 'lucide-react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import type { GalleryImage } from "@/types";
@@ -29,7 +29,7 @@ export const ImageLightbox: React.FC<ImageLightboxProps> = ({
   const { user } = useAuth();
   const isAuthenticated = !!user;
   const [showExif, setShowExif] = useState(false);
-  const [showPurchaseOverlay, setShowPurchaseOverlay] = useState(false);
+  const [showPurchaseDisabledOverlay, setShowPurchaseDisabledOverlay] = useState(false); // Renamed state
 
   const getImageUrl = (fileName: string) => {
     const { data } = supabase.storage.from('gallery').getPublicUrl(fileName);
@@ -69,7 +69,15 @@ export const ImageLightbox: React.FC<ImageLightboxProps> = ({
   };
   
   const handlePurchase = () => {
-    setShowPurchaseOverlay(true);
+    if (!image) return;
+
+    if (image.purchase_link) {
+      // If purchase link exists, navigate to it
+      window.open(image.purchase_link, '_blank');
+    } else {
+      // Otherwise, show the disabled overlay
+      setShowPurchaseDisabledOverlay(true);
+    }
   };
 
 
@@ -101,6 +109,12 @@ export const ImageLightbox: React.FC<ImageLightboxProps> = ({
     <>
       <Dialog open={!!image} onOpenChange={onClose}>
         <DialogContent className="max-w-4xl p-0 border-none bg-transparent shadow-none">
+          <DialogHeader className="sr-only">
+            <DialogTitle>{image.alt_text || "Gallery Image"}</DialogTitle>
+            <DialogDescription>
+              A larger view of the selected image. Use arrow keys to navigate between images.
+            </DialogDescription>
+          </DialogHeader>
           {/* Custom Close Button for high visibility, especially on mobile */}
           <Button
             variant="ghost"
@@ -205,29 +219,35 @@ export const ImageLightbox: React.FC<ImageLightboxProps> = ({
             <DialogTitle className="flex items-center">
               <Info className="h-5 w-5 mr-2" /> EXIF Data
             </DialogTitle>
+            <DialogDescription className="sr-only">
+              Detailed EXIF metadata for the selected image.
+            </DialogDescription>
           </DialogHeader>
           <ExifDataDisplay exifData={image?.exif_data} />
         </DialogContent>
       </Dialog>
 
-      {/* Purchase Coming Soon Dialog */}
-      <Dialog open={showPurchaseOverlay} onOpenChange={setShowPurchaseOverlay}>
+      {/* Purchase Disabled Dialog */}
+      <Dialog open={showPurchaseDisabledOverlay} onOpenChange={setShowPurchaseDisabledOverlay}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle className="text-xl font-bold text-center">
-              <ShoppingCart className="h-6 w-6 inline mr-2 text-primary" /> Purchase Coming Soon!
+              <ShoppingCart className="h-6 w-6 inline mr-2 text-primary" /> Purchase Not Enabled
             </DialogTitle>
+            <DialogDescription className="sr-only">
+              A notification that purchasing is not enabled for this image.
+            </DialogDescription>
           </DialogHeader>
           <div className="py-4 text-center">
             <p className="text-lg text-muted-foreground">
-              We are currently setting up our secure payment system.
+              Purchase is not enabled for this image.
             </p>
             <p className="mt-2 text-sm">
-              Check back soon to purchase high-resolution prints and digital downloads of this image.
+              Please contact me for possibilities regarding prints or digital downloads.
             </p>
           </div>
           <div className="flex justify-center pt-2">
-            <Button onClick={() => setShowPurchaseOverlay(false)}>
+            <Button onClick={() => setShowPurchaseDisabledOverlay(false)}>
               Got It
             </Button>
           </div>

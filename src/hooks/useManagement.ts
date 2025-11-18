@@ -1,17 +1,19 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { showError } from "@/utils/toast";
+import { usePagination } from '@/hooks/usePagination';
 
 interface UseManagementOptions<T> {
   fetchData: () => Promise<T[]>;
   deleteItems: (ids: string[], allItems: T[]) => Promise<boolean>;
-  updateItemStatus?: (ids: Set<string>, status: boolean) => Promise<boolean>; // Removed allItems from signature here, as it's often not needed in the utility function itself
-  updateItemTags?: (ids: Set<string>, tags: string[]) => Promise<boolean>; // Removed allItems
+  updateItemStatus?: (ids: Set<string>, status: boolean) => Promise<boolean>;
+  updateItemTags?: (ids: Set<string>, tags: string[]) => Promise<boolean>;
   generateItemTags?: (ids: Set<string>, allItems: T[]) => Promise<number>;
   downloadItems?: (ids: Set<string>, allItems: T[], extraData?: any) => Promise<void>;
   initialItemsPerPage?: number;
-  idKey?: keyof T; // Key to identify unique items, defaults to 'id'
-  statusKey?: keyof T; // Key for published status, defaults to 'published'
+  idKey?: keyof T;
+  statusKey?: keyof T;
+  filterFn?: (item: T, searchTerm: string) => boolean;
 }
 
 export const useManagement = <T extends { id: string }>(
@@ -28,14 +30,14 @@ export const useManagement = <T extends { id: string }>(
     initialItemsPerPage = 10,
     idKey = 'id' as keyof T,
     statusKey = 'published' as keyof T,
+    filterFn,
   } = options;
 
   const [allItems, setAllItems] = useState<T[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [selectedItems, setSelectedItems] = useState<Set<string>>(new Set());
-
-  const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(initialItemsPerPage);
+  const [searchTerm, setSearchTerm] = useState('');
 
   const loadItems = useCallback(async () => {
     setIsLoading(true);
@@ -48,20 +50,22 @@ export const useManagement = <T extends { id: string }>(
     loadItems();
   }, [loadItems]);
 
-  const paginatedItems = useMemo(() => {
-    const startIndex = (currentPage - 1) * itemsPerPage;
-    return allItems.slice(startIndex, startIndex + itemsPerPage);
-  }, [allItems, currentPage, itemsPerPage]);
+  const filteredItems = useMemo(() => {
+    if (!filterFn || !searchTerm) {
+      return allItems;
+    }
+    return allItems.filter(item => filterFn(item, searchTerm));
+  }, [allItems, searchTerm, filterFn]);
 
-  const totalPages = useMemo(() => Math.ceil(allItems.length / itemsPerPage), [allItems, itemsPerPage]);
-
-  const handlePageChange = useCallback((page: number) => {
-    setCurrentPage(page);
-  }, []);
+  const {
+    currentPage,
+    setCurrentPage,
+    totalPages,
+    paginatedItems,
+  } = usePagination(filteredItems, itemsPerPage);
 
   const handleItemsPerPageChange = useCallback((value: number) => {
     setItemsPerPage(value);
-    setCurrentPage(1); // Reset to first page when items per page changes
   }, []);
 
   const handleSelectItem = useCallback((id: string) => {
@@ -85,59 +89,37 @@ export const useManagement = <T extends { id: string }>(
     });
   }, [paginatedItems, idKey]);
 
-  // --- Generic Bulk Handlers (now exposed for external use) ---
-
   const handleBulkDelete = useCallback(async (ids: Set<string>, setter: (s: Set<string>) => void, allItems: T[]) => {
-    if (!user) {
-      showError("You must be logged in to delete items.");
-      return;
-    }
+    if (!user) { showError("You must be logged in to delete items."); return; }
     if (ids.size === 0) return;
-
-    const success = await deleteItems(Array.from(ids), allItems);
-    if (success) {
+    if (await deleteItems(Array.from(ids), allItems)) {
       setter(new Set());
       loadItems();
     }
   }, [user, deleteItems, loadItems]);
 
   const handleBulkStatusChange = useCallback(async (ids: Set<string>, setter: (s: Set<string>) => void, status: boolean) => {
-    if (!user) {
-      showError("You must be logged in to change item status.");
-      return;
-    }
+    if (!user) { showError("You must be logged in to change item status."); return; }
     if (ids.size === 0 || !updateItemStatus) return;
-
-    const success = await updateItemStatus(ids, status);
-    if (success) {
+    if (await updateItemStatus(ids, status)) {
       setter(new Set());
       loadItems();
     }
   }, [user, updateItemStatus, loadItems]);
 
   const handleBulkTagUpdate = useCallback(async (ids: Set<string>, setter: (s: Set<string>) => void, tags: string[]) => {
-    if (!user) {
-      showError("You must be logged in to update tags.");
-      return;
-    }
+    if (!user) { showError("You must be logged in to update tags."); return; }
     if (ids.size === 0 || !updateItemTags) return;
-
-    const success = await updateItemTags(ids, tags);
-    if (success) {
+    if (await updateItemTags(ids, tags)) {
       setter(new Set());
       loadItems();
     }
   }, [user, updateItemTags, loadItems]);
 
   const handleGenerateTags = useCallback(async (ids: Set<string>, setter: (s: Set<string>) => void, allItems: T[]) => {
-    if (!user) {
-      showError("You must be logged in to generate tags.");
-      return;
-    }
+    if (!user) { showError("You must be logged in to generate tags."); return; }
     if (ids.size === 0 || !generateItemTags) return;
-
-    const successCount = await generateItemTags(ids, allItems);
-    if (successCount > 0) {
+    if (await generateItemTags(ids, allItems) > 0) {
       setter(new Set());
       loadItems();
     }
@@ -150,15 +132,10 @@ export const useManagement = <T extends { id: string }>(
   }, [downloadItems]);
 
   const handleToggleStatus = useCallback(async (item: T) => {
-    if (!user) {
-      showError("You must be logged in to change item status.");
-      return;
-    }
+    if (!user) { showError("You must be logged in to change item status."); return; }
     if (!updateItemStatus) return;
-
-    const currentStatus = item[statusKey] as unknown as boolean; // Cast to boolean
-    const success = await updateItemStatus(new Set([String(item[idKey])]), !currentStatus);
-    if (success) {
+    const currentStatus = item[statusKey] as unknown as boolean;
+    if (await updateItemStatus(new Set([String(item[idKey])]), !currentStatus)) {
       loadItems();
     }
   }, [user, updateItemStatus, loadItems, idKey, statusKey]);
@@ -174,13 +151,12 @@ export const useManagement = <T extends { id: string }>(
     currentPage,
     totalPages,
     itemsPerPage,
-    totalItems: allItems.length,
+    totalItems: filteredItems.length,
     loadItems,
-    handlePageChange,
+    handlePageChange: setCurrentPage,
     handleItemsPerPageChange,
     handleSelectItem,
     handleSelectAllOnPage,
-    // Expose generic handlers with explicit signatures for use in other hooks
     handleBulkDelete,
     handleBulkStatusChange,
     handleBulkTagUpdate,
@@ -188,5 +164,7 @@ export const useManagement = <T extends { id: string }>(
     handleBulkDownload,
     handleToggleStatus,
     allOnPageSelected,
+    searchTerm,
+    setSearchTerm,
   };
 };

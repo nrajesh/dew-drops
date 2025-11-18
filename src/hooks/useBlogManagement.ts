@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import type { Post, GalleryImage } from "@/types";
@@ -14,11 +14,10 @@ import {
   handleBulkTagUpdate,
   handleBulkStatusChange,
   handleBulkDownload,
-  extractDescriptionFromContent,
-  ensureContentHasTripleBackticks
 } from "@/components/blog/BlogManagementUtils";
 import { PostFormData } from "@/components/blog/BlogForm";
-import { useManagement } from "./useManagement"; // Import the generic hook
+import { usePagination } from "./usePagination";
+import { normalizeTag } from "@/lib/utils";
 
 type NewPost = Omit<Post, 'id' | 'created_at' | 'user_id'>;
 
@@ -27,6 +26,8 @@ export const useBlogManagement = () => {
   const location = useLocation();
   const navigate = useNavigate();
 
+  const [allPosts, setAllPosts] = useState<Post[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
   const [galleryImages, setGalleryImages] = useState<GalleryImage[]>([]);
   const [editingPost, setEditingPost] = useState<Post | null>(null);
   const [selectedFiles, setSelectedFiles] = useState<FileList | null>(null);
@@ -37,84 +38,95 @@ export const useBlogManagement = () => {
   const [postsToUpdate, setPostsToUpdate] = useState<{ existingId: string; existingTitle: string; newData: NewPost }[]>([]);
   const [selectedUpdates, setSelectedUpdates] = useState<Set<string>>(new Set());
 
-  // Use the generic useManagement hook
-  const {
-    allItems: posts,
-    paginatedItems: paginatedPosts, // Alias paginatedItems to paginatedPosts
-    isLoading,
-    selectedItems: selectedPosts, // Alias selectedItems to selectedPosts
-    setSelectedItems: setSelectedPosts, // Alias setSelectedItems to setSelectedPosts
-    currentPage,
-    totalPages,
-    itemsPerPage,
-    totalItems,
-    loadItems: loadPosts,
-    handlePageChange: setCurrentPage,
-    handleItemsPerPageChange: setItemsPerPage,
-    handleSelectItem: handleSelectPost,
-    handleSelectAllOnPage: handleSelectAll,
-    handleBulkDelete: genericHandleBulkDelete,
-    handleBulkStatusChange: genericHandleBulkStatusChange,
-    handleBulkTagUpdate: genericHandleBulkTagUpdate,
-    handleBulkDownload: genericHandleBulkDownload,
-    handleToggleStatus: handleTogglePublish,
-    allOnPageSelected,
-  } = useManagement<Post>({
-    fetchData: fetchPosts,
-    deleteItems: handleBulkDelete,
-    updateItemStatus: handleBulkStatusChange,
-    updateItemTags: handleBulkTagUpdate,
-    downloadItems: handleBulkDownload,
-    idKey: 'id',
-    statusKey: 'published',
-  });
+  const [activeTab, setActiveTab] = useState<'published' | 'unpublished'>('published');
+  const [searchTerm, setSearchTerm] = useState("");
+  const [itemsPerPage, setItemsPerPage] = useState(10);
+  const [selectedPosts, setSelectedPosts] = useState<Set<string>>(new Set());
 
-  useEffect(() => {
-    const fetchInitialGalleryImages = async () => {
-      const fetchedGalleryImages = await fetchGalleryImages();
-      setGalleryImages(fetchedGalleryImages);
-    };
-    fetchInitialGalleryImages();
+  const loadPosts = useCallback(async () => {
+    setIsLoading(true);
+    const [postsData, imagesData] = await Promise.all([fetchPosts(), fetchGalleryImages()]);
+    setAllPosts(postsData);
+    setGalleryImages(imagesData);
+    setIsLoading(false);
   }, []);
 
+  useEffect(() => {
+    loadPosts();
+  }, [loadPosts]);
+
   const uniqueTags = useMemo(() => {
-    const allTags = posts.flatMap(post => post.tags || []);
+    const allTags = allPosts.flatMap(post => post.tags || []);
     return Array.from(new Set(allTags)).sort();
-  }, [posts]);
+  }, [allPosts]);
+
+  const filteredPosts = useMemo(() => {
+    const lowerCaseSearchTerm = searchTerm.toLowerCase();
+    const searched = allPosts.filter(post =>
+      post.title.toLowerCase().includes(lowerCaseSearchTerm) ||
+      (post.description && post.description.toLowerCase().includes(lowerCaseSearchTerm)) ||
+      (post.content && post.content.toLowerCase().includes(lowerCaseSearchTerm)) ||
+      (post.tags && post.tags.some(tag => normalizeTag(tag).toLowerCase().includes(lowerCaseSearchTerm)))
+    );
+    return searched.filter(post => activeTab === 'published' ? post.published : !post.published);
+  }, [allPosts, searchTerm, activeTab]);
+
+  const {
+    currentPage,
+    setCurrentPage,
+    totalPages,
+    paginatedItems: paginatedPosts,
+  } = usePagination(filteredPosts, itemsPerPage);
+
+  useEffect(() => {
+    setCurrentPage(1);
+    setSelectedPosts(new Set());
+  }, [activeTab, searchTerm, itemsPerPage, setCurrentPage]);
+
+  const handleSelectPost = useCallback((id: string) => {
+    setSelectedPosts(prev => {
+      const newSelection = new Set(prev);
+      newSelection.has(id) ? newSelection.delete(id) : newSelection.add(id);
+      return newSelection;
+    });
+  }, []);
+
+  const allOnPageSelected = useMemo(() => paginatedPosts.length > 0 && paginatedPosts.every(p => selectedPosts.has(p.id)), [paginatedPosts, selectedPosts]);
+
+  const handleSelectAll = useCallback((checked: boolean) => {
+    const pageIds = new Set(paginatedPosts.map(p => p.id));
+    setSelectedPosts(prev => {
+      const newSet = new Set(prev);
+      if (checked) {
+        pageIds.forEach(id => newSet.add(id));
+      } else {
+        pageIds.forEach(id => newSet.delete(id));
+      }
+      return newSet;
+    });
+  }, [paginatedPosts]);
+
+  const handleTogglePublish = useCallback(async (post: Post, published: boolean) => {
+    if (!user) { showError("You must be logged in."); return; }
+    if (await handleBulkStatusChange(new Set([post.id]), published)) {
+      loadPosts();
+    }
+  }, [user, loadPosts]);
 
   const handleFormSubmit = useCallback(async (values: PostFormData) => {
-    if (!user) {
-      showError("You must be logged in to manage blog posts.");
-      return;
-    }
-
+    if (!user) { showError("You must be logged in."); return; }
     const toastId = showLoading(editingPost ? "Updating post..." : "Adding new post...");
-
-    let description = values.description;
-    if (!description || description.trim() === '') {
-      description = extractDescriptionFromContent(values.content);
-    }
-
-    const content = ensureContentHasTripleBackticks(values.content);
-
-    const postData = {
-      ...values,
-      description: description,
-      content: content,
-      user_id: user.id,
-    };
-
+    const postData = { ...values, user_id: user.id };
     const { error } = editingPost
       ? await supabase.from("posts").update(postData).eq("id", editingPost.id)
       : await supabase.from("posts").insert(postData);
-
     dismissToast(toastId);
     if (error) {
       showError(error.message);
     } else {
       showSuccess(`Post ${editingPost ? "updated" : "added"} successfully!`);
       setEditingPost(null);
-      loadPosts(); // Refresh posts after add/update
+      loadPosts();
     }
   }, [user, editingPost, loadPosts]);
 
@@ -127,27 +139,21 @@ export const useBlogManagement = () => {
 
   const handleUpload = useCallback(async () => {
     if (!selectedFiles || selectedFiles.length === 0 || !user) return;
-
     setIsUploading(true);
     const toastId = showLoading(`Importing ${selectedFiles.length} file(s)...`);
-
     try {
       let allNewPosts: NewPost[] = [];
       for (const file of Array.from(selectedFiles)) {
         if (file.type === "text/xml" || file.name.endsWith(".xml")) {
-          const content = await file.text();
-          allNewPosts.push(...await parseWordPressXml(content));
+          allNewPosts.push(...await parseWordPressXml(await file.text()));
         } else if (file.type === "text/markdown" || file.name.endsWith(".md")) {
           allNewPosts.push(await parseMarkdownFile(file));
         }
       }
-
       const uniqueNewPostsMap = new Map(allNewPosts.map(p => [p.title.toLowerCase(), p]));
-      const existingPostsMap = new Map(posts.map(p => [p.title.toLowerCase(), p]));
-      
+      const existingPostsMap = new Map(allPosts.map(p => [p.title.toLowerCase(), p]));
       const newPostsToInsert: NewPost[] = [];
       const potentialUpdates: { existingId: string; existingTitle: string; newData: NewPost }[] = [];
-
       uniqueNewPostsMap.forEach((newPost, titleKey) => {
         const existingPost = existingPostsMap.get(titleKey);
         if (existingPost) {
@@ -156,18 +162,14 @@ export const useBlogManagement = () => {
           newPostsToInsert.push(newPost);
         }
       });
-
       dismissToast(toastId);
       setPostsToInsert(newPostsToInsert);
       setPostsToUpdate(potentialUpdates);
-
       if (potentialUpdates.length > 0) {
         setSelectedUpdates(new Set());
         setIsUpdateDialogVisible(true);
       } else if (newPostsToInsert.length > 0) {
-        if (await processUploads(user.id, newPostsToInsert, [])) {
-          loadPosts();
-        }
+        if (await processUploads(user.id, newPostsToInsert, [])) loadPosts();
       } else {
         showSuccess("No new posts to import.");
       }
@@ -178,27 +180,31 @@ export const useBlogManagement = () => {
       setIsUploading(false);
       setSelectedFiles(null);
     }
-  }, [selectedFiles, user, posts, loadPosts]);
+  }, [selectedFiles, user, allPosts, loadPosts]);
 
   const handleConfirmAndProcessUploads = useCallback(async () => {
     if (!user) return;
     setIsUpdateDialogVisible(false);
-
     const updatesToPerform = postsToUpdate.filter(u => selectedUpdates.has(u.existingId));
     const skippedCount = postsToUpdate.length - updatesToPerform.length;
-
     if (await processUploads(user.id, postsToInsert, updatesToPerform)) {
       if (skippedCount > 0) showError(`${skippedCount} potential updates were skipped.`);
       loadPosts();
     }
-
     setPostsToInsert([]);
     setPostsToUpdate([]);
     setSelectedUpdates(new Set());
   }, [user, postsToInsert, postsToUpdate, selectedUpdates, loadPosts]);
 
+  const createBulkAction = (action: Function) => async (...args: any[]) => {
+    if (await action(selectedPosts, ...args)) {
+      setSelectedPosts(new Set());
+      loadPosts();
+    }
+  };
+
   return {
-    posts, // All posts (from useManagement)
+    posts: allPosts,
     paginatedPosts,
     isLoading,
     selectedPosts,
@@ -206,15 +212,14 @@ export const useBlogManagement = () => {
     currentPage,
     totalPages,
     itemsPerPage,
-    totalItems,
+    totalItems: filteredPosts.length,
     loadPosts,
     setCurrentPage,
     setItemsPerPage,
     handleSelectPost,
     handleSelectAll,
     allOnPageSelected,
-    handleTogglePublish, // Individual publish toggle
-
+    handleTogglePublish,
     galleryImages,
     uniqueTags,
     editingPost,
@@ -231,10 +236,12 @@ export const useBlogManagement = () => {
     handleFormSubmit,
     handleUpload,
     handleConfirmAndProcessUploads,
-    
-    // Expose generic bulk handlers directly
-    handleBulkDelete: useCallback(() => genericHandleBulkDelete(selectedPosts, setSelectedPosts, posts), [genericHandleBulkDelete, selectedPosts, setSelectedPosts, posts]),
-    handleBulkTagUpdate: useCallback((tags: string[]) => genericHandleBulkTagUpdate(selectedPosts, setSelectedPosts, tags), [genericHandleBulkTagUpdate, selectedPosts, setSelectedPosts]),
-    handleBulkDownload: useCallback(() => genericHandleBulkDownload(selectedPosts, setSelectedPosts, posts), [genericHandleBulkDownload, selectedPosts, setSelectedPosts, posts]),
+    handleBulkDelete: createBulkAction(handleBulkDelete),
+    handleBulkTagUpdate: createBulkAction(handleBulkTagUpdate),
+    handleBulkDownload: () => handleBulkDownload(selectedPosts, allPosts),
+    activeTab,
+    setActiveTab,
+    searchTerm,
+    setSearchTerm,
   };
 };

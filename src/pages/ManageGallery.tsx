@@ -1,4 +1,4 @@
-import { useMemo, useRef, useEffect, useState, Suspense, lazy } from "react";
+import { useRef, useEffect, useState, Suspense, lazy } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -12,7 +12,7 @@ import { showSuccess, showError, showLoading, dismissToast } from "@/utils/toast
 import { usePaginationNavigation } from "@/hooks/usePaginationNavigation";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useGalleryManagement } from "@/hooks/useGalleryManagement";
-import { generateAltTextFromFileName, normalizeTag } from "@/lib/utils"; // Import normalizeTag
+import { generateAltTextFromFileName, normalizeTag } from "@/lib/utils";
 import type { GalleryImage } from "@/types";
 import { ImageUploadCard } from "@/components/gallery/ImageUploadCard";
 import { ImageManagementCard } from "@/components/gallery/ImageManagementCard";
@@ -22,6 +22,7 @@ const LazyImageLightbox = lazy(() => import("@/components/ImageLightbox").then(m
 const editSchema = z.object({
   alt_text: z.string().max(200, "Alt text cannot exceed 200 characters."),
   tags: z.string().optional(),
+  purchase_link: z.string().url({ message: "Please enter a valid URL." }).optional().or(z.literal('')),
 });
 
 const ManageGallery = () => {
@@ -32,11 +33,13 @@ const ManageGallery = () => {
     setEditingImage,
     setSelectedFiles,
     handleUpload,
+    handleMetadataUpdate,
     reloadAllGalleryData,
-    imagesPerPage, // Added this line
+    imagesPerPage,
     setImagesPerPage,
 
     publishedImages,
+    filteredPublishedImages,
     paginatedPublishedImages,
     isLoadingPublished,
     selectedPublishedImages,
@@ -51,8 +54,11 @@ const ManageGallery = () => {
     handleGenerateTagsPublished,
     handleBulkDownloadPublished,
     handleTogglePublishStatus,
+    publishedSearchQuery,
+    setPublishedSearchQuery,
 
     unpublishedImages,
+    filteredUnpublishedImages,
     paginatedUnpublishedImages,
     isLoadingUnpublished,
     selectedUnpublishedImages,
@@ -66,6 +72,8 @@ const ManageGallery = () => {
     handleBulkPublishUnpublished,
     handleGenerateTagsUnpublished,
     handleBulkDownloadUnpublished,
+    unpublishedSearchQuery,
+    setUnpublishedSearchQuery,
   } = useGalleryManagement();
 
   const containerRef = useRef<HTMLDivElement>(null);
@@ -75,7 +83,7 @@ const ManageGallery = () => {
 
   const form = useForm<z.infer<typeof editSchema>>({
     resolver: zodResolver(editSchema),
-    defaultValues: { alt_text: "", tags: "" },
+    defaultValues: { alt_text: "", tags: "", purchase_link: "" },
   });
 
   useEffect(() => {
@@ -83,11 +91,11 @@ const ManageGallery = () => {
       form.reset({
         alt_text: editingImage.alt_text || '',
         tags: editingImage.tags?.join(', ') || '',
+        purchase_link: editingImage.purchase_link || '',
       });
     }
   }, [editingImage, form]);
 
-  // Use pagination navigation for the currently active tab
   usePaginationNavigation({
     currentPage: activeTab === 'published' ? publishedCurrentPage : unpublishedCurrentPage,
     totalPages: activeTab === 'published' ? publishedTotalPages : unpublishedTotalPages,
@@ -105,8 +113,16 @@ const ManageGallery = () => {
         finalAltText = generateAltTextFromFileName(editingImage.file_name);
       }
 
-      const tagsArray = values.tags?.split(',').map(t => normalizeTag(t)).filter(Boolean) || []; // Apply normalization here
-      const { error } = await supabase.from("gallery_images").update({ alt_text: finalAltText, tags: tagsArray }).eq("id", editingImage.id);
+      const tagsArray = values.tags?.split(',').map(t => normalizeTag(t)).filter(Boolean) || [];
+      
+      const updateData = {
+        alt_text: finalAltText,
+        tags: tagsArray,
+        purchase_link: values.purchase_link || null,
+      };
+
+      const { error } = await supabase.from("gallery_images").update(updateData).eq("id", editingImage.id);
+      
       if (error) throw error;
       dismissToast(toastId);
       showSuccess("Image data updated successfully!");
@@ -119,7 +135,7 @@ const ManageGallery = () => {
   };
 
   const openLightbox = (image: GalleryImage, listType: 'published' | 'unpublished') => {
-    const list = listType === 'published' ? publishedImages : unpublishedImages;
+    const list = listType === 'published' ? filteredPublishedImages : filteredUnpublishedImages;
     const index = list.findIndex(img => img.id === image.id);
     if (index !== -1) {
       setActiveLightboxList(listType);
@@ -134,7 +150,7 @@ const ManageGallery = () => {
 
   const navigateLightbox = (direction: 'next' | 'prev') => {
     if (lightboxImageIndex === null || !activeLightboxList) return;
-    const list = activeLightboxList === 'published' ? publishedImages : unpublishedImages;
+    const list = activeLightboxList === 'published' ? filteredPublishedImages : filteredUnpublishedImages;
     if (direction === 'next') {
       setLightboxImageIndex((prevIndex) => (prevIndex! + 1) % list.length);
     } else {
@@ -142,7 +158,7 @@ const ManageGallery = () => {
     }
   };
 
-  const lightboxList = activeLightboxList === 'published' ? publishedImages : unpublishedImages;
+  const lightboxList = activeLightboxList === 'published' ? filteredPublishedImages : filteredUnpublishedImages;
   const lightboxImage = lightboxImageIndex !== null ? lightboxList[lightboxImageIndex] : null;
 
   return (
@@ -151,6 +167,7 @@ const ManageGallery = () => {
         <ImageUploadCard
           onFileChange={setSelectedFiles}
           onUpload={handleUpload}
+          onMetadataApply={handleMetadataUpdate}
           isUploading={isUploading}
           selectedFiles={selectedFiles}
         />
@@ -164,7 +181,7 @@ const ManageGallery = () => {
             <ImageManagementCard
               title="Published Images"
               description="These images are visible on your public gallery. Select images to perform bulk actions."
-              images={publishedImages}
+              images={filteredPublishedImages}
               paginatedImages={paginatedPublishedImages}
               selectedImages={selectedPublishedImages}
               isLoading={isLoadingPublished}
@@ -183,16 +200,18 @@ const ManageGallery = () => {
                 onPageChange: setPublishedCurrentPage,
                 itemsPerPage: imagesPerPage,
                 onItemsPerPageChange: setImagesPerPage,
-                totalItems: publishedImages.length,
+                totalItems: filteredPublishedImages.length,
               }}
               listType="published"
+              searchValue={publishedSearchQuery}
+              onSearchChange={setPublishedSearchQuery}
             />
           </TabsContent>
           <TabsContent value="unpublished">
             <ImageManagementCard
               title="Unpublished Images"
               description="These images are not visible on your public gallery. Select images to perform bulk actions."
-              images={unpublishedImages}
+              images={filteredUnpublishedImages}
               paginatedImages={paginatedUnpublishedImages}
               selectedImages={selectedUnpublishedImages}
               isLoading={isLoadingUnpublished}
@@ -211,9 +230,11 @@ const ManageGallery = () => {
                 onPageChange: setUnpublishedCurrentPage,
                 itemsPerPage: imagesPerPage,
                 onItemsPerPageChange: setImagesPerPage,
-                totalItems: unpublishedImages.length,
+                totalItems: filteredUnpublishedImages.length,
               }}
               listType="unpublished"
+              searchValue={unpublishedSearchQuery}
+              onSearchChange={setUnpublishedSearchQuery}
             />
           </TabsContent>
         </Tabs>
@@ -224,7 +245,7 @@ const ManageGallery = () => {
           <DialogHeader>
             <DialogTitle>Edit Image Data</DialogTitle>
             <DialogDescription>
-              Update the alt text and tags for this image.
+              Update the alt text, tags, and purchase link for this image.
             </DialogDescription>
           </DialogHeader>
           <Form {...form}>
@@ -254,6 +275,22 @@ const ManageGallery = () => {
                     <FormControl>
                       <Input
                         placeholder="e.g., nature, mountains, sunset"
+                        {...field}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="purchase_link"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Purchase Link</FormLabel>
+                    <FormControl>
+                      <Input
+                        placeholder="e.g., https://your-print-store.com/image"
                         {...field}
                       />
                     </FormControl>
