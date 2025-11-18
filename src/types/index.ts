@@ -34,6 +34,7 @@ export interface TravelLocation {
   marker_image_url: string | null;
   description: string | null;
   published: boolean;
+  blog_title?: string; // Added optional blog_title
 }
 
 export interface GalleryImage {
