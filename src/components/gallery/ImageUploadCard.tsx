@@ -151,7 +151,7 @@ export const ImageUploadCard = ({ onFileChange, onUpload, onMetadataApply, isUpl
             <Input
               id="metadata-upload-input"
               type="file"
-              accept=".json"
+              accept=".json,application/json"
               onChange={handleMetadataFileChange}
               className="mt-1"
             />
