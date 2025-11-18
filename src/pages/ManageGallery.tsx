@@ -134,7 +134,7 @@ const ManageGallery = () => {
   };
 
   const openLightbox = (image: GalleryImage, listType: 'published' | 'unpublished') => {
-    const list = listType === 'published' ? publishedImages : unpublishedImages;
+    const list = listType === 'published' ? filteredPublishedImages : filteredUnpublishedImages;
     const index = list.findIndex(img => img.id === image.id);
     if (index !== -1) {
       setActiveLightboxList(listType);
@@ -149,7 +149,7 @@ const ManageGallery = () => {
 
   const navigateLightbox = (direction: 'next' | 'prev') => {
     if (lightboxImageIndex === null || !activeLightboxList) return;
-    const list = activeLightboxList === 'published' ? publishedImages : unpublishedImages;
+    const list = activeLightboxList === 'published' ? filteredPublishedImages : filteredUnpublishedImages;
     if (direction === 'next') {
       setLightboxImageIndex((prevIndex) => (prevIndex! + 1) % list.length);
     } else {
@@ -157,7 +157,7 @@ const ManageGallery = () => {
     }
   };
 
-  const lightboxList = activeLightboxList === 'published' ? publishedImages : unpublishedImages;
+  const lightboxList = activeLightboxList === 'published' ? filteredPublishedImages : filteredUnpublishedImages;
   const lightboxImage = lightboxImageIndex !== null ? lightboxList[lightboxImageIndex] : null;
 
   return (
