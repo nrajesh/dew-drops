@@ -18,7 +18,16 @@ export const ImageUploadCard = ({ onFileChange, onUpload, onMetadataApply, isUpl
 
   const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
     if (event.target.files) {
-      onFileChange(Array.from(event.target.files));
+      const files = Array.from(event.target.files);
+      const imageFiles = files.filter(file => file.type.startsWith('image/'));
+      const jsonFile = files.find(file => file.type === 'application/json' || file.name.endsWith('.json'));
+
+      if (imageFiles.length > 0) {
+        onFileChange(imageFiles);
+      }
+      if (jsonFile) {
+        processMetadataFile(jsonFile);
+      }
     }
   };
 
@@ -99,13 +108,13 @@ export const ImageUploadCard = ({ onFileChange, onUpload, onMetadataApply, isUpl
         >
           <Upload className="mx-auto h-12 w-12 text-muted-foreground" />
           <p className="mt-4 text-sm text-muted-foreground">
-            Drag & drop images and/or a metadata file here
+            Drag & drop files here, or click to browse
           </p>
           <Input
             id="image-upload-input"
             type="file"
             multiple
-            accept="image/*"
+            accept="image/*,.json,application/json"
             onChange={handleFileSelect}
             className="hidden"
           />
