@@ -5,6 +5,8 @@ import { usePagination } from '@/hooks/usePagination';
 import { showSuccess, showError, showLoading, dismissToast } from '@/utils/toast';
 import { generateTagsForImage, downloadImagesAsZip } from '@/lib/gallery-utils';
 import type { GalleryImage } from '@/types';
+import { useAuth } from '@/contexts/AuthContext';
+import { sanitizeFileName } from '@/lib/utils';
 
 const fetcher = async (key: string) => {
   const [_, isPublishedStr] = key.split(',');
@@ -19,6 +21,7 @@ const fetcher = async (key: string) => {
 };
 
 export const useGalleryManagement = () => {
+  const { user } = useAuth();
   const { data: publishedData, isLoading: isLoadingPublished } = useSWR('gallery_images,true', fetcher);
   const { data: unpublishedData, isLoading: isLoadingUnpublished } = useSWR('gallery_images,false', fetcher);
 
@@ -183,12 +186,16 @@ export const useGalleryManagement = () => {
 
   const handleUpload = async (metadata?: any[]) => {
     if (selectedFiles.length === 0) return;
+    if (!user) {
+      showError("You must be logged in to upload images.");
+      return;
+    }
     setIsUploading(true);
     const toastId = showLoading(`Uploading ${selectedFiles.length} file(s)...`);
     try {
       const uploadPromises = selectedFiles.map(async file => {
-        const fileExt = file.name.split('.').pop();
-        const fileName = `${Date.now()}.${fileExt}`;
+        const sanitizedName = sanitizeFileName(file.name);
+        const fileName = `${user.id}/${Date.now()}_${sanitizedName}`;
         const { error: uploadError } = await supabase.storage.from('gallery').upload(fileName, file);
         if (uploadError) throw uploadError;
 
@@ -197,7 +204,8 @@ export const useGalleryManagement = () => {
         const meta = metadata?.find(m => m.file_name === file.name);
 
         const { error: dbError } = await supabase.from('gallery_images').insert({
-          file_name: file.name,
+          user_id: user.id,
+          file_name: fileName,
           image_url: publicUrl,
           alt_text: meta?.alt_text || null,
           tags: meta?.tags || null,
