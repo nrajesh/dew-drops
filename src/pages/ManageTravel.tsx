@@ -13,13 +13,14 @@ import { TravelLocationForm } from "@/components/travel/TravelLocationForm.tsx";
 import { BulkUploadCard } from "@/components/travel/BulkUploadCard";
 import { TravelLocationList } from "@/components/travel/TravelLocationList";
 import { useTravelManagement } from "@/hooks/useTravelManagement";
+import { Input } from "@/components/ui/input";
+import { Search } from "lucide-react";
 
 const ManageTravel = () => {
   const containerRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const {
-    locations,
     blogPosts,
     editingLocation,
     editingImageUrl,
@@ -56,6 +57,8 @@ const ManageTravel = () => {
     handleItemsPerPageChange,
     totalItems,
     isLoading,
+    searchTerm,
+    setSearchTerm,
   } = useTravelManagement(containerRef);
 
   return (
@@ -76,25 +79,36 @@ const ManageTravel = () => {
           onCancel={cancelEdit}
           onRemoveImage={handleRemoveImage}
         />
-        <TravelLocationList
-          paginatedLocations={paginatedLocations}
-          selectedLocations={selectedLocations}
-          allOnPageSelected={allOnPageSelected}
-          onSelectAll={handleSelectAll}
-          onSelectLocation={handleSelectLocation}
-          onEdit={handleEdit}
-          onTogglePublish={handleTogglePublish}
-          onBulkDelete={handleBulkDeleteWrapper}
-          onBulkPublish={handleBulkPublishWrapper}
-          onBulkDownload={handleBulkDownloadWrapper}
-          currentPage={currentPage}
-          totalPages={totalPages}
-          locationsPerPage={locationsPerPage}
-          onPageChange={setCurrentPage}
-          onItemsPerPageChange={handleItemsPerPageChange}
-          totalItems={totalItems}
-          isLoading={isLoading}
-        />
+        <div>
+          <div className="relative mb-4">
+            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="Search locations..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="w-full pl-8"
+            />
+          </div>
+          <TravelLocationList
+            paginatedLocations={paginatedLocations}
+            selectedLocations={selectedLocations}
+            allOnPageSelected={allOnPageSelected}
+            onSelectAll={handleSelectAll}
+            onSelectLocation={handleSelectLocation}
+            onEdit={handleEdit}
+            onTogglePublish={handleTogglePublish}
+            onBulkDelete={handleBulkDeleteWrapper}
+            onBulkPublish={handleBulkPublishWrapper}
+            onBulkDownload={handleBulkDownloadWrapper}
+            currentPage={currentPage}
+            totalPages={totalPages}
+            locationsPerPage={locationsPerPage}
+            onPageChange={setCurrentPage}
+            onItemsPerPageChange={handleItemsPerPageChange}
+            totalItems={totalItems}
+            isLoading={isLoading}
+          />
+        </div>
       </div>
       <Dialog open={isUpdateDialogVisible} onOpenChange={setIsUpdateDialogVisible}>
         <DialogContent className="max-w-md">

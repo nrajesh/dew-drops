@@ -22,7 +22,7 @@ import { cn } from "@/lib/utils";
 import { ManagementPagination } from "../ManagementPagination";
 import { useAuth } from "@/contexts/AuthContext";
 import { Input } from "@/components/ui/input";
-import { Switch } from "@/components/ui/switch"; // Import Switch component
+import { Switch } from "@/components/ui/switch";
 
 interface PostListProps {
   posts: Post[];
@@ -33,7 +33,7 @@ interface PostListProps {
   onDelete: () => void;
   onDownload: () => void;
   onBulkTagUpdate: (tags: string[]) => void;
-  onTogglePublish: (post: Post, published: boolean) => void; // New prop for individual publish toggle
+  onTogglePublish: (post: Post, published: boolean) => void;
   uniqueTags: string[];
   currentPage: number;
   totalPages: number;
@@ -42,8 +42,6 @@ interface PostListProps {
   onItemsPerPageChange: (value: number) => void;
   totalItems: number;
   isLoading: boolean;
-  // Removed searchTerm: string;
-  // Removed onSearch: (term: string) => void;
 }
 
 export const PostList = ({
@@ -55,7 +53,7 @@ export const PostList = ({
   onDelete,
   onDownload,
   onBulkTagUpdate,
-  onTogglePublish, // Destructure new prop
+  onTogglePublish,
   uniqueTags,
   currentPage,
   totalPages,
@@ -64,8 +62,6 @@ export const PostList = ({
   onItemsPerPageChange,
   totalItems,
   isLoading,
-  // Removed searchTerm,
-  // Removed onSearch,
 }: PostListProps) => {
   const [isTagDialogOpen, setIsTagDialogOpen] = useState(false);
   const [bulkEditTags, setBulkEditTags] = useState<string[]>([]);
@@ -93,7 +89,6 @@ export const PostList = ({
               <CardTitle>Post List</CardTitle>
               <CardDescription>Your current list of blog posts.</CardDescription>
             </div>
-            {/* Removed search input from here as it's now global in ManageBlog */}
             {selectedPosts.size > 0 && (
               <div className="flex items-center gap-2 mt-4 sm:mt-0">
                 <Button variant="outline" size="sm" onClick={() => setIsTagDialogOpen(true)}>
@@ -155,7 +150,7 @@ export const PostList = ({
               </div>
             </>
           ) : (
-            <p className="text-muted-foreground text-center pt-4">No posts yet. Add one using the form!</p>
+            <p className="text-muted-foreground text-center pt-4">No posts found. Add one using the form!</p>
           )}
         </CardContent>
         <CardFooter>

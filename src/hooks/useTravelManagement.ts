@@ -16,9 +16,18 @@ import {
   handleBulkDownload,
 } from "@/components/travel/TravelManagementUtils.ts";
 import { LocationFormData } from "@/components/travel/TravelLocationForm.tsx";
-import { useManagement } from "./useManagement"; // Import the generic hook
+import { useManagement } from "./useManagement";
 
 type LocationUpdateItem = { existingId: string; existingTitle: string; newData: any };
+
+const travelFilterFn = (loc: TravelLocation, searchTerm: string): boolean => {
+  const lowercasedTerm = searchTerm.toLowerCase();
+  return (
+    loc.title.toLowerCase().includes(lowercasedTerm) ||
+    loc.name.toLowerCase().includes(lowercasedTerm) ||
+    (loc.description && loc.description.toLowerCase().includes(lowercasedTerm))
+  );
+};
 
 export const useTravelManagement = (containerRef: React.RefObject<HTMLDivElement>) => {
   const { user } = useAuth();
@@ -38,28 +47,31 @@ export const useTravelManagement = (containerRef: React.RefObject<HTMLDivElement
     paginatedItems: paginatedLocations,
     isLoading,
     selectedItems,
-    setSelectedItems, // Keep setSelectedItems for local use
+    setSelectedItems,
     currentPage,
     totalPages,
     itemsPerPage: locationsPerPage,
-    totalItems: totalLocations,
+    totalItems,
     loadItems: loadLocations,
     handlePageChange: setCurrentPage,
-    handleItemsPerPageChange: setLocationsPerPage,
+    handleItemsPerPageChange,
     handleSelectItem: handleSelectLocation,
     handleSelectAllOnPage: handleSelectAll,
     handleBulkDelete: genericHandleBulkDelete,
     handleBulkStatusChange: genericHandleBulkPublish,
     handleBulkDownload: genericHandleBulkDownload,
-    handleToggleStatus: handleTogglePublish, // Renamed to match component prop
+    handleToggleStatus: handleTogglePublish,
     allOnPageSelected,
+    searchTerm,
+    setSearchTerm,
   } = useManagement<TravelLocation>({
     fetchData: fetchLocations,
     deleteItems: handleBulkDelete,
     updateItemStatus: handleBulkPublish,
-    downloadItems: (ids, allItems) => handleBulkDownload(ids, allItems, blogPosts), // Pass blogPosts as extraData
+    downloadItems: (ids, allItems) => handleBulkDownload(ids, allItems, blogPosts),
     idKey: 'id',
     statusKey: 'published',
+    filterFn: travelFilterFn,
   });
 
   useEffect(() => {
@@ -325,11 +337,9 @@ export const useTravelManagement = (containerRef: React.RefObject<HTMLDivElement
     setSelectedUpdates(new Set());
   }, [user, locationsToInsert, locationsToUpdate, selectedUpdates, loadLocations]);
 
-  // --- Wrappers to match TravelLocationList component signatures ---
   const handleBulkDeleteWrapper = useCallback(() => genericHandleBulkDelete(selectedItems, setSelectedItems, locations), [genericHandleBulkDelete, selectedItems, setSelectedItems, locations]);
   const handleBulkPublishWrapper = useCallback((status: boolean) => genericHandleBulkPublish(selectedItems, setSelectedItems, status), [genericHandleBulkPublish, selectedItems, setSelectedItems]);
   const handleBulkDownloadWrapper = useCallback(() => genericHandleBulkDownload(selectedItems, setSelectedItems, locations), [genericHandleBulkDownload, selectedItems, setSelectedItems, locations]);
-  // -----------------------------------------------------------------
 
   return {
     locations,
@@ -338,7 +348,7 @@ export const useTravelManagement = (containerRef: React.RefObject<HTMLDivElement
     editingImageUrl,
     uploadFile,
     isUploading,
-    selectedLocations: selectedItems, // Expose as selectedLocations for component compatibility
+    selectedLocations: selectedItems,
     currentPage,
     locationsPerPage,
     isUpdateDialogVisible,
@@ -364,10 +374,12 @@ export const useTravelManagement = (containerRef: React.RefObject<HTMLDivElement
     handleBulkDownloadWrapper,
     handleSelectLocation,
     handleSelectAll,
-    handleTogglePublish, // Expose as handleTogglePublish for component compatibility
+    handleTogglePublish,
     setCurrentPage,
-    handleItemsPerPageChange: setLocationsPerPage, // Corrected shorthand property
-    totalItems: totalLocations, // Expose as totalItems for component compatibility
+    handleItemsPerPageChange,
+    totalItems,
     isLoading,
+    searchTerm,
+    setSearchTerm,
   };
 };
