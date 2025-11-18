@@ -1,6 +1,6 @@
 import React, { useEffect, useCallback, useState } from 'react';
 import { X, ChevronLeft, ChevronRight, Trash2, Download, Tag, Info, ShoppingCart } from 'lucide-react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import type { GalleryImage } from "@/types";
@@ -109,6 +109,12 @@ export const ImageLightbox: React.FC<ImageLightboxProps> = ({
     <>
       <Dialog open={!!image} onOpenChange={onClose}>
         <DialogContent className="max-w-4xl p-0 border-none bg-transparent shadow-none">
+          <DialogHeader className="sr-only">
+            <DialogTitle>{image.alt_text || "Gallery Image"}</DialogTitle>
+            <DialogDescription>
+              A larger view of the selected image. Use arrow keys to navigate between images.
+            </DialogDescription>
+          </DialogHeader>
           {/* Custom Close Button for high visibility, especially on mobile */}
           <Button
             variant="ghost"
@@ -213,6 +219,9 @@ export const ImageLightbox: React.FC<ImageLightboxProps> = ({
             <DialogTitle className="flex items-center">
               <Info className="h-5 w-5 mr-2" /> EXIF Data
             </DialogTitle>
+            <DialogDescription className="sr-only">
+              Detailed EXIF metadata for the selected image.
+            </DialogDescription>
           </DialogHeader>
           <ExifDataDisplay exifData={image?.exif_data} />
         </DialogContent>
@@ -225,6 +234,9 @@ export const ImageLightbox: React.FC<ImageLightboxProps> = ({
             <DialogTitle className="text-xl font-bold text-center">
               <ShoppingCart className="h-6 w-6 inline mr-2 text-primary" /> Purchase Not Enabled
             </DialogTitle>
+            <DialogDescription className="sr-only">
+              A notification that purchasing is not enabled for this image.
+            </DialogDescription>
           </DialogHeader>
           <div className="py-4 text-center">
             <p className="text-lg text-muted-foreground">

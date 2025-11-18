@@ -3,34 +3,30 @@ import type { GalleryImage } from '@/types';
 import { showSuccess, showError } from '@/utils/toast';
 import JSZip from 'jszip';
 import { saveAs } from 'file-saver';
+import { normalizeTag } from '@/lib/utils';
 
 export const generateTagsForImage = async (image: GalleryImage) => {
   try {
-    // The image URL might point to a non-public object, which the Edge Function can't access.
-    // We create a temporary signed URL to grant access for tag generation.
-    const url = new URL(image.image_url);
-    // Extract the path from a URL like: .../storage/v1/object/public/gallery/image.jpg
-    const path = url.pathname.substring(url.pathname.indexOf('/gallery/') + '/gallery/'.length);
-
-    if (!path) {
-      throw new Error("Could not determine the image path from the URL.");
-    }
-
-    const { data: signedUrlData, error: signedUrlError } = await supabase
-      .storage
-      .from('gallery')
-      .createSignedUrl(path, 60); // URL is valid for 60 seconds
-
-    if (signedUrlError) {
-      throw signedUrlError;
-    }
-
-    const { data, error } = await supabase.functions.invoke('generate-tags', {
-      body: { imageUrl: signedUrlData.signedUrl, imageId: image.id },
+    // Use the more robust 'generate-image-tags' function which takes fileName
+    // and uses the service role key to download, avoiding signed URL complexities.
+    const { data, error } = await supabase.functions.invoke('generate-image-tags', {
+      body: { fileName: image.file_name },
     });
 
     if (error) throw error;
     if (data.error) throw new Error(data.error);
+
+    const { tags } = data;
+    if (tags && Array.isArray(tags)) {
+      // The function already normalizes, but we do it here for client-side consistency
+      const normalizedTags = tags.map(normalizeTag);
+      const { error: updateError } = await supabase
+        .from('gallery_images')
+        .update({ tags: normalizedTags })
+        .eq('id', image.id);
+
+      if (updateError) throw updateError;
+    }
 
     showSuccess(`Tags generated for ${image.file_name}`);
   } catch (error: any) {
