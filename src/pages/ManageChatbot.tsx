@@ -132,8 +132,9 @@ PORTFOLIO KNOWLEDGE BASE:
 == ABOUT THE PORTFOLIO APPLICATION ==
 This is a personal portfolio and blog application designed to showcase work, thoughts, and travels.
 Key Features:
+- Refactored Architecture: The codebase has been significantly optimized by centralizing data management logic into reusable custom React hooks (useManagement, useBlogManagement, useTravelManagement), making the application more robust and maintainable.
 - Dynamic Blog: A full-featured blog with Markdown support, bulk import/export (WordPress XML, Markdown files), and management capabilities including a tabbed interface for published/unpublished posts and individual publish toggles.
-- Photo Gallery: A dynamic gallery that preserves all original image metadata (EXIF, dimensions, color profiles) upon upload. It features automatic EXIF data extraction, AI-generated tags, and a unified management interface with Published/Unpublished tabs. The public gallery search is powerful, covering tags, alt text, filenames, and EXIF data. The image lightbox now includes a 'Purchase' button that displays a 'Coming Soon!' overlay.
+- Photo Gallery: A dynamic gallery that preserves all original image metadata (EXIF, dimensions, color profiles) upon upload. It features automatic EXIF data extraction, AI-generated tags, and a unified management interface with Published/Unpublished tabs. Users can bulk update metadata (alt text, tags, purchase links) by uploading a single JSON file. The public gallery search is powerful, covering tags, alt text, filenames, and EXIF data. The image lightbox now includes a 'Purchase' button.
 - Interactive Travel Map: A map to pin travel destinations, with bulk import/export and management features.
 - Contact Form: A secure, serverless contact form.
 - AI Chatbot: An integrated chatbot (the one you are using now) to answer questions about the portfolio, using an editable knowledge base. It includes an auto-generate feature to populate the knowledge base from your content.
@@ -147,7 +148,7 @@ Key Features:
 - Enhanced Navigation: All content pages are paginated and can be navigated using keyboard arrows or swipe gestures on mobile.
 - CV/Portfolio Page: A dedicated page to display a professional curriculum vitae, with collapsible sections for easy viewing, an enhanced skills display, and print-friendly formatting, including a "Print to PDF" option. The content for this page is fetched from a public JSON Resume Gist.
 
-The tech stack includes React, Vite, TypeScript, Tailwind CSS, shadcn/ui, and Supabase for the backend (database, storage, and serverless functions). The AI features are powered by Google Gemini.
+The tech stack includes React, Vite, TypeScript, Tailwind CSS, shadcn/ui, custom React Hooks for state management, and Supabase for the backend (database, storage, and serverless functions). The AI features are powered by Google Gemini.
 
 The following sections contain the user's personal content available on the site.
 ---
