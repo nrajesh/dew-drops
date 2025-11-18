@@ -7,26 +7,24 @@ import { normalizeTag } from '@/lib/utils';
 
 export const generateTagsForImage = async (image: GalleryImage) => {
   try {
-    // Use the more robust 'generate-image-tags' function which takes fileName
-    // and uses the service role key to download, avoiding signed URL complexities.
-    const { data, error } = await supabase.functions.invoke('generate-image-tags', {
-      body: { fileName: image.file_name },
+    // Create a temporary signed URL to grant the Edge Function access,
+    // which is necessary for non-public images.
+    const { data: signedUrlData, error: signedUrlError } = await supabase
+      .storage
+      .from('gallery')
+      .createSignedUrl(image.file_name, 60); // URL is valid for 60 seconds
+
+    if (signedUrlError) {
+      throw signedUrlError;
+    }
+
+    // Invoke the new function that accepts a URL
+    const { data, error } = await supabase.functions.invoke('generate-tags-from-url', {
+      body: { imageUrl: signedUrlData.signedUrl, imageId: image.id },
     });
 
     if (error) throw error;
     if (data.error) throw new Error(data.error);
-
-    const { tags } = data;
-    if (tags && Array.isArray(tags)) {
-      // The function already normalizes, but we do it here for client-side consistency
-      const normalizedTags = tags.map(normalizeTag);
-      const { error: updateError } = await supabase
-        .from('gallery_images')
-        .update({ tags: normalizedTags })
-        .eq('id', image.id);
-
-      if (updateError) throw updateError;
-    }
 
     showSuccess(`Tags generated for ${image.file_name}`);
   } catch (error: any) {

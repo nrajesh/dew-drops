@@ -4,10 +4,6 @@ import { serve } from "https://deno.land/std@0.190.0/http/server.ts"
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.0'
 import { GoogleGenerativeAI } from 'npm:@google/generative-ai'
 
-// Configuration for Edge Function deployment:
-// memory = 1024
-// timeout = 30
-
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
@@ -23,7 +19,6 @@ function bufferToBase64(buffer: ArrayBuffer) {
   return btoa(binary);
 }
 
-// Helper to normalize and trim tags (duplicated for Edge Function context)
 const normalizeTag = (tag: string) => tag.normalize('NFC').trim();
 
 serve(async (req) => {
@@ -34,44 +29,28 @@ serve(async (req) => {
   const GEMINI_API_KEY = Deno.env.get('GEMINI_API_KEY');
   const GEMINI_MODEL_NAME = Deno.env.get('GEMINI_MODEL_NAME');
 
-  if (!GEMINI_API_KEY) {
-    console.error('Missing GEMINI_API_KEY secret in Supabase project');
-    return new Response(JSON.stringify({ error: 'AI service is not configured: Missing API Key.' }), {
-      status: 500,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-    });
-  }
-
-  if (!GEMINI_MODEL_NAME) {
-    console.error('Missing GEMINI_MODEL_NAME secret in Supabase project');
-    return new Response(JSON.stringify({ error: 'AI service is not configured: Missing Gemini Model Name.' }), {
+  if (!GEMINI_API_KEY || !GEMINI_MODEL_NAME) {
+    return new Response(JSON.stringify({ error: 'AI service is not configured.' }), {
       status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
   }
 
   try {
-    const { fileName } = await req.json()
-    if (!fileName) {
-      throw new Error("fileName is required.")
+    const { imageUrl, imageId } = await req.json();
+    if (!imageUrl || !imageId) {
+      throw new Error("imageUrl and imageId are required.");
     }
 
-    const supabaseAdmin = createClient(
-      Deno.env.get('SUPABASE_URL')!,
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
-    )
-
-    const { data: fileData, error: downloadError } = await supabaseAdmin.storage
-      .from('gallery')
-      .download(fileName)
-
-    if (downloadError) {
-      throw new Error(`Failed to download image: ${downloadError.message}`)
+    // Fetch the image from the signed URL
+    const imageResponse = await fetch(imageUrl);
+    if (!imageResponse.ok) {
+      throw new Error(`Failed to fetch image from URL: ${imageResponse.statusText}`);
     }
 
-    const imageBuffer = await fileData.arrayBuffer();
+    const imageBuffer = await imageResponse.arrayBuffer();
     const imageBase64 = bufferToBase64(imageBuffer);
-    const mimeType = fileData.type;
+    const mimeType = imageResponse.headers.get('Content-Type') || 'image/jpeg';
 
     const genAI = new GoogleGenerativeAI(GEMINI_API_KEY);
     const model = genAI.getGenerativeModel({ model: GEMINI_MODEL_NAME });
@@ -89,17 +68,33 @@ serve(async (req) => {
     const response = await result.response;
     const text = response.text();
 
-    const tags = text.split(',').map(tag => normalizeTag(tag.trim().toLowerCase())).filter(Boolean); // Apply normalization here
+    const tags = text.split(',').map(tag => normalizeTag(tag.trim().toLowerCase())).filter(Boolean);
 
-    return new Response(JSON.stringify({ tags }), {
+    // Update the database record directly from the edge function
+    const supabaseAdmin = createClient(
+      Deno.env.get('SUPABASE_URL')!,
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
+    );
+
+    const { error: updateError } = await supabaseAdmin
+      .from('gallery_images')
+      .update({ tags: tags })
+      .eq('id', imageId);
+
+    if (updateError) {
+      throw new Error(`Failed to update tags in database: ${updateError.message}`);
+    }
+
+    return new Response(JSON.stringify({ success: true, tags }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       status: 200,
-    })
+    });
+
   } catch (error) {
     console.error(error);
     return new Response(JSON.stringify({ error: error.message }), {
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       status: 500,
-    })
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    });
   }
-})
+});
