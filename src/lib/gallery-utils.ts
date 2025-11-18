@@ -6,8 +6,27 @@ import { saveAs } from 'file-saver';
 
 export const generateTagsForImage = async (image: GalleryImage) => {
   try {
+    // The image URL might point to a non-public object, which the Edge Function can't access.
+    // We create a temporary signed URL to grant access for tag generation.
+    const url = new URL(image.image_url);
+    // Extract the path from a URL like: .../storage/v1/object/public/gallery/image.jpg
+    const path = url.pathname.substring(url.pathname.indexOf('/gallery/') + '/gallery/'.length);
+
+    if (!path) {
+      throw new Error("Could not determine the image path from the URL.");
+    }
+
+    const { data: signedUrlData, error: signedUrlError } = await supabase
+      .storage
+      .from('gallery')
+      .createSignedUrl(path, 60); // URL is valid for 60 seconds
+
+    if (signedUrlError) {
+      throw signedUrlError;
+    }
+
     const { data, error } = await supabase.functions.invoke('generate-tags', {
-      body: { imageUrl: image.image_url, imageId: image.id },
+      body: { imageUrl: signedUrlData.signedUrl, imageId: image.id },
     });
 
     if (error) throw error;
