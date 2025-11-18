@@ -1,4 +1,4 @@
-import { useMemo, useRef, useEffect, useState, Suspense, lazy } from "react";
+import { useRef, useEffect, useState, Suspense, lazy } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -12,7 +12,7 @@ import { showSuccess, showError, showLoading, dismissToast } from "@/utils/toast
 import { usePaginationNavigation } from "@/hooks/usePaginationNavigation";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useGalleryManagement } from "@/hooks/useGalleryManagement";
-import { generateAltTextFromFileName, normalizeTag } from "@/lib/utils"; // Import normalizeTag
+import { generateAltTextFromFileName, normalizeTag } from "@/lib/utils";
 import type { GalleryImage } from "@/types";
 import { ImageUploadCard } from "@/components/gallery/ImageUploadCard";
 import { ImageManagementCard } from "@/components/gallery/ImageManagementCard";
@@ -34,10 +34,11 @@ const ManageGallery = () => {
     setSelectedFiles,
     handleUpload,
     reloadAllGalleryData,
-    imagesPerPage, // Added this line
+    imagesPerPage,
     setImagesPerPage,
 
     publishedImages,
+    filteredPublishedImages,
     paginatedPublishedImages,
     isLoadingPublished,
     selectedPublishedImages,
@@ -52,8 +53,11 @@ const ManageGallery = () => {
     handleGenerateTagsPublished,
     handleBulkDownloadPublished,
     handleTogglePublishStatus,
+    publishedSearchQuery,
+    setPublishedSearchQuery,
 
     unpublishedImages,
+    filteredUnpublishedImages,
     paginatedUnpublishedImages,
     isLoadingUnpublished,
     selectedUnpublishedImages,
@@ -67,6 +71,8 @@ const ManageGallery = () => {
     handleBulkPublishUnpublished,
     handleGenerateTagsUnpublished,
     handleBulkDownloadUnpublished,
+    unpublishedSearchQuery,
+    setUnpublishedSearchQuery,
   } = useGalleryManagement();
 
   const containerRef = useRef<HTMLDivElement>(null);
@@ -89,7 +95,6 @@ const ManageGallery = () => {
     }
   }, [editingImage, form]);
 
-  // Use pagination navigation for the currently active tab
   usePaginationNavigation({
     currentPage: activeTab === 'published' ? publishedCurrentPage : unpublishedCurrentPage,
     totalPages: activeTab === 'published' ? publishedTotalPages : unpublishedTotalPages,
@@ -174,7 +179,7 @@ const ManageGallery = () => {
             <ImageManagementCard
               title="Published Images"
               description="These images are visible on your public gallery. Select images to perform bulk actions."
-              images={publishedImages}
+              images={filteredPublishedImages}
               paginatedImages={paginatedPublishedImages}
               selectedImages={selectedPublishedImages}
               isLoading={isLoadingPublished}
@@ -193,16 +198,18 @@ const ManageGallery = () => {
                 onPageChange: setPublishedCurrentPage,
                 itemsPerPage: imagesPerPage,
                 onItemsPerPageChange: setImagesPerPage,
-                totalItems: publishedImages.length,
+                totalItems: filteredPublishedImages.length,
               }}
               listType="published"
+              searchValue={publishedSearchQuery}
+              onSearchChange={setPublishedSearchQuery}
             />
           </TabsContent>
           <TabsContent value="unpublished">
             <ImageManagementCard
               title="Unpublished Images"
               description="These images are not visible on your public gallery. Select images to perform bulk actions."
-              images={unpublishedImages}
+              images={filteredUnpublishedImages}
               paginatedImages={paginatedUnpublishedImages}
               selectedImages={selectedUnpublishedImages}
               isLoading={isLoadingUnpublished}
@@ -221,9 +228,11 @@ const ManageGallery = () => {
                 onPageChange: setUnpublishedCurrentPage,
                 itemsPerPage: imagesPerPage,
                 onItemsPerPageChange: setImagesPerPage,
-                totalItems: unpublishedImages.length,
+                totalItems: filteredUnpublishedImages.length,
               }}
               listType="unpublished"
+              searchValue={unpublishedSearchQuery}
+              onSearchChange={setUnpublishedSearchQuery}
             />
           </TabsContent>
         </Tabs>
