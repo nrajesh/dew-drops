@@ -6,7 +6,7 @@ import { Upload, File, X, Download } from 'lucide-react';
 
 interface ImageUploadCardProps {
   onFileChange: (files: File[]) => void;
-  onUpload: (metadata?: any[]) => Promise<void>;
+  onUpload: (metadata?: Record<string, unknown>[]) => Promise<void>;
   onMetadataApply: (metadataFile: File) => Promise<void>;
   isUploading: boolean;
   selectedFiles: File[];
@@ -14,7 +14,7 @@ interface ImageUploadCardProps {
 
 export const ImageUploadCard = ({ onFileChange, onUpload, onMetadataApply, isUploading, selectedFiles }: ImageUploadCardProps) => {
   const [metadataFile, setMetadataFile] = useState<File | null>(null);
-  const [metadata, setMetadata] = useState<any[] | undefined>(undefined);
+  const [metadata, setMetadata] = useState<Record<string, unknown>[] | undefined>(undefined);
 
   const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
     if (event.target.files) {
@@ -66,7 +66,7 @@ export const ImageUploadCard = ({ onFileChange, onUpload, onMetadataApply, isUpl
     event.preventDefault();
     event.stopPropagation();
     const files = Array.from(event.dataTransfer.files);
-    
+
     const imageFiles = files.filter(file => file.type.startsWith('image/'));
     const jsonFile = files.find(file => file.type === 'application/json' || file.name.endsWith('.json'));
 

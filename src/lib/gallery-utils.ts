@@ -3,7 +3,7 @@ import type { GalleryImage } from '@/types';
 import { showSuccess, showError } from '@/utils/toast';
 import JSZip from 'jszip';
 import { saveAs } from 'file-saver';
-import { normalizeTag } from '@/lib/utils';
+
 
 export const generateTagsForImage = async (image: GalleryImage) => {
   try {
@@ -27,14 +27,15 @@ export const generateTagsForImage = async (image: GalleryImage) => {
     if (data.error) throw new Error(data.error);
 
     showSuccess(`Tags generated for ${image.file_name}`);
-  } catch (error: any) {
-    showError(`Failed to generate tags for ${image.file_name}: ${error.message}`);
+  } catch (error: unknown) {
+    const err = error as Error;
+    showError(`Failed to generate tags for ${image.file_name}: ${err.message}`);
   }
 };
 
 export const downloadImagesAsZip = async (images: GalleryImage[]) => {
   const zip = new JSZip();
-  
+
   const imagePromises = images.map(async (image) => {
     if (image.image_url) {
       try {

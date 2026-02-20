@@ -11,16 +11,17 @@ const ManageData = () => {
   const [isLoading, setIsLoading] = useState<string | null>(null);
   const [importFile, setImportFile] = useState<File | null>(null);
 
-  const handleFunctionError = async (error: any) => {
-    if (error.context) {
+  const handleFunctionError = async (error: unknown) => {
+    const err = error as { message?: string; context?: { json: () => Promise<{ error?: string }> } };
+    if (err.context && typeof err.context.json === 'function') {
       try {
-        const errorBody = await error.context.json();
-        return errorBody.error || error.message;
+        const errorBody = await err.context.json();
+        return errorBody.error || err.message || "Unknown error";
       } catch (e) {
-        return error.message;
+        return err.message || "Unknown error";
       }
     }
-    return error.message;
+    return err?.message || (error instanceof Error ? error.message : "Unknown error");
   };
 
   const handleExport = async () => {
@@ -39,7 +40,7 @@ const ManageData = () => {
       a.remove();
       window.URL.revokeObjectURL(url);
       showSuccess("Data exported successfully.");
-    } catch (err: any) {
+    } catch (err: unknown) {
       const errorMessage = await handleFunctionError(err);
       showError(`Export failed: ${errorMessage}`);
     } finally {
@@ -64,7 +65,7 @@ const ManageData = () => {
 
       showSuccess("Data imported successfully. The page will now reload.");
       setTimeout(() => window.location.reload(), 2000);
-    } catch (err: any) {
+    } catch (err: unknown) {
       const errorMessage = await handleFunctionError(err);
       showError(`Import failed: ${errorMessage}`);
     } finally {
@@ -80,7 +81,7 @@ const ManageData = () => {
       if (error) throw error;
       showSuccess("All data has been reset. The page will now reload.");
       setTimeout(() => window.location.reload(), 2000);
-    } catch (err: any) {
+    } catch (err: unknown) {
       const errorMessage = await handleFunctionError(err);
       showError(`Reset failed: ${errorMessage}`);
     } finally {

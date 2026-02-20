@@ -76,9 +76,9 @@ ${jobDescriptionText}
     }
 
     return result;
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Error during job description analysis and translation:", error);
-    if (error.message.includes("JSON.parse")) {
+    if (error instanceof Error && error.message.includes("JSON.parse")) {
       throw new Error("Failed to parse AI response for job description analysis. Please try again.");
     }
     throw error;

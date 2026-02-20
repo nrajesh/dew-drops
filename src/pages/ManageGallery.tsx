@@ -114,7 +114,7 @@ const ManageGallery = () => {
       }
 
       const tagsArray = values.tags?.split(',').map(t => normalizeTag(t)).filter(Boolean) || [];
-      
+
       const updateData = {
         alt_text: finalAltText,
         tags: tagsArray,
@@ -122,15 +122,16 @@ const ManageGallery = () => {
       };
 
       const { error } = await supabase.from("gallery_images").update(updateData).eq("id", editingImage.id);
-      
+
       if (error) throw error;
       dismissToast(toastId);
       showSuccess("Image data updated successfully!");
       setEditingImage(null);
       reloadAllGalleryData();
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const err = error as Error;
       dismissToast(toastId);
-      showError(`Update failed: ${error.message}`);
+      showError(`Update failed: ${err.message}`);
     }
   };
 

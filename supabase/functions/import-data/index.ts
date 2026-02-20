@@ -27,7 +27,7 @@ const wipeData = async (supabase: SupabaseClient) => {
   }
 };
 
-const importData = async (supabase: SupabaseClient, data: { [key: string]: any[] }) => {
+const importData = async (supabase: SupabaseClient, data: { [key: string]: Record<string, unknown>[] }) => {
   for (const table of tablesInOrder) {
     if (data[table] && data[table].length > 0) {
       const { error } = await supabase.from(table).insert(data[table]);
@@ -48,11 +48,11 @@ serve(async (req) => {
       Deno.env.get('SUPABASE_ANON_KEY')!,
       { auth: { persistSession: false } } // Crucial for stateless environments
     );
-    
+
     const authHeader = req.headers.get('Authorization');
     if (!authHeader) throw new Error('Missing Authorization header');
     const jwt = authHeader.replace('Bearer ', '');
-    
+
     const { data: { user }, error: userError } = await supabaseAuthClient.auth.getUser(jwt);
     if (userError || !user) {
       console.error('Auth error:', userError);

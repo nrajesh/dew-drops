@@ -131,7 +131,7 @@ export const useGalleryManagement = () => {
   };
 
   const createBulkAction = (
-    action: (ids: string[]) => Promise<any>,
+    action: (ids: string[]) => Promise<unknown>,
     loadingMsg: string,
     successMsg: string,
     errorMsg: string,
@@ -144,9 +144,10 @@ export const useGalleryManagement = () => {
       dismissToast(toastId);
       showSuccess(successMsg);
       reloadAllGalleryData();
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const err = error as Error;
       dismissToast(toastId);
-      showError(`${errorMsg}: ${error.message}`);
+      showError(`${errorMsg}: ${err.message}`);
     }
   };
 
@@ -178,17 +179,18 @@ export const useGalleryManagement = () => {
       dismissToast(toastId);
       showSuccess(`Image ${image.published ? "unpublished" : "published"}.`);
       reloadAllGalleryData();
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const err = error as Error;
       dismissToast(toastId);
-      showError(`Failed to toggle publish status: ${error.message}`);
+      showError(`Failed to toggle publish status: ${err.message}`);
     }
   };
 
-  const handleUpload = async (metadata?: any[]) => {
+  const handleUpload = async (metadata?: { file_name: string; alt_text: string; tags: string[] }[]) => {
     if (selectedFiles.length === 0 || !user) return;
     setIsUploading(true);
     const toastId = showLoading(`Starting upload of ${selectedFiles.length} file(s)...`);
-    
+
     const metadataMap = new Map<string, { alt_text: string; tags: string[] }>();
     if (metadata) {
       metadata.forEach(item => {
@@ -197,18 +199,18 @@ export const useGalleryManagement = () => {
         }
       });
     }
-  
+
     const result = await processImageUploads(selectedFiles, metadataMap, user.id, toastId);
-  
+
     if (result.failedFiles.length > 0) {
       showError(`${result.failedFiles.length} files failed to upload. See console for details.`);
       console.error("Upload failures:", result.failedFiles);
     }
-    
+
     if (result.successfulUploads > 0) {
       showSuccess(`${result.successfulUploads} images uploaded successfully.`);
     }
-  
+
     setIsUploading(false);
     setSelectedFiles([]);
     reloadAllGalleryData();
@@ -221,25 +223,26 @@ export const useGalleryManagement = () => {
     }
     setIsUploading(true);
     const toastId = showLoading("Applying metadata...");
-  
+
     try {
       const allImages = [...(publishedData || []), ...(unpublishedData || [])];
       const result = await processMetadataUpdate(metadataFile, allImages, toastId);
-  
+
       let message = `${result.updatedCount} images updated.`;
       if (result.notFoundCount > 0) {
         message += ` ${result.notFoundCount} images from metadata file not found.`;
       }
       showSuccess(message);
-  
+
       if (result.failedUpdates.length > 0) {
         showError(`${result.failedUpdates.length} updates failed. See console for details.`);
         console.error("Metadata update failures:", result.failedUpdates);
       }
-      
+
       reloadAllGalleryData();
-    } catch (error: any) {
-      showError(`Failed to apply metadata: ${error.message}`);
+    } catch (error: unknown) {
+      const err = error as Error;
+      showError(`Failed to apply metadata: ${err.message}`);
     } finally {
       setIsUploading(false);
     }

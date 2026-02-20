@@ -32,7 +32,7 @@ export const generateCareerFitPdf = async (htmlContent: string, filename: string
       allowTaint: true,
       windowWidth: printContainer.scrollWidth,
       windowHeight: printContainer.scrollHeight,
-    } as any); // Cast to any to resolve TypeScript error
+    } as Parameters<typeof html2canvas>[1]); // Cast to correct type to resolve TypeScript error
 
     const imgData = canvas.toDataURL('image/png');
     const pdf = new jsPDF('p', 'mm', 'a4');

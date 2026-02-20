@@ -67,8 +67,9 @@ export const PasswordForm: React.FC = () => {
 
       showSuccess("Password updated successfully!");
       passwordForm.reset();
-    } catch (error: any) {
-      showError(`Failed to update password: ${error.message}`);
+    } catch (error: unknown) {
+      const err = error as Error;
+      showError(`Failed to update password: ${err.message}`);
     } finally {
       setIsSubmittingPassword(false);
     }

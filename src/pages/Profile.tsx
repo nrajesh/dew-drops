@@ -73,8 +73,9 @@ const Profile = () => {
       }
       showSuccess("Profile updated successfully!");
       fetchProfile();
-    } catch (error: any) {
-      showError(`Failed to update profile: ${error.message}`);
+    } catch (error: unknown) {
+      const err = error as Error;
+      showError(`Failed to update profile: ${err.message}`);
     } finally {
       setIsSubmittingProfile(false);
     }

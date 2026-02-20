@@ -69,7 +69,7 @@ const ManageBlog = () => {
         onBulkDownload={handleBulkDownload}
         onDeleteSelected={handleBulkDelete}
         uniqueTags={uniqueTags}
-        onCreateNewPost={() => setEditingPost({} as any)} // Open dialog for new post
+        onCreateNewPost={() => setEditingPost({} as import('@/types').Post)} // Open dialog for new post
         searchTerm={searchTerm}
         onSearch={setSearchTerm}
       />

@@ -201,8 +201,9 @@ export const CareerFitAnalyst = () => {
         throw new Error("Failed to retrieve content from the URL.");
       }
       return data.content;
-    } catch (error: any) {
-      throw new Error(`Error fetching job description from URL via proxy: ${error.message}`);
+    } catch (error: unknown) {
+      const err = error as Error;
+      throw new Error(`Error fetching job description from URL via proxy: ${err.message}`);
     }
   }, []);
 
@@ -248,9 +249,10 @@ export const CareerFitAnalyst = () => {
       }
 
       await performJobMatch(analysisResult.processedText);
-    } catch (error: any) {
-      console.error("Error in pre-analysis or career fit analysis:", error);
-      showError(error.message || "Sorry, an error occurred during job description validation or analysis. Please check your input and try again.");
+    } catch (error: unknown) {
+      const err = error as Error;
+      console.error("Error in pre-analysis or career fit analysis:", err);
+      showError(err.message || "Sorry, an error occurred during job description validation or analysis. Please check your input and try again.");
     } finally {
       setIsPreProcessing(false);
       setIsFetchingUrl(false);
