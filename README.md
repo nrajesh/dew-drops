@@ -46,6 +46,12 @@ This application provides a comprehensive suite of features for a personal portf
 *   **Google Gemini**: Powers the AI features, including the Career Fit Analyst, chatbot, and image tag generation.
 *   **lucide-react**: A collection of beautiful and consistent icons.
 
+## Architecture & Workflows
+
+For an in-depth look at the system architecture (including Mermaid sequence and component diagrams), please view the **[`ARCHITECTURE.md`](documentation/ARCHITECTURE.md)** file.
+
+Additional project documentation outlining coding standards, development workflows, and specific guidelines can be found in the [`documentation/`](documentation/) folder.
+
 ## Getting Started
 
 To run this project locally:

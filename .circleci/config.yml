@@ -9,7 +9,7 @@ jobs:
       
       - run:
           name: Install pnpm
-          command: npm install -g pnpm
+          command: sudo npm install -g pnpm
 
       - run:
           name: Install Dependencies
