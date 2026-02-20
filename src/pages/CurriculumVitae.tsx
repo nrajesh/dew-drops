@@ -153,7 +153,10 @@ const CurriculumVitae = () => {
       <Card>
         <CardHeader className="flex flex-col sm:flex-row items-center sm:items-start gap-6">
           <Avatar className="h-24 w-24">
-            <AvatarImage src={basics.picture} alt={basics.name} />
+            <AvatarImage
+              src={basics.picture?.includes('media.licdn.com') ? undefined : basics.picture}
+              alt={basics.name}
+            />
             <AvatarFallback>{basics.name.split(' ').map(n => n[0]).join('')}</AvatarFallback>
           </Avatar>
           <div className="text-center sm:text-left">
