@@ -37,4 +37,5 @@ workflows:
             branches:
               only:
                 - main
+                - pre-prod
                 - "feature/*"
