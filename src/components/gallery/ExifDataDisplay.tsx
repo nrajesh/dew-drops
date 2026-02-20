@@ -15,8 +15,16 @@ const REQUIRED_EXIF_FIELDS = [
 ];
 
 // Helper function to safely retrieve a deeply nested value
-const getNestedValue = (obj: any, path: string[]) => {
-  return path.reduce((acc, key) => (acc && acc[key] !== undefined ? acc[key] : null), obj);
+const getNestedValue = (obj: Record<string, unknown> | null, path: string[]): unknown => {
+  let current: unknown = obj;
+  for (const key of path) {
+    if (current && typeof current === 'object' && key in current) {
+      current = (current as Record<string, unknown>)[key];
+    } else {
+      return null;
+    }
+  }
+  return current;
 };
 
 interface ExifDataDisplayProps {

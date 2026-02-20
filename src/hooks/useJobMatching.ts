@@ -35,7 +35,7 @@ export const useJobMatching = () => {
     }
   }, []);
 
-  const getErrorMessage = (error: any): string => {
+  const getErrorMessage = (error: unknown): string => {
     if (error instanceof Error && error.message) {
       if (error.message.includes("API key not valid")) {
         return "Gemini API key is not valid. Please check VITE_GEMINI_API_KEY.";
@@ -87,9 +87,11 @@ export const useJobMatching = () => {
       );
       setMatchResult({ percentage, reasoning });
       return { percentage, reasoning };
-    } catch (error: any) {
+    } catch (error: unknown) {
+      console.error("Job matching failed:", error);
       const errorMessage = getErrorMessage(error);
       showError(errorMessage);
+      setGeminiClientError(errorMessage);
       throw new Error(errorMessage);
     } finally {
       setIsMatching(false);

@@ -18,11 +18,11 @@ serve(async (req) => {
       Deno.env.get('SUPABASE_ANON_KEY')!,
       { auth: { persistSession: false } } // Crucial for stateless environments
     );
-    
+
     const authHeader = req.headers.get('Authorization');
     if (!authHeader) throw new Error('Missing Authorization header');
     const jwt = authHeader.replace('Bearer ', '');
-    
+
     const { data: { user }, error: userError } = await supabaseAuthClient.auth.getUser(jwt);
     if (userError || !user) {
       console.error('Auth error:', userError);
@@ -41,7 +41,7 @@ serve(async (req) => {
 
     // Only export content tables
     const tables = ['posts', 'gallery_images', 'travel_locations', 'chatbot_knowledge'];
-    const exportData: { [key: string]: any[] } = {};
+    const exportData: { [key: string]: Record<string, unknown>[] } = {};
 
     for (const table of tables) {
       const { data, error } = await supabaseAdmin.from(table).select('*');

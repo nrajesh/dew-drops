@@ -9,7 +9,7 @@ interface UseManagementOptions<T> {
   updateItemStatus?: (ids: Set<string>, status: boolean) => Promise<boolean>;
   updateItemTags?: (ids: Set<string>, tags: string[]) => Promise<boolean>;
   generateItemTags?: (ids: Set<string>, allItems: T[]) => Promise<number>;
-  downloadItems?: (ids: Set<string>, allItems: T[], extraData?: any) => Promise<void>;
+  downloadItems?: (ids: Set<string>, allItems: T[], extraData?: unknown) => Promise<void>;
   initialItemsPerPage?: number;
   idKey?: keyof T;
   statusKey?: keyof T;
@@ -71,7 +71,11 @@ export const useManagement = <T extends { id: string }>(
   const handleSelectItem = useCallback((id: string) => {
     setSelectedItems(prev => {
       const newSelection = new Set(prev);
-      newSelection.has(id) ? newSelection.delete(id) : newSelection.add(id);
+      if (newSelection.has(id)) {
+        newSelection.delete(id);
+      } else {
+        newSelection.add(id);
+      }
       return newSelection;
     });
   }, []);
@@ -125,7 +129,7 @@ export const useManagement = <T extends { id: string }>(
     }
   }, [user, generateItemTags, loadItems]);
 
-  const handleBulkDownload = useCallback(async (ids: Set<string>, setter: (s: Set<string>) => void, allItems: T[], extraData?: any) => {
+  const handleBulkDownload = useCallback(async (ids: Set<string>, setter: (s: Set<string>) => void, allItems: T[], extraData?: unknown) => {
     if (ids.size === 0 || !downloadItems) return;
     await downloadItems(ids, allItems, extraData);
     setter(new Set());

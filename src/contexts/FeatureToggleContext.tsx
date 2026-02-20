@@ -80,8 +80,9 @@ export const FeatureToggleProvider = ({ children }: { children: ReactNode }) => 
         );
       if (error) throw error;
       await refetchToggles();
-    } catch (error: any) {
-      showError(`Failed to update setting: ${error.message}`);
+    } catch (error: unknown) {
+      const err = error as Error;
+      showError(`Failed to update setting: ${err.message}`);
     }
   };
 

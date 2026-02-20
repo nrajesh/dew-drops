@@ -43,10 +43,10 @@ export interface GalleryImage {
   alt_text: string | null;
   file_name: string;
   created_at: string | null;
-  exif_data: any | null;
+  exif_data: Record<string, unknown> | null;
   published: boolean;
   tags: string[] | null;
   image_url: string | null;
-  tsv: any | null;
+  tsv: unknown | null;
   purchase_link: string | null;
 }

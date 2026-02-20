@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useMemo, useCallback } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import type { TravelLocation, Post } from "@/types";
 import { showSuccess, showError, showLoading, dismissToast } from "@/utils/toast";
@@ -18,14 +18,14 @@ import {
 import { LocationFormData } from "@/components/travel/TravelLocationForm.tsx";
 import { useManagement } from "./useManagement";
 
-type LocationUpdateItem = { existingId: string; existingTitle: string; newData: any };
+type LocationUpdateItem = { existingId: string; existingTitle: string; newData: Partial<TravelLocation> };
 
 const travelFilterFn = (loc: TravelLocation, searchTerm: string): boolean => {
   const lowercasedTerm = searchTerm.toLowerCase();
   return (
     loc.title.toLowerCase().includes(lowercasedTerm) ||
     loc.name.toLowerCase().includes(lowercasedTerm) ||
-    (loc.description && loc.description.toLowerCase().includes(lowercasedTerm))
+    !!(loc.description && loc.description.toLowerCase().includes(lowercasedTerm))
   );
 };
 
@@ -38,7 +38,7 @@ export const useTravelManagement = (containerRef: React.RefObject<HTMLDivElement
   const [isUploading, setIsUploading] = useState(false);
 
   const [isUpdateDialogVisible, setIsUpdateDialogVisible] = useState(false);
-  const [locationsToInsert, setLocationsToInsert] = useState<any[]>([]);
+  const [locationsToInsert, setLocationsToInsert] = useState<Partial<TravelLocation>[]>([]);
   const [locationsToUpdate, setLocationsToUpdate] = useState<LocationUpdateItem[]>([]);
   const [selectedUpdates, setSelectedUpdates] = useState<Set<string>>(new Set());
 
@@ -90,13 +90,18 @@ export const useTravelManagement = (containerRef: React.RefObject<HTMLDivElement
     enabled: !isUpdateDialogVisible,
   });
 
+  const cancelEdit = useCallback(() => {
+    setEditingLocation(null);
+    setEditingImageUrl(null);
+  }, []);
+
   const onSubmit = useCallback(async (values: LocationFormData) => {
     if (!user) {
       showError("You must be logged in to add or update locations.");
       return;
     }
     const toastId = showLoading(editingLocation ? "Updating location..." : "Adding new location...");
-    
+
     try {
       let { latitude: currentLatitude, longitude: currentLongitude } = values;
 
@@ -111,7 +116,7 @@ export const useTravelManagement = (containerRef: React.RefObject<HTMLDivElement
       }
 
       if (!editingLocation) {
-        const isDuplicate = locations.some(loc => 
+        const isDuplicate = locations.some(loc =>
           loc.name.toLowerCase() === values.name.toLowerCase() ||
           (loc.latitude === currentLatitude && loc.longitude === currentLongitude)
         );
@@ -137,7 +142,7 @@ export const useTravelManagement = (containerRef: React.RefObject<HTMLDivElement
         }
 
         const { error: uploadError } = await supabase.storage.from('mapmarkers').upload(fileName, file);
-        
+
         if (uploadError) throw uploadError;
 
         const { data: { publicUrl } } = supabase.storage.from('mapmarkers').getPublicUrl(fileName);
@@ -171,11 +176,12 @@ export const useTravelManagement = (containerRef: React.RefObject<HTMLDivElement
       showSuccess(`Location ${editingLocation ? "updated" : "added"} successfully!`);
       cancelEdit();
       loadLocations();
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const err = error as Error;
       dismissToast(toastId);
-      showError(`Operation failed: ${error.message}`);
+      showError(`Operation failed: ${err.message}`);
     }
-  }, [user, editingLocation, locations, loadLocations]);
+  }, [user, editingLocation, locations, loadLocations, cancelEdit]);
 
   const handleEdit = useCallback((location: TravelLocation) => {
     setEditingLocation(location);
@@ -193,21 +199,17 @@ export const useTravelManagement = (containerRef: React.RefObject<HTMLDivElement
 
       const { error: updateError } = await supabase.from("travel_locations").update({ marker_image_url: null }).eq("id", editingLocation.id);
       if (updateError) throw updateError;
-      
+
       dismissToast(toastId);
       showSuccess("Image removed successfully.");
       setEditingImageUrl(null);
       loadLocations();
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const err = error as Error;
       dismissToast(toastId);
-      showError(error.message);
+      showError(err.message);
     }
   }, [editingLocation, editingImageUrl, loadLocations]);
-  
-  const cancelEdit = useCallback(() => {
-    setEditingLocation(null);
-    setEditingImageUrl(null);
-  }, []);
 
   const handleFileSelect = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files.length > 0) {
@@ -230,8 +232,8 @@ export const useTravelManagement = (containerRef: React.RefObject<HTMLDivElement
       if (parsedData.length === 0) throw new Error("No data rows found in CSV.");
 
       const blogTitleMap = new Map(blogPosts.map(p => [p.title.toLowerCase(), p.id]));
-      
-      const newLocations: any[] = [];
+
+      const newLocations: Partial<TravelLocation>[] = [];
       const potentialUpdates: LocationUpdateItem[] = [];
       const failedRows = [];
 
@@ -277,8 +279,9 @@ export const useTravelManagement = (containerRef: React.RefObject<HTMLDivElement
           } else {
             newLocations.push(locationData);
           }
-        } catch (error: any) {
-          failedRows.push({ row: index + 2, error: error.message });
+        } catch (error: unknown) {
+          const err = error as Error;
+          failedRows.push({ row: index + 2, error: err.message });
         }
       }
 
@@ -302,9 +305,10 @@ export const useTravelManagement = (containerRef: React.RefObject<HTMLDivElement
         showSuccess("No new locations to import.");
       }
 
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const err = error as Error;
       dismissToast(toastId);
-      showError(error.message);
+      showError(err.message);
     } finally {
       setIsUploading(false);
       setUploadFile(null);
@@ -315,10 +319,10 @@ export const useTravelManagement = (containerRef: React.RefObject<HTMLDivElement
   const handleConfirmAndProcessUploads = useCallback(async () => {
     if (!user) return;
     setIsUpdateDialogVisible(false);
-    
+
     const updatesToPerform = locationsToUpdate.filter(u => selectedUpdates.has(u.existingId)).map(u => ({
-        existingId: u.existingId,
-        newData: u.newData
+      existingId: u.existingId,
+      newData: u.newData
     }));
 
     const skippedCount = locationsToUpdate.length - updatesToPerform.length;
@@ -331,7 +335,7 @@ export const useTravelManagement = (containerRef: React.RefObject<HTMLDivElement
       }
       loadLocations();
     }
-    
+
     setLocationsToInsert([]);
     setLocationsToUpdate([]);
     setSelectedUpdates(new Set());

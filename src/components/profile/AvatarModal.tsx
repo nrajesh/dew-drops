@@ -149,8 +149,9 @@ export const AvatarModal: React.FC<AvatarModalProps> = ({
       onOpenChange(false);
       showSuccess("Avatar updated successfully!");
       fetchProfile();
-    } catch (error: any) {
-      showError(`Failed to update avatar: ${error.message}`);
+    } catch (error: unknown) {
+      const err = error as Error;
+      showError(`Failed to update avatar: ${err.message}`);
     } finally {
       setIsSavingAvatar(false);
     }

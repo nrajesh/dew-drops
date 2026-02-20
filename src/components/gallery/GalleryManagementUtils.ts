@@ -61,8 +61,9 @@ export const handleDelete = async (imageIds: string[], allImages: GalleryImage[]
 
     updateToastError(toastId, `${imageIds.length} image(s) deleted successfully.`);
     return true;
-  } catch (error: any) {
-    updateToastError(toastId, error.message);
+  } catch (error: unknown) {
+    const err = error as Error;
+    updateToastError(toastId, err.message);
     return false;
   }
 };
@@ -79,8 +80,9 @@ export const handleBulkPublish = async (imageIds: Set<string>, publishStatus: bo
 
     updateToastSuccess(toastId, `${imageIds.size} image(s) ${publishStatus ? "published" : "unpublished"} successfully.`);
     return true;
-  } catch (error: any) {
-    updateToastError(toastId, `Failed to update status: ${error.message}`);
+  } catch (error: unknown) {
+    const err = error as Error;
+    updateToastError(toastId, `Failed to update status: ${err.message}`);
     return false;
   }
 };
@@ -110,7 +112,7 @@ export const handleGenerateTags = async (imageIds: Set<string>, allImages: Galle
         if (updateError) throw updateError;
         successCount++;
       }
-    } catch (e: any) {
+    } catch (e: unknown) {
       console.error(`Failed to generate tags for ${image.file_name}:`, e);
       errorCount++;
     }
@@ -138,13 +140,13 @@ export const handleBulkDownload = async (imageIds: Set<string>, allImages: Galle
   try {
     const zip = new JSZip();
     const imagesToDownload = allImages.filter(img => imageIds.has(img.id));
-    const metadata = [];
+    const metadata: { fileName: string; alt_text: string | null; tags: string[] }[] = [];
 
     const downloadPromises = imagesToDownload.map(async (image) => {
       const { data: blob, error } = await supabase.storage.from('gallery').download(image.file_name);
 
       if (error) throw new Error(`Failed to download ${image.file_name}: ${error.message}`);
-      
+
       if (blob) {
         const originalFileName = image.file_name.split('/').pop()?.split('_').slice(1).join('_') || image.file_name;
         zip.file(originalFileName, blob);
@@ -170,7 +172,8 @@ export const handleBulkDownload = async (imageIds: Set<string>, allImages: Galle
     URL.revokeObjectURL(link.href);
 
     updateToastSuccess(toastId, `${imagesToDownload.length} image(s) and metadata downloaded successfully.`);
-  } catch (error: any) {
-    updateToastError(toastId, `Download failed: ${error.message}`);
+  } catch (error: unknown) {
+    const err = error as Error;
+    updateToastError(toastId, `Download failed: ${err.message}`);
   }
 };

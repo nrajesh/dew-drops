@@ -61,9 +61,10 @@ export const usePortfolioData = (): { chatbotKnowledge: string | null; resume: J
           setResume(null);
         }
 
-      } catch (err: any) {
-        setError(err.message);
-        console.error("Failed to fetch portfolio context or resume:", err);
+      } catch (err: unknown) {
+        const error = err as Error;
+        setError(error.message);
+        console.error("Failed to fetch portfolio context or resume:", error);
       } finally {
         setLoading(false);
       }

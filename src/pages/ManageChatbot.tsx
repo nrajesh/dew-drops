@@ -33,7 +33,7 @@ const formatResumeData = (resumeData: JsonResume): string => {
     if (basics.phone) resumeContext += `Phone: ${basics.phone}\n`;
     if (basics.website) resumeContext += `Website: ${basics.website}\n`;
     if (basics.location?.city) resumeContext += `Location: ${basics.location.city}, ${basics.location.countryCode}\n`;
-    
+
     if (basics.profiles && basics.profiles.length > 0) {
       resumeContext += "\nSocial Profiles:\n";
       resumeContext += basics.profiles.map(profile => `- ${profile.network}: ${profile.url}`).join('\n');
@@ -224,9 +224,10 @@ const ManageChatbot = () => {
       form.setValue("content", generatedContent);
       dismissToast(toastId);
       showSuccess("Knowledge base generated. Review and save.");
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const err = error as Error;
       dismissToast(toastId);
-      showError(`Failed to generate: ${error.message}`);
+      showError(`Failed to generate: ${err.message}`);
     } finally {
       setIsGenerating(false);
     }

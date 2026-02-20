@@ -16,9 +16,10 @@ try {
   }
   genAI = new GoogleGenerativeAI(API_KEY);
   model = genAI.getGenerativeModel({ model: MODEL_NAME });
-} catch (e: any) {
-  initializationError = e.message;
-  console.error("Gemini client initialization error:", e);
+} catch (e: unknown) {
+  const err = e as Error;
+  initializationError = err.message;
+  console.error("Gemini client initialization error:", err);
 }
 
 export const getGeminiModel = (): GenerativeModel => {
@@ -41,9 +42,11 @@ export const sendMessageToGemini = async (message: string) => {
     const response = await result.response;
     const text = response.text();
     return text;
-  } catch (error) {
-    console.error("Error sending message to Gemini:", error);
-    throw error;
+  } catch (error: unknown) {
+    const e = error as Error;
+    console.error("Error interacting with Gemini:", e);
+
+    throw new Error(e.message || "Failed to communicate with AI service");
   }
 };
 

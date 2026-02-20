@@ -6,9 +6,9 @@ import { normalizeTag, sanitizeFileName } from "@/lib/utils"; // Import normaliz
 import ExifReader from 'exifreader';
 
 // Helper to sanitize objects for JSON serialization, removing circular references and invalid characters
-const sanitizeForJson = (obj: any) => {
+const sanitizeForJson = (obj: unknown) => {
   const seen = new WeakSet();
-  const replacer = (key: string, value: any) => {
+  const replacer = (key: string, value: unknown) => {
     if (typeof value === 'object' && value !== null) {
       if (seen.has(value)) {
         return; // Circular reference found, discard key
@@ -62,13 +62,14 @@ export const processImageUploads = async (
         delete rawExif['UserComment'];
         if (rawExif.thumbnail) delete rawExif.thumbnail;
         exifData = sanitizeForJson(rawExif);
-      } catch (exifError: any) {
-        console.warn(`Could not read EXIF data for ${file.name}: ${exifError.message}. Proceeding without it.`);
+      } catch (exifError: unknown) {
+        const err = exifError as Error;
+        console.warn(`Could not read EXIF data for ${file.name}: ${err.message}. Proceeding without it.`);
       }
 
       // No more compression. Upload the original file to preserve all metadata.
       const fileToUpload: File = file;
-      
+
       const sanitizedName = sanitizeFileName(file.name);
       const fileName = `${userId}/${Date.now()}_${sanitizedName}`;
 
@@ -89,9 +90,10 @@ export const processImageUploads = async (
       });
       if (dbError) throw dbError;
       successfulUploads++;
-    } catch (error: any) {
-      failedFiles.push({ fileName: file.name, error: error.message });
-      updateToastError(toastId, `Failed to upload ${file.name}: ${error.message}`);
+    } catch (error: unknown) {
+      const err = error as Error;
+      failedFiles.push({ fileName: file.name, error: err.message });
+      updateToastError(toastId, `Failed to upload ${file.name}: ${err.message}`);
       await new Promise(resolve => setTimeout(resolve, 2000)); // Pause for user to read toast
     }
   }
@@ -126,8 +128,8 @@ export const processMetadataUpdate = async (
       throw new Error("Metadata JSON is not a valid array.");
     }
 
-    const updatePromises = metadataArray.map(async (meta: any) => {
-      if (!meta.file_name) return;
+    const updatePromises = metadataArray.map(async (meta: Record<string, unknown>) => {
+      if (typeof meta.file_name !== 'string' || !meta.file_name) return;
       const sanitizedMetaFileName = sanitizeFileName(meta.file_name);
       const existingImage = allImages.find(img => img.file_name.endsWith(`_${sanitizedMetaFileName}`));
 
@@ -153,9 +155,10 @@ export const processMetadataUpdate = async (
 
     await Promise.all(updatePromises);
 
-  } catch (e: any) {
-    failedUpdates.push({ fileName: metadataFile.name, error: e.message });
-    throw new Error(`Failed to parse or process metadata file: ${e.message}`);
+  } catch (e: unknown) {
+    const err = e as Error;
+    failedUpdates.push({ fileName: metadataFile.name, error: err.message });
+    throw new Error(`Failed to parse or process metadata file: ${err.message}`);
   }
 
   return { updatedCount, notFoundCount, failedUpdates };

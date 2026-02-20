@@ -86,7 +86,11 @@ export const useBlogManagement = () => {
   const handleSelectPost = useCallback((id: string) => {
     setSelectedPosts(prev => {
       const newSelection = new Set(prev);
-      newSelection.has(id) ? newSelection.delete(id) : newSelection.add(id);
+      if (newSelection.has(id)) {
+        newSelection.delete(id);
+      } else {
+        newSelection.add(id);
+      }
       return newSelection;
     });
   }, []);
@@ -142,7 +146,7 @@ export const useBlogManagement = () => {
     setIsUploading(true);
     const toastId = showLoading(`Importing ${selectedFiles.length} file(s)...`);
     try {
-      let allNewPosts: NewPost[] = [];
+      const allNewPosts: NewPost[] = [];
       for (const file of Array.from(selectedFiles)) {
         if (file.type === "text/xml" || file.name.endsWith(".xml")) {
           allNewPosts.push(...await parseWordPressXml(await file.text()));
@@ -173,9 +177,10 @@ export const useBlogManagement = () => {
       } else {
         showSuccess("No new posts to import.");
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const err = error as Error;
       dismissToast(toastId);
-      showError(`Import failed: ${error.message}`);
+      showError(`Import failed: ${err.message}`);
     } finally {
       setIsUploading(false);
       setSelectedFiles(null);
@@ -196,7 +201,7 @@ export const useBlogManagement = () => {
     setSelectedUpdates(new Set());
   }, [user, postsToInsert, postsToUpdate, selectedUpdates, loadPosts]);
 
-  const createBulkAction = (action: Function) => async (...args: any[]) => {
+  const createBulkAction = <T extends unknown[]>(action: (posts: Set<string>, ...args: T) => Promise<boolean>) => async (...args: T) => {
     if (await action(selectedPosts, ...args)) {
       setSelectedPosts(new Set());
       loadPosts();
@@ -236,7 +241,7 @@ export const useBlogManagement = () => {
     handleFormSubmit,
     handleUpload,
     handleConfirmAndProcessUploads,
-    handleBulkDelete: createBulkAction(handleBulkDelete),
+    handleBulkDelete: createBulkAction((posts) => handleBulkDelete(posts, allPosts)),
     handleBulkTagUpdate: createBulkAction(handleBulkTagUpdate),
     handleBulkDownload: () => handleBulkDownload(selectedPosts, allPosts),
     activeTab,

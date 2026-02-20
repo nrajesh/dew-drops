@@ -66,7 +66,8 @@ const CurriculumVitae = () => {
         }
         const data: JsonResume = await response.json();
         setResume(data);
-      } catch (err: any) {
+      } catch (error: unknown) {
+        const err = error as Error;
         setError(err.message);
         console.error("Error fetching resume:", err);
       } finally {

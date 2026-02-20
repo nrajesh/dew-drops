@@ -151,7 +151,7 @@ export const parseMarkdownFile = async (file: File): Promise<NewPost> => {
             description = value;
             break;
           case 'published_at':
-          case 'date':
+          case 'date': {
             const trimmedValue = value.trim();
             const dateOnlyRegex = /^\d{4}-\d{2}-\d{2}$/;
 
@@ -166,16 +166,18 @@ export const parseMarkdownFile = async (file: File): Promise<NewPost> => {
               }
             }
             break;
+          }
           case 'published':
             published = value === 'true';
             break;
-          case 'tags':
+          case 'tags': {
             let rawTags = value;
             if (rawTags.startsWith('[') && rawTags.endsWith(']')) {
               rawTags = rawTags.slice(1, -1);
             }
             tags = rawTags.split(',').map(tag => normalizeTag(tag.replace(/^['"]|['"]$/g, ''))).filter(Boolean); // Apply normalization here
             break;
+          }
           case 'cover_image_id':
             cover_image_id = value;
             break;
@@ -219,20 +221,21 @@ export const processUploads = async (userId: string, inserts: NewPost[], updates
 
     updateToastSuccess(toastId, `${inserts.length} new posts added, ${updates.length} posts updated.`);
     return true;
-  } catch (error: any) {
-    updateToastError(toastId, `Import failed: ${error.message}`);
+  } catch (error: unknown) {
+    const err = error as Error;
+    updateToastError(toastId, `Import failed: ${err.message}`);
     return false;
   }
 };
 
-export const handleBulkDelete = async (postIds: string[], allPosts: Post[]): Promise<boolean> => {
-  const toastId = showLoading(`Deleting ${postIds.length} posts...`);
-  const { error } = await supabase.from("posts").delete().in("id", postIds);
+export const handleBulkDelete = async (postIds: Set<string>, allPosts: Post[]): Promise<boolean> => {
+  const toastId = showLoading(`Deleting ${postIds.size} posts...`);
+  const { error } = await supabase.from("posts").delete().in("id", Array.from(postIds));
   if (error) {
     updateToastError(toastId, error.message);
     return false;
   } else {
-    updateToastSuccess(toastId, `${postIds.length} posts removed.`);
+    updateToastSuccess(toastId, `${postIds.size} posts removed.`);
     return true;
   }
 };
@@ -311,7 +314,8 @@ published: ${post.published}${tagsString}${coverImageIdString}${youtubeVideoIdSt
     URL.revokeObjectURL(link.href);
 
     updateToastSuccess(toastId, `${postsToDownload.length} post(s) downloaded.`);
-  } catch (error: any) {
-    updateToastError(toastId, `Download failed: ${error.message}`);
+  } catch (error: unknown) {
+    const err = error as Error;
+    updateToastError(toastId, `Download failed: ${err.message}`);
   }
 };

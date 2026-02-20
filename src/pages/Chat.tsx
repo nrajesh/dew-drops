@@ -77,8 +77,9 @@ const Chat = ({ jobDescription, onClose }: ChatProps) => {
         { role: "assistant", content: "Would you like to contact Rajesh to discuss this further?" }
       ];
       setMessages(newMessages);
-    } catch (error: any) {
-      console.error("Error in job matching:", error);
+    } catch (error: unknown) {
+      const err = error as Error;
+      console.error("Error in job matching:", err);
       setMessages([{ role: "assistant", content: "Sorry, I encountered an error while analyzing the job description. Please try again later." }]);
     }
   };
@@ -111,20 +112,21 @@ const Chat = ({ jobDescription, onClose }: ChatProps) => {
       const response = await sendMessageToGemini(systemPrompt);
       const assistantMessage: Message = { role: "assistant", content: response };
       setMessages((prev) => [...prev, assistantMessage]);
-    } catch (error: any) {
-      console.error("Error fetching chat response:", error);
-      let displayMessage = `Sorry, an error occurred: ${error.message}`;
+    } catch (error: unknown) {
+      const err = error as Error;
+      console.error("Error fetching chat response:", err);
+      let displayMessage = `Sorry, an error occurred: ${err.message}`;
 
-      if (error.message) {
-        if (error.message.includes("API key not valid")) {
+      if (err.message) {
+        if (err.message.includes("API key not valid")) {
           displayMessage = "It seems there's an issue with the API key. Please check the configuration.";
-        } else if (error.message.includes("503") && error.message.includes("The model is overloaded")) {
+        } else if (err.message.includes("503") && err.message.includes("The model is overloaded")) {
           displayMessage = "I am currently responding to multiple users. I hope we can connect again later!";
-        } else if (error.message.includes("400") && error.message.includes("Bad Request")) {
+        } else if (err.message.includes("400") && err.message.includes("Bad Request")) {
           displayMessage = "The request to the AI model was malformed. This might be a temporary issue or an invalid prompt.";
-        } else if (error.message.includes("429") || error.message.includes("rate limit")) {
+        } else if (err.message.includes("429") || err.message.includes("rate limit")) {
           displayMessage = "You've hit the AI service rate limit. Please wait a moment and try again.";
-        } else if (error.message.includes("VITE_GEMINI_API_KEY is not set") || error.message.includes("VITE_GEMINI_MODEL_NAME is not set")) {
+        } else if (err.message.includes("VITE_GEMINI_API_KEY is not set") || err.message.includes("VITE_GEMINI_MODEL_NAME is not set")) {
           displayMessage = "AI service is not configured. Please ensure VITE_GEMINI_API_KEY and VITE_GEMINI_MODEL_NAME are set.";
         }
       }
