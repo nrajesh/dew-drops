@@ -54,6 +54,63 @@ export function generateAltTextFromFileName(fileName: string): string {
 }
 
 /**
+ * Builds a brief, consistent on-screen summary from full reasoning markdown.
+ * Shows a limited number of bullets per section so the UI stays clean;
+ * full details remain in PDF/Text downloads.
+ */
+export const reasoningToBriefSummary = (
+  markdown: string,
+  options?: { matchingBullets?: number; gapsBullets?: number }
+): string => {
+  const matchingMax = options?.matchingBullets ?? 3;
+  const gapsMax = options?.gapsBullets ?? 2;
+  const lines = markdown.split('\n');
+  const out: string[] = [];
+  let inMatching = false;
+  let inGaps = false;
+  let matchingCount = 0;
+  let gapsCount = 0;
+
+  for (const line of lines) {
+    if (line.startsWith('## Matching Areas')) {
+      inMatching = true;
+      inGaps = false;
+      out.push(line);
+      continue;
+    }
+    if (line.startsWith('## Gaps')) {
+      inMatching = false;
+      inGaps = true;
+      out.push(line);
+      continue;
+    }
+    if (inMatching) {
+      if (line.trim().startsWith('+ ') || line.trim().startsWith('- ')) {
+        if (matchingCount < matchingMax) {
+          out.push(line);
+          matchingCount++;
+        }
+      } else if (line.trim().length === 0 || !line.trim().startsWith('##')) {
+        out.push(line);
+      }
+    } else if (inGaps) {
+      if (line.trim().startsWith('- ') || line.trim().startsWith('+ ')) {
+        if (gapsCount < gapsMax) {
+          out.push(line);
+          gapsCount++;
+        }
+      } else if (line.trim().length === 0 || !line.trim().startsWith('##')) {
+        out.push(line);
+      }
+    }
+  }
+
+  out.push('');
+  out.push('*Download as Text or PDF for the full matching areas and gaps.*');
+  return out.join('\n');
+};
+
+/**
  * Helper function to limit gaps in markdown output for display
  * to a maximum of 3 bullet points in the 'Gaps' section.
  */

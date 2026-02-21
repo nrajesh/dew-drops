@@ -81,6 +81,16 @@ export interface ResumeReference {
   reference: string;
 }
 
+export interface ResumeProject {
+  name: string;
+  description?: string;
+  url?: string;
+  highlights?: string[];
+  keywords?: string[];
+  startDate?: string;
+  endDate?: string;
+}
+
 export interface JsonResume {
   basics: ResumeBasics;
   work?: ResumeWork[];
@@ -91,4 +101,5 @@ export interface JsonResume {
   interests?: ResumeInterest[];
   publications?: ResumePublication[];
   references?: ResumeReference[];
+  projects?: ResumeProject[];
 }

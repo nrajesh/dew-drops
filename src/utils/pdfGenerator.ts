@@ -7,23 +7,32 @@ import { jsPDF } from 'jspdf';
  * @param filename The name of the PDF file to download.
  */
 export const generateCareerFitPdf = async (htmlContent: string, filename: string) => {
+  // Create an isolated container that won't affect the main page theme
   const printContainer = document.createElement('div');
   printContainer.innerHTML = htmlContent;
   printContainer.style.position = 'absolute';
-  printContainer.style.top = '-9999px'; // Hide it off-screen
+  printContainer.style.top = '-9999px';
+  printContainer.style.left = '-9999px';
   printContainer.style.width = '210mm'; // A4 width for consistent rendering
-  printContainer.style.padding = '1.5cm'; // Match @page margin
-  document.body.appendChild(printContainer);
-
-  // Apply print-specific classes to the container
-  printContainer.classList.add('print-mode');
-
-  // Temporarily add dark class if needed for consistent rendering in dark mode
-  const isDarkMode = document.documentElement.classList.contains('dark');
-  if (isDarkMode) {
-    document.documentElement.classList.remove('dark');
-    printContainer.classList.add('force-light-mode'); // Custom class to force light mode styles
-  }
+  printContainer.style.padding = '1.5cm';
+  printContainer.style.backgroundColor = '#ffffff';
+  printContainer.style.color = '#1f2937';
+  printContainer.style.fontFamily = '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif';
+  printContainer.style.fontSize = '14px';
+  printContainer.style.lineHeight = '1.6';
+  
+  // Apply print-specific classes - force light mode without affecting main page
+  printContainer.classList.add('print-mode', 'force-light-mode');
+  
+  // Create a wrapper div to isolate styles
+  const wrapper = document.createElement('div');
+  wrapper.style.position = 'absolute';
+  wrapper.style.top = '-9999px';
+  wrapper.style.left = '-9999px';
+  wrapper.style.width = '210mm';
+  wrapper.style.backgroundColor = '#ffffff';
+  wrapper.appendChild(printContainer);
+  document.body.appendChild(wrapper);
 
   try {
     const canvas = await html2canvas(printContainer, {
@@ -32,7 +41,8 @@ export const generateCareerFitPdf = async (htmlContent: string, filename: string
       allowTaint: true,
       windowWidth: printContainer.scrollWidth,
       windowHeight: printContainer.scrollHeight,
-    } as Parameters<typeof html2canvas>[1]); // Cast to correct type to resolve TypeScript error
+      backgroundColor: '#ffffff', // Force white background
+    } as Parameters<typeof html2canvas>[1]);
 
     const imgData = canvas.toDataURL('image/png');
     const pdf = new jsPDF('p', 'mm', 'a4');
@@ -57,9 +67,6 @@ export const generateCareerFitPdf = async (htmlContent: string, filename: string
     console.error("Error generating PDF:", error);
     alert("Failed to generate PDF. Please try again.");
   } finally {
-    document.body.removeChild(printContainer);
-    if (isDarkMode) {
-      document.documentElement.classList.add('dark'); // Restore dark mode
-    }
+    document.body.removeChild(wrapper);
   }
 };

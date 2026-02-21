@@ -6,13 +6,12 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Textarea } from "@/components/ui/textarea";
 import { Loader2, Sparkles, AlertTriangle, Download, Link as LinkIcon, FileText } from "lucide-react";
 import ReactMarkdown from 'react-markdown';
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { useJobMatching, analysisSteps } from "@/hooks/useJobMatching";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { showError } from "@/utils/toast";
 import { Progress } from "@/components/ui/progress";
 import { downloadTextFile } from "@/utils/fileDownload";
-import { cn, limitGapsInMarkdown, markdownToPlainText, cleanJobDescriptionText } from "@/lib/utils";
+import { cn, reasoningToBriefSummary, markdownToPlainText, cleanJobDescriptionText } from "@/lib/utils";
 import { analyzeAndTranslateJobDescription } from "@/utils/aiTextAnalysis";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
@@ -75,6 +74,7 @@ export const CareerFitAnalyst = () => {
   const [isFetchingUrl, setIsFetchingUrl] = useState(false);
   const [user, setUser] = useState<User | null>(null);
   const [displayOverallStepIndex, setDisplayOverallStepIndex] = useState(-1); // New state for visual progress
+  const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
 
   useEffect(() => {
     const checkUser = async () => {
@@ -106,15 +106,10 @@ export const CareerFitAnalyst = () => {
     totalSteps,
   } = useJobMatching();
 
-  const [limitedReasoning, setLimitedReasoning] = useState<string>('');
-
-  useEffect(() => {
-    if (matchResult?.reasoning) {
-      setLimitedReasoning(limitGapsInMarkdown(matchResult.reasoning));
-    } else {
-      setLimitedReasoning('');
-    }
-  }, [matchResult]);
+  const briefSummary = useMemo(() => {
+    if (!matchResult?.reasoning) return '';
+    return reasoningToBriefSummary(matchResult.reasoning, { matchingBullets: 3, gapsBullets: 2 });
+  }, [matchResult?.reasoning]);
 
   const overallSteps = useMemo(() => [
     "Validating entered text",
@@ -273,20 +268,25 @@ export const CareerFitAnalyst = () => {
     setJobDescription("");
     setJobDescriptionUrl("");
     setIsButtonEnabled(false);
-    setLimitedReasoning('');
     setIsPreProcessing(false);
     setOriginalLanguage(null);
     setDisplayOverallStepIndex(-1); // Reset display index
   }, [resetMatch]);
 
   const handleDownloadText = useCallback(() => {
-    if (limitedReasoning) {
-      const plainTextContent = markdownToPlainText(limitedReasoning);
+    if (matchResult?.reasoning) {
+      // Clean the reasoning to ensure proper formatting
+      const cleanedReasoning = matchResult.reasoning
+        .replace(/\\n\+/g, '\n+')  // Replace escaped \n+ with actual newline + bullet
+        .replace(/\\n/g, '\n')      // Replace any remaining escaped newlines
+        .replace(/\n{3,}/g, '\n\n'); // Normalize multiple newlines
+      
+      const plainTextContent = markdownToPlainText(cleanedReasoning);
       downloadTextFile(plainTextContent, "CareerFitAnalysis.txt");
     } else {
       showError("No analysis result to download.");
     }
-  }, [limitedReasoning]);
+  }, [matchResult?.reasoning]);
 
   const handleDownloadPdf = useCallback(async () => {
     if (!matchResult) {
@@ -294,23 +294,96 @@ export const CareerFitAnalyst = () => {
       return;
     }
 
-    const renderedMarkdownHtml = marked.parse(limitedReasoning);
+    setIsGeneratingPdf(true);
 
-    const contentToPrint = `
-      <div class="pdf-content-wrapper">
-        <h2 class="text-2xl font-bold mb-4">Job Description</h2>
-        ${inputMethod === "url" ? `<p class="text-muted-foreground mb-4">Source URL: <a href="${jobDescriptionUrl}" target="_blank" rel="noopener noreferrer">${jobDescriptionUrl}</a></p>` : ''}
-        <p class="whitespace-pre-wrap text-sm mb-8">${jobDescription}</p>
+    try {
+      // Ensure markdown is properly formatted - replace any literal \n+ sequences with proper newlines
+      const cleanedReasoning = matchResult.reasoning
+        .replace(/\\n\+/g, '\n+')  // Replace escaped \n+ with actual newline + bullet
+        .replace(/\\n/g, '\n')      // Replace any remaining escaped newlines
+        .replace(/\n{3,}/g, '\n\n'); // Normalize multiple newlines
 
-        <h2 class="text-2xl font-bold mb-4">Career Fit Analyst Result</h2>
-        <div class="prose dark:prose-invert max-w-none career-fit-output">
-          ${renderedMarkdownHtml}
+      // Configure marked to handle breaks and gfm (GitHub Flavored Markdown)
+      marked.setOptions({
+        breaks: true,  // Convert single line breaks to <br>
+        gfm: true,     // Enable GitHub Flavored Markdown
+      });
+
+      const renderedMarkdownHtml = marked.parse(cleanedReasoning);
+
+      const contentToPrint = `
+        <style>
+          .pdf-content-wrapper {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            color: #1f2937;
+            line-height: 1.6;
+          }
+          .pdf-content-wrapper h2 {
+            font-size: 1.5rem;
+            font-weight: 700;
+            margin-bottom: 1rem;
+            margin-top: 1.5rem;
+            color: #111827;
+          }
+          .pdf-content-wrapper h2:first-child {
+            margin-top: 0;
+          }
+          .pdf-content-wrapper p {
+            margin-bottom: 0.75rem;
+            font-size: 0.875rem;
+          }
+          .pdf-content-wrapper .prose {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            color: #1f2937;
+          }
+          .pdf-content-wrapper .prose h2 {
+            font-size: 1.25rem;
+            font-weight: 600;
+            margin-top: 1.5rem;
+            margin-bottom: 0.75rem;
+            color: #111827;
+          }
+          .pdf-content-wrapper .prose ul {
+            list-style-type: disc;
+            margin-left: 1.5rem;
+            margin-bottom: 1rem;
+          }
+          .pdf-content-wrapper .prose li {
+            margin-bottom: 0.5rem;
+            padding-left: 0.25rem;
+          }
+          .pdf-content-wrapper .prose strong {
+            font-weight: 600;
+            color: #111827;
+          }
+          .pdf-content-wrapper .prose a {
+            color: #2563eb;
+            text-decoration: underline;
+          }
+          .pdf-content-wrapper .text-muted-foreground {
+            color: #6b7280;
+          }
+        </style>
+        <div class="pdf-content-wrapper">
+          <h2>Job Description</h2>
+          ${inputMethod === "url" ? `<p class="text-muted-foreground">Source URL: <a href="${jobDescriptionUrl}" target="_blank" rel="noopener noreferrer">${jobDescriptionUrl}</a></p>` : ''}
+          <p style="white-space: pre-wrap; font-size: 0.875rem; margin-bottom: 2rem;">${jobDescription}</p>
+
+          <h2>Career Fit Analyst Result</h2>
+          <div class="prose" style="max-width: none;">
+            ${renderedMarkdownHtml}
+          </div>
         </div>
-      </div>
-    `;
+      `;
 
-    await generateCareerFitPdf(contentToPrint, "CareerFitAnalysis.pdf");
-  }, [matchResult, limitedReasoning, inputMethod, jobDescriptionUrl, jobDescription]);
+      await generateCareerFitPdf(contentToPrint, "CareerFitAnalysis.pdf");
+    } catch (error) {
+      console.error("Error generating PDF:", error);
+      showError("Failed to generate PDF. Please try again.");
+    } finally {
+      setIsGeneratingPdf(false);
+    }
+  }, [matchResult, inputMethod, jobDescriptionUrl, jobDescription]);
 
   const displayError = contextError || geminiClientError;
 
@@ -465,7 +538,13 @@ export const CareerFitAnalyst = () => {
                 <p>Match Percentage: {effectivePercentage}%</p>
               </div>
             )}
-            <div className="flex justify-center gap-2 mb-4 pdf-hidden">
+            <div className="rounded-lg border bg-muted/40 p-4">
+              <p className="text-sm font-medium text-muted-foreground mb-2">Summary</p>
+              <div className="prose dark:prose-invert prose-sm max-w-none career-fit-output">
+                <ReactMarkdown>{briefSummary}</ReactMarkdown>
+              </div>
+            </div>
+            <div className="flex justify-center gap-2 pdf-hidden">
               <Button
                 onClick={handleDownloadText}
                 variant="outline"
@@ -477,13 +556,22 @@ export const CareerFitAnalyst = () => {
                 onClick={handleDownloadPdf}
                 variant="outline"
                 size="sm"
+                disabled={isGeneratingPdf}
               >
-                <FileText className="mr-2 h-4 w-4" /> Download as PDF
+                {isGeneratingPdf ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Generating PDF...
+                  </>
+                ) : (
+                  <>
+                    <FileText className="mr-2 h-4 w-4" /> Download as PDF
+                  </>
+                )}
               </Button>
             </div>
-            <ScrollArea className="h-64 bg-muted p-4 rounded-lg prose dark:prose-invert max-w-none career-fit-output">
-              <ReactMarkdown>{limitedReasoning}</ReactMarkdown>
-            </ScrollArea>
+            <p className="text-center text-sm text-muted-foreground">
+              Full matching areas and gaps are included in the Text and PDF downloads.
+            </p>
           </div>
         )}
       </CardContent>
