@@ -1,6 +1,6 @@
----
-description: "End-to-end feature development workflow: from branch creation to squash merge."
----
+# End-to-End Feature Development Workflow
+
+End-to-end feature development workflow: from branch creation to squash merge.
 
 ## User Input
 

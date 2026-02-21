@@ -52,6 +52,12 @@ For an in-depth look at the system architecture (including Mermaid sequence and 
 
 Additional project documentation outlining coding standards, development workflows, and specific guidelines can be found in the [`documentation/`](documentation/) folder.
 
+### Best Practices & Guidelines
+
+- **[React Best Practices](documentation/best-practices/react-best-practices.md)**: Comprehensive performance optimization guide for React and Next.js applications. Contains 40+ rules across 8 categories, prioritized by impact from critical (eliminating waterfalls, reducing bundle size) to incremental (advanced patterns). This guide is automatically enforced during the implementation phase of feature development.
+
+- **[Vercel Deployment Guide](documentation/best-practices/vercel-deploy.md)**: Step-by-step guide for deploying to Vercel using the official Vercel CLI. Includes prerequisites, authentication, deployment steps, and troubleshooting. This guide is automatically checked before merging features to ensure deployment readiness.
+
 ## Getting Started
 
 To run this project locally:
