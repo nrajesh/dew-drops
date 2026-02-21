@@ -2,8 +2,8 @@ import { useEffect, useState, useCallback } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Terminal, Mail, Phone, Globe, MapPin, Briefcase, GraduationCap, Zap, Link as LinkIcon, Award, Languages, Heart, BookOpen, Users, Printer, ChevronDown, Linkedin } from "lucide-react";
-import type { JsonResume, ResumeWork, ResumeEducation, ResumeSkill, ResumeAward, ResumeLanguage, ResumeInterest, ResumePublication, ResumeReference } from "@/types/resume";
+import { Terminal, Mail, Phone, Globe, MapPin, Briefcase, GraduationCap, Zap, Link as LinkIcon, Award, Languages, Heart, BookOpen, Users, Printer, ChevronDown, Linkedin, Code } from "lucide-react";
+import type { JsonResume, ResumeWork, ResumeEducation, ResumeSkill, ResumeAward, ResumeLanguage, ResumeInterest, ResumePublication, ResumeReference, ResumeProject } from "@/types/resume";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
@@ -29,6 +29,7 @@ const CurriculumVitae = () => {
   const [isInterestsOpen, setIsInterestsOpen] = useState(true);
   const [isPublicationsOpen, setIsPublicationsOpen] = useState(true);
   const [isReferencesOpen, setIsReferencesOpen] = useState(true);
+  const [isProjectsOpen, setIsProjectsOpen] = useState(true);
 
   // Helper to ensure URL has protocol for safe linking
   const ensureAbsoluteUrl = (url: string) => {
@@ -140,7 +141,7 @@ const CurriculumVitae = () => {
     return <div className="text-center py-8">No resume data found.</div>;
   }
 
-  const { basics, work, education, skills, awards, languages, interests, publications, references } = resume;
+  const { basics, work, education, skills, awards, languages, interests, publications, references, projects } = resume;
 
   return (
     <div className="max-w-4xl mx-auto space-y-8">
@@ -424,6 +425,65 @@ const CurriculumVitae = () => {
                       </h3>
                       <p className="text-muted-foreground">{formatDate(pub.releaseDate, { year: 'numeric', month: 'short' })}</p>
                       {pub.summary && <p>{formatTextWithLineBreaks(pub.summary)}</p>}
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </CollapsibleContent>
+          </Collapsible>
+        </Card>
+      )}
+
+      {projects && projects.length > 0 && (
+        <Card>
+          <Collapsible open={isProjectsOpen} onOpenChange={setIsProjectsOpen} className="cv-collapsible-section">
+            <CardHeader>
+              <CollapsibleTrigger asChild>
+                <Button variant="ghost" className="w-full justify-between p-0 hover:bg-transparent">
+                  <CardTitle className="flex items-center gap-2 text-primary"><Code className="h-5 w-5" /> Projects</CardTitle>
+                  <ChevronDown className={cn("h-5 w-5 transition-transform", isProjectsOpen ? "rotate-180" : "rotate-0")} />
+                </Button>
+              </CollapsibleTrigger>
+            </CardHeader>
+            <CollapsibleContent>
+              <CardContent>
+                <div className="prose dark:prose-invert max-w-none space-y-6">
+                  {projects.map((project: ResumeProject, index: number) => (
+                    <div key={index} className="border-b pb-4 last:border-b-0 last:pb-0">
+                      <h3 className="text-lg font-semibold">
+                        {project.url ? (
+                          <a href={ensureAbsoluteUrl(project.url)} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline flex items-center">
+                            {project.name}
+                            <LinkIcon className="h-4 w-4 inline-block ml-2" />
+                          </a>
+                        ) : (
+                          project.name
+                        )}
+                      </h3>
+                      {(project.startDate || project.endDate) && (
+                        <p className="text-muted-foreground">
+                          {project.startDate ? formatDate(project.startDate, { year: 'numeric', month: 'short' }) : ''} 
+                          {project.startDate && project.endDate ? ' – ' : ''}
+                          {project.endDate ? formatDate(project.endDate, { year: 'numeric', month: 'short' }) : project.startDate ? 'Present' : ''}
+                        </p>
+                      )}
+                      {project.description && <p className="mt-2">{formatTextWithLineBreaks(project.description)}</p>}
+                      {project.highlights && project.highlights.length > 0 && (
+                        <ul className="list-disc list-inside text-muted-foreground mt-2 space-y-1">
+                          {project.highlights.map((highlight, hIndex) => (
+                            <li key={hIndex}>{formatTextWithLineBreaks(highlight)}</li>
+                          ))}
+                        </ul>
+                      )}
+                      {project.keywords && project.keywords.length > 0 && (
+                        <div className="flex flex-wrap gap-2 mt-3">
+                          {project.keywords.map((keyword, kIndex) => (
+                            <Badge key={kIndex} variant="secondary" className="text-xs">
+                              {keyword}
+                            </Badge>
+                          ))}
+                        </div>
+                      )}
                     </div>
                   ))}
                 </div>
