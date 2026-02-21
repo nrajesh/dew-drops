@@ -1,4 +1,5 @@
 ---
+name: speckit.feature
 description: "End-to-end feature development workflow: from branch creation to squash merge."
 ---
 
