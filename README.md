@@ -56,13 +56,9 @@ Additional project documentation outlining coding standards, development workflo
 
 - **[React Best Practices](documentation/best-practices/react-best-practices.md)**: Comprehensive performance optimization guide for React and Next.js applications. Contains 40+ rules across 8 categories, prioritized by impact from critical (eliminating waterfalls, reducing bundle size) to incremental (advanced patterns). This guide is automatically enforced during the implementation phase of feature development.
 
-- **[Speckit Development Workflows](.agents/workflows/)**: Automated feature development lifecycle commands (e.g., `/speckit.feature`, `/speckit.clarify`) powered by the **[Entire](https://entire.io) CLI**. This ensures all conversational context, AI agent sessions, and architectural decisions are continuously tracked and checked into version control alongside code changes.
+- **[Speckit Development Workflows](.agents/workflows/)**: Automated feature development lifecycle commands (e.g., `/speckit.feature`, `/speckit.clarify`). This ensures all architectural decisions are continuously tracked and checked into version control alongside code changes.
 
 - **[Vercel Deployment Guide](documentation/best-practices/vercel-deploy.md)**: Step-by-step guide for deploying to Vercel using the official Vercel CLI. Includes prerequisites, authentication, deployment steps, and troubleshooting. This guide is automatically checked before merging features to ensure deployment readiness.
-
-## Tracking & Analytics
-
-The project leverages the **[Entire CLI](https://entire.io)** to automatically track agent sessions and link them to Git commits. This ensures that every AI-assisted code change is accompanied by the conversational context that led to it. Checkpoints and session logs are safely synced to the `entire/checkpoints/v1` orphaned branch and displayed on the Entire dashboard.
 
 ## Getting Started
 
