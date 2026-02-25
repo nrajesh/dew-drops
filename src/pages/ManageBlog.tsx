@@ -129,7 +129,7 @@ const ManageBlog = () => {
         editingPost={editingPost}
         galleryImages={galleryImages}
         uniqueTags={uniqueTags}
-        onSubmit={handleFormSubmit as any}
+        onSubmit={(values) => handleFormSubmit(values as unknown as import('@/components/blog/BlogForm').PostFormData)}
       />
 
       <UpdatePostsDialog

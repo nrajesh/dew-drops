@@ -155,7 +155,7 @@ The following sections contain the user's personal content available on the site
 
   if (postsRes.data && postsRes.data.length > 0) {
     context += "\n\n== BLOG POSTS ==\n";
-    context += postsRes.data.map((p: any) =>
+    context += postsRes.data.map((p: { title?: string; description?: string; tags?: string[] }) =>
       `Title: ${p.title}\nDescription: ${p.description || 'N/A'}\nTags: ${p.tags?.join(', ') || 'N/A'}`
     ).join('\n\n');
     context += '\n';
@@ -163,7 +163,7 @@ The following sections contain the user's personal content available on the site
 
   if (locationsRes.data && locationsRes.data.length > 0) {
     context += "\n\n== TRAVEL LOCATIONS ==\n";
-    context += locationsRes.data.map((l: any) =>
+    context += locationsRes.data.map((l: { title?: string; name?: string; description?: string }) =>
       `Location: ${l.title} (${l.name})\nDescription: ${l.description || 'N/A'}`
     ).join('\n\n');
     context += '\n';
@@ -171,7 +171,7 @@ The following sections contain the user's personal content available on the site
 
   if (imagesRes.data && imagesRes.data.length > 0) {
     context += "\n\n== GALLERY IMAGES ==\n";
-    context += imagesRes.data.map((i: any) =>
+    context += imagesRes.data.map((i: { alt_text?: string; tags?: string[] }) =>
       `Image Description: ${i.alt_text || 'N/A'}\nTags: ${i.tags?.join(', ') || 'N/A'}`
     ).join('\n\n');
     context += '\n';

@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -39,24 +39,7 @@ const Chat = ({ jobDescription, onClose }: ChatProps) => {
   // Consolidate AI service error state
   const aiServiceError = geminiClientError || contextError;
 
-  useEffect(() => {
-    if (jobDescription && !isMatching && !matchResult) {
-      // Only trigger job match if a description is provided and no match is in progress or already displayed
-      handleJobMatch(jobDescription);
-    } else if (!jobDescription && !matchResult && !contextLoading && !aiServiceError) {
-      // Initial welcome message for general chat
-      setMessages([{ role: "assistant", content: "Hello! I'm your portfolio assistant. How can I help you today?" }]);
-    }
-  }, [jobDescription, isMatching, matchResult, contextLoading, aiServiceError]);
-
-
-  useEffect(() => {
-    if (scrollAreaRef.current) {
-      scrollAreaRef.current.scrollTo({ top: scrollAreaRef.current.scrollHeight, behavior: 'smooth' });
-    }
-  }, [messages, isMatching]); // Also scroll when matching state changes
-
-  const handleJobMatch = async (description: string) => {
+  const handleJobMatch = useCallback(async (description: string) => {
     if (contextLoading) {
       setMessages([{ role: "assistant", content: "Portfolio context is still loading. Please wait." }]);
       return;
@@ -82,7 +65,23 @@ const Chat = ({ jobDescription, onClose }: ChatProps) => {
       console.error("Error in job matching:", err);
       setMessages([{ role: "assistant", content: "Sorry, I encountered an error while analyzing the job description. Please try again later." }]);
     }
-  };
+  }, [contextLoading, resume, aiServiceError, performJobMatch]);
+
+  useEffect(() => {
+    if (jobDescription && !isMatching && !matchResult) {
+      // Only trigger job match if a description is provided and no match is in progress or already displayed
+      handleJobMatch(jobDescription);
+    } else if (!jobDescription && !matchResult && !contextLoading && !aiServiceError) {
+      // Initial welcome message for general chat
+      setMessages([{ role: "assistant", content: "Hello! I'm your portfolio assistant. How can I help you today?" }]);
+    }
+  }, [jobDescription, isMatching, matchResult, contextLoading, aiServiceError, handleJobMatch]);
+
+  useEffect(() => {
+    if (scrollAreaRef.current) {
+      scrollAreaRef.current.scrollTo({ top: scrollAreaRef.current.scrollHeight, behavior: 'smooth' });
+    }
+  }, [messages, isMatching]); // Also scroll when matching state changes
 
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
