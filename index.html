@@ -8,6 +8,13 @@
     <meta name="theme-color" content="#ffffff" />
     <link rel="apple-touch-icon" href="/icons/pwa-192x192.svg" />
     <meta http-equiv="Content-Security-Policy" content="frame-src 'self' https://www.youtube.com https://www.youtube-nocookie.com https://*.youtube.com;">
+    <script type="module">
+      import { clearSiteCache } from '/src/utils/cacheRecovery.ts';
+      window.appBootTimeout = setTimeout(() => {
+        console.error('App failed to boot within 5 seconds. Triggering cache recovery...');
+        clearSiteCache();
+      }, 5000);
+    </script>
   </head>
 
   <body>
