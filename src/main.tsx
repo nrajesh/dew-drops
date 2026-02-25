@@ -47,3 +47,8 @@ createRoot(document.getElementById("root")!).render(
     </BrowserRouter>
   </React.StrictMode>
 );
+
+// Clear the boot timeout since the app successfully loaded
+if (typeof window !== 'undefined' && 'appBootTimeout' in window) {
+  clearTimeout((window as any).appBootTimeout);
+}

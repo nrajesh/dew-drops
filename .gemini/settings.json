@@ -137,5 +137,16 @@
   },
   "hooksConfig": {
     "enabled": true
+  },
+  "general": {
+    "enablePromptCompletion": true
+  },
+  "ide": {
+    "enabled": true
+  },
+  "security": {
+    "environmentVariableRedaction": {
+      "enabled": true
+    }
   }
 }
