@@ -1,6 +1,6 @@
 import { supabase } from "@/integrations/supabase/client";
 import type { GalleryImage } from "@/types";
-import { showSuccess, showError, showLoading, updateToastSuccess, updateToastError } from "@/utils/toast";
+import { showError, showLoading, updateToastSuccess, updateToastError } from "@/utils/toast";
 import JSZip from 'jszip';
 import { normalizeTag } from "@/lib/utils"; // Import normalizeTag
 

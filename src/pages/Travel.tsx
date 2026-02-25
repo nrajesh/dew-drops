@@ -1,4 +1,4 @@
-import React, { Suspense, useEffect, useState, useMemo, useRef, lazy } from "react";
+import { Suspense, useEffect, useState, useMemo, useRef, lazy } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { MapPin, Search } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";

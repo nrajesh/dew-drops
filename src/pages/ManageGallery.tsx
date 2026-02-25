@@ -45,7 +45,7 @@ const ManageGallery = () => {
     selectedPublishedImages,
     publishedCurrentPage,
     publishedTotalPages,
-    allPublishedOnPageSelected,
+
     setPublishedCurrentPage,
     handleSelectPublishedImage,
     handleSelectAllPublished,
@@ -64,7 +64,7 @@ const ManageGallery = () => {
     selectedUnpublishedImages,
     unpublishedCurrentPage,
     unpublishedTotalPages,
-    allUnpublishedOnPageSelected,
+
     setUnpublishedCurrentPage,
     handleSelectUnpublishedImage,
     handleSelectAllUnpublished,

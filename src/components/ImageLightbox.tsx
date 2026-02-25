@@ -1,5 +1,5 @@
 import React, { useEffect, useCallback, useState } from 'react';
-import { X, ChevronLeft, ChevronRight, Trash2, Download, Tag, Info, ShoppingCart } from 'lucide-react';
+import { X, ChevronLeft, ChevronRight, Trash2, Tag, Info, ShoppingCart } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
@@ -67,7 +67,7 @@ export const ImageLightbox: React.FC<ImageLightboxProps> = ({
   const handleShowExif = () => {
     setShowExif(true);
   };
-  
+
   const handlePurchase = () => {
     if (!image) return;
 
@@ -127,11 +127,11 @@ export const ImageLightbox: React.FC<ImageLightboxProps> = ({
           </Button>
 
           {/* Main Image Area - Click to close */}
-          <div 
-            className="relative flex items-center justify-center h-[80vh] cursor-pointer" 
+          <div
+            className="relative flex items-center justify-center h-[80vh] cursor-pointer"
             onClick={onClose}
           >
-            
+
             {/* Navigation Buttons */}
             {hasPrev && (
               <Button
@@ -171,14 +171,14 @@ export const ImageLightbox: React.FC<ImageLightboxProps> = ({
           </div>
 
           {/* Metadata and Actions Bar - Stop propagation to prevent closing */}
-          <div 
+          <div
             className="bg-black/70 p-4 rounded-b-lg text-white flex flex-col md:flex-row justify-between items-start md:items-center gap-4"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex flex-col">
               {/* Display alt_text instead of file_name */}
               <p className="text-lg font-semibold">{image.alt_text || "Image Details"}</p>
-              
+
               {/* Tags */}
               {image.tags && image.tags.length > 0 && (
                 <div className="flex flex-wrap gap-1 mt-1">
@@ -196,7 +196,7 @@ export const ImageLightbox: React.FC<ImageLightboxProps> = ({
               <Button variant="secondary" size="sm" onClick={handleShowExif}>
                 <Info className="h-4 w-4 mr-2" /> EXIF Data
               </Button>
-              
+
               {/* Purchase Button */}
               <Button variant="default" size="sm" onClick={handlePurchase}>
                 <ShoppingCart className="h-4 w-4 mr-2" /> Purchase

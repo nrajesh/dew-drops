@@ -1,7 +1,6 @@
 import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
-import { Suspense, lazy } from "react";
-import { Skeleton } from "@/components/ui/skeleton";
+
 import LazyBackground from "@/components/LazyBackground"; // Import directly
 
 const Index = () => {

@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -10,7 +10,6 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { showSuccess, showError, showLoading, dismissToast } from "@/utils/toast";
 import { Loader2, Sparkles } from "lucide-react";
-import type { Post, TravelLocation, GalleryImage } from "@/types";
 import type { JsonResume, ResumeWork, ResumeEducation, ResumeSkill, ResumeAward, ResumeLanguage, ResumeInterest, ResumePublication, ResumeReference } from "@/types/resume";
 
 const formSchema = z.object({
@@ -156,7 +155,7 @@ The following sections contain the user's personal content available on the site
 
   if (postsRes.data && postsRes.data.length > 0) {
     context += "\n\n== BLOG POSTS ==\n";
-    context += postsRes.data.map((p: Post) =>
+    context += postsRes.data.map((p: any) =>
       `Title: ${p.title}\nDescription: ${p.description || 'N/A'}\nTags: ${p.tags?.join(', ') || 'N/A'}`
     ).join('\n\n');
     context += '\n';
@@ -164,7 +163,7 @@ The following sections contain the user's personal content available on the site
 
   if (locationsRes.data && locationsRes.data.length > 0) {
     context += "\n\n== TRAVEL LOCATIONS ==\n";
-    context += locationsRes.data.map((l: TravelLocation) =>
+    context += locationsRes.data.map((l: any) =>
       `Location: ${l.title} (${l.name})\nDescription: ${l.description || 'N/A'}`
     ).join('\n\n');
     context += '\n';
@@ -172,7 +171,7 @@ The following sections contain the user's personal content available on the site
 
   if (imagesRes.data && imagesRes.data.length > 0) {
     context += "\n\n== GALLERY IMAGES ==\n";
-    context += imagesRes.data.map((i: GalleryImage) =>
+    context += imagesRes.data.map((i: any) =>
       `Image Description: ${i.alt_text || 'N/A'}\nTags: ${i.tags?.join(', ') || 'N/A'}`
     ).join('\n\n');
     context += '\n';

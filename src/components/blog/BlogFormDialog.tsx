@@ -1,4 +1,4 @@
-import { useEffect, useMemo } from "react";
+import { useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -14,7 +14,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { CalendarIcon } from "lucide-react";
 import { format } from "date-fns";
 import { Calendar } from "@/components/ui/calendar";
-import { generateAltTextFromFileName, normalizeTag } from "@/lib/utils";
+import { generateAltTextFromFileName } from "@/lib/utils";
 import type { Post, GalleryImage } from "@/types";
 
 const formSchema = z.object({
@@ -66,7 +66,7 @@ export const BlogFormDialog: React.FC<BlogFormDialogProps> = ({
       form.reset({
         title: editingPost.title,
         description: editingPost.description || "",
-        content: editingPost.content,
+        content: editingPost.content || "",
         published_at: editingPost.published_at ? new Date(editingPost.published_at) : null,
         published: editingPost.published,
         tags: editingPost.tags || [],
@@ -198,7 +198,7 @@ export const BlogFormDialog: React.FC<BlogFormDialogProps> = ({
                   <FormItem>
                     <FormLabel>YouTube Video ID (Optional)</FormLabel>
                     <FormControl>
-                      <Input placeholder="e.g., dQw4w9WgXcQ" {...field} />
+                      <Input placeholder="e.g., dQw4w9WgXcQ" {...field} value={field.value || ""} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>

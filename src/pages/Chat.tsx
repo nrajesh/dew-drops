@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Send, Bot, User as UserIcon, Loader2, AlertTriangle, X } from "lucide-react";
+import { Send, Bot, User as UserIcon, Loader2, AlertTriangle } from "lucide-react";
 import { usePortfolioData } from "@/hooks/usePortfolioData"; // Updated import
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { useNavigate } from "react-router-dom";

@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Trash2, Download, Tag, MoreHorizontal, Search } from "lucide-react";
+import { Trash2, Download, Tag, Search } from "lucide-react";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -15,8 +15,6 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { MultiSelectPopover } from "@/components/MultiSelectPopover";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import type { Post } from "@/types";
 
 interface BulkActionsSectionProps {
   uploadFiles: File[];

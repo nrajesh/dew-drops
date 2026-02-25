@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
-import { Trash2, Edit, Download, Tag, MoreHorizontal, Pencil } from "lucide-react";
+import { Trash2, Download, Tag, Pencil } from "lucide-react";
 import type { Post } from "@/types";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
@@ -17,11 +17,8 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { MultiSelectPopover } from "@/components/MultiSelectPopover";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { cn } from "@/lib/utils";
 import { ManagementPagination } from "../ManagementPagination";
 import { useAuth } from "@/contexts/AuthContext";
-import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 
 interface PostListProps {

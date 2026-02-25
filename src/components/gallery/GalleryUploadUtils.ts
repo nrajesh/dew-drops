@@ -1,14 +1,13 @@
 import { supabase } from "@/integrations/supabase/client";
 import type { GalleryImage } from "@/types";
-import { showSuccess, showError, showLoading, updateToastSuccess, updateToastError, updateToastLoading } from "@/utils/toast";
-import JSZip from 'jszip';
+import { updateToastError, updateToastLoading } from "@/utils/toast";
 import { normalizeTag, sanitizeFileName } from "@/lib/utils"; // Import normalizeTag
 import ExifReader from 'exifreader';
 
 // Helper to sanitize objects for JSON serialization, removing circular references and invalid characters
 const sanitizeForJson = (obj: unknown) => {
   const seen = new WeakSet();
-  const replacer = (key: string, value: unknown) => {
+  const replacer = (_key: string, value: unknown) => {
     if (typeof value === 'object' && value !== null) {
       if (seen.has(value)) {
         return; // Circular reference found, discard key

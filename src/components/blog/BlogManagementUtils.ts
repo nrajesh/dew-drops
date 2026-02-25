@@ -1,6 +1,6 @@
 import { supabase } from "@/integrations/supabase/client";
 import type { Post, GalleryImage } from "@/types";
-import { showSuccess, showError, showLoading, updateToastSuccess, updateToastError } from "@/utils/toast";
+import { showError, showLoading, updateToastSuccess, updateToastError } from "@/utils/toast";
 import TurndownService from "turndown";
 import JSZip from 'jszip';
 import { sanitizeFileName, normalizeTag } from "@/lib/utils"; // Import normalizeTag
@@ -228,7 +228,7 @@ export const processUploads = async (userId: string, inserts: NewPost[], updates
   }
 };
 
-export const handleBulkDelete = async (postIds: Set<string>, allPosts: Post[]): Promise<boolean> => {
+export const handleBulkDelete = async (postIds: Set<string>): Promise<boolean> => {
   const toastId = showLoading(`Deleting ${postIds.size} posts...`);
   const { error } = await supabase.from("posts").delete().in("id", Array.from(postIds));
   if (error) {

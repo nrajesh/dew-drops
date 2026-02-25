@@ -1,4 +1,4 @@
-import { useEffect, useState, lazy, Suspense, ComponentType } from 'react';
+import { useEffect, useState } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import type { Post as PostType, GalleryImage } from '@/types';
@@ -8,7 +8,7 @@ import { Calendar, ArrowLeft, ArrowRight, Edit } from 'lucide-react';
 import { AspectRatio } from "@/components/ui/aspect-ratio";
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/contexts/AuthContext';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { BlogForm, PostFormData } from '@/components/blog/BlogForm';
 import { showSuccess, showError, showLoading, dismissToast } from '@/utils/toast';
 import ReactMarkdown from 'react-markdown';
@@ -40,7 +40,7 @@ const PostNavigation = ({ prev, next }: { prev: NavPost | null; next: NavPost | 
       {next ? (
         <Button asChild variant="outline" className="h-auto text-right justify-end">
           <Link to={`/blog/${next.id}`} className="flex items-center gap-3 p-4">
-             <div className="overflow-hidden">
+            <div className="overflow-hidden">
               <p className="text-xs text-muted-foreground">Next Post</p>
               <p className="font-semibold truncate">{next.title}</p>
             </div>

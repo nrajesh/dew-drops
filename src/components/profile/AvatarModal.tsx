@@ -20,8 +20,8 @@ import { UseFormReturn } from "react-hook-form";
 import * as z from "zod";
 
 const profileFormSchema = z.object({
-  first_name: z.string().optional(),
-  last_name: z.string().optional(),
+  first_name: z.string().min(1, "First name is required").max(50, "First name cannot exceed 50 characters"),
+  last_name: z.string().min(1, "Last name is required").max(50, "Last name cannot exceed 50 characters"),
   avatar_url: z.string().url("Invalid URL").optional().or(z.literal("")),
 });
 type ProfileFormValues = z.infer<typeof profileFormSchema>;

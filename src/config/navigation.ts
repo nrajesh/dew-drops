@@ -1,4 +1,4 @@
-import { Home, Newspaper, Image as ImageIcon, Map, Send, Wrench, ToggleRight, Database, User as UserIcon, Bot, FileText, GitCompare } from "lucide-react";
+import { Home, Newspaper, Image as ImageIcon, Map, Send, ToggleRight, Database, User as UserIcon, Bot, FileText, GitCompare } from "lucide-react";
 
 export const navFeatures = {
   HOME: "home",

@@ -1,6 +1,5 @@
-import { useState, useEffect, useContext, ReactNode, useRef, useCallback } from 'react';
+import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { showError } from '@/utils/toast';
 import type { JsonResume } from '@/types/resume'; // Import JsonResume type
 
 const fetchWithTimeout = async (url: string, options: RequestInit = {}, timeout = 10000) => {
