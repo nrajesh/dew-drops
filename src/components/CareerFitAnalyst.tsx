@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useRef, useEffect, useMemo, useCallback } from "react";
+import React, { useState, useEffect, useMemo, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
@@ -22,54 +22,13 @@ import { User } from "@supabase/supabase-js";
 
 const MIN_JOB_DESCRIPTION_LENGTH = 250;
 
-const languageNames: { [key: string]: string } = {
-  "en": "English", "fr": "French", "es": "Spanish", "de": "German", "it": "Italian", "pt": "Portuguese",
-  "ru": "Russian", "zh": "Chinese", "ja": "Japanese", "ko": "Korean", "ar": "Arabic", "hi": "Hindi",
-  "bn": "Bengali", "nl": "Dutch", "sv": "Swedish", "fi": "Finnish", "pl": "Polish", "tr": "Turkish",
-  "el": "Greek", "he": "Hebrew", "th": "Thai", "vi": "Vietnamese", "id": "Indonesian", "ms": "Malay",
-  "fa": "Persian", "uk": "Ukrainian", "cs": "Czech", "hu": "Hungarian", "ro": "Romanian", "sk": "Slovak",
-  "bg": "Bulgarian", "hr": "Croatian", "sr": "Serbian", "sl": "Slovenian", "et": "Estonian", "lv": "Latvian",
-  "lt": "Lithuanian", "is": "Icelandic", "ga": "Irish", "cy": "Welsh", "mt": "Maltese", "sq": "Albanian",
-  "mk": "Macedonian", "ka": "Georgian", "hy": "Armenian", "az": "Azerbaijani", "eu": "Basque", "ca": "Catalan",
-  "gl": "Galician", "af": "Afrikaans", "sw": "Swahili", "am": "Amharic", "ne": "Nepali", "ur": "Urdu",
-  "pa": "Punjabi", "gu": "Gujarati", "kn": "Kannada", "ml": "Malayalam", "mr": "Marathi", "ta": "Tamil",
-  "te": "Telugu", "si": "Sinhala", "km": "Khmer", "lo": "Lao", "my": "Burmese", "mn": "Mongolian",
-  "uz": "Uzbek", "kk": "Kazakh", "ky": "Kyrgyz", "tg": "Tajik", "ug": "Uyghur", "tk": "Turkmen", "tt": "Tatar",
-  "ba": "Bashkir", "cv": "Chuvash", "os": "Ossetian", "ab": "Abkhazian", "ce": "Chechen", "av": "Avaric",
-  "lez": "Lezghian", "inh": "Ingush", "kbd": "Kabardian", "ady": "Adyghe", "xal": "Kalmyk", "sah": "Sakha",
-  "tyv": "Tuvan", "alt": "Southern Altai", "krc": "Karachay-Balkar", "nog": "Nogai", "gag": "Gagauz",
-  "crh": "Crimean Tatar", "udm": "Udmurt", "mdf": "Moksha", "myv": "Erzya", "mhr": "Eastern Mari",
-  "kpv": "Komi-Zyrian", "koi": "Komi-Permyak", "vep": "Veps", "olo": "Olonets Karelian", "krl": "Karelian",
-  "sjd": "Kildin Sami", "sje": "Pite Sami", "sjt": "Ter Sami", "sjk": "Skolt Sami", "smn": "Inari Sami",
-  "sms": "Skolt Sami", "smj": "Lule Sami", "sma": "Southern Sami", "se": "Northern Sami",
-  "fin": "Finnish", "est": "Estonian", "lav": "Latvian", "lit": "Lithuanian", "hun": "Hungarian",
-  "ces": "Czech", "slk": "Slovak", "pol": "Polish", "ukr": "Ukrainian", "be": "Belarusian", "rus": "Russian",
-  "bul": "Bulgarian", "mkd": "Macedonian", "srp": "Serbian", "hrv": "Croatian", "bs": "Bosnian",
-  "slv": "Slovenian", "sqi": "Albanian", "ell": "Greek", "hye": "Armenian", "kat": "Georgian",
-  "aze": "Azerbaijani", "tur": "Turkish", "fas": "Persian", "urd": "Urdu", "pus": "Pashto", "snd": "Sindhi",
-  "kur": "Kurdish", "ara": "Arabic", "heb": "Hebrew", "amh": "Amharic", "tir": "Tigrinya", "som": "Somali",
-  "orm": "Oromo", "swa": "Swahili",
-  "hau": "Hausa", "yor": "Yoruba", "ibo": "Igbo", "zul": "Zulu",
-  "xho": "Xhosa", "sot": "Southern Sotho", "tso": "Tsonga", "tsn": "Tswana", "ssw": "Swati", "kin": "Kinyarwanda",
-  "mlg": "Malagasy", "hat": "Haitian Creole", "jav": "Javanese", "sun": "Sundanese",
-  "ind": "Indonesian", "msa": "Malay", "tgl": "Tagalog", "ceb": "Cebuano", "haw": "Hawaiian", "mi": "Maori", "sm": "Samoan",
-  "fj": "Fijian", "to": "Tongan", "ty": "Tahitian", "div": "Dhivehi", "dzo": "Dzongkha", "sag": "Sango",
-  "sna": "Shona", "nya": "Chichewa", "lin": "Lingala", "lub": "Luba-Katanga", "kon": "Kongo", "kik": "Kikuyu",
-  "lug": "Ganda",
-  "nep": "Nepali", "hin": "Hindi", "ben": "Bengali", "pan": "Punjabi", "guj": "Gujarati",
-  "jpn": "Japanese", "kor": "Korean", "vie": "Vietnamese", "tha": "Thai", "khm": "Khmer", "lao": "Lao",
-  "mya": "Burmese", "mon": "Mongolian", "uzb": "Uzbek", "kaz": "Kazakh", "kir": "Kyrgyz", "tgk": "Tajik",
-  "bod": "Tibetan", "cmn": "Mandarin Chinese", "yue": "Cantonese",
-  "nan": "Min Nan", "hak": "Hakka", "wuu": "Wu Chinese", "gan": "Gan Chinese", "hsn": "Xiang Chinese",
-  "och": "Old Chinese", "lzh": "Literary Chinese"
-};
 
 export const CareerFitAnalyst = () => {
   const [jobDescription, setJobDescription] = useState("");
   const [jobDescriptionUrl, setJobDescriptionUrl] = useState("");
   const [isButtonEnabled, setIsButtonEnabled] = useState(false);
   const [isPreProcessing, setIsPreProcessing] = useState(false);
-  const [originalLanguage, setOriginalLanguage] = useState<string | null>(null);
+  const [_originalLanguage, setOriginalLanguage] = useState<string | null>(null);
   const [inputMethod, setInputMethod] = useState<"text" | "url">("text");
   const [isFetchingUrl, setIsFetchingUrl] = useState(false);
   const [user, setUser] = useState<User | null>(null);
@@ -103,7 +62,6 @@ export const CareerFitAnalyst = () => {
     geminiClientError,
     resume,
     currentStepIndex,
-    totalSteps,
   } = useJobMatching();
 
   const briefSummary = useMemo(() => {
@@ -280,7 +238,7 @@ export const CareerFitAnalyst = () => {
         .replace(/\\n\+/g, '\n+')  // Replace escaped \n+ with actual newline + bullet
         .replace(/\\n/g, '\n')      // Replace any remaining escaped newlines
         .replace(/\n{3,}/g, '\n\n'); // Normalize multiple newlines
-      
+
       const plainTextContent = markdownToPlainText(cleanedReasoning);
       downloadTextFile(plainTextContent, "CareerFitAnalysis.txt");
     } else {

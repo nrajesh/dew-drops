@@ -78,8 +78,8 @@ export const TravelLocationForm = ({
         title: editingLocation.title,
         description: editingLocation.description || "",
         name: editingLocation.name,
-        latitude: editingLocation.latitude,
-        longitude: editingLocation.longitude,
+        latitude: editingLocation.latitude ?? undefined,
+        longitude: editingLocation.longitude ?? undefined,
         blog_url: editingLocation.blog_url || null,
         published: editingLocation.published,
       });
@@ -109,20 +109,20 @@ export const TravelLocationForm = ({
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
             <FormField control={form.control} name="title" render={({ field }) => (
               <FormItem><FormLabel>Title</FormLabel><FormControl><Input placeholder="e.g., Eiffel Tower Trip" {...field} /></FormControl><FormMessage /></FormItem>
-            )}/>
+            )} />
             <FormField control={form.control} name="description" render={({ field }) => (
               <FormItem><FormLabel>Description (Optional)</FormLabel><FormControl><Textarea placeholder="A short description of your visit." {...field} value={field.value ?? ''} /></FormControl><FormMessage /></FormItem>
-            )}/>
+            )} />
             <FormField control={form.control} name="name" render={({ field }) => (
               <FormItem><FormLabel>Place Name</FormLabel><FormControl><Input placeholder="e.g., Paris, France" {...field} /></FormControl><FormMessage /></FormItem>
-            )}/>
+            )} />
             <div className="grid grid-cols-2 gap-4">
               <FormField control={form.control} name="latitude" render={({ field }) => (
                 <FormItem><FormLabel>Latitude (Optional)</FormLabel><FormControl><Input type="number" step="any" placeholder="Auto-detected" {...field} value={field.value ?? ''} /></FormControl><FormMessage /></FormItem>
-              )}/>
+              )} />
               <FormField control={form.control} name="longitude" render={({ field }) => (
                 <FormItem><FormLabel>Longitude (Optional)</FormLabel><FormControl><Input type="number" step="any" placeholder="Auto-detected" {...field} value={field.value ?? ''} /></FormControl><FormMessage /></FormItem>
-              )}/>
+              )} />
             </div>
             <FormField control={form.control} name="blog_url" render={({ field }) => (
               <FormItem className="flex flex-col">
@@ -156,7 +156,7 @@ export const TravelLocationForm = ({
                               field.onChange(`/blog/${post.id}`);
                               setBlogPopoverOpen(false);
                             }}>
-                              <Check className={cn("mr-2 h-4 w-4", `/blog/${post.id}` === field.value ? "opacity-100" : "opacity-0")}/>
+                              <Check className={cn("mr-2 h-4 w-4", `/blog/${post.id}` === field.value ? "opacity-100" : "opacity-0")} />
                               {post.title}
                             </CommandItem>
                           ))}
@@ -167,8 +167,8 @@ export const TravelLocationForm = ({
                 </Popover>
                 <FormMessage />
               </FormItem>
-            )}/>
-            
+            )} />
+
             {editingLocation && editingImageUrl && (
               <div className="space-y-2">
                 <FormLabel>Current Marker Image</FormLabel>
@@ -182,10 +182,10 @@ export const TravelLocationForm = ({
             <FormField control={form.control} name="image" render={({ field }) => (
               <FormItem>
                 <FormLabel>{editingImageUrl ? 'Replace Marker Image (Optional)' : 'Custom Marker Image (Optional)'}</FormLabel>
-                <FormControl><Input type="file" accept="image/*" onChange={(e) => field.onChange(e.target.files)}/></FormControl>
+                <FormControl><Input type="file" accept="image/*" onChange={(e) => field.onChange(e.target.files)} /></FormControl>
                 <FormMessage />
               </FormItem>
-            )}/>
+            )} />
             <FormField
               control={form.control}
               name="published"

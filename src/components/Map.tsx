@@ -1,4 +1,4 @@
-import React, { useRef, useEffect, useImperativeHandle, forwardRef } from 'react';
+import { useRef, useEffect, useImperativeHandle, forwardRef } from 'react';
 import mapboxgl from 'mapbox-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
 import type { TravelLocation } from '@/types';
@@ -23,7 +23,7 @@ const MapComponent = forwardRef<MapRef, MapProps>(({ locations }, ref) => {
   // Suppress Mapbox analytics errors
   useEffect(() => {
     const originalConsoleError = console.error;
-    console.error = function(...args) {
+    console.error = function (...args) {
       if (typeof args[0] === 'string' && args[0].includes('events.mapbox.com')) {
         return; // Suppress Mapbox analytics errors
       }
@@ -44,7 +44,7 @@ const MapComponent = forwardRef<MapRef, MapProps>(({ locations }, ref) => {
           zoom: 12,
           speed: 1.5,
         });
-        if (!marker.getPopup().isOpen()) {
+        if (!marker.getPopup()?.isOpen()) {
           marker.togglePopup();
         }
       }

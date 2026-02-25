@@ -1,5 +1,5 @@
 // src/hooks/useJobMatching.ts
-import { useState, useCallback, useEffect, useMemo } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { usePortfolioData } from "@/hooks/usePortfolioData";
 import { generateJobMatchReasoning } from "@/utils/jobMatchUtils";
 import { sendMessageToGemini, getGeminiInitializationError } from "@/integrations/gemini/client";

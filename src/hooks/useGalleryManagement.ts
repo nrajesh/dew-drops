@@ -186,7 +186,7 @@ export const useGalleryManagement = () => {
     }
   };
 
-  const handleUpload = async (metadata?: { file_name: string; alt_text: string; tags: string[] }[]) => {
+  const handleUpload = async (metadata?: { file_name?: string; alt_text?: string; tags?: string[] }[]) => {
     if (selectedFiles.length === 0 || !user) return;
     setIsUploading(true);
     const toastId = showLoading(`Starting upload of ${selectedFiles.length} file(s)...`);

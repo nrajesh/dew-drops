@@ -45,7 +45,7 @@ interface BlogFormProps {
   isPopup?: boolean;
 }
 
-export const BlogForm = ({ editingPost, galleryImages, uniqueTags, onSubmit, onCancel, isPopup = false }: BlogFormProps) => {
+export const BlogForm = ({ editingPost, galleryImages, uniqueTags, onSubmit, onCancel }: BlogFormProps) => {
   const form = useForm<PostFormData>({
     resolver: zodResolver(postSchema),
     defaultValues: {
@@ -159,7 +159,7 @@ export const BlogForm = ({ editingPost, galleryImages, uniqueTags, onSubmit, onC
                 </FormControl><FormMessage /></FormItem>
               )} />
               <FormField control={form.control} name="youtube_video_id" render={({ field }) => (
-                <FormItem><FormControl><Input placeholder="e.g., dQw4w9WgXcQ" {...field} /></FormControl><FormMessage /></FormItem>
+                <FormItem><FormControl><Input placeholder="e.g., dQw4w9WgXcQ" {...field} value={field.value || ""} /></FormControl><FormMessage /></FormItem>
               )} />
             </div>
             <div className="flex gap-2 pt-4">

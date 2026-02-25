@@ -23,7 +23,7 @@ const ManageBlog = () => {
     setItemsPerPage,
     handleSelectPost,
     handleSelectAll,
-    allOnPageSelected,
+
     handleTogglePublish,
     galleryImages,
     uniqueTags,
@@ -31,7 +31,7 @@ const ManageBlog = () => {
     setEditingPost,
     selectedFiles,
     setSelectedFiles,
-    isUploading,
+
     isUpdateDialogVisible,
     setIsUpdateDialogVisible,
     postsToInsert,
@@ -129,7 +129,7 @@ const ManageBlog = () => {
         editingPost={editingPost}
         galleryImages={galleryImages}
         uniqueTags={uniqueTags}
-        onSubmit={handleFormSubmit}
+        onSubmit={(values) => handleFormSubmit(values as unknown as import('@/components/blog/BlogForm').PostFormData)}
       />
 
       <UpdatePostsDialog

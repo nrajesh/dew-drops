@@ -241,7 +241,7 @@ export const useBlogManagement = () => {
     handleFormSubmit,
     handleUpload,
     handleConfirmAndProcessUploads,
-    handleBulkDelete: createBulkAction((posts) => handleBulkDelete(posts, allPosts)),
+    handleBulkDelete: createBulkAction((posts) => handleBulkDelete(posts)),
     handleBulkTagUpdate: createBulkAction(handleBulkTagUpdate),
     handleBulkDownload: () => handleBulkDownload(selectedPosts, allPosts),
     activeTab,
