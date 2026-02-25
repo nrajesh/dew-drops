@@ -49,6 +49,6 @@ createRoot(document.getElementById("root")!).render(
 );
 
 // Clear the boot timeout since the app successfully loaded
-if (typeof window !== 'undefined' && 'appBootTimeout' in window) {
-  clearTimeout((window as any).appBootTimeout);
+if (typeof window !== 'undefined' && window.appBootTimeout) {
+  clearTimeout(window.appBootTimeout);
 }
