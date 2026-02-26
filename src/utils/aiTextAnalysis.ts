@@ -68,7 +68,7 @@ ${jobDescriptionText}
     const rawResponse = await sendMessageToGemini(prompt);
     // Gemini might sometimes wrap JSON in markdown code blocks, so we need to extract it.
     const jsonString = rawResponse.replace(/```json\n([\s\S]*?)\n```/, '$1').trim();
-    console.log("Attempting to parse JSON (analyzeAndTranslateJobDescription):", jsonString); // Debugging line
+
     const result: JobDescriptionAnalysisResult = JSON.parse(jsonString);
 
     if (!result.isValidJobDescription && result.processedText === "INVALID_JOB_DESCRIPTION") {

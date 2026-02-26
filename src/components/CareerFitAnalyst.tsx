@@ -4,20 +4,18 @@ import React, { useState, useEffect, useMemo, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
-import { Loader2, Sparkles, AlertTriangle, Download, Link as LinkIcon, FileText } from "lucide-react";
-import ReactMarkdown from 'react-markdown';
+import { Loader2, Sparkles, AlertTriangle, Download, Link as LinkIcon, FileText, CheckCircle2, AlertCircle } from "lucide-react";
 import { useJobMatching, analysisSteps } from "@/hooks/useJobMatching";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { showError } from "@/utils/toast";
 import { Progress } from "@/components/ui/progress";
 import { downloadTextFile } from "@/utils/fileDownload";
-import { cn, reasoningToBriefSummary, markdownToPlainText, cleanJobDescriptionText } from "@/lib/utils";
+import { cn, parseReasoningSections, markdownToPlainText, cleanJobDescriptionText } from "@/lib/utils";
 import { analyzeAndTranslateJobDescription } from "@/utils/aiTextAnalysis";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
 import { supabase } from "@/integrations/supabase/client";
 import { generateCareerFitPdf } from "@/utils/pdfGenerator";
-import { marked } from 'marked';
 import { User } from "@supabase/supabase-js";
 
 const MIN_JOB_DESCRIPTION_LENGTH = 250;
@@ -31,7 +29,7 @@ export const CareerFitAnalyst = () => {
   const [_originalLanguage, setOriginalLanguage] = useState<string | null>(null);
   const [inputMethod, setInputMethod] = useState<"text" | "url">("text");
   const [isFetchingUrl, setIsFetchingUrl] = useState(false);
-  const [user, setUser] = useState<User | null>(null);
+  const [_user, setUser] = useState<User | null>(null);
   const [displayOverallStepIndex, setDisplayOverallStepIndex] = useState(-1); // New state for visual progress
   const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
 
@@ -64,10 +62,15 @@ export const CareerFitAnalyst = () => {
     currentStepIndex,
   } = useJobMatching();
 
-  const briefSummary = useMemo(() => {
-    if (!matchResult?.reasoning) return '';
-    return reasoningToBriefSummary(matchResult.reasoning, { matchingBullets: 3, gapsBullets: 2 });
+  const parsedSections = useMemo(() => {
+    if (!matchResult?.reasoning) return { matchingLines: [], gapLines: [] };
+    return parseReasoningSections(matchResult.reasoning, { matchingMax: 3, gapsMax: 2 });
   }, [matchResult?.reasoning]);
+
+  const effectivePercentage = useMemo(() => {
+    if (!matchResult) return 0;
+    return matchResult.percentage;
+  }, [matchResult]);
 
   const overallSteps = useMemo(() => [
     "Validating entered text",
@@ -255,84 +258,212 @@ export const CareerFitAnalyst = () => {
     setIsGeneratingPdf(true);
 
     try {
-      // Ensure markdown is properly formatted - replace any literal \n+ sequences with proper newlines
+      // Parse reasoning into matching + gaps sections
       const cleanedReasoning = matchResult.reasoning
-        .replace(/\\n\+/g, '\n+')  // Replace escaped \n+ with actual newline + bullet
-        .replace(/\\n/g, '\n')      // Replace any remaining escaped newlines
-        .replace(/\n{3,}/g, '\n\n'); // Normalize multiple newlines
+        .replace(/\\n\+/g, '\n+')
+        .replace(/\\n/g, '\n')
+        .replace(/\n{3,}/g, '\n\n');
 
-      // Configure marked to handle breaks and gfm (GitHub Flavored Markdown)
-      marked.setOptions({
-        breaks: true,  // Convert single line breaks to <br>
-        gfm: true,     // Enable GitHub Flavored Markdown
-      });
+      // Parse highlights (from new AI field or fall back to empty)
+      const cleanedHighlights = (matchResult.highlights ?? '')
+        .replace(/\\n/g, '\n')
+        .replace(/\n{3,}/g, '\n\n');
 
-      const renderedMarkdownHtml = marked.parse(cleanedReasoning);
+      // Split reasoning into Matching and Gaps sections
+      const lines = cleanedReasoning.split('\n');
+      const matchingItems: string[] = [];
+      const gapItems: string[] = [];
+      let inMatching = false, inGaps = false;
+      for (const line of lines) {
+        if (line.startsWith('## Matching Areas')) { inMatching = true; inGaps = false; continue; }
+        if (line.startsWith('## Gaps')) { inMatching = false; inGaps = true; continue; }
+        const trimmed = line.replace(/^\s*[+-]\s*/, '').trim();
+        if (trimmed.length === 0) continue;
+        if (inMatching) matchingItems.push(trimmed);
+        else if (inGaps) gapItems.push(trimmed);
+      }
 
-      const contentToPrint = `
-        <style>
-          .pdf-content-wrapper {
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-            color: #1f2937;
-            line-height: 1.6;
-          }
-          .pdf-content-wrapper h2 {
-            font-size: 1.5rem;
-            font-weight: 700;
-            margin-bottom: 1rem;
-            margin-top: 1.5rem;
-            color: #111827;
-          }
-          .pdf-content-wrapper h2:first-child {
-            margin-top: 0;
-          }
-          .pdf-content-wrapper p {
-            margin-bottom: 0.75rem;
-            font-size: 0.875rem;
-          }
-          .pdf-content-wrapper .prose {
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-            color: #1f2937;
-          }
-          .pdf-content-wrapper .prose h2 {
-            font-size: 1.25rem;
-            font-weight: 600;
-            margin-top: 1.5rem;
-            margin-bottom: 0.75rem;
-            color: #111827;
-          }
-          .pdf-content-wrapper .prose ul {
-            list-style-type: disc;
-            margin-left: 1.5rem;
-            margin-bottom: 1rem;
-          }
-          .pdf-content-wrapper .prose li {
-            margin-bottom: 0.5rem;
-            padding-left: 0.25rem;
-          }
-          .pdf-content-wrapper .prose strong {
-            font-weight: 600;
-            color: #111827;
-          }
-          .pdf-content-wrapper .prose a {
-            color: #2563eb;
-            text-decoration: underline;
-          }
-          .pdf-content-wrapper .text-muted-foreground {
-            color: #6b7280;
-          }
-        </style>
-        <div class="pdf-content-wrapper">
-          <h2>Job Description</h2>
-          ${inputMethod === "url" ? `<p class="text-muted-foreground">Source URL: <a href="${jobDescriptionUrl}" target="_blank" rel="noopener noreferrer">${jobDescriptionUrl}</a></p>` : ''}
-          <p style="white-space: pre-wrap; font-size: 0.875rem; margin-bottom: 2rem;">${jobDescription}</p>
+      // Parse bullet highlights
+      const highlightLines = cleanedHighlights
+        .split('\n')
+        .filter(l => l.trim().startsWith('-'))
+        .map(l => l.replace(/^\s*-\s*/, '').trim())
+        .filter(Boolean);
 
-          <h2>Career Fit Analyst Result</h2>
-          <div class="prose" style="max-width: none;">
-            ${renderedMarkdownHtml}
-          </div>
-        </div>
-      `;
+      const renderBold = (text: string) => text.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+
+      const highlightsHtml = highlightLines.length > 0
+        ? `<ul class="highlight-list">${highlightLines.map(l => `<li>${renderBold(l)}</li>`).join('')}</ul>`
+        : `<p class="meta">Full job description pasted — see original text below.</p>
+           <pre class="jd-text">${jobDescription.slice(0, 1200)}${jobDescription.length > 1200 ? '\n...' : ''}</pre>`;
+
+
+      const scoreColour = effectivePercentage >= 70 ? '#10b981' : effectivePercentage >= 45 ? '#f59e0b' : '#ef4444';
+
+      const contentToPrint = `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Career Fit Analysis</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    @page { size: A4; margin: 2cm 2.2cm; }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      font-size: 11pt;
+      color: #1a1a2e;
+      line-height: 1.65;
+      -webkit-print-color-adjust: exact;
+      print-color-adjust: exact;
+    }
+
+    /* ── Section wrapper: each starts a new page ── */
+    .pdf-section { page-break-before: always; }
+    .pdf-section:first-child { page-break-before: avoid; }
+
+    /* ── Header ── */
+    .report-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-bottom: 2px solid #e5e7eb;
+      padding-bottom: 12pt;
+      margin-bottom: 20pt;
+    }
+    .report-header h1 { font-size: 16pt; font-weight: 700; color: #111827; }
+    .report-header .meta { font-size: 9pt; color: #6b7280; }
+
+    .score-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      background: #f9fafb;
+      border: 1.5px solid #e5e7eb;
+      border-radius: 999px;
+      padding: 4pt 12pt;
+      font-size: 13pt;
+      font-weight: 700;
+      color: ${scoreColour};
+    }
+
+    /* ── Section headings ── */
+    .section-title {
+      font-size: 13pt;
+      font-weight: 700;
+      color: #111827;
+      margin-bottom: 12pt;
+      padding-bottom: 4pt;
+      border-bottom: 1.5px solid #e5e7eb;
+    }
+    .section-subtitle {
+      font-size: 9pt;
+      font-weight: 500;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      margin-bottom: 8pt;
+    }
+    .match-subtitle { color: #059669; }
+    .gap-subtitle { color: #d97706; }
+
+    /* ── Highlight list (Section 1) ── */
+    .highlight-list {
+      list-style: none;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 6pt 16pt;
+      margin-top: 8pt;
+    }
+    .highlight-list li {
+      font-size: 10pt;
+      padding: 6pt 10pt;
+      background: #f3f4f6;
+      border-left: 3px solid #6366f1;
+      border-radius: 3pt;
+      page-break-inside: avoid;
+      break-inside: avoid;
+    }
+
+    .jd-text {
+      font-family: inherit;
+      font-size: 9.5pt;
+      white-space: pre-wrap;
+      color: #374151;
+      line-height: 1.6;
+      background: #f9fafb;
+      border: 1px solid #e5e7eb;
+      padding: 10pt;
+      border-radius: 4pt;
+    }
+
+    /* ── Result items (Sections 2 & 3) ── */
+    .result-list { list-style: none; }
+    .result-item {
+      display: flex;
+      gap: 10pt;
+      padding: 8pt 10pt;
+      margin-bottom: 6pt;
+      border-radius: 4pt;
+      font-size: 10.5pt;
+      page-break-inside: avoid;
+      break-inside: avoid;
+    }
+    .result-item.match { background: #f0fdf4; border-left: 3px solid #10b981; }
+    .result-item.gap   { background: #fffbeb; border-left: 3px solid #f59e0b; }
+
+    .icon { font-size: 11pt; flex-shrink: 0; margin-top: 1pt; }
+    .match-icon { color: #10b981; }
+    .gap-icon { color: #f59e0b; }
+
+    /* ── Source URL ── */
+    .source-url { font-size: 9pt; color: #6b7280; margin-bottom: 12pt; }
+    .source-url a { color: #4f46e5; }
+
+    @media print {
+      body { font-size: 11pt; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- ═══ SECTION 1: Job Highlights ═══ -->
+  <div class="pdf-section">
+    <div class="report-header">
+      <div>
+        <h1>Career Fit Analysis</h1>
+        <p class="meta">Rajesh Narayanan · ${new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}</p>
+      </div>
+      <div class="score-badge">${effectivePercentage}% Match</div>
+    </div>
+
+    <h2 class="section-title">Job Highlights</h2>
+    ${inputMethod === 'url' ? `<p class="source-url">Source: <a href="${jobDescriptionUrl}">${jobDescriptionUrl}</a></p>` : ''}
+    ${highlightsHtml}
+  </div>
+
+  <!-- ═══ SECTION 2: Matching Areas ═══ -->
+  <div class="pdf-section">
+    <h2 class="section-title">Matching Areas</h2>
+    <p class="section-subtitle match-subtitle">Where my profile aligns with the role</p>
+    <ul class="result-list">
+      ${matchingItems.map(l => `<li class="result-item match"><span class="icon match-icon">✓</span><span>${renderBold(l)}</span></li>`).join('')}
+    </ul>
+  </div>
+
+  <!-- ═══ SECTION 3: Areas to Bridge ═══ -->
+  <div class="pdf-section">
+    <h2 class="section-title">Areas to Bridge</h2>
+    <p class="section-subtitle gap-subtitle">Identified gaps and how I can address them</p>
+    <ul class="result-list">
+      ${gapItems.map(l => `<li class="result-item gap"><span class="icon gap-icon">→</span><span>${renderBold(l)}</span></li>`).join('')}
+    </ul>
+  </div>
+
+</body>
+</html>`;
 
       await generateCareerFitPdf(contentToPrint, "CareerFitAnalysis.pdf");
     } catch (error) {
@@ -341,14 +472,10 @@ export const CareerFitAnalyst = () => {
     } finally {
       setIsGeneratingPdf(false);
     }
-  }, [matchResult, inputMethod, jobDescriptionUrl, jobDescription]);
+  }, [matchResult, inputMethod, jobDescriptionUrl, jobDescription, effectivePercentage]);
+
 
   const displayError = contextError || geminiClientError;
-
-  const effectivePercentage = useMemo(() => {
-    if (!matchResult) return 0;
-    return matchResult.percentage;
-  }, [matchResult]);
 
   const isGeneratingMatchResults = useMemo(() => {
     return overallSteps[displayOverallStepIndex] === "Generating Match Results";
@@ -474,34 +601,73 @@ export const CareerFitAnalyst = () => {
 
         {matchResult && !isMatching && !contextLoading && !isPreProcessing && (
           <div className="space-y-4 mt-6">
-            <div className="flex items-center justify-center gap-2 mb-4">
-              <div className="flex-1 h-2 flex items-center justify-center gap-1">
-                {Array.from({ length: 10 }).map((_, i) => {
-                  const roundedPercentage = Math.round(effectivePercentage / 10) * 10;
-                  const isLit = (i + 1) * 10 <= roundedPercentage;
-                  return (
-                    <div
-                      key={i}
-                      className={cn(
-                        "h-2 w-2 rounded-full",
-                        isLit ? "bg-primary" : "bg-muted-foreground/30"
-                      )}
-                    />
-                  );
-                })}
+            {/* Match Score Row — visible to all visitors */}
+            <div className="flex flex-col items-center gap-2 py-2">
+              <div className="flex items-center gap-3">
+                <div className="flex items-center gap-1">
+                  {Array.from({ length: 10 }).map((_, i) => {
+                    const roundedPercentage = Math.round(effectivePercentage / 10) * 10;
+                    const isLit = (i + 1) * 10 <= roundedPercentage;
+                    return (
+                      <div
+                        key={i}
+                        className={cn(
+                          "h-2.5 w-2.5 rounded-full transition-colors",
+                          isLit ? "bg-primary" : "bg-muted-foreground/25"
+                        )}
+                      />
+                    );
+                  })}
+                </div>
+                <span className={cn(
+                  "text-lg font-bold tabular-nums",
+                  effectivePercentage >= 70 ? "text-emerald-500 dark:text-emerald-400"
+                    : effectivePercentage >= 45 ? "text-amber-500 dark:text-amber-400"
+                      : "text-rose-500 dark:text-rose-400"
+                )}>
+                  {effectivePercentage}% Match
+                </span>
               </div>
+              <p className="text-xs text-muted-foreground tracking-wide uppercase">Compatibility Score</p>
             </div>
-            {user && (
-              <div className="text-center text-sm text-muted-foreground -mt-2 mb-4">
-                <p>Match Percentage: {effectivePercentage}%</p>
+
+            {/* Matching Areas Card */}
+            {parsedSections.matchingLines.length > 0 && (
+              <div className="rounded-lg border border-emerald-200 dark:border-emerald-800 bg-emerald-50/60 dark:bg-emerald-950/30 p-4">
+                <div className="flex items-center gap-2 mb-3">
+                  <CheckCircle2 className="h-4 w-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
+                  <p className="text-sm font-semibold text-emerald-700 dark:text-emerald-300">Matching Areas</p>
+                </div>
+                <ul className="space-y-2">
+                  {parsedSections.matchingLines.map((line, i) => (
+                    <li key={i} className="flex gap-2 text-sm text-foreground leading-snug">
+                      <span className="mt-0.5 text-emerald-500 shrink-0">✓</span>
+                      <span dangerouslySetInnerHTML={{ __html: line.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>') }} />
+                    </li>
+                  ))}
+                </ul>
               </div>
             )}
-            <div className="rounded-lg border bg-muted/40 p-4">
-              <p className="text-sm font-medium text-muted-foreground mb-2">Summary</p>
-              <div className="prose dark:prose-invert prose-sm max-w-none career-fit-output">
-                <ReactMarkdown>{briefSummary}</ReactMarkdown>
+
+            {/* Gaps Card */}
+            {parsedSections.gapLines.length > 0 && (
+              <div className="rounded-lg border border-amber-200 dark:border-amber-800 bg-amber-50/60 dark:bg-amber-950/30 p-4">
+                <div className="flex items-center gap-2 mb-3">
+                  <AlertCircle className="h-4 w-4 text-amber-600 dark:text-amber-400 shrink-0" />
+                  <p className="text-sm font-semibold text-amber-700 dark:text-amber-300">Areas to Bridge</p>
+                </div>
+                <ul className="space-y-2">
+                  {parsedSections.gapLines.map((line, i) => (
+                    <li key={i} className="flex gap-2 text-sm text-foreground leading-snug">
+                      <span className="mt-0.5 text-amber-500 shrink-0">→</span>
+                      <span dangerouslySetInnerHTML={{ __html: line.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>') }} />
+                    </li>
+                  ))}
+                </ul>
               </div>
-            </div>
+            )}
+
+            {/* Download actions */}
             <div className="flex justify-center gap-2 pdf-hidden">
               <Button
                 onClick={handleDownloadText}
@@ -527,7 +693,7 @@ export const CareerFitAnalyst = () => {
                 )}
               </Button>
             </div>
-            <p className="text-center text-sm text-muted-foreground">
+            <p className="text-center text-xs text-muted-foreground">
               Full matching areas and gaps are included in the Text and PDF downloads.
             </p>
           </div>

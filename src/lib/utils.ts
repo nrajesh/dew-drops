@@ -37,18 +37,18 @@ export function sanitizeFileName(fileName: string): string {
 
 export function generateAltTextFromFileName(fileName: string): string {
   if (!fileName) return "";
-  
+
   // Get the part of the filename after the last '/'
   const namePart = fileName.split('/').pop() || fileName;
-  
+
   // Find the first underscore (which separates the timestamp from the original name)
   const firstUnderscoreIndex = namePart.indexOf('_');
-  
+
   // If an underscore is found, take the substring after it. Otherwise, use the whole name part.
-  const originalFileName = firstUnderscoreIndex !== -1 
-    ? namePart.substring(firstUnderscoreIndex + 1) 
+  const originalFileName = firstUnderscoreIndex !== -1
+    ? namePart.substring(firstUnderscoreIndex + 1)
     : namePart;
-    
+
   // Remove the file extension and replace underscores with spaces.
   return originalFileName.replace(/\.[^/.]+$/, "").replace(/_/g, ' ');
 }
@@ -108,6 +108,45 @@ export const reasoningToBriefSummary = (
   out.push('');
   out.push('*Download as Text or PDF for the full matching areas and gaps.*');
   return out.join('\n');
+};
+
+/**
+ * Parses reasoning markdown into two clean bullet arrays.
+ * Returns up to `matchingMax` matching bullets and `gapsMax` gap bullets,
+ * with the leading `+` / `- ` prefix stripped, for direct JSX rendering.
+ */
+export const parseReasoningSections = (
+  markdown: string,
+  options?: { matchingMax?: number; gapsMax?: number }
+): { matchingLines: string[]; gapLines: string[] } => {
+  const matchingMax = options?.matchingMax ?? 3;
+  const gapsMax = options?.gapsMax ?? 2;
+
+  // Normalise: the AI sometimes returns literal "\\n" sequences instead of
+  // actual newlines — convert them so .split('\n') works consistently.
+  const normalised = markdown
+    .replace(/\\n/g, '\n')
+    .replace(/\n{3,}/g, '\n\n');
+
+  const lines = normalised.split('\n');
+  const matchingLines: string[] = [];
+  const gapLines: string[] = [];
+  let inMatching = false;
+  let inGaps = false;
+
+  for (const line of lines) {
+    if (line.startsWith('## Matching Areas')) { inMatching = true; inGaps = false; continue; }
+    if (line.startsWith('## Gaps')) { inMatching = false; inGaps = true; continue; }
+    if (inMatching && matchingLines.length < matchingMax) {
+      const stripped = line.replace(/^\s*[+-]\s*/, '').trim();
+      if (stripped.length > 0) matchingLines.push(stripped);
+    } else if (inGaps && gapLines.length < gapsMax) {
+      const stripped = line.replace(/^\s*[+-]\s*/, '').trim();
+      if (stripped.length > 0) gapLines.push(stripped);
+    }
+  }
+
+  return { matchingLines, gapLines };
 };
 
 /**

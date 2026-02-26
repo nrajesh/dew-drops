@@ -8,7 +8,7 @@ import { showError } from "@/utils/toast";
 interface JobMatchResult {
   percentage: number;
   reasoning: string;
-  // breakdown removed
+  highlights: string;
 }
 
 export const analysisSteps = [
@@ -78,15 +78,15 @@ export const useJobMatching = () => {
     setCurrentStepIndex(0);
 
     try {
-      const { percentage, reasoning } = await generateJobMatchReasoning(
+      const { percentage, reasoning, highlights } = await generateJobMatchReasoning(
         jobDescription,
         chatbotKnowledge,
         resume,
         sendMessageToGemini,
         setCurrentStepIndex
       );
-      setMatchResult({ percentage, reasoning });
-      return { percentage, reasoning };
+      setMatchResult({ percentage, reasoning, highlights });
+      return { percentage, reasoning, highlights };
     } catch (error: unknown) {
       console.error("Job matching failed:", error);
       const errorMessage = getErrorMessage(error);
