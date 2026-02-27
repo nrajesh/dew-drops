@@ -396,12 +396,14 @@ const BlogEditor = () => {
                                     render={({ field }) => (
                                         <FormItem>
                                             <FormLabel>Cover Image</FormLabel>
-                                            <FormDescription>Search images from your gallery.</FormDescription>
                                             <FormControl>
                                                 <CoverImagePicker
                                                     galleryImages={galleryImages}
                                                     value={field.value ?? null}
                                                     onChange={(id) => field.onChange(id ?? "--none--")}
+                                                    onUploaded={(newImage) => {
+                                                        setGalleryImages((prev) => [newImage, ...prev]);
+                                                    }}
                                                 />
                                             </FormControl>
                                             <FormMessage />

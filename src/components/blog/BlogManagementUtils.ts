@@ -18,7 +18,10 @@ export const fetchPosts = async (): Promise<Post[]> => {
 };
 
 export const fetchGalleryImages = async (): Promise<GalleryImage[]> => {
-  const { data, error } = await supabase.from("gallery_images").select("id, image_url, alt_text").order("created_at", { ascending: false });
+  const { data, error } = await supabase
+    .from("gallery_images")
+    .select("id, image_url, alt_text, file_name, tags")
+    .order("created_at", { ascending: false });
   if (error) {
     console.error("Error fetching gallery images:", error);
     return [];
