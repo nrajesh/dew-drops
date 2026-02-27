@@ -1,18 +1,32 @@
-import React, { useEffect, useCallback, useState, useRef } from 'react';
-import { X, ChevronLeft, ChevronRight, Trash2, Tag, Info, ShoppingCart } from 'lucide-react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import React, { useEffect, useCallback, useState, useRef } from "react";
+import {
+  X,
+  ChevronLeft,
+  ChevronRight,
+  Trash2,
+  Tag,
+  Info,
+  ShoppingCart,
+} from "lucide-react";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import type { GalleryImage } from "@/types";
 import { showSuccess, showError } from "@/utils/toast";
 import { useAuth } from "@/contexts/AuthContext";
 import { Badge } from "@/components/ui/badge";
-import { ExifDataDisplay } from './gallery/ExifDataDisplay'; // Import the new component
+import { ExifDataDisplay } from "./gallery/ExifDataDisplay"; // Import the new component
 
 interface ImageLightboxProps {
   image: GalleryImage | null;
   onClose: () => void;
-  onNavigate: (direction: 'prev' | 'next') => void;
+  onNavigate: (direction: "prev" | "next") => void;
   hasNext: boolean;
   hasPrev: boolean;
   onUpdate: () => void; // Callback to refresh gallery data after deletion/update
@@ -29,32 +43,42 @@ export const ImageLightbox: React.FC<ImageLightboxProps> = ({
   const { user } = useAuth();
   const isAuthenticated = !!user;
   const [showExif, setShowExif] = useState(false);
-  const [showPurchaseDisabledOverlay, setShowPurchaseDisabledOverlay] = useState(false);
+  const [showPurchaseDisabledOverlay, setShowPurchaseDisabledOverlay] =
+    useState(false);
   const touchStartX = useRef<number | null>(null);
 
   const handleTouchStart = useCallback((e: React.TouchEvent) => {
     touchStartX.current = e.touches[0].clientX;
   }, []);
 
-  const handleTouchEnd = useCallback((e: React.TouchEvent) => {
-    if (touchStartX.current === null) return;
-    const deltaX = e.changedTouches[0].clientX - touchStartX.current;
-    touchStartX.current = null;
-    if (Math.abs(deltaX) < 50) return; // ignore small taps
-    if (deltaX < 0 && hasNext) onNavigate('next');
-    if (deltaX > 0 && hasPrev) onNavigate('prev');
-  }, [hasNext, hasPrev, onNavigate]);
+  const handleTouchEnd = useCallback(
+    (e: React.TouchEvent) => {
+      if (touchStartX.current === null) return;
+      const deltaX = e.changedTouches[0].clientX - touchStartX.current;
+      touchStartX.current = null;
+      if (Math.abs(deltaX) < 50) return; // ignore small taps
+      if (deltaX < 0 && hasNext) onNavigate("next");
+      if (deltaX > 0 && hasPrev) onNavigate("prev");
+    },
+    [hasNext, hasPrev, onNavigate],
+  );
 
   const getImageUrl = (fileName: string) => {
-    const { data } = supabase.storage.from('gallery').getPublicUrl(fileName);
+    const { data } = supabase.storage.from("gallery").getPublicUrl(fileName);
     return data.publicUrl;
   };
 
   const handleDelete = async () => {
-    if (!image || !confirm("Are you sure you want to delete this image? This action cannot be undone.")) return;
+    if (
+      !image ||
+      !confirm(
+        "Are you sure you want to delete this image? This action cannot be undone.",
+      )
+    )
+      return;
 
     const { error: storageError } = await supabase.storage
-      .from('gallery')
+      .from("gallery")
       .remove([image.file_name]);
 
     if (storageError) {
@@ -63,9 +87,9 @@ export const ImageLightbox: React.FC<ImageLightboxProps> = ({
     }
 
     const { error: dbError } = await supabase
-      .from('gallery_images')
+      .from("gallery_images")
       .delete()
-      .eq('id', image.id);
+      .eq("id", image.id);
 
     if (dbError) {
       showError(`Failed to delete image record: ${dbError.message}`);
@@ -87,31 +111,33 @@ export const ImageLightbox: React.FC<ImageLightboxProps> = ({
 
     if (image.purchase_link) {
       // If purchase link exists, navigate to it
-      window.open(image.purchase_link, '_blank');
+      window.open(image.purchase_link, "_blank");
     } else {
       // Otherwise, show the disabled overlay
       setShowPurchaseDisabledOverlay(true);
     }
   };
 
-
-  const handleKeyDown = useCallback((e: KeyboardEvent) => {
-    if (!image) return;
-    if (e.key === 'ArrowRight' && hasNext) {
-      onNavigate('next');
-    } else if (e.key === 'ArrowLeft' && hasPrev) {
-      onNavigate('prev');
-    } else if (e.key === 'Escape') {
-      onClose();
-    }
-  }, [image, hasNext, hasPrev, onNavigate, onClose]);
+  const handleKeyDown = useCallback(
+    (e: KeyboardEvent) => {
+      if (!image) return;
+      if (e.key === "ArrowRight" && hasNext) {
+        onNavigate("next");
+      } else if (e.key === "ArrowLeft" && hasPrev) {
+        onNavigate("prev");
+      } else if (e.key === "Escape") {
+        onClose();
+      }
+    },
+    [image, hasNext, hasPrev, onNavigate, onClose],
+  );
 
   useEffect(() => {
     if (image) {
-      window.addEventListener('keydown', handleKeyDown);
+      window.addEventListener("keydown", handleKeyDown);
     }
     return () => {
-      window.removeEventListener('keydown', handleKeyDown);
+      window.removeEventListener("keydown", handleKeyDown);
     };
   }, [image, handleKeyDown]);
 
@@ -126,7 +152,8 @@ export const ImageLightbox: React.FC<ImageLightboxProps> = ({
           <DialogHeader className="sr-only">
             <DialogTitle>{image.alt_text || "Gallery Image"}</DialogTitle>
             <DialogDescription>
-              A larger view of the selected image. Use arrow keys to navigate between images.
+              A larger view of the selected image. Use arrow keys to navigate
+              between images.
             </DialogDescription>
           </DialogHeader>
           {/* Custom Close Button for high visibility, especially on mobile */}
@@ -147,7 +174,6 @@ export const ImageLightbox: React.FC<ImageLightboxProps> = ({
             onTouchStart={handleTouchStart}
             onTouchEnd={handleTouchEnd}
           >
-
             {/* Navigation Buttons */}
             {hasPrev && (
               <Button
@@ -156,7 +182,7 @@ export const ImageLightbox: React.FC<ImageLightboxProps> = ({
                 className="absolute left-4 z-10 text-white hover:bg-black/50"
                 onClick={(e) => {
                   e.stopPropagation(); // Prevent closing on navigation click
-                  onNavigate('prev');
+                  onNavigate("prev");
                 }}
               >
                 <ChevronLeft className="h-8 w-8" />
@@ -169,7 +195,7 @@ export const ImageLightbox: React.FC<ImageLightboxProps> = ({
                 className="absolute right-4 z-10 text-white hover:bg-black/50"
                 onClick={(e) => {
                   e.stopPropagation(); // Prevent closing on navigation click
-                  onNavigate('next');
+                  onNavigate("next");
                 }}
               >
                 <ChevronRight className="h-8 w-8" />
@@ -193,14 +219,20 @@ export const ImageLightbox: React.FC<ImageLightboxProps> = ({
           >
             <div className="flex flex-col">
               {/* Display alt_text instead of file_name */}
-              <p className="text-lg font-semibold">{image.alt_text || "Image Details"}</p>
+              <p className="text-lg font-semibold">
+                {image.alt_text || "Image Details"}
+              </p>
 
               {/* Tags */}
               {image.tags && image.tags.length > 0 && (
                 <div className="flex flex-wrap gap-1 mt-1">
                   <Tag className="h-4 w-4 mr-2 text-gray-400" />
                   {image.tags.map((tag, index) => (
-                    <Badge key={index} variant="secondary" className="bg-gray-600 text-white hover:bg-gray-500">
+                    <Badge
+                      key={index}
+                      variant="secondary"
+                      className="bg-gray-600 text-white hover:bg-gray-500"
+                    >
                       {tag}
                     </Badge>
                   ))}
@@ -244,11 +276,15 @@ export const ImageLightbox: React.FC<ImageLightboxProps> = ({
       </Dialog>
 
       {/* Purchase Disabled Dialog */}
-      <Dialog open={showPurchaseDisabledOverlay} onOpenChange={setShowPurchaseDisabledOverlay}>
+      <Dialog
+        open={showPurchaseDisabledOverlay}
+        onOpenChange={setShowPurchaseDisabledOverlay}
+      >
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle className="text-xl font-bold text-center">
-              <ShoppingCart className="h-6 w-6 inline mr-2 text-primary" /> Purchase Not Enabled
+              <ShoppingCart className="h-6 w-6 inline mr-2 text-primary" />{" "}
+              Purchase Not Enabled
             </DialogTitle>
             <DialogDescription className="sr-only">
               A notification that purchasing is not enabled for this image.
@@ -259,7 +295,8 @@ export const ImageLightbox: React.FC<ImageLightboxProps> = ({
               Purchase is not enabled for this image.
             </p>
             <p className="mt-2 text-sm">
-              Please contact me for possibilities regarding prints or digital downloads.
+              Please contact me for possibilities regarding prints or digital
+              downloads.
             </p>
           </div>
           <div className="flex justify-center pt-2">

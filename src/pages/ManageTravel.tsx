@@ -109,33 +109,49 @@ const ManageTravel = () => {
           />
         </div>
       </div>
-      <Dialog open={isUpdateDialogVisible} onOpenChange={setIsUpdateDialogVisible}>
+      <Dialog
+        open={isUpdateDialogVisible}
+        onOpenChange={setIsUpdateDialogVisible}
+      >
         <DialogContent className="max-w-md">
           <DialogHeader>
             <DialogTitle>Confirm Updates</DialogTitle>
             <DialogDescription>
-              The following locations already exist. Select the ones you want to update with the data from your CSV file. Unselected locations will be skipped.
+              The following locations already exist. Select the ones you want to
+              update with the data from your CSV file. Unselected locations will
+              be skipped.
             </DialogDescription>
           </DialogHeader>
           <div className="flex items-center space-x-2 border-b pb-2">
             <Checkbox
               id="select-all-updates-travel"
-              checked={locationsToUpdate.length > 0 && selectedUpdates.size === locationsToUpdate.length}
+              checked={
+                locationsToUpdate.length > 0 &&
+                selectedUpdates.size === locationsToUpdate.length
+              }
               onCheckedChange={(checked) => {
                 if (checked) {
-                  setSelectedUpdates(new Set(locationsToUpdate.map(l => l.existingId)));
+                  setSelectedUpdates(
+                    new Set(locationsToUpdate.map((l) => l.existingId)),
+                  );
                 } else {
                   setSelectedUpdates(new Set());
                 }
               }}
             />
-            <label htmlFor="select-all-updates-travel" className="text-sm font-medium leading-none">
+            <label
+              htmlFor="select-all-updates-travel"
+              className="text-sm font-medium leading-none"
+            >
               Select All
             </label>
           </div>
           <div className="max-h-60 overflow-y-auto space-y-2 p-1">
-            {locationsToUpdate.map(item => (
-              <div key={item.existingId} className="flex items-center space-x-2 p-2 border rounded-md">
+            {locationsToUpdate.map((item) => (
+              <div
+                key={item.existingId}
+                className="flex items-center space-x-2 p-2 border rounded-md"
+              >
                 <Checkbox
                   id={`update-${item.existingId}`}
                   checked={selectedUpdates.has(item.existingId)}
@@ -149,16 +165,25 @@ const ManageTravel = () => {
                     setSelectedUpdates(newSelection);
                   }}
                 />
-                <label htmlFor={`update-${item.existingId}`} className="text-sm font-medium leading-none">
+                <label
+                  htmlFor={`update-${item.existingId}`}
+                  className="text-sm font-medium leading-none"
+                >
                   Update "{item.existingTitle}"
                 </label>
               </div>
             ))}
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setIsUpdateDialogVisible(false)}>Cancel</Button>
+            <Button
+              variant="outline"
+              onClick={() => setIsUpdateDialogVisible(false)}
+            >
+              Cancel
+            </Button>
             <Button onClick={handleConfirmAndProcessUploads}>
-              Import ({locationsToInsert.length}) & Update ({selectedUpdates.size})
+              Import ({locationsToInsert.length}) & Update (
+              {selectedUpdates.size})
             </Button>
           </DialogFooter>
         </DialogContent>

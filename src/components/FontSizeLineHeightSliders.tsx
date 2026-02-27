@@ -17,7 +17,9 @@ export const FontSizeLineHeightSliders: React.FC = () => {
   return (
     <div className="p-4 space-y-4">
       <div className="space-y-2">
-        <Label htmlFor="font-size-slider" className="text-sm">Font Size ({settings.fontSize.toFixed(1)}rem)</Label>
+        <Label htmlFor="font-size-slider" className="text-sm">
+          Font Size ({settings.fontSize.toFixed(1)}rem)
+        </Label>
         <Slider
           id="font-size-slider"
           min={0.8}
@@ -29,7 +31,9 @@ export const FontSizeLineHeightSliders: React.FC = () => {
         />
       </div>
       <div className="space-y-2">
-        <Label htmlFor="line-height-slider" className="text-sm">Line Spacing ({settings.lineHeight.toFixed(1)})</Label>
+        <Label htmlFor="line-height-slider" className="text-sm">
+          Line Spacing ({settings.lineHeight.toFixed(1)})
+        </Label>
         <Slider
           id="line-height-slider"
           min={1.2}

@@ -1,4 +1,11 @@
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { useEffect, useState, useMemo, useRef, lazy, Suspense } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import type { Post } from "@/types";
@@ -9,9 +16,13 @@ import { Search } from "lucide-react";
 import { useDebounce } from "@/hooks/useDebounce";
 import { PaginationControls } from "@/components/PaginationControls";
 import { usePaginationNavigation } from "@/hooks/usePaginationNavigation";
-import { formatDate } from '@/lib/utils'; // Import centralized formatDate
+import { formatDate } from "@/lib/utils"; // Import centralized formatDate
 
-const LazyMultiSelectPopover = lazy(() => import("@/components/MultiSelectPopover").then(module => ({ default: module.MultiSelectPopover })));
+const LazyMultiSelectPopover = lazy(() =>
+  import("@/components/MultiSelectPopover").then((module) => ({
+    default: module.MultiSelectPopover,
+  })),
+);
 
 const POSTS_PER_PAGE = 6;
 
@@ -32,7 +43,7 @@ const Blog = () => {
       const { data: postsData, error: postsError } = await supabase
         .from("posts")
         .select("*")
-        .eq('published', true)
+        .eq("published", true)
         .order("published_at", { ascending: false });
 
       if (postsError) {
@@ -40,9 +51,9 @@ const Blog = () => {
       } else {
         setAllPosts(postsData as Post[]);
         const allTags = new Set<string>();
-        (postsData as Post[]).forEach(post => {
+        (postsData as Post[]).forEach((post) => {
           if (post.tags) {
-            post.tags.forEach(tag => allTags.add(tag));
+            post.tags.forEach((tag) => allTags.add(tag));
           }
         });
         setUniqueTags(Array.from(allTags).sort());
@@ -53,9 +64,13 @@ const Blog = () => {
   }, []);
 
   const filteredPosts = useMemo(() => {
-    return allPosts.filter(post => {
-      const tagMatch = selectedTags.length === 0 || selectedTags.every(tag => post.tags?.includes(tag));
-      const searchMatch = !debouncedSearchTerm || post.title.toLowerCase().includes(debouncedSearchTerm.toLowerCase());
+    return allPosts.filter((post) => {
+      const tagMatch =
+        selectedTags.length === 0 ||
+        selectedTags.every((tag) => post.tags?.includes(tag));
+      const searchMatch =
+        !debouncedSearchTerm ||
+        post.title.toLowerCase().includes(debouncedSearchTerm.toLowerCase());
       return tagMatch && searchMatch;
     });
   }, [allPosts, selectedTags, debouncedSearchTerm]);
@@ -63,7 +78,7 @@ const Blog = () => {
   const totalPages = Math.ceil(filteredPosts.length / POSTS_PER_PAGE);
   const paginatedPosts = filteredPosts.slice(
     (currentPage - 1) * POSTS_PER_PAGE,
-    currentPage * POSTS_PER_PAGE
+    currentPage * POSTS_PER_PAGE,
   );
 
   usePaginationNavigation({
@@ -132,14 +147,19 @@ const Blog = () => {
                   <Link to={`/blog/${post.id}`} className="hover:underline">
                     <CardTitle>{post.title}</CardTitle>
                   </Link>
-                  <CardDescription>{formatDate(post.published_at)}</CardDescription>
+                  <CardDescription>
+                    {formatDate(post.published_at)}
+                  </CardDescription>
                 </CardHeader>
                 <CardContent className="flex-grow">
                   <p className="text-sm">{post.description}</p>
                   {post.tags && post.tags.length > 0 && (
                     <div className="flex flex-wrap gap-1 mt-2">
-                      {post.tags.map(tag => (
-                        <span key={tag} className="text-xs px-2 py-1 rounded-full bg-muted text-muted-foreground">
+                      {post.tags.map((tag) => (
+                        <span
+                          key={tag}
+                          className="text-xs px-2 py-1 rounded-full bg-muted text-muted-foreground"
+                        >
                           {tag}
                         </span>
                       ))}

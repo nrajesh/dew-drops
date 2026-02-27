@@ -5,10 +5,29 @@ import * as z from "zod";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/components/ui/form";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from "@/components/ui/dialog";
 import { supabase } from "@/integrations/supabase/client";
-import { showSuccess, showError, showLoading, dismissToast } from "@/utils/toast";
+import {
+  showSuccess,
+  showError,
+  showLoading,
+  dismissToast,
+} from "@/utils/toast";
 import { Wand2, Loader2 } from "lucide-react";
 import { usePaginationNavigation } from "@/hooks/usePaginationNavigation";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -18,12 +37,20 @@ import type { GalleryImage } from "@/types";
 import { ImageUploadCard } from "@/components/gallery/ImageUploadCard";
 import { ImageManagementCard } from "@/components/gallery/ImageManagementCard";
 
-const LazyImageLightbox = lazy(() => import("@/components/ImageLightbox").then(module => ({ default: module.ImageLightbox })));
+const LazyImageLightbox = lazy(() =>
+  import("@/components/ImageLightbox").then((module) => ({
+    default: module.ImageLightbox,
+  })),
+);
 
 const editSchema = z.object({
   alt_text: z.string().max(200, "Alt text cannot exceed 200 characters."),
   tags: z.string().optional(),
-  purchase_link: z.string().url({ message: "Please enter a valid URL." }).optional().or(z.literal('')),
+  purchase_link: z
+    .string()
+    .url({ message: "Please enter a valid URL." })
+    .optional()
+    .or(z.literal("")),
 });
 
 const ManageGallery = () => {
@@ -78,9 +105,15 @@ const ManageGallery = () => {
   } = useGalleryManagement();
 
   const containerRef = useRef<HTMLDivElement>(null);
-  const [lightboxImageIndex, setLightboxImageIndex] = useState<number | null>(null);
-  const [activeLightboxList, setActiveLightboxList] = useState<'published' | 'unpublished' | null>(null);
-  const [activeTab, setActiveTab] = useState<'published' | 'unpublished'>('published');
+  const [lightboxImageIndex, setLightboxImageIndex] = useState<number | null>(
+    null,
+  );
+  const [activeLightboxList, setActiveLightboxList] = useState<
+    "published" | "unpublished" | null
+  >(null);
+  const [activeTab, setActiveTab] = useState<"published" | "unpublished">(
+    "published",
+  );
   const [isGeneratingTags, setIsGeneratingTags] = useState(false);
 
   const form = useForm<z.infer<typeof editSchema>>({
@@ -91,17 +124,22 @@ const ManageGallery = () => {
   useEffect(() => {
     if (editingImage) {
       form.reset({
-        alt_text: editingImage.alt_text || '',
-        tags: editingImage.tags?.join(', ') || '',
-        purchase_link: editingImage.purchase_link || '',
+        alt_text: editingImage.alt_text || "",
+        tags: editingImage.tags?.join(", ") || "",
+        purchase_link: editingImage.purchase_link || "",
       });
     }
   }, [editingImage, form]);
 
   usePaginationNavigation({
-    currentPage: activeTab === 'published' ? publishedCurrentPage : unpublishedCurrentPage,
-    totalPages: activeTab === 'published' ? publishedTotalPages : unpublishedTotalPages,
-    onPageChange: activeTab === 'published' ? setPublishedCurrentPage : setUnpublishedCurrentPage,
+    currentPage:
+      activeTab === "published" ? publishedCurrentPage : unpublishedCurrentPage,
+    totalPages:
+      activeTab === "published" ? publishedTotalPages : unpublishedTotalPages,
+    onPageChange:
+      activeTab === "published"
+        ? setPublishedCurrentPage
+        : setUnpublishedCurrentPage,
     targetRef: containerRef,
     enabled: !editingImage && lightboxImageIndex === null,
   });
@@ -111,11 +149,15 @@ const ManageGallery = () => {
     const toastId = showLoading("Updating image data...");
     try {
       let finalAltText = values.alt_text;
-      if (!finalAltText || finalAltText.trim() === '') {
+      if (!finalAltText || finalAltText.trim() === "") {
         finalAltText = generateAltTextFromFileName(editingImage.file_name);
       }
 
-      const tagsArray = values.tags?.split(',').map(t => normalizeTag(t)).filter(Boolean) || [];
+      const tagsArray =
+        values.tags
+          ?.split(",")
+          .map((t) => normalizeTag(t))
+          .filter(Boolean) || [];
 
       const updateData = {
         alt_text: finalAltText,
@@ -123,7 +165,10 @@ const ManageGallery = () => {
         purchase_link: values.purchase_link || null,
       };
 
-      const { error } = await supabase.from("gallery_images").update(updateData).eq("id", editingImage.id);
+      const { error } = await supabase
+        .from("gallery_images")
+        .update(updateData)
+        .eq("id", editingImage.id);
 
       if (error) throw error;
       dismissToast(toastId);
@@ -141,20 +186,24 @@ const ManageGallery = () => {
     if (!editingImage) return;
     setIsGeneratingTags(true);
     try {
-      const { data: signedUrlData, error: signedUrlError } = await supabase.storage
-        .from('gallery')
-        .createSignedUrl(editingImage.file_name, 60);
+      const { data: signedUrlData, error: signedUrlError } =
+        await supabase.storage
+          .from("gallery")
+          .createSignedUrl(editingImage.file_name, 60);
       if (signedUrlError) throw signedUrlError;
 
-      const { data, error } = await supabase.functions.invoke('generate-tags-from-url', {
-        body: { imageUrl: signedUrlData.signedUrl, imageId: editingImage.id },
-      });
+      const { data, error } = await supabase.functions.invoke(
+        "generate-tags-from-url",
+        {
+          body: { imageUrl: signedUrlData.signedUrl, imageId: editingImage.id },
+        },
+      );
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
 
       const generatedTags: string[] = data?.tags ?? [];
       // Populate the form field so the user can review/edit before saving
-      form.setValue('tags', generatedTags.join(', '), { shouldDirty: true });
+      form.setValue("tags", generatedTags.join(", "), { shouldDirty: true });
       showSuccess(`${generatedTags.length} tags generated — review and save!`);
     } catch (err: unknown) {
       showError(`Tag generation failed: ${(err as Error).message}`);
@@ -163,9 +212,15 @@ const ManageGallery = () => {
     }
   };
 
-  const openLightbox = (image: GalleryImage, listType: 'published' | 'unpublished') => {
-    const list = listType === 'published' ? filteredPublishedImages : filteredUnpublishedImages;
-    const index = list.findIndex(img => img.id === image.id);
+  const openLightbox = (
+    image: GalleryImage,
+    listType: "published" | "unpublished",
+  ) => {
+    const list =
+      listType === "published"
+        ? filteredPublishedImages
+        : filteredUnpublishedImages;
+    const index = list.findIndex((img) => img.id === image.id);
     if (index !== -1) {
       setActiveLightboxList(listType);
       setLightboxImageIndex(index);
@@ -177,18 +232,27 @@ const ManageGallery = () => {
     setActiveLightboxList(null);
   };
 
-  const navigateLightbox = (direction: 'next' | 'prev') => {
+  const navigateLightbox = (direction: "next" | "prev") => {
     if (lightboxImageIndex === null || !activeLightboxList) return;
-    const list = activeLightboxList === 'published' ? filteredPublishedImages : filteredUnpublishedImages;
-    if (direction === 'next') {
+    const list =
+      activeLightboxList === "published"
+        ? filteredPublishedImages
+        : filteredUnpublishedImages;
+    if (direction === "next") {
       setLightboxImageIndex((prevIndex) => (prevIndex! + 1) % list.length);
     } else {
-      setLightboxImageIndex((prevIndex) => (prevIndex! - 1 + list.length) % list.length);
+      setLightboxImageIndex(
+        (prevIndex) => (prevIndex! - 1 + list.length) % list.length,
+      );
     }
   };
 
-  const lightboxList = activeLightboxList === 'published' ? filteredPublishedImages : filteredUnpublishedImages;
-  const lightboxImage = lightboxImageIndex !== null ? lightboxList[lightboxImageIndex] : null;
+  const lightboxList =
+    activeLightboxList === "published"
+      ? filteredPublishedImages
+      : filteredUnpublishedImages;
+  const lightboxImage =
+    lightboxImageIndex !== null ? lightboxList[lightboxImageIndex] : null;
 
   return (
     <>
@@ -201,10 +265,26 @@ const ManageGallery = () => {
           selectedFiles={selectedFiles}
         />
 
-        <Tabs defaultValue="published" onValueChange={(value) => setActiveTab(value as 'published' | 'unpublished')}>
+        <Tabs
+          defaultValue="published"
+          onValueChange={(value) =>
+            setActiveTab(value as "published" | "unpublished")
+          }
+          className="w-full"
+        >
           <TabsList className="grid w-full grid-cols-2">
-            <TabsTrigger value="published" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">Published ({publishedImages.length})</TabsTrigger>
-            <TabsTrigger value="unpublished" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">Unpublished ({unpublishedImages.length})</TabsTrigger>
+            <TabsTrigger
+              value="published"
+              className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
+            >
+              Published ({publishedImages.length})
+            </TabsTrigger>
+            <TabsTrigger
+              value="unpublished"
+              className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
+            >
+              Unpublished ({unpublishedImages.length})
+            </TabsTrigger>
           </TabsList>
           <TabsContent value="published">
             <ImageManagementCard
@@ -269,7 +349,10 @@ const ManageGallery = () => {
         </Tabs>
       </div>
 
-      <Dialog open={!!editingImage} onOpenChange={(isOpen) => !isOpen && setEditingImage(null)}>
+      <Dialog
+        open={!!editingImage}
+        onOpenChange={(isOpen) => !isOpen && setEditingImage(null)}
+      >
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Edit Image Data</DialogTitle>
@@ -278,7 +361,10 @@ const ManageGallery = () => {
             </DialogDescription>
           </DialogHeader>
           <Form {...form}>
-            <form onSubmit={form.handleSubmit(handleUpdateImageData)} className="space-y-4">
+            <form
+              onSubmit={form.handleSubmit(handleUpdateImageData)}
+              className="space-y-4"
+            >
               <FormField
                 control={form.control}
                 name="alt_text"
@@ -315,7 +401,7 @@ const ManageGallery = () => {
                         ) : (
                           <Wand2 className="h-3 w-3" />
                         )}
-                        {isGeneratingTags ? 'Generating…' : 'AI Generate'}
+                        {isGeneratingTags ? "Generating…" : "AI Generate"}
                       </Button>
                     </div>
                     <FormControl>
@@ -345,7 +431,13 @@ const ManageGallery = () => {
                 )}
               />
               <DialogFooter>
-                <Button type="button" variant="outline" onClick={() => setEditingImage(null)}>Cancel</Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setEditingImage(null)}
+                >
+                  Cancel
+                </Button>
                 <Button type="submit">Save Changes</Button>
               </DialogFooter>
             </form>

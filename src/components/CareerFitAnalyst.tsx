@@ -2,15 +2,35 @@
 
 import React, { useState, useEffect, useMemo, useCallback } from "react";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
-import { Loader2, Sparkles, AlertTriangle, Download, Link as LinkIcon, FileText, CheckCircle2, AlertCircle } from "lucide-react";
+import {
+  Loader2,
+  Sparkles,
+  AlertTriangle,
+  Download,
+  Link as LinkIcon,
+  FileText,
+  CheckCircle2,
+  AlertCircle,
+} from "lucide-react";
 import { useJobMatching, analysisSteps } from "@/hooks/useJobMatching";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { showError } from "@/utils/toast";
 import { Progress } from "@/components/ui/progress";
 import { downloadTextFile } from "@/utils/fileDownload";
-import { cn, parseReasoningSections, markdownToPlainText, cleanJobDescriptionText } from "@/lib/utils";
+import {
+  cn,
+  parseReasoningSections,
+  markdownToPlainText,
+  cleanJobDescriptionText,
+} from "@/lib/utils";
 import { analyzeAndTranslateJobDescription } from "@/utils/aiTextAnalysis";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
@@ -20,13 +40,14 @@ import { User } from "@supabase/supabase-js";
 
 const MIN_JOB_DESCRIPTION_LENGTH = 250;
 
-
 export const CareerFitAnalyst = () => {
   const [jobDescription, setJobDescription] = useState("");
   const [jobDescriptionUrl, setJobDescriptionUrl] = useState("");
   const [isButtonEnabled, setIsButtonEnabled] = useState(false);
   const [isPreProcessing, setIsPreProcessing] = useState(false);
-  const [_originalLanguage, setOriginalLanguage] = useState<string | null>(null);
+  const [_originalLanguage, setOriginalLanguage] = useState<string | null>(
+    null,
+  );
   const [inputMethod, setInputMethod] = useState<"text" | "url">("text");
   const [isFetchingUrl, setIsFetchingUrl] = useState(false);
   const [_user, setUser] = useState<User | null>(null);
@@ -35,13 +56,17 @@ export const CareerFitAnalyst = () => {
 
   useEffect(() => {
     const checkUser = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
       setUser(session?.user ?? null);
     };
 
     checkUser();
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
       setUser(session?.user ?? null);
     });
 
@@ -64,7 +89,10 @@ export const CareerFitAnalyst = () => {
 
   const parsedSections = useMemo(() => {
     if (!matchResult?.reasoning) return { matchingLines: [], gapLines: [] };
-    return parseReasoningSections(matchResult.reasoning, { matchingMax: 3, gapsMax: 2 });
+    return parseReasoningSections(matchResult.reasoning, {
+      matchingMax: 3,
+      gapsMax: 2,
+    });
   }, [matchResult?.reasoning]);
 
   const effectivePercentage = useMemo(() => {
@@ -72,10 +100,10 @@ export const CareerFitAnalyst = () => {
     return matchResult.percentage;
   }, [matchResult]);
 
-  const overallSteps = useMemo(() => [
-    "Validating entered text",
-    ...analysisSteps
-  ], []);
+  const overallSteps = useMemo(
+    () => ["Validating entered text", ...analysisSteps],
+    [],
+  );
   const totalOverallSteps = overallSteps.length;
 
   const currentOverallStepIndex = useMemo(() => {
@@ -115,7 +143,13 @@ export const CareerFitAnalyst = () => {
     return () => {
       if (interval) clearInterval(interval);
     };
-  }, [contextLoading, isMatching, isPreProcessing, isFetchingUrl, totalOverallSteps]);
+  }, [
+    contextLoading,
+    isMatching,
+    isPreProcessing,
+    isFetchingUrl,
+    totalOverallSteps,
+  ]);
 
   // Effect to ensure display index never lags behind the actual progress
   useEffect(() => {
@@ -126,59 +160,90 @@ export const CareerFitAnalyst = () => {
 
   // Initialize displayOverallStepIndex when a process starts
   useEffect(() => {
-    if ((contextLoading || isMatching || isPreProcessing || isFetchingUrl) && displayOverallStepIndex === -1) {
+    if (
+      (contextLoading || isMatching || isPreProcessing || isFetchingUrl) &&
+      displayOverallStepIndex === -1
+    ) {
       setDisplayOverallStepIndex(0);
     }
-  }, [contextLoading, isMatching, isPreProcessing, isFetchingUrl, displayOverallStepIndex]);
+  }, [
+    contextLoading,
+    isMatching,
+    isPreProcessing,
+    isFetchingUrl,
+    displayOverallStepIndex,
+  ]);
 
+  const handleInputChange = useCallback(
+    (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+      const value = e.target.value;
+      setJobDescription(value);
+      setIsButtonEnabled(value.length >= MIN_JOB_DESCRIPTION_LENGTH);
+    },
+    [],
+  );
 
-  const handleInputChange = useCallback((e: React.ChangeEvent<HTMLTextAreaElement>) => {
-    const value = e.target.value;
-    setJobDescription(value);
-    setIsButtonEnabled(value.length >= MIN_JOB_DESCRIPTION_LENGTH);
-  }, []);
+  const handleUrlChange = useCallback(
+    (e: React.ChangeEvent<HTMLInputElement>) => {
+      const value = e.target.value;
+      setJobDescriptionUrl(value);
+      setIsButtonEnabled(value.trim() !== "");
+    },
+    [],
+  );
 
-  const handleUrlChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-    const value = e.target.value;
-    setJobDescriptionUrl(value);
-    setIsButtonEnabled(value.trim() !== "");
-  }, []);
+  const fetchJobDescriptionFromUrl = useCallback(
+    async (url: string): Promise<string> => {
+      try {
+        const { data, error } = await supabase.functions.invoke(
+          "fetch-url-content",
+          {
+            body: { url },
+          },
+        );
 
-  const fetchJobDescriptionFromUrl = useCallback(async (url: string): Promise<string> => {
-    try {
-      const { data, error } = await supabase.functions.invoke('fetch-url-content', {
-        body: { url },
-      });
-
-      if (error) {
-        throw new Error(error.message);
+        if (error) {
+          throw new Error(error.message);
+        }
+        if (!data || !data.content) {
+          throw new Error("Failed to retrieve content from the URL.");
+        }
+        return data.content;
+      } catch (error: unknown) {
+        const err = error as Error;
+        throw new Error(
+          `Error fetching job description from URL via proxy: ${err.message}`,
+        );
       }
-      if (!data || !data.content) {
-        throw new Error("Failed to retrieve content from the URL.");
-      }
-      return data.content;
-    } catch (error: unknown) {
-      const err = error as Error;
-      throw new Error(`Error fetching job description from URL via proxy: ${err.message}`);
-    }
-  }, []);
+    },
+    [],
+  );
 
   const handleSubmit = useCallback(async () => {
     if (!resume) {
-      showError("Resume data is not available for matching. Please ensure VITE_RESUME_URL is set and accessible.");
+      showError(
+        "Resume data is not available for matching. Please ensure VITE_RESUME_URL is set and accessible.",
+      );
       return;
     }
     if (contextError || geminiClientError) {
-      showError(contextError || geminiClientError || "An error occurred with the AI service or context loading.");
+      showError(
+        contextError ||
+          geminiClientError ||
+          "An error occurred with the AI service or context loading.",
+      );
       return;
     }
 
     if (inputMethod === "text") {
       if (jobDescription.length < MIN_JOB_DESCRIPTION_LENGTH) {
-        showError(`Please enter at least ${MIN_JOB_DESCRIPTION_LENGTH} characters for a meaningful match.`);
+        showError(
+          `Please enter at least ${MIN_JOB_DESCRIPTION_LENGTH} characters for a meaningful match.`,
+        );
         return;
       }
-    } else { // inputMethod === "url"
+    } else {
+      // inputMethod === "url"
       if (!jobDescriptionUrl.trim()) {
         showError("Please enter a valid URL.");
         return;
@@ -197,7 +262,8 @@ export const CareerFitAnalyst = () => {
         setJobDescription(textToAnalyze); // Update textarea with cleaned content
       }
 
-      const analysisResult = await analyzeAndTranslateJobDescription(textToAnalyze);
+      const analysisResult =
+        await analyzeAndTranslateJobDescription(textToAnalyze);
       setOriginalLanguage(analysisResult.originalLanguage);
 
       if (!analysisResult.isValidJobDescription) {
@@ -208,7 +274,10 @@ export const CareerFitAnalyst = () => {
     } catch (error: unknown) {
       const err = error as Error;
       console.error("Error in pre-analysis or career fit analysis:", err);
-      showError(err.message || "Sorry, an error occurred during job description validation or analysis. Please check your input and try again.");
+      showError(
+        err.message ||
+          "Sorry, an error occurred during job description validation or analysis. Please check your input and try again.",
+      );
     } finally {
       setIsPreProcessing(false);
       setIsFetchingUrl(false);
@@ -238,9 +307,9 @@ export const CareerFitAnalyst = () => {
     if (matchResult?.reasoning) {
       // Clean the reasoning to ensure proper formatting
       const cleanedReasoning = matchResult.reasoning
-        .replace(/\\n\+/g, '\n+')  // Replace escaped \n+ with actual newline + bullet
-        .replace(/\\n/g, '\n')      // Replace any remaining escaped newlines
-        .replace(/\n{3,}/g, '\n\n'); // Normalize multiple newlines
+        .replace(/\\n\+/g, "\n+") // Replace escaped \n+ with actual newline + bullet
+        .replace(/\\n/g, "\n") // Replace any remaining escaped newlines
+        .replace(/\n{3,}/g, "\n\n"); // Normalize multiple newlines
 
       const plainTextContent = markdownToPlainText(cleanedReasoning);
       downloadTextFile(plainTextContent, "CareerFitAnalysis.txt");
@@ -260,24 +329,33 @@ export const CareerFitAnalyst = () => {
     try {
       // Parse reasoning into matching + gaps sections
       const cleanedReasoning = matchResult.reasoning
-        .replace(/\\n\+/g, '\n+')
-        .replace(/\\n/g, '\n')
-        .replace(/\n{3,}/g, '\n\n');
+        .replace(/\\n\+/g, "\n+")
+        .replace(/\\n/g, "\n")
+        .replace(/\n{3,}/g, "\n\n");
 
       // Parse highlights (from new AI field or fall back to empty)
-      const cleanedHighlights = (matchResult.highlights ?? '')
-        .replace(/\\n/g, '\n')
-        .replace(/\n{3,}/g, '\n\n');
+      const cleanedHighlights = (matchResult.highlights ?? "")
+        .replace(/\\n/g, "\n")
+        .replace(/\n{3,}/g, "\n\n");
 
       // Split reasoning into Matching and Gaps sections
-      const lines = cleanedReasoning.split('\n');
+      const lines = cleanedReasoning.split("\n");
       const matchingItems: string[] = [];
       const gapItems: string[] = [];
-      let inMatching = false, inGaps = false;
+      let inMatching = false,
+        inGaps = false;
       for (const line of lines) {
-        if (line.startsWith('## Matching Areas')) { inMatching = true; inGaps = false; continue; }
-        if (line.startsWith('## Gaps')) { inMatching = false; inGaps = true; continue; }
-        const trimmed = line.replace(/^\s*[+-]\s*/, '').trim();
+        if (line.startsWith("## Matching Areas")) {
+          inMatching = true;
+          inGaps = false;
+          continue;
+        }
+        if (line.startsWith("## Gaps")) {
+          inMatching = false;
+          inGaps = true;
+          continue;
+        }
+        const trimmed = line.replace(/^\s*[+-]\s*/, "").trim();
         if (trimmed.length === 0) continue;
         if (inMatching) matchingItems.push(trimmed);
         else if (inGaps) gapItems.push(trimmed);
@@ -285,20 +363,26 @@ export const CareerFitAnalyst = () => {
 
       // Parse bullet highlights
       const highlightLines = cleanedHighlights
-        .split('\n')
-        .filter(l => l.trim().startsWith('-'))
-        .map(l => l.replace(/^\s*-\s*/, '').trim())
+        .split("\n")
+        .filter((l) => l.trim().startsWith("-"))
+        .map((l) => l.replace(/^\s*-\s*/, "").trim())
         .filter(Boolean);
 
-      const renderBold = (text: string) => text.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+      const renderBold = (text: string) =>
+        text.replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>");
 
-      const highlightsHtml = highlightLines.length > 0
-        ? `<ul class="highlight-list">${highlightLines.map(l => `<li>${renderBold(l)}</li>`).join('')}</ul>`
-        : `<p class="meta">Full job description pasted — see original text below.</p>
-           <pre class="jd-text">${jobDescription.slice(0, 1200)}${jobDescription.length > 1200 ? '\n...' : ''}</pre>`;
+      const highlightsHtml =
+        highlightLines.length > 0
+          ? `<ul class="highlight-list">${highlightLines.map((l) => `<li>${renderBold(l)}</li>`).join("")}</ul>`
+          : `<p class="meta">Full job description pasted — see original text below.</p>
+           <pre class="jd-text">${jobDescription.slice(0, 1200)}${jobDescription.length > 1200 ? "\n..." : ""}</pre>`;
 
-
-      const scoreColour = effectivePercentage >= 70 ? '#10b981' : effectivePercentage >= 45 ? '#f59e0b' : '#ef4444';
+      const scoreColour =
+        effectivePercentage >= 70
+          ? "#10b981"
+          : effectivePercentage >= 45
+            ? "#f59e0b"
+            : "#ef4444";
 
       const contentToPrint = `<!DOCTYPE html>
 <html lang="en">
@@ -434,13 +518,13 @@ export const CareerFitAnalyst = () => {
     <div class="report-header">
       <div>
         <h1>Career Fit Analysis</h1>
-        <p class="meta">Rajesh Narayanan · ${new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}</p>
+        <p class="meta">Rajesh Narayanan · ${new Date().toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" })}</p>
       </div>
       <div class="score-badge">${effectivePercentage}% Match</div>
     </div>
 
     <h2 class="section-title">Job Highlights</h2>
-    ${inputMethod === 'url' ? `<p class="source-url">Source: <a href="${jobDescriptionUrl}">${jobDescriptionUrl}</a></p>` : ''}
+    ${inputMethod === "url" ? `<p class="source-url">Source: <a href="${jobDescriptionUrl}">${jobDescriptionUrl}</a></p>` : ""}
     ${highlightsHtml}
   </div>
 
@@ -449,7 +533,7 @@ export const CareerFitAnalyst = () => {
     <h2 class="section-title">Matching Areas</h2>
     <p class="section-subtitle match-subtitle">Where my profile aligns with the role</p>
     <ul class="result-list">
-      ${matchingItems.map(l => `<li class="result-item match"><span class="icon match-icon">✓</span><span>${renderBold(l)}</span></li>`).join('')}
+      ${matchingItems.map((l) => `<li class="result-item match"><span class="icon match-icon">✓</span><span>${renderBold(l)}</span></li>`).join("")}
     </ul>
   </div>
 
@@ -458,7 +542,7 @@ export const CareerFitAnalyst = () => {
     <h2 class="section-title">Areas to Bridge</h2>
     <p class="section-subtitle gap-subtitle">Identified gaps and how I can address them</p>
     <ul class="result-list">
-      ${gapItems.map(l => `<li class="result-item gap"><span class="icon gap-icon">→</span><span>${renderBold(l)}</span></li>`).join('')}
+      ${gapItems.map((l) => `<li class="result-item gap"><span class="icon gap-icon">→</span><span>${renderBold(l)}</span></li>`).join("")}
     </ul>
   </div>
 
@@ -472,8 +556,13 @@ export const CareerFitAnalyst = () => {
     } finally {
       setIsGeneratingPdf(false);
     }
-  }, [matchResult, inputMethod, jobDescriptionUrl, jobDescription, effectivePercentage]);
-
+  }, [
+    matchResult,
+    inputMethod,
+    jobDescriptionUrl,
+    jobDescription,
+    effectivePercentage,
+  ]);
 
   const displayError = contextError || geminiClientError;
 
@@ -489,7 +578,8 @@ export const CareerFitAnalyst = () => {
           AI-Powered Career Fit Analyst
         </CardTitle>
         <CardDescription>
-          Quantify the alignment between your job description and Rajesh Narayanan's qualifications, skills, and extensive experience.
+          Quantify the alignment between your job description and Rajesh
+          Narayanan's qualifications, skills, and extensive experience.
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-6">
@@ -498,7 +588,10 @@ export const CareerFitAnalyst = () => {
             <AlertTriangle className="h-4 w-4" />
             <AlertTitle>Configuration Error</AlertTitle>
             <AlertDescription>
-              {displayError} Please ensure <code>VITE_GEMINI_API_KEY</code>, <code>VITE_GEMINI_MODEL_NAME</code>, and <code>VITE_RESUME_URL</code> are correctly set in your environment variables.
+              {displayError} Please ensure <code>VITE_GEMINI_API_KEY</code>,{" "}
+              <code>VITE_GEMINI_MODEL_NAME</code>, and{" "}
+              <code>VITE_RESUME_URL</code> are correctly set in your environment
+              variables.
             </AlertDescription>
           </Alert>
         )}
@@ -513,7 +606,7 @@ export const CareerFitAnalyst = () => {
                       "text-sm transition-colors duration-300",
                       index === displayOverallStepIndex // Use displayOverallStepIndex for animation
                         ? "text-primary font-bold animate-pulse"
-                        : "text-muted-foreground"
+                        : "text-muted-foreground",
                     )}
                   >
                     {step}
@@ -528,16 +621,30 @@ export const CareerFitAnalyst = () => {
             <Progress value={progressValue} className="w-full" />
             {isGeneratingMatchResults && (
               <p className="text-sm text-muted-foreground">
-                This step may take a few minutes depending on the length of your job description and the number of matching criteria.
+                This step may take a few minutes depending on the length of your
+                job description and the number of matching criteria.
               </p>
             )}
           </div>
         ) : (
           <>
-            <Tabs defaultValue="text" onValueChange={(value) => setInputMethod(value as "text" | "url")}>
+            <Tabs
+              defaultValue="text"
+              onValueChange={(value) => setInputMethod(value as "text" | "url")}
+            >
               <TabsList className="grid w-full grid-cols-2">
-                <TabsTrigger value="text" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">Paste Description</TabsTrigger>
-                <TabsTrigger value="url" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">Provide URL</TabsTrigger>
+                <TabsTrigger
+                  value="text"
+                  className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
+                >
+                  Paste Description
+                </TabsTrigger>
+                <TabsTrigger
+                  value="url"
+                  className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
+                >
+                  Provide URL
+                </TabsTrigger>
               </TabsList>
               <TabsContent value="text">
                 <Textarea
@@ -548,10 +655,13 @@ export const CareerFitAnalyst = () => {
                   disabled={!resume || !!displayError}
                 />
                 <p className="text-sm text-muted-foreground mt-2">
-                  {jobDescription.length}/{MIN_JOB_DESCRIPTION_LENGTH} characters minimum
+                  {jobDescription.length}/{MIN_JOB_DESCRIPTION_LENGTH}{" "}
+                  characters minimum
                 </p>
                 <p className="text-sm text-muted-foreground mt-2">
-                  Matching job descriptions longer than 2000 characters in length or using an URL to match can take a several minutes to complete.
+                  Matching job descriptions longer than 2000 characters in
+                  length or using an URL to match can take a several minutes to
+                  complete.
                 </p>
               </TabsContent>
               <TabsContent value="url">
@@ -575,7 +685,9 @@ export const CareerFitAnalyst = () => {
                   Provide a URL where the job description is hosted.
                 </p>
                 <p className="text-sm text-muted-foreground mt-2">
-                  Matching job descriptions longer than 2000 characters in length or using an URL to match can take a several minutes to complete.
+                  Matching job descriptions longer than 2000 characters in
+                  length or using an URL to match can take a several minutes to
+                  complete.
                 </p>
               </TabsContent>
             </Tabs>
@@ -592,7 +704,10 @@ export const CareerFitAnalyst = () => {
             )}
 
             {matchResult && (
-              <Button onClick={handleAnalyzeAnother} className="w-full pdf-hidden">
+              <Button
+                onClick={handleAnalyzeAnother}
+                className="w-full pdf-hidden"
+              >
                 Analyze Another Job Description
               </Button>
             )}
@@ -606,29 +721,36 @@ export const CareerFitAnalyst = () => {
               <div className="flex items-center gap-3">
                 <div className="flex items-center gap-1">
                   {Array.from({ length: 10 }).map((_, i) => {
-                    const roundedPercentage = Math.round(effectivePercentage / 10) * 10;
+                    const roundedPercentage =
+                      Math.round(effectivePercentage / 10) * 10;
                     const isLit = (i + 1) * 10 <= roundedPercentage;
                     return (
                       <div
                         key={i}
                         className={cn(
                           "h-2.5 w-2.5 rounded-full transition-colors",
-                          isLit ? "bg-primary" : "bg-muted-foreground/25"
+                          isLit ? "bg-primary" : "bg-muted-foreground/25",
                         )}
                       />
                     );
                   })}
                 </div>
-                <span className={cn(
-                  "text-lg font-bold tabular-nums",
-                  effectivePercentage >= 70 ? "text-emerald-500 dark:text-emerald-400"
-                    : effectivePercentage >= 45 ? "text-amber-500 dark:text-amber-400"
-                      : "text-rose-500 dark:text-rose-400"
-                )}>
+                <span
+                  className={cn(
+                    "text-lg font-bold tabular-nums",
+                    effectivePercentage >= 70
+                      ? "text-emerald-500 dark:text-emerald-400"
+                      : effectivePercentage >= 45
+                        ? "text-amber-500 dark:text-amber-400"
+                        : "text-rose-500 dark:text-rose-400",
+                  )}
+                >
                   {effectivePercentage}% Match
                 </span>
               </div>
-              <p className="text-xs text-muted-foreground tracking-wide uppercase">Compatibility Score</p>
+              <p className="text-xs text-muted-foreground tracking-wide uppercase">
+                Compatibility Score
+              </p>
             </div>
 
             {/* Matching Areas Card */}
@@ -636,13 +758,27 @@ export const CareerFitAnalyst = () => {
               <div className="rounded-lg border border-emerald-200 dark:border-emerald-800 bg-emerald-50/60 dark:bg-emerald-950/30 p-4">
                 <div className="flex items-center gap-2 mb-3">
                   <CheckCircle2 className="h-4 w-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
-                  <p className="text-sm font-semibold text-emerald-700 dark:text-emerald-300">Matching Areas</p>
+                  <p className="text-sm font-semibold text-emerald-700 dark:text-emerald-300">
+                    Matching Areas
+                  </p>
                 </div>
                 <ul className="space-y-2">
                   {parsedSections.matchingLines.map((line, i) => (
-                    <li key={i} className="flex gap-2 text-sm text-foreground leading-snug">
-                      <span className="mt-0.5 text-emerald-500 shrink-0">✓</span>
-                      <span dangerouslySetInnerHTML={{ __html: line.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>') }} />
+                    <li
+                      key={i}
+                      className="flex gap-2 text-sm text-foreground leading-snug"
+                    >
+                      <span className="mt-0.5 text-emerald-500 shrink-0">
+                        ✓
+                      </span>
+                      <span
+                        dangerouslySetInnerHTML={{
+                          __html: line.replace(
+                            /\*\*(.+?)\*\*/g,
+                            "<strong>$1</strong>",
+                          ),
+                        }}
+                      />
                     </li>
                   ))}
                 </ul>
@@ -654,13 +790,25 @@ export const CareerFitAnalyst = () => {
               <div className="rounded-lg border border-amber-200 dark:border-amber-800 bg-amber-50/60 dark:bg-amber-950/30 p-4">
                 <div className="flex items-center gap-2 mb-3">
                   <AlertCircle className="h-4 w-4 text-amber-600 dark:text-amber-400 shrink-0" />
-                  <p className="text-sm font-semibold text-amber-700 dark:text-amber-300">Areas to Bridge</p>
+                  <p className="text-sm font-semibold text-amber-700 dark:text-amber-300">
+                    Areas to Bridge
+                  </p>
                 </div>
                 <ul className="space-y-2">
                   {parsedSections.gapLines.map((line, i) => (
-                    <li key={i} className="flex gap-2 text-sm text-foreground leading-snug">
+                    <li
+                      key={i}
+                      className="flex gap-2 text-sm text-foreground leading-snug"
+                    >
                       <span className="mt-0.5 text-amber-500 shrink-0">→</span>
-                      <span dangerouslySetInnerHTML={{ __html: line.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>') }} />
+                      <span
+                        dangerouslySetInnerHTML={{
+                          __html: line.replace(
+                            /\*\*(.+?)\*\*/g,
+                            "<strong>$1</strong>",
+                          ),
+                        }}
+                      />
                     </li>
                   ))}
                 </ul>
@@ -669,11 +817,7 @@ export const CareerFitAnalyst = () => {
 
             {/* Download actions */}
             <div className="flex justify-center gap-2 pdf-hidden">
-              <Button
-                onClick={handleDownloadText}
-                variant="outline"
-                size="sm"
-              >
+              <Button onClick={handleDownloadText} variant="outline" size="sm">
                 <Download className="mr-2 h-4 w-4" /> Download as Text
               </Button>
               <Button
@@ -684,7 +828,8 @@ export const CareerFitAnalyst = () => {
               >
                 {isGeneratingPdf ? (
                   <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Generating PDF...
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Generating
+                    PDF...
                   </>
                 ) : (
                   <>
@@ -694,7 +839,8 @@ export const CareerFitAnalyst = () => {
               </Button>
             </div>
             <p className="text-center text-xs text-muted-foreground">
-              Full matching areas and gaps are included in the Text and PDF downloads.
+              Full matching areas and gaps are included in the Text and PDF
+              downloads.
             </p>
           </div>
         )}

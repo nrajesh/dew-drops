@@ -1,8 +1,14 @@
-import { useState, useCallback } from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { useState, useCallback } from "react";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Upload, File, X, Download } from 'lucide-react';
+import { Upload, File, X, Download } from "lucide-react";
 
 interface ImageUploadCardProps {
   onFileChange: (files: File[]) => void;
@@ -12,15 +18,26 @@ interface ImageUploadCardProps {
   selectedFiles: File[];
 }
 
-export const ImageUploadCard = ({ onFileChange, onUpload, onMetadataApply, isUploading, selectedFiles }: ImageUploadCardProps) => {
+export const ImageUploadCard = ({
+  onFileChange,
+  onUpload,
+  onMetadataApply,
+  isUploading,
+  selectedFiles,
+}: ImageUploadCardProps) => {
   const [metadataFile, setMetadataFile] = useState<File | null>(null);
-  const [metadata, setMetadata] = useState<Record<string, unknown>[] | undefined>(undefined);
+  const [metadata, setMetadata] = useState<
+    Record<string, unknown>[] | undefined
+  >(undefined);
 
   const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
     if (event.target.files) {
       const files = Array.from(event.target.files);
-      const imageFiles = files.filter(file => file.type.startsWith('image/'));
-      const jsonFile = files.find(file => file.type === 'application/json' || file.name.endsWith('.json'));
+      const imageFiles = files.filter((file) => file.type.startsWith("image/"));
+      const jsonFile = files.find(
+        (file) =>
+          file.type === "application/json" || file.name.endsWith(".json"),
+      );
 
       if (imageFiles.length > 0) {
         onFileChange(imageFiles);
@@ -43,7 +60,7 @@ export const ImageUploadCard = ({ onFileChange, onUpload, onMetadataApply, isUpl
     reader.onload = (e) => {
       try {
         const content = e.target?.result;
-        if (typeof content === 'string') {
+        if (typeof content === "string") {
           const parsed = JSON.parse(content);
           setMetadata(parsed);
         }
@@ -55,28 +72,36 @@ export const ImageUploadCard = ({ onFileChange, onUpload, onMetadataApply, isUpl
     reader.readAsText(file);
   };
 
-  const handleMetadataFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleMetadataFileChange = (
+    event: React.ChangeEvent<HTMLInputElement>,
+  ) => {
     const file = event.target.files?.[0];
     if (file) {
       processMetadataFile(file);
     }
   };
 
-  const onDrop = useCallback((event: React.DragEvent<HTMLDivElement>) => {
-    event.preventDefault();
-    event.stopPropagation();
-    const files = Array.from(event.dataTransfer.files);
+  const onDrop = useCallback(
+    (event: React.DragEvent<HTMLDivElement>) => {
+      event.preventDefault();
+      event.stopPropagation();
+      const files = Array.from(event.dataTransfer.files);
 
-    const imageFiles = files.filter(file => file.type.startsWith('image/'));
-    const jsonFile = files.find(file => file.type === 'application/json' || file.name.endsWith('.json'));
+      const imageFiles = files.filter((file) => file.type.startsWith("image/"));
+      const jsonFile = files.find(
+        (file) =>
+          file.type === "application/json" || file.name.endsWith(".json"),
+      );
 
-    if (imageFiles.length > 0) {
-      onFileChange(imageFiles);
-    }
-    if (jsonFile) {
-      processMetadataFile(jsonFile);
-    }
-  }, [onFileChange]);
+      if (imageFiles.length > 0) {
+        onFileChange(imageFiles);
+      }
+      if (jsonFile) {
+        processMetadataFile(jsonFile);
+      }
+    },
+    [onFileChange],
+  );
 
   const onDragOver = (event: React.DragEvent<HTMLDivElement>) => {
     event.preventDefault();
@@ -96,7 +121,8 @@ export const ImageUploadCard = ({ onFileChange, onUpload, onMetadataApply, isUpl
       <CardHeader>
         <CardTitle>Upload & Update</CardTitle>
         <CardDescription>
-          Upload new images or apply a JSON metadata file to update existing images.
+          Upload new images or apply a JSON metadata file to update existing
+          images.
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
@@ -104,7 +130,7 @@ export const ImageUploadCard = ({ onFileChange, onUpload, onMetadataApply, isUpl
           className="border-2 border-dashed rounded-lg p-8 text-center cursor-pointer hover:border-primary"
           onDrop={onDrop}
           onDragOver={onDragOver}
-          onClick={() => document.getElementById('image-upload-input')?.click()}
+          onClick={() => document.getElementById("image-upload-input")?.click()}
         >
           <Upload className="mx-auto h-12 w-12 text-muted-foreground" />
           <p className="mt-4 text-sm text-muted-foreground">
@@ -122,15 +148,25 @@ export const ImageUploadCard = ({ onFileChange, onUpload, onMetadataApply, isUpl
 
         {selectedFiles.length > 0 && (
           <div className="space-y-2">
-            <h4 className="font-medium">Images to Upload ({selectedFiles.length}):</h4>
+            <h4 className="font-medium">
+              Images to Upload ({selectedFiles.length}):
+            </h4>
             <div className="max-h-48 overflow-y-auto space-y-2 pr-2">
               {selectedFiles.map((file, index) => (
-                <div key={index} className="flex items-center justify-between p-2 bg-muted rounded-md">
+                <div
+                  key={index}
+                  className="flex items-center justify-between p-2 bg-muted rounded-md"
+                >
                   <div className="flex items-center gap-2 truncate">
                     <File className="h-4 w-4 flex-shrink-0" />
                     <span className="text-sm truncate">{file.name}</span>
                   </div>
-                  <Button variant="ghost" size="icon" onClick={() => handleRemoveFile(index)} disabled={isUploading}>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => handleRemoveFile(index)}
+                    disabled={isUploading}
+                  >
                     <X className="h-4 w-4" />
                   </Button>
                 </div>
@@ -147,7 +183,15 @@ export const ImageUploadCard = ({ onFileChange, onUpload, onMetadataApply, isUpl
                 <File className="h-4 w-4 flex-shrink-0" />
                 <span className="text-sm truncate">{metadataFile.name}</span>
               </div>
-              <Button variant="ghost" size="icon" onClick={() => { setMetadataFile(null); setMetadata(undefined); }} disabled={isUploading}>
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => {
+                  setMetadataFile(null);
+                  setMetadata(undefined);
+                }}
+                disabled={isUploading}
+              >
                 <X className="h-4 w-4" />
               </Button>
             </div>
@@ -156,7 +200,12 @@ export const ImageUploadCard = ({ onFileChange, onUpload, onMetadataApply, isUpl
 
         <div className="flex flex-col sm:flex-row gap-4 items-center">
           <div className="flex-1 w-full">
-            <label htmlFor="metadata-upload-input" className="text-sm font-medium">Optional Metadata File (.json)</label>
+            <label
+              htmlFor="metadata-upload-input"
+              className="text-sm font-medium"
+            >
+              Optional Metadata File (.json)
+            </label>
             <Input
               id="metadata-upload-input"
               type="file"
@@ -181,7 +230,9 @@ export const ImageUploadCard = ({ onFileChange, onUpload, onMetadataApply, isUpl
             disabled={isUploading}
             className="w-full"
           >
-            {isUploading ? 'Uploading...' : `Upload ${selectedFiles.length} Image(s)`}
+            {isUploading
+              ? "Uploading..."
+              : `Upload ${selectedFiles.length} Image(s)`}
           </Button>
         ) : metadataFile ? (
           <Button
@@ -189,7 +240,7 @@ export const ImageUploadCard = ({ onFileChange, onUpload, onMetadataApply, isUpl
             disabled={isUploading}
             className="w-full"
           >
-            {isUploading ? 'Applying...' : 'Apply Metadata to Existing Images'}
+            {isUploading ? "Applying..." : "Apply Metadata to Existing Images"}
           </Button>
         ) : null}
       </CardContent>

@@ -13,7 +13,9 @@ declare namespace Deno {
 // Declare modules imported from Deno.land/std
 declare module "https://deno.land/std@0.190.0/http/server.ts" {
   // Assuming 'Request' and 'Response' are globally available from 'DOM' lib
-  export function serve(handler: (req: Request) => Promise<Response> | Response): Promise<void>;
+  export function serve(
+    handler: (req: Request) => Promise<Response> | Response,
+  ): Promise<void>;
 }
 
 // Declare modules imported from esm.sh

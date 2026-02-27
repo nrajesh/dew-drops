@@ -1,5 +1,11 @@
 import * as React from "react";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Slider } from "@/components/ui/slider";
 import { useFontSettings } from "@/contexts/FontSettingsContext";
@@ -20,12 +26,15 @@ export const FontSettingsControl: React.FC = () => {
       <CardHeader>
         <CardTitle>Text Readability</CardTitle>
         <CardDescription>
-          Adjust the base font size and line spacing for better readability across the site.
+          Adjust the base font size and line spacing for better readability
+          across the site.
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-6">
         <div className="space-y-2">
-          <Label htmlFor="font-size-slider">Font Size ({settings.fontSize.toFixed(1)}rem)</Label>
+          <Label htmlFor="font-size-slider">
+            Font Size ({settings.fontSize.toFixed(1)}rem)
+          </Label>
           <Slider
             id="font-size-slider"
             min={0.8}
@@ -37,7 +46,9 @@ export const FontSettingsControl: React.FC = () => {
           />
         </div>
         <div className="space-y-2">
-          <Label htmlFor="line-height-slider">Line Spacing ({settings.lineHeight.toFixed(1)})</Label>
+          <Label htmlFor="line-height-slider">
+            Line Spacing ({settings.lineHeight.toFixed(1)})
+          </Label>
           <Slider
             id="line-height-slider"
             min={1.2}

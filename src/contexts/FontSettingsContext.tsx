@@ -1,5 +1,12 @@
-import { createContext, useState, useEffect, useContext, ReactNode, useCallback } from 'react';
-import { showSuccess, showError } from '@/utils/toast';
+import {
+  createContext,
+  useState,
+  useEffect,
+  useContext,
+  ReactNode,
+  useCallback,
+} from "react";
+import { showSuccess, showError } from "@/utils/toast";
 
 interface FontSettings {
   fontSize: number; // in rem
@@ -16,12 +23,14 @@ const defaultSettings: FontSettings = {
   lineHeight: 1.5, // 1.5 times font size
 };
 
-const FontSettingsContext = createContext<FontSettingsContextType | undefined>(undefined);
+const FontSettingsContext = createContext<FontSettingsContextType | undefined>(
+  undefined,
+);
 
 export const FontSettingsProvider = ({ children }: { children: ReactNode }) => {
   const [settings, setSettings] = useState<FontSettings>(() => {
     try {
-      const storedSettings = localStorage.getItem('fontSettings');
+      const storedSettings = localStorage.getItem("fontSettings");
       return storedSettings ? JSON.parse(storedSettings) : defaultSettings;
     } catch (error) {
       console.error("Failed to load font settings from localStorage:", error);
@@ -31,21 +40,29 @@ export const FontSettingsProvider = ({ children }: { children: ReactNode }) => {
 
   useEffect(() => {
     try {
-      localStorage.setItem('fontSettings', JSON.stringify(settings));
+      localStorage.setItem("fontSettings", JSON.stringify(settings));
     } catch (error) {
       console.error("Failed to save font settings to localStorage:", error);
-      showError("Failed to save font settings. Please check your browser's storage permissions.");
+      showError(
+        "Failed to save font settings. Please check your browser's storage permissions.",
+      );
     }
   }, [settings]);
 
   const updateSettings = useCallback((newSettings: Partial<FontSettings>) => {
-    setSettings(prevSettings => ({ ...prevSettings, ...newSettings }));
+    setSettings((prevSettings) => ({ ...prevSettings, ...newSettings }));
     showSuccess("Font settings updated!");
   }, []);
 
   useEffect(() => {
-    document.documentElement.style.setProperty('--base-font-size', `${settings.fontSize}rem`);
-    document.documentElement.style.setProperty('--base-line-height', String(settings.lineHeight));
+    document.documentElement.style.setProperty(
+      "--base-font-size",
+      `${settings.fontSize}rem`,
+    );
+    document.documentElement.style.setProperty(
+      "--base-line-height",
+      String(settings.lineHeight),
+    );
   }, [settings]);
 
   return (
@@ -58,7 +75,9 @@ export const FontSettingsProvider = ({ children }: { children: ReactNode }) => {
 export const useFontSettings = () => {
   const context = useContext(FontSettingsContext);
   if (context === undefined) {
-    throw new Error('useFontSettings must be used within a FontSettingsProvider');
+    throw new Error(
+      "useFontSettings must be used within a FontSettingsProvider",
+    );
   }
   return context;
 };

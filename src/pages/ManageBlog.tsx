@@ -74,10 +74,20 @@ const ManageBlog = () => {
         onSearch={setSearchTerm}
       />
 
-      <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as 'published' | 'unpublished')} className="w-full">
+      <Tabs
+        value={activeTab}
+        onValueChange={(value) =>
+          setActiveTab(value as "published" | "unpublished")
+        }
+        className="w-full"
+      >
         <TabsList className="grid w-full grid-cols-2">
-          <TabsTrigger value="published">Published ({posts.filter(p => p.published).length})</TabsTrigger>
-          <TabsTrigger value="unpublished">Unpublished ({posts.filter(p => !p.published).length})</TabsTrigger>
+          <TabsTrigger value="published">
+            Published ({posts.filter((p) => p.published).length})
+          </TabsTrigger>
+          <TabsTrigger value="unpublished">
+            Unpublished ({posts.filter((p) => !p.published).length})
+          </TabsTrigger>
         </TabsList>
         <TabsContent value="published">
           <PostList

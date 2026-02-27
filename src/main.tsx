@@ -16,8 +16,11 @@ const queryClient = new QueryClient();
 
 // Suppress the specific YouTube embed error
 const originalConsoleError = console.error;
-console.error = function(...args) {
-  if (typeof args[0] === 'string' && args[0].includes('Blocked a frame with origin "https://www.youtube.com"')) {
+console.error = function (...args) {
+  if (
+    typeof args[0] === "string" &&
+    args[0].includes('Blocked a frame with origin "https://www.youtube.com"')
+  ) {
     return;
   }
   originalConsoleError.apply(console, args);
@@ -25,7 +28,9 @@ console.error = function(...args) {
 
 createRoot(document.getElementById("root")!).render(
   <React.StrictMode>
-    <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
+    <BrowserRouter
+      future={{ v7_startTransition: true, v7_relativeSplatPath: true }}
+    >
       <ThemeProvider
         attribute="class"
         defaultTheme="dark"
@@ -34,7 +39,9 @@ createRoot(document.getElementById("root")!).render(
         <QueryClientProvider client={queryClient}>
           <AuthProvider>
             <FeatureToggleProvider>
-              <FontSettingsProvider> {/* Wrap with FontSettingsProvider */}
+              <FontSettingsProvider>
+                {" "}
+                {/* Wrap with FontSettingsProvider */}
                 <TooltipProvider>
                   <App />
                   <SpeedInsights />
@@ -45,10 +52,10 @@ createRoot(document.getElementById("root")!).render(
         </QueryClientProvider>
       </ThemeProvider>
     </BrowserRouter>
-  </React.StrictMode>
+  </React.StrictMode>,
 );
 
 // Clear the boot timeout since the app successfully loaded
-if (typeof window !== 'undefined' && window.appBootTimeout) {
+if (typeof window !== "undefined" && window.appBootTimeout) {
   clearTimeout(window.appBootTimeout);
 }

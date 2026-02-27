@@ -1,6 +1,6 @@
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect } from "react";
 
-export const usePagination = <T,>(items: T[], itemsPerPage: number) => {
+export const usePagination = <T>(items: T[], itemsPerPage: number) => {
   const [currentPage, setCurrentPage] = useState(1);
 
   const totalPages = useMemo(() => {

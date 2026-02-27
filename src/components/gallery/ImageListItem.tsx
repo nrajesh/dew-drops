@@ -1,9 +1,9 @@
-import type { GalleryImage } from '@/types';
-import { Checkbox } from '@/components/ui/checkbox';
-import { Button } from '@/components/ui/button';
-import { Edit, Image as ImageIcon, Eye } from 'lucide-react';
-import { Switch } from '@/components/ui/switch';
-import { supabase } from '@/integrations/supabase/client';
+import type { GalleryImage } from "@/types";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Button } from "@/components/ui/button";
+import { Edit, Image as ImageIcon, Eye } from "lucide-react";
+import { Switch } from "@/components/ui/switch";
+import { supabase } from "@/integrations/supabase/client";
 
 interface ImageListItemProps {
   image: GalleryImage;
@@ -18,8 +18,8 @@ interface ImageListItemProps {
 
 /** Strip the user-id prefix and timestamp from a stored file name to get a human-readable label. */
 const readableLabel = (fileName: string) =>
-  fileName.split('/').pop()?.split('_').slice(2).join('_') ||
-  fileName.split('/').pop() ||
+  fileName.split("/").pop()?.split("_").slice(2).join("_") ||
+  fileName.split("/").pop() ||
   fileName;
 
 export const ImageListItem = ({
@@ -37,7 +37,9 @@ export const ImageListItem = ({
   const thumbnailUrl = (() => {
     if (image.image_url) return image.image_url;
     try {
-      const { data } = supabase.storage.from('gallery').getPublicUrl(image.file_name);
+      const { data } = supabase.storage
+        .from("gallery")
+        .getPublicUrl(image.file_name);
       return data.publicUrl;
     } catch {
       return null;
@@ -45,7 +47,7 @@ export const ImageListItem = ({
   })();
 
   return (
-    <div className="flex items-center justify-between p-2 rounded-lg border gap-3 min-h-[56px]">
+    <div className="flex items-center justify-between p-2 rounded-lg border gap-3 min-h-[80px]">
       <div className="flex items-center gap-3 flex-grow min-w-0">
         {/* Checkbox — only ever selects, never opens lightbox */}
         <Checkbox
@@ -58,7 +60,7 @@ export const ImageListItem = ({
 
         {/* Thumbnail — clicking always opens the lightbox */}
         <div
-          className="shrink-0 h-10 w-14 rounded overflow-hidden bg-muted flex items-center justify-center cursor-pointer"
+          className="shrink-0 h-16 w-24 rounded overflow-hidden bg-muted flex items-center justify-center cursor-pointer"
           onClick={() => onView(image)}
           title="View image"
         >
@@ -77,13 +79,16 @@ export const ImageListItem = ({
         {/* Text column — NOT clickable; use the Eye button to open lightbox */}
         <div className="flex flex-col min-w-0">
           {/* No htmlFor — clicking the label no longer triggers the checkbox */}
-          <span className="font-medium text-sm truncate leading-snug">{label}</span>
+          <span className="font-medium text-sm truncate leading-snug">
+            {label}
+          </span>
           <p className="text-xs text-muted-foreground truncate">
-            {image.alt_text || 'No alt text'}
+            {image.alt_text || "No alt text"}
           </p>
           {image.tags && image.tags.length > 0 && (
             <p className="text-xs text-muted-foreground truncate">
-              🏷 {image.tags.slice(0, 4).join(', ')}{image.tags.length > 4 ? ` +${image.tags.length - 4}` : ''}
+              🏷 {image.tags.slice(0, 4).join(", ")}
+              {image.tags.length > 4 ? ` +${image.tags.length - 4}` : ""}
             </p>
           )}
         </div>

@@ -12,7 +12,9 @@ try {
     throw new Error("VITE_GEMINI_API_KEY is not set.");
   }
   if (!MODEL_NAME) {
-    throw new Error("VITE_GEMINI_MODEL_NAME is not set. Please specify a Gemini model (e.g., 'gemini-pro').");
+    throw new Error(
+      "VITE_GEMINI_MODEL_NAME is not set. Please specify a Gemini model (e.g., 'gemini-pro').",
+    );
   }
   genAI = new GoogleGenerativeAI(API_KEY);
   model = genAI.getGenerativeModel({ model: MODEL_NAME });
@@ -34,7 +36,6 @@ export const getGeminiModel = (): GenerativeModel => {
 
 export const getGeminiInitializationError = () => initializationError;
 
-
 export const sendMessageToGemini = async (message: string) => {
   try {
     const currentModel = getGeminiModel();
@@ -50,7 +51,9 @@ export const sendMessageToGemini = async (message: string) => {
   }
 };
 
-export const extractJobKeywords = async (jobDescription: string): Promise<string[]> => {
+export const extractJobKeywords = async (
+  jobDescription: string,
+): Promise<string[]> => {
   try {
     const currentModel = getGeminiModel();
     const prompt = `Given the following job description, extract 5-10 key skills, technologies, and responsibilities as a comma-separated list. Only return the keywords, nothing else.
@@ -60,7 +63,10 @@ export const extractJobKeywords = async (jobDescription: string): Promise<string
     const result = await currentModel.generateContent(prompt);
     const response = await result.response;
     const text = response.text();
-    return text.split(',').map(keyword => keyword.trim()).filter(Boolean);
+    return text
+      .split(",")
+      .map((keyword) => keyword.trim())
+      .filter(Boolean);
   } catch (error) {
     console.error("Error extracting job keywords with Gemini:", error);
     throw error;

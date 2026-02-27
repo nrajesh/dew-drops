@@ -17,17 +17,18 @@ import { useState, useEffect } from "react";
 const LazyImageLightbox = lazy(() =>
   import("@/components/ImageLightbox").then((module) => ({
     default: module.ImageLightbox,
-  }))
+  })),
 );
 
 const IMAGES_PER_PAGE = 9;
 
 /** Builds a CDN URL with optional Supabase image transform query params. */
-const getImageUrl = (fileName: string, opts?: { width?: number; quality?: number }) => {
+const getImageUrl = (
+  fileName: string,
+  opts?: { width?: number; quality?: number },
+) => {
   const { data } = supabase.storage.from("gallery").getPublicUrl(fileName, {
-    transform: opts
-      ? { width: opts.width, quality: opts.quality }
-      : undefined,
+    transform: opts ? { width: opts.width, quality: opts.quality } : undefined,
   });
   return data.publicUrl;
 };
@@ -35,7 +36,9 @@ const getImageUrl = (fileName: string, opts?: { width?: number; quality?: number
 const Gallery = () => {
   const { images: allImages, isLoading, mutate } = useGalleryImages();
 
-  const [selectedImageIndex, setSelectedImageIndex] = useState<number | null>(null);
+  const [selectedImageIndex, setSelectedImageIndex] = useState<number | null>(
+    null,
+  );
   const [activeMake, setActiveMake] = useState<string | "all">("all");
   const [searchTerm, setSearchTerm] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
@@ -55,8 +58,8 @@ const Gallery = () => {
         const makeValue = image.exif_data?.Make;
         const makeString =
           typeof makeValue === "object" &&
-            makeValue !== null &&
-            "description" in makeValue
+          makeValue !== null &&
+          "description" in makeValue
             ? (makeValue as { description: string }).description
             : (makeValue as string | undefined);
         return activeMake === "all" || makeString === activeMake;
@@ -76,7 +79,11 @@ const Gallery = () => {
     const makes = allImages
       .map((img) => {
         const make = img.exif_data?.Make;
-        if (typeof make === "object" && make !== null && "description" in make) {
+        if (
+          typeof make === "object" &&
+          make !== null &&
+          "description" in make
+        ) {
           return (make as { description: string }).description;
         }
         return make as string | undefined;
@@ -88,7 +95,7 @@ const Gallery = () => {
   const totalPages = Math.ceil(displayImages.length / IMAGES_PER_PAGE);
   const paginatedImages = displayImages.slice(
     (currentPage - 1) * IMAGES_PER_PAGE,
-    currentPage * IMAGES_PER_PAGE
+    currentPage * IMAGES_PER_PAGE,
   );
 
   usePaginationNavigation({
@@ -105,7 +112,7 @@ const Gallery = () => {
       setSelectedImageIndex((prev) => (prev! + 1) % displayImages.length);
     } else {
       setSelectedImageIndex(
-        (prev) => (prev! - 1 + displayImages.length) % displayImages.length
+        (prev) => (prev! - 1 + displayImages.length) % displayImages.length,
       );
     }
   };
@@ -115,11 +122,16 @@ const Gallery = () => {
 
   return (
     <>
-      <div className="flex flex-col min-h-[calc(100vh-112px)]" ref={containerRef}>
+      <div
+        className="flex flex-col min-h-[calc(100vh-112px)]"
+        ref={containerRef}
+      >
         <div className="flex-grow space-y-6 pb-8">
           <div className="text-center">
             <h1 className="text-3xl font-bold">Gallery</h1>
-            <p className="text-muted-foreground">A few snapshots from my life.</p>
+            <p className="text-muted-foreground">
+              A few snapshots from my life.
+            </p>
           </div>
 
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
@@ -173,7 +185,7 @@ const Gallery = () => {
                   className="overflow-hidden group cursor-pointer"
                   onClick={() => {
                     const globalIndex = displayImages.findIndex(
-                      (img) => img.id === image.id
+                      (img) => img.id === image.id,
                     );
                     setSelectedImageIndex(globalIndex);
                   }}
@@ -181,7 +193,10 @@ const Gallery = () => {
                   <CardContent className="p-0">
                     <AspectRatio ratio={4 / 3}>
                       <img
-                        src={getImageUrl(image.file_name, { width: 600, quality: 75 })}
+                        src={getImageUrl(image.file_name, {
+                          width: 600,
+                          quality: 75,
+                        })}
                         alt={image.alt_text || "Gallery image"}
                         className="h-full w-full object-cover bg-background transition-transform duration-300 group-hover:scale-105"
                         loading="lazy"

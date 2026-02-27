@@ -12,16 +12,32 @@ import {
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { showSuccess, showError, showLoading, dismissToast } from "@/utils/toast";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import {
+  showSuccess,
+  showError,
+  showLoading,
+  dismissToast,
+} from "@/utils/toast";
 import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 
 const formSchema = z.object({
   name: z.string().min(2, { message: "Name must be at least 2 characters." }),
   email: z.string().email({ message: "Please enter a valid email address." }),
-  subject: z.string().min(5, { message: "Subject must be at least 5 characters." }),
-  message: z.string().min(10, { message: "Message must be at least 10 characters." }).max(500),
+  subject: z
+    .string()
+    .min(5, { message: "Subject must be at least 5 characters." }),
+  message: z
+    .string()
+    .min(10, { message: "Message must be at least 10 characters." })
+    .max(500),
 });
 
 const Contact = () => {
@@ -41,9 +57,12 @@ const Contact = () => {
     const toastId = showLoading("Sending your message...");
 
     try {
-      const { data, error } = await supabase.functions.invoke('send-contact-email', {
-        body: values,
-      });
+      const { data, error } = await supabase.functions.invoke(
+        "send-contact-email",
+        {
+          body: values,
+        },
+      );
 
       dismissToast(toastId);
 
@@ -67,9 +86,13 @@ const Contact = () => {
 
       const errorMessage = err.message || "An unknown error occurred.";
       if (errorMessage.includes("Missing API Key")) {
-        showError("Configuration needed: Please add the Resend API key to your Supabase project.");
+        showError(
+          "Configuration needed: Please add the Resend API key to your Supabase project.",
+        );
       } else if (errorMessage.includes("verified domains")) {
-        showError("Email configuration error: The sending domain is not verified. Please check your Resend account.");
+        showError(
+          "Email configuration error: The sending domain is not verified. Please check your Resend account.",
+        );
       } else {
         showError(`Error: ${errorMessage}`);
       }
@@ -83,7 +106,9 @@ const Contact = () => {
       <Card className="w-full max-w-2xl">
         <CardHeader>
           <CardTitle>Contact Me</CardTitle>
-          <CardDescription>Have a question or want to work together? Drop me a line.</CardDescription>
+          <CardDescription>
+            Have a question or want to work together? Drop me a line.
+          </CardDescription>
         </CardHeader>
         <CardContent>
           <Form {...form}>

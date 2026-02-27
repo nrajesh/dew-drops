@@ -20,8 +20,14 @@ import { UseFormReturn } from "react-hook-form";
 import * as z from "zod";
 
 const profileFormSchema = z.object({
-  first_name: z.string().min(1, "First name is required").max(50, "First name cannot exceed 50 characters"),
-  last_name: z.string().min(1, "Last name is required").max(50, "Last name cannot exceed 50 characters"),
+  first_name: z
+    .string()
+    .min(1, "First name is required")
+    .max(50, "First name cannot exceed 50 characters"),
+  last_name: z
+    .string()
+    .min(1, "Last name is required")
+    .max(50, "Last name cannot exceed 50 characters"),
   avatar_url: z.string().url("Invalid URL").optional().or(z.literal("")),
 });
 type ProfileFormValues = z.infer<typeof profileFormSchema>;
@@ -39,7 +45,9 @@ export const AvatarModal: React.FC<AvatarModalProps> = ({
 }) => {
   const { user, profile, fetchProfile } = useAuth();
   const [isSavingAvatar, setIsSavingAvatar] = React.useState(false);
-  const [avatarOption, setAvatarOption] = React.useState<"url" | "upload">("url");
+  const [avatarOption, setAvatarOption] = React.useState<"url" | "upload">(
+    "url",
+  );
   const [selectedFile, setSelectedFile] = React.useState<File | null>(null);
   const [filePreview, setFilePreview] = React.useState<string | null>(null);
   const currentAvatarUrl = profile?.avatar_url || null;
@@ -53,14 +61,14 @@ export const AvatarModal: React.FC<AvatarModalProps> = ({
   }, [isOpen, form]);
 
   const uploadAvatar = React.useCallback(async (file: File, userId: string) => {
-    const fileExt = file.name.split('.').pop();
+    const fileExt = file.name.split(".").pop();
     const fileName = `${userId}/${Date.now()}.${fileExt}`;
     const filePath = fileName;
 
     const { error: uploadError } = await supabase.storage
-      .from('avatars')
+      .from("avatars")
       .upload(filePath, file, {
-        cacheControl: '3600',
+        cacheControl: "3600",
         upsert: false,
       });
 
@@ -69,34 +77,37 @@ export const AvatarModal: React.FC<AvatarModalProps> = ({
     }
 
     const { data: publicUrlData } = supabase.storage
-      .from('avatars')
+      .from("avatars")
       .getPublicUrl(filePath);
 
     return publicUrlData.publicUrl;
   }, []);
 
-  const deleteOldAvatar = React.useCallback(async (oldAvatarUrl: string, userId: string) => {
-    if (!oldAvatarUrl || oldAvatarUrl.includes("/placeholder.svg")) return;
+  const deleteOldAvatar = React.useCallback(
+    async (oldAvatarUrl: string, userId: string) => {
+      if (!oldAvatarUrl || oldAvatarUrl.includes("/placeholder.svg")) return;
 
-    try {
-      const urlParts = oldAvatarUrl.split('/');
-      const bucketName = urlParts[urlParts.indexOf('storage') + 1];
-      const pathSegments = urlParts.slice(urlParts.indexOf(bucketName) + 1);
-      const filePath = pathSegments.join('/');
+      try {
+        const urlParts = oldAvatarUrl.split("/");
+        const bucketName = urlParts[urlParts.indexOf("storage") + 1];
+        const pathSegments = urlParts.slice(urlParts.indexOf(bucketName) + 1);
+        const filePath = pathSegments.join("/");
 
-      if (filePath.startsWith(`${userId}/`)) {
-        const { error: deleteError } = await supabase.storage
-          .from(bucketName)
-          .remove([filePath]);
+        if (filePath.startsWith(`${userId}/`)) {
+          const { error: deleteError } = await supabase.storage
+            .from(bucketName)
+            .remove([filePath]);
 
-        if (deleteError) {
-          console.error("Error deleting old avatar:", deleteError.message);
+          if (deleteError) {
+            console.error("Error deleting old avatar:", deleteError.message);
+          }
         }
+      } catch (error) {
+        console.error("Error parsing old avatar URL for deletion:", error);
       }
-    } catch (error) {
-      console.error("Error parsing old avatar URL for deletion:", error);
-    }
-  }, []);
+    },
+    [],
+  );
 
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -121,15 +132,29 @@ export const AvatarModal: React.FC<AvatarModalProps> = ({
 
     try {
       if (avatarOption === "upload" && selectedFile) {
-        if (currentAvatarUrl && !currentAvatarUrl.includes("/placeholder.svg") && currentAvatarUrl.includes(user.id)) {
+        if (
+          currentAvatarUrl &&
+          !currentAvatarUrl.includes("/placeholder.svg") &&
+          currentAvatarUrl.includes(user.id)
+        ) {
           await deleteOldAvatar(currentAvatarUrl, user.id);
         }
         newAvatarUrl = await uploadAvatar(selectedFile, user.id);
       } else if (avatarOption === "url" && newAvatarUrl !== currentAvatarUrl) {
-        if (currentAvatarUrl && !currentAvatarUrl.includes("/placeholder.svg") && currentAvatarUrl.includes(user.id)) {
+        if (
+          currentAvatarUrl &&
+          !currentAvatarUrl.includes("/placeholder.svg") &&
+          currentAvatarUrl.includes(user.id)
+        ) {
           await deleteOldAvatar(currentAvatarUrl, user.id);
         }
-      } else if (avatarOption === "url" && !newAvatarUrl && currentAvatarUrl && !currentAvatarUrl.includes("/placeholder.svg") && currentAvatarUrl.includes(user.id)) {
+      } else if (
+        avatarOption === "url" &&
+        !newAvatarUrl &&
+        currentAvatarUrl &&
+        !currentAvatarUrl.includes("/placeholder.svg") &&
+        currentAvatarUrl.includes(user.id)
+      ) {
         await deleteOldAvatar(currentAvatarUrl, user.id);
       }
 
@@ -163,7 +188,11 @@ export const AvatarModal: React.FC<AvatarModalProps> = ({
         <DialogHeader>
           <DialogTitle>Change Avatar</DialogTitle>
         </DialogHeader>
-        <Tabs defaultValue="url" className="w-full" onValueChange={(value) => setAvatarOption(value as "url" | "upload")}>
+        <Tabs
+          defaultValue="url"
+          className="w-full"
+          onValueChange={(value) => setAvatarOption(value as "url" | "upload")}
+        >
           <TabsList className="grid w-full grid-cols-2">
             <TabsTrigger value="url">
               <LinkIcon className="mr-2 h-4 w-4" /> Use URL
@@ -174,7 +203,12 @@ export const AvatarModal: React.FC<AvatarModalProps> = ({
           </TabsList>
           <TabsContent value="url" className="mt-4 space-y-4">
             <div>
-              <label htmlFor="avatar-url-input" className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">Avatar URL</label>
+              <label
+                htmlFor="avatar-url-input"
+                className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+              >
+                Avatar URL
+              </label>
               <Input
                 id="avatar-url-input"
                 placeholder="https://example.com/avatar.jpg"
@@ -186,7 +220,10 @@ export const AvatarModal: React.FC<AvatarModalProps> = ({
             {form.watch("avatar_url") && (
               <div className="relative w-24 h-24 mx-auto">
                 <Avatar className="w-full h-full">
-                  <AvatarImage src={form.watch("avatar_url")} alt="Avatar Preview" />
+                  <AvatarImage
+                    src={form.watch("avatar_url")}
+                    alt="Avatar Preview"
+                  />
                   <AvatarFallback>URL</AvatarFallback>
                 </Avatar>
                 <Button
@@ -204,8 +241,19 @@ export const AvatarModal: React.FC<AvatarModalProps> = ({
           </TabsContent>
           <TabsContent value="upload" className="mt-4 space-y-4">
             <div>
-              <label htmlFor="avatar-upload-input" className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">Upload Image</label>
-              <Input id="avatar-upload-input" type="file" accept="image/*" onChange={handleFileChange} className="mt-2" />
+              <label
+                htmlFor="avatar-upload-input"
+                className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+              >
+                Upload Image
+              </label>
+              <Input
+                id="avatar-upload-input"
+                type="file"
+                accept="image/*"
+                onChange={handleFileChange}
+                className="mt-2"
+              />
             </div>
             {filePreview && (
               <div className="relative w-24 h-24 mx-auto">
@@ -231,9 +279,18 @@ export const AvatarModal: React.FC<AvatarModalProps> = ({
           </TabsContent>
         </Tabs>
         <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
-          <Button onClick={handleSaveAvatar} disabled={isSavingAvatar || (avatarOption === "upload" && !selectedFile)}>
-            {isSavingAvatar && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+          <Button variant="outline" onClick={() => onOpenChange(false)}>
+            Cancel
+          </Button>
+          <Button
+            onClick={handleSaveAvatar}
+            disabled={
+              isSavingAvatar || (avatarOption === "upload" && !selectedFile)
+            }
+          >
+            {isSavingAvatar && (
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            )}
             Save Avatar
           </Button>
         </DialogFooter>
