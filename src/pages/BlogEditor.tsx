@@ -18,8 +18,9 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDescription } from "@/components/ui/form";
 import { MultiSelectPopover } from "@/components/MultiSelectPopover";
 import { CoverImagePicker } from "@/components/blog/CoverImagePicker";
-import { ArrowLeft, Save, Eye, Youtube, FileText } from "lucide-react";
+import { ArrowLeft, Save, Youtube, FileText, Eye, EyeOff } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
+import { marked } from "marked";
 
 // ── YouTube helpers ─────────────────────────────────────────────
 const extractYouTubeId = (input: string): string => {
@@ -78,6 +79,7 @@ const BlogEditor = () => {
     const [galleryImages, setGalleryImages] = useState<GalleryImage[]>([]);
     const [uniqueTags, setUniqueTags] = useState<string[]>([]);
     const [isDirty, setIsDirty] = useState(false);
+    const [showPreview, setShowPreview] = useState(false);
 
     const form = useForm<EditorFormData>({
         resolver: zodResolver(editorSchema),
@@ -230,18 +232,6 @@ const BlogEditor = () => {
                 <div className="flex items-center gap-2">
                     <Button
                         type="button"
-                        variant="outline"
-                        onClick={() => {
-                            if (id) window.open(`/blog/${id}`, "_blank");
-                            else showError("Save the post first to preview it.");
-                        }}
-                        className="gap-2"
-                    >
-                        <Eye className="h-4 w-4" />
-                        <span className="hidden sm:inline">Preview</span>
-                    </Button>
-                    <Button
-                        type="button"
                         onClick={form.handleSubmit(handleSubmit)}
                         className="gap-2"
                     >
@@ -309,13 +299,35 @@ const BlogEditor = () => {
                                             <FileText className="h-3 w-3" />
                                             Markdown
                                         </span>
+                                        <button
+                                            type="button"
+                                            onClick={() => setShowPreview((p) => !p)}
+                                            className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full border border-border hover:bg-accent transition-colors ml-auto"
+                                        >
+                                            {showPreview ? (
+                                                <><EyeOff className="h-3 w-3" /> Edit</>
+                                            ) : (
+                                                <><Eye className="h-3 w-3" /> Preview</>
+                                            )}
+                                        </button>
                                     </div>
                                     <FormControl>
-                                        <Textarea
-                                            placeholder="Write your full article here using Markdown…"
-                                            className="min-h-[350px] font-mono text-sm"
-                                            {...field}
-                                        />
+                                        {showPreview ? (
+                                            <div
+                                                className="min-h-[350px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm prose prose-invert max-w-none overflow-auto"
+                                                dangerouslySetInnerHTML={{
+                                                    __html: marked.parse(
+                                                        (field.value ?? "").replace(/^```[\s\S]*?\n/, "").replace(/\n```$/, "")
+                                                    ) as string,
+                                                }}
+                                            />
+                                        ) : (
+                                            <Textarea
+                                                placeholder="Write your full article here using Markdown…"
+                                                className="min-h-[350px] font-mono text-sm"
+                                                {...field}
+                                            />
+                                        )}
                                     </FormControl>
                                     <FormMessage />
                                 </FormItem>
