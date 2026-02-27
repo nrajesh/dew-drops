@@ -163,7 +163,25 @@ export const useGalleryManagement = () => {
 
   const handleGenerateTags = async (ids: string[]) => {
     const imagesToTag = [...publishedImages, ...unpublishedImages].filter(img => ids.includes(img.id));
-    await Promise.all(imagesToTag.map(image => generateTagsForImage(image)));
+    if (imagesToTag.length === 0) return;
+
+    const toastId = showLoading(`Generating tags for ${imagesToTag.length} image${imagesToTag.length > 1 ? 's' : ''}…`);
+    let successCount = 0;
+
+    // Run sequentially — each image shows its own result toast, and we avoid
+    // hammering the Gemini API with many concurrent requests.
+    for (const image of imagesToTag) {
+      const tags = await generateTagsForImage(image);
+      if (tags.length > 0) successCount++;
+    }
+
+    dismissToast(toastId);
+    if (successCount === imagesToTag.length) {
+      showSuccess(`✅ All ${successCount} image${successCount > 1 ? 's' : ''} tagged successfully.`);
+    } else {
+      showSuccess(`✅ ${successCount} / ${imagesToTag.length} images tagged. Check errors above.`);
+    }
+    reloadAllGalleryData();
   };
 
   const handleBulkDownload = async (ids: string[]) => {
@@ -253,13 +271,13 @@ export const useGalleryManagement = () => {
     publishedImages, filteredPublishedImages, paginatedPublishedImages, isLoadingPublished, selectedPublishedImages, publishedCurrentPage, publishedTotalPages, allPublishedOnPageSelected, setPublishedCurrentPage, handleSelectPublishedImage, handleSelectAllPublished,
     handleBulkDeletePublished: createBulkAction(handleBulkDelete, "Deleting images...", "Images deleted.", "Delete failed", selectedPublishedImages),
     handleBulkPublishPublished: (status: boolean) => createBulkAction((ids) => handleBulkPublish(ids, status), status ? "Publishing..." : "Unpublishing...", "Update successful.", "Update failed", selectedPublishedImages)(),
-    handleGenerateTagsPublished: createBulkAction(handleGenerateTags, "Generating tags...", "Tag generation started.", "Tag generation failed", selectedPublishedImages),
+    handleGenerateTagsPublished: async () => { if (selectedPublishedImages.size > 0) await handleGenerateTags(Array.from(selectedPublishedImages)); },
     handleBulkDownloadPublished: createBulkAction(handleBulkDownload, "Preparing download...", "Download started.", "Download failed", selectedPublishedImages),
     handleTogglePublishStatus, publishedSearchQuery, setPublishedSearchQuery,
     unpublishedImages, filteredUnpublishedImages, paginatedUnpublishedImages, isLoadingUnpublished, selectedUnpublishedImages, unpublishedCurrentPage, unpublishedTotalPages, allUnpublishedOnPageSelected, setUnpublishedCurrentPage, handleSelectUnpublishedImage, handleSelectAllUnpublished,
     handleBulkDeleteUnpublished: createBulkAction(handleBulkDelete, "Deleting images...", "Images deleted.", "Delete failed", selectedUnpublishedImages),
     handleBulkPublishUnpublished: (status: boolean) => createBulkAction((ids) => handleBulkPublish(ids, status), status ? "Publishing..." : "Unpublishing...", "Update successful.", "Update failed", selectedUnpublishedImages)(),
-    handleGenerateTagsUnpublished: createBulkAction(handleGenerateTags, "Generating tags...", "Tag generation started.", "Tag generation failed", selectedUnpublishedImages),
+    handleGenerateTagsUnpublished: async () => { if (selectedUnpublishedImages.size > 0) await handleGenerateTags(Array.from(selectedUnpublishedImages)); },
     handleBulkDownloadUnpublished: createBulkAction(handleBulkDownload, "Preparing download...", "Download started.", "Download failed", selectedUnpublishedImages),
     unpublishedSearchQuery, setUnpublishedSearchQuery,
   };
