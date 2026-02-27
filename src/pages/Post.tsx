@@ -13,7 +13,7 @@ import { BlogForm, PostFormData } from '@/components/blog/BlogForm';
 import { showSuccess, showError, showLoading, dismissToast } from '@/utils/toast';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
-import { extractDescriptionFromContent, ensureContentHasTripleBackticks } from "@/components/blog/BlogManagementUtils"; // Import utility functions
+import { extractDescriptionFromContent, stripOuterBackticks } from "@/components/blog/BlogManagementUtils"; // Import utility functions
 import { formatDate } from '@/lib/utils'; // Import centralized formatDate
 
 const PLACEHOLDER_IMAGE_URL = "/gallery/placeholder.svg";
@@ -177,7 +177,7 @@ const Post = () => {
       description = extractDescriptionFromContent(values.content);
     }
 
-    const content = ensureContentHasTripleBackticks(values.content);
+    const content = values.content;
 
     const postData = {
       ...values,
@@ -284,7 +284,7 @@ const Post = () => {
             )}
             <div className="prose dark:prose-invert max-w-none">
               <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                {post.content || ''}
+                {stripOuterBackticks(post.content || '')}
               </ReactMarkdown>
             </div>
           </CardContent>

@@ -55,11 +55,13 @@ export const extractDescriptionFromContent = (content: string): string => {
   return extractedDescription;
 };
 
-export const ensureContentHasTripleBackticks = (content: string): string => {
-  if (!content.startsWith('```') || !content.endsWith('```')) {
-    return '```\n' + content + '\n```';
+export const stripOuterBackticks = (content: string): string => {
+  if (!content) return "";
+  let stripped = content;
+  if (stripped.startsWith('```') && stripped.endsWith('```')) {
+    stripped = stripped.replace(/^```[a-zA-Z]*\n?/, '').replace(/\n?```$/, '');
   }
-  return content;
+  return stripped;
 };
 
 export const parseWordPressXml = async (xmlString: string): Promise<NewPost[]> => {
@@ -100,13 +102,11 @@ export const parseWordPressXml = async (xmlString: string): Promise<NewPost[]> =
       description = extractDescriptionFromContent(content);
     }
 
-    const finalContent = ensureContentHasTripleBackticks(content);
-
-    if (title && finalContent) {
+    if (title && content) {
       newPosts.push({
         title,
         description,
-        content: finalContent,
+        content: content,
         published_at: new Date(pubDate).toISOString(),
         published: status === 'publish',
         tags: tags.length > 0 ? tags : null,
@@ -198,9 +198,7 @@ export const parseMarkdownFile = async (file: File): Promise<NewPost> => {
     description = extractDescriptionFromContent(content);
   }
 
-  const finalContent = ensureContentHasTripleBackticks(content);
-
-  return { title, description, content: finalContent, published_at, published, tags, cover_image_id, youtube_video_id };
+  return { title, description, content, published_at, published, tags, cover_image_id, youtube_video_id };
 };
 
 export const processUploads = async (userId: string, inserts: NewPost[], updates: { existingId: string; existingTitle: string; newData: NewPost }[]) => {
@@ -296,9 +294,8 @@ published: ${post.published}${tagsString}${coverImageIdString}${youtubeVideoIdSt
 ---
 
 `;
-      // Ensure content has triple backticks
-      let content = post.content || '';
-      content = ensureContentHasTripleBackticks(content);
+      // No longer wrapping content in backticks
+      const content = post.content || '';
 
       const markdownContent = frontmatter + content;
       const sanitizedTitle = sanitizeFileName(post.title).replace(/\.[^/.]+$/, "");

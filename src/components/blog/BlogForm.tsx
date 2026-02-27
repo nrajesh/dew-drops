@@ -20,7 +20,7 @@ import { useEffect } from "react";
 import { Checkbox } from "../ui/checkbox";
 import { Youtube } from "lucide-react";
 import { CoverImagePicker } from "@/components/blog/CoverImagePicker";
-import { extractDescriptionFromContent, ensureContentHasTripleBackticks } from "@/components/blog/BlogManagementUtils";
+import { extractDescriptionFromContent, stripOuterBackticks } from "@/components/blog/BlogManagementUtils";
 
 const postSchema = z.object({
   title: z.string().min(3, { message: "Title must be at least 3 characters." }),
@@ -79,7 +79,7 @@ export const BlogForm = ({ editingPost, galleryImages, uniqueTags, onSubmit, onC
       form.reset({
         title: editingPost.title,
         description: editingPost.description || "",
-        content: editingPost.content || "",
+        content: stripOuterBackticks(editingPost.content || ""),
         published_at: editingPost.published_at ? editingPost.published_at.split("T")[0] : new Date().toISOString().split("T")[0],
         published: editingPost.published,
         tags: editingPost.tags || [],
@@ -110,7 +110,7 @@ export const BlogForm = ({ editingPost, galleryImages, uniqueTags, onSubmit, onC
     onSubmit({
       ...values,
       description: description,
-      content: ensureContentHasTripleBackticks(values.content) // Ensure content has triple backticks
+      content: values.content
     });
   };
 

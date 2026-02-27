@@ -9,7 +9,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import type { Post, GalleryImage } from "@/types";
 import { showSuccess, showError, showLoading, dismissToast } from "@/utils/toast";
 import { fetchGalleryImages } from "@/components/blog/BlogManagementUtils";
-import { extractDescriptionFromContent, ensureContentHasTripleBackticks } from "@/components/blog/BlogManagementUtils";
+import { extractDescriptionFromContent, stripOuterBackticks } from "@/components/blog/BlogManagementUtils";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -188,7 +188,7 @@ const BlogEditor = () => {
                 form.reset({
                     title: p.title,
                     description: p.description ?? "",
-                    content: p.content ?? "",
+                    content: stripOuterBackticks(p.content ?? ""),
                     published_at: p.published_at ? p.published_at.split("T")[0] : new Date().toISOString().split("T")[0],
                     published: p.published,
                     tags: p.tags ?? [],
@@ -219,7 +219,7 @@ const BlogEditor = () => {
             const postData = {
                 ...values,
                 description,
-                content: ensureContentHasTripleBackticks(values.content),
+                content: values.content,
                 user_id: user.id,
             };
 
@@ -394,9 +394,7 @@ const BlogEditor = () => {
                                             <div
                                                 className="min-h-[350px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm prose prose-invert max-w-none overflow-auto"
                                                 dangerouslySetInnerHTML={{
-                                                    __html: marked.parse(
-                                                        (field.value ?? "").replace(/^```[\s\S]*?\n/, "").replace(/\n```$/, "")
-                                                    ) as string,
+                                                    __html: marked.parse(field.value ?? "") as string,
                                                 }}
                                             />
                                         ) : (
