@@ -9,16 +9,18 @@ import {
   FormItem,
   FormLabel,
   FormMessage,
+  FormDescription,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { MultiSelectPopover } from "@/components/MultiSelectPopover";
 import type { GalleryImage, Post } from "@/types";
 import { useEffect } from "react";
 import { Checkbox } from "../ui/checkbox";
-import { extractDescriptionFromContent, ensureContentHasTripleBackticks } from "@/components/blog/BlogManagementUtils"; // Import utility functions
+import { Youtube } from "lucide-react";
+import { CoverImagePicker } from "@/components/blog/CoverImagePicker";
+import { extractDescriptionFromContent, ensureContentHasTripleBackticks } from "@/components/blog/BlogManagementUtils";
 
 const postSchema = z.object({
   title: z.string().min(3, { message: "Title must be at least 3 characters." }),
@@ -31,7 +33,19 @@ const postSchema = z.object({
     (val) => (val === "--none--" || val === "" ? null : val),
     z.string().uuid("Invalid image ID").nullable().optional()
   ),
-  youtube_video_id: z.string().min(11, "YouTube ID must be 11 characters").max(11, "YouTube ID must be 11 characters").optional().or(z.literal('')).transform(val => val === '' ? null : val),
+  youtube_video_id: z.string().optional().or(z.literal('')).transform(val => {
+    if (!val) return null;
+    // Auto-extract ID from YouTube URLs
+    const patterns = [
+      /(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/)([A-Za-z0-9_-]{11})/,
+      /youtube\.com\/shorts\/([A-Za-z0-9_-]{11})/,
+    ];
+    for (const re of patterns) {
+      const match = val.match(re);
+      if (match) return match[1];
+    }
+    return val || null;
+  }),
 });
 
 export type PostFormData = z.infer<typeof postSchema>;
@@ -144,23 +158,42 @@ export const BlogForm = ({ editingPost, galleryImages, uniqueTags, onSubmit, onC
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <FormField control={form.control} name="cover_image_id" render={({ field }) => (
-                <FormItem><FormControl>
-                  <Select onValueChange={field.onChange} value={field.value || ""}>
-                    <SelectTrigger><SelectValue placeholder="Select a cover image" /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="--none--">None</SelectItem>
-                      {galleryImages.map((image) => (
-                        <SelectItem key={image.id} value={image.id}>
-                          {image.alt_text || "Untitled Image"}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </FormControl><FormMessage /></FormItem>
+                <FormItem>
+                  <FormLabel>Cover Image</FormLabel>
+                  <FormDescription>Search your gallery by title or tags.</FormDescription>
+                  <FormControl>
+                    <CoverImagePicker
+                      galleryImages={galleryImages}
+                      value={field.value ?? null}
+                      onChange={(id) => field.onChange(id ?? "--none--")}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
               )} />
-              <FormField control={form.control} name="youtube_video_id" render={({ field }) => (
-                <FormItem><FormControl><Input placeholder="e.g., dQw4w9WgXcQ" {...field} value={field.value || ""} /></FormControl><FormMessage /></FormItem>
-              )} />
+              <FormField control={form.control} name="youtube_video_id" render={({ field }) => {
+                const rawVal = field.value ?? "";
+                const m = rawVal.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/)([A-Za-z0-9_-]{11})/);
+                const ytId = m ? m[1] : rawVal.trim();
+                const thumb = ytId && /^[A-Za-z0-9_-]{11}$/.test(ytId)
+                  ? `https://img.youtube.com/vi/${ytId}/mqdefault.jpg` : null;
+                return (
+                  <FormItem>
+                    <div className="flex items-center gap-2">
+                      <Youtube className="h-4 w-4 text-red-500" />
+                      <FormLabel>YouTube Video</FormLabel>
+                    </div>
+                    <FormDescription>Paste a YouTube URL or video ID — ID auto-extracted.</FormDescription>
+                    <FormControl>
+                      <Input placeholder="https://youtube.com/watch?v=… or dQw4w9WgXcQ" {...field} value={field.value || ""} />
+                    </FormControl>
+                    {thumb && (
+                      <img src={thumb} alt="YouTube preview" className="mt-1 rounded w-full aspect-video object-cover" />
+                    )}
+                    <FormMessage />
+                  </FormItem>
+                );
+              }} />
             </div>
             <div className="flex gap-2 pt-4">
               <Button type="submit">{editingPost ? "Update Post" : "Add Post"}</Button>

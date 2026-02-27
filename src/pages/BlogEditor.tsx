@@ -1,0 +1,456 @@
+import { useEffect, useState, useCallback, useMemo } from "react";
+import { useNavigate, useParams } from "react-router-dom";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import * as z from "zod";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/contexts/AuthContext";
+import type { Post, GalleryImage } from "@/types";
+import { showSuccess, showError, showLoading, dismissToast } from "@/utils/toast";
+import { fetchGalleryImages } from "@/components/blog/BlogManagementUtils";
+import { extractDescriptionFromContent, ensureContentHasTripleBackticks } from "@/components/blog/BlogManagementUtils";
+
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Switch } from "@/components/ui/switch";
+import { Card, CardContent } from "@/components/ui/card";
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDescription } from "@/components/ui/form";
+import { MultiSelectPopover } from "@/components/MultiSelectPopover";
+import { CoverImagePicker } from "@/components/blog/CoverImagePicker";
+import { ArrowLeft, Save, Eye, Youtube, FileText } from "lucide-react";
+import { Skeleton } from "@/components/ui/skeleton";
+
+// ── YouTube helpers ─────────────────────────────────────────────
+const extractYouTubeId = (input: string): string => {
+    if (!input) return "";
+    // If it's already a bare 11-char ID, return it
+    if (/^[A-Za-z0-9_-]{11}$/.test(input.trim())) return input.trim();
+    // Try to extract from URL
+    const patterns = [
+        /(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/)([A-Za-z0-9_-]{11})/,
+        /youtube\.com\/shorts\/([A-Za-z0-9_-]{11})/,
+    ];
+    for (const re of patterns) {
+        const match = input.match(re);
+        if (match) return match[1];
+    }
+    return input.trim();
+};
+
+const getYouTubeThumbnail = (id: string) =>
+    id && /^[A-Za-z0-9_-]{11}$/.test(id)
+        ? `https://img.youtube.com/vi/${id}/mqdefault.jpg`
+        : null;
+
+// ── Schema ──────────────────────────────────────────────────────
+const editorSchema = z.object({
+    title: z.string().min(3, "Title must be at least 3 characters."),
+    description: z.string().max(500, "Max 500 characters.").optional(),
+    content: z.string().min(20, "Content must be at least 20 characters."),
+    published_at: z.string().refine((v) => !isNaN(Date.parse(v)), "Invalid date."),
+    published: z.boolean().default(false),
+    tags: z.array(z.string()).optional(),
+    cover_image_id: z.preprocess(
+        (v) => (v === "--none--" || v === "" ? null : v),
+        z.string().uuid("Invalid image ID").nullable().optional()
+    ),
+    youtube_video_id: z
+        .string()
+        .optional()
+        .transform((v) => {
+            if (!v) return null;
+            const id = extractYouTubeId(v);
+            return id || null;
+        }),
+});
+
+type EditorFormData = z.infer<typeof editorSchema>;
+
+// ── Component ───────────────────────────────────────────────────
+const BlogEditor = () => {
+    const { id } = useParams<{ id: string }>();
+    const navigate = useNavigate();
+    const { user } = useAuth();
+    const isEditing = Boolean(id);
+
+    const [loading, setLoading] = useState(true);
+    const [galleryImages, setGalleryImages] = useState<GalleryImage[]>([]);
+    const [uniqueTags, setUniqueTags] = useState<string[]>([]);
+    const [isDirty, setIsDirty] = useState(false);
+
+    const form = useForm<EditorFormData>({
+        resolver: zodResolver(editorSchema),
+        defaultValues: {
+            title: "",
+            description: "",
+            content: "",
+            published_at: new Date().toISOString().split("T")[0],
+            published: false,
+            tags: [],
+            cover_image_id: null,
+            youtube_video_id: "",
+        },
+    });
+
+    // Track dirty state
+    useEffect(() => {
+        const sub = form.watch(() => setIsDirty(true));
+        return () => sub.unsubscribe();
+    }, [form]);
+
+    // Warn before leaving with unsaved changes
+    useEffect(() => {
+        const handler = (e: BeforeUnloadEvent) => {
+            if (isDirty) {
+                e.preventDefault();
+                e.returnValue = "";
+            }
+        };
+        window.addEventListener("beforeunload", handler);
+        return () => window.removeEventListener("beforeunload", handler);
+    }, [isDirty]);
+
+    // Load data
+    useEffect(() => {
+        const load = async () => {
+            setLoading(true);
+            const images = await fetchGalleryImages();
+            setGalleryImages(images);
+
+            // Fetch unique tags from all posts
+            const { data: allPosts } = await supabase.from("posts").select("tags");
+            if (allPosts) {
+                const tags = new Set<string>();
+                allPosts.forEach((p: { tags: string[] | null }) => p.tags?.forEach((t) => tags.add(t)));
+                setUniqueTags(Array.from(tags).sort());
+            }
+
+            // If editing, load the post
+            if (id) {
+                const { data: post, error } = await supabase.from("posts").select("*").eq("id", id).single();
+                if (error || !post) {
+                    showError("Post not found.");
+                    navigate("/manage-blog");
+                    return;
+                }
+                const p = post as Post;
+                form.reset({
+                    title: p.title,
+                    description: p.description ?? "",
+                    content: p.content ?? "",
+                    published_at: p.published_at ? p.published_at.split("T")[0] : new Date().toISOString().split("T")[0],
+                    published: p.published,
+                    tags: p.tags ?? [],
+                    cover_image_id: p.cover_image_id ?? null,
+                    youtube_video_id: p.youtube_video_id ?? "",
+                });
+                setIsDirty(false);
+            }
+
+            setLoading(false);
+        };
+        load();
+    }, [id, navigate, form]);
+
+    const handleSubmit = useCallback(
+        async (values: EditorFormData) => {
+            if (!user) {
+                showError("You must be logged in.");
+                return;
+            }
+
+            // Auto-fill description
+            let description = values.description;
+            if (!description?.trim()) {
+                description = extractDescriptionFromContent(values.content);
+            }
+
+            const postData = {
+                ...values,
+                description,
+                content: ensureContentHasTripleBackticks(values.content),
+                user_id: user.id,
+            };
+
+            const toastId = showLoading(isEditing ? "Updating post…" : "Creating post…");
+            const { error } = isEditing
+                ? await supabase.from("posts").update(postData).eq("id", id!)
+                : await supabase.from("posts").insert(postData);
+
+            dismissToast(toastId);
+            if (error) {
+                showError(error.message);
+            } else {
+                showSuccess(`Post ${isEditing ? "updated" : "created"} successfully!`);
+                setIsDirty(false);
+                navigate("/manage-blog");
+            }
+        },
+        [user, isEditing, id, navigate]
+    );
+
+    // YouTube preview
+    const youtubeRawValue = form.watch("youtube_video_id") ?? "";
+    const youtubeId = useMemo(() => extractYouTubeId(youtubeRawValue), [youtubeRawValue]);
+    const youtubeThumbnail = useMemo(() => getYouTubeThumbnail(youtubeId), [youtubeId]);
+
+    if (loading) {
+        return (
+            <div className="space-y-6 max-w-5xl mx-auto">
+                <Skeleton className="h-10 w-48" />
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                    <div className="lg:col-span-2 space-y-4">
+                        <Skeleton className="h-10 w-full" />
+                        <Skeleton className="h-32 w-full" />
+                        <Skeleton className="h-64 w-full" />
+                    </div>
+                    <div className="space-y-4">
+                        <Skeleton className="h-48 w-full" />
+                        <Skeleton className="h-32 w-full" />
+                    </div>
+                </div>
+            </div>
+        );
+    }
+
+    return (
+        <div className="max-w-5xl mx-auto space-y-6">
+            {/* Top bar */}
+            <div className="flex items-center justify-between">
+                <Button
+                    type="button"
+                    variant="ghost"
+                    onClick={() => navigate("/manage-blog")}
+                    className="gap-2"
+                >
+                    <ArrowLeft className="h-4 w-4" />
+                    Back to Posts
+                </Button>
+                <div className="flex items-center gap-2">
+                    <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() => {
+                            if (id) window.open(`/blog/${id}`, "_blank");
+                            else showError("Save the post first to preview it.");
+                        }}
+                        className="gap-2"
+                    >
+                        <Eye className="h-4 w-4" />
+                        <span className="hidden sm:inline">Preview</span>
+                    </Button>
+                    <Button
+                        type="button"
+                        onClick={form.handleSubmit(handleSubmit)}
+                        className="gap-2"
+                    >
+                        <Save className="h-4 w-4" />
+                        {isEditing ? "Update Post" : "Create Post"}
+                    </Button>
+                </div>
+            </div>
+
+            <Form {...form}>
+                <form
+                    onSubmit={form.handleSubmit(handleSubmit)}
+                    className="grid grid-cols-1 lg:grid-cols-3 gap-6"
+                >
+                    {/* ── Left Column: Editor ──────────────────────────── */}
+                    <div className="lg:col-span-2 space-y-5">
+                        <FormField
+                            control={form.control}
+                            name="title"
+                            render={({ field }) => (
+                                <FormItem>
+                                    <FormLabel>Title</FormLabel>
+                                    <FormControl>
+                                        <Input
+                                            placeholder="My Awesome Blog Post"
+                                            className="text-lg font-semibold"
+                                            {...field}
+                                        />
+                                    </FormControl>
+                                    <FormMessage />
+                                </FormItem>
+                            )}
+                        />
+
+                        <FormField
+                            control={form.control}
+                            name="description"
+                            render={({ field }) => (
+                                <FormItem>
+                                    <FormLabel>Description</FormLabel>
+                                    <FormDescription>
+                                        A short summary shown on blog cards. Auto-generated from content if left empty.
+                                    </FormDescription>
+                                    <FormControl>
+                                        <Textarea
+                                            placeholder="A short summary of your post…"
+                                            className="min-h-[80px]"
+                                            {...field}
+                                            value={field.value ?? ""}
+                                        />
+                                    </FormControl>
+                                    <FormMessage />
+                                </FormItem>
+                            )}
+                        />
+
+                        <FormField
+                            control={form.control}
+                            name="content"
+                            render={({ field }) => (
+                                <FormItem>
+                                    <div className="flex items-center gap-2">
+                                        <FormLabel>Content</FormLabel>
+                                        <span className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full bg-muted text-muted-foreground">
+                                            <FileText className="h-3 w-3" />
+                                            Markdown
+                                        </span>
+                                    </div>
+                                    <FormControl>
+                                        <Textarea
+                                            placeholder="Write your full article here using Markdown…"
+                                            className="min-h-[350px] font-mono text-sm"
+                                            {...field}
+                                        />
+                                    </FormControl>
+                                    <FormMessage />
+                                </FormItem>
+                            )}
+                        />
+                    </div>
+
+                    {/* ── Right Column: Metadata Sidebar ───────────────── */}
+                    <div className="space-y-5">
+                        {/* Publish toggle */}
+                        <Card>
+                            <CardContent className="pt-6 space-y-4">
+                                <FormField
+                                    control={form.control}
+                                    name="published"
+                                    render={({ field }) => (
+                                        <FormItem className="flex items-center justify-between">
+                                            <div>
+                                                <FormLabel className="text-base">Status</FormLabel>
+                                                <p className={`text-sm font-medium ${field.value ? "text-emerald-500" : "text-amber-500"}`}>
+                                                    {field.value ? "Published" : "Draft"}
+                                                </p>
+                                            </div>
+                                            <FormControl>
+                                                <Switch checked={field.value} onCheckedChange={field.onChange} />
+                                            </FormControl>
+                                        </FormItem>
+                                    )}
+                                />
+
+                                <FormField
+                                    control={form.control}
+                                    name="published_at"
+                                    render={({ field }) => (
+                                        <FormItem>
+                                            <FormLabel>Publish Date</FormLabel>
+                                            <FormControl>
+                                                <Input type="date" {...field} />
+                                            </FormControl>
+                                            <FormMessage />
+                                        </FormItem>
+                                    )}
+                                />
+                            </CardContent>
+                        </Card>
+
+                        {/* Tags */}
+                        <Card>
+                            <CardContent className="pt-6">
+                                <FormField
+                                    control={form.control}
+                                    name="tags"
+                                    render={({ field }) => (
+                                        <FormItem>
+                                            <FormLabel>Tags</FormLabel>
+                                            <FormDescription>Categorise your post with tags.</FormDescription>
+                                            <FormControl>
+                                                <MultiSelectPopover
+                                                    suggestions={uniqueTags}
+                                                    value={field.value ?? []}
+                                                    onChange={field.onChange}
+                                                    placeholder="Select or create tags…"
+                                                />
+                                            </FormControl>
+                                            <FormMessage />
+                                        </FormItem>
+                                    )}
+                                />
+                            </CardContent>
+                        </Card>
+
+                        {/* Cover Image */}
+                        <Card>
+                            <CardContent className="pt-6">
+                                <FormField
+                                    control={form.control}
+                                    name="cover_image_id"
+                                    render={({ field }) => (
+                                        <FormItem>
+                                            <FormLabel>Cover Image</FormLabel>
+                                            <FormDescription>Search images from your gallery.</FormDescription>
+                                            <FormControl>
+                                                <CoverImagePicker
+                                                    galleryImages={galleryImages}
+                                                    value={field.value ?? null}
+                                                    onChange={(id) => field.onChange(id ?? "--none--")}
+                                                />
+                                            </FormControl>
+                                            <FormMessage />
+                                        </FormItem>
+                                    )}
+                                />
+                            </CardContent>
+                        </Card>
+
+                        {/* YouTube */}
+                        <Card>
+                            <CardContent className="pt-6">
+                                <FormField
+                                    control={form.control}
+                                    name="youtube_video_id"
+                                    render={({ field }) => (
+                                        <FormItem>
+                                            <div className="flex items-center gap-2">
+                                                <Youtube className="h-4 w-4 text-red-500" />
+                                                <FormLabel>YouTube Video</FormLabel>
+                                            </div>
+                                            <FormDescription>
+                                                Paste a YouTube URL or video ID — the ID will be extracted automatically.
+                                            </FormDescription>
+                                            <FormControl>
+                                                <Input
+                                                    placeholder="https://youtube.com/watch?v=… or dQw4w9WgXcQ"
+                                                    {...field}
+                                                    value={field.value ?? ""}
+                                                />
+                                            </FormControl>
+                                            {youtubeThumbnail && (
+                                                <img
+                                                    src={youtubeThumbnail}
+                                                    alt="YouTube thumbnail preview"
+                                                    className="mt-2 rounded-lg w-full aspect-video object-cover"
+                                                />
+                                            )}
+                                            <FormMessage />
+                                        </FormItem>
+                                    )}
+                                />
+                            </CardContent>
+                        </Card>
+                    </div>
+                </form>
+            </Form>
+        </div>
+    );
+};
+
+export default BlogEditor;
