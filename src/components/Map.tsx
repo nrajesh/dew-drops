@@ -1,7 +1,7 @@
-import { useRef, useEffect, useImperativeHandle, forwardRef } from 'react';
-import mapboxgl from 'mapbox-gl';
-import 'mapbox-gl/dist/mapbox-gl.css';
-import type { TravelLocation } from '@/types';
+import { useRef, useEffect, useImperativeHandle, forwardRef } from "react";
+import mapboxgl from "mapbox-gl";
+import "mapbox-gl/dist/mapbox-gl.css";
+import type { TravelLocation } from "@/types";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Terminal } from "lucide-react";
 
@@ -24,7 +24,10 @@ const MapComponent = forwardRef<MapRef, MapProps>(({ locations }, ref) => {
   useEffect(() => {
     const originalConsoleError = console.error;
     console.error = function (...args) {
-      if (typeof args[0] === 'string' && args[0].includes('events.mapbox.com')) {
+      if (
+        typeof args[0] === "string" &&
+        args[0].includes("events.mapbox.com")
+      ) {
         return; // Suppress Mapbox analytics errors
       }
       originalConsoleError.apply(console, args);
@@ -62,7 +65,7 @@ const MapComponent = forwardRef<MapRef, MapProps>(({ locations }, ref) => {
     mapboxgl.accessToken = VITE_MAPBOX_ACCESS_TOKEN;
     map.current = new mapboxgl.Map({
       container: mapContainer.current,
-      style: 'mapbox://styles/mapbox/streets-v12',
+      style: "mapbox://styles/mapbox/streets-v12",
       center: [10, 45],
       zoom: 1.5,
     });
@@ -77,15 +80,16 @@ const MapComponent = forwardRef<MapRef, MapProps>(({ locations }, ref) => {
     if (!map.current) return;
 
     // Clear existing markers
-    markersRef.current.forEach(marker => marker.remove());
+    markersRef.current.forEach((marker) => marker.remove());
     markersRef.current.clear();
 
     // Add new markers
-    locations.forEach(location => {
+    locations.forEach((location) => {
       if (location.latitude && location.longitude) {
-        const blogLink = location.blog_url && location.blog_title
-          ? `<a href="${location.blog_url}" target="_blank" rel="noopener noreferrer" style="font-size: 0.75rem; color: inherit; text-decoration: underline;">${location.blog_title}</a>`
-          : '';
+        const blogLink =
+          location.blog_url && location.blog_title
+            ? `<a href="${location.blog_url}" target="_blank" rel="noopener noreferrer" style="font-size: 0.75rem; color: inherit; text-decoration: underline;">${location.blog_title}</a>`
+            : "";
 
         const popupHtml = `
           <div style="text-align: center; display: flex; flex-direction: column; gap: 4px;">
@@ -95,20 +99,23 @@ const MapComponent = forwardRef<MapRef, MapProps>(({ locations }, ref) => {
           </div>
         `;
 
-        const popup = new mapboxgl.Popup({ offset: 25, className: 'custom-popup' }).setHTML(popupHtml);
+        const popup = new mapboxgl.Popup({
+          offset: 25,
+          className: "custom-popup",
+        }).setHTML(popupHtml);
 
         let marker;
 
         if (location.marker_image_url) {
-          const el = document.createElement('div');
+          const el = document.createElement("div");
           el.style.backgroundImage = `url(${location.marker_image_url})`;
-          el.style.width = '40px';
-          el.style.height = '40px';
-          el.style.backgroundSize = 'cover';
-          el.style.borderRadius = '50%';
-          el.style.border = '2px solid white';
-          el.style.boxShadow = '0 2px 4px rgba(0,0,0,0.3)';
-          el.style.cursor = 'pointer';
+          el.style.width = "40px";
+          el.style.height = "40px";
+          el.style.backgroundSize = "cover";
+          el.style.borderRadius = "50%";
+          el.style.border = "2px solid white";
+          el.style.boxShadow = "0 2px 4px rgba(0,0,0,0.3)";
+          el.style.cursor = "pointer";
 
           marker = new mapboxgl.Marker(el)
             .setLngLat([location.longitude, location.latitude])
@@ -124,7 +131,6 @@ const MapComponent = forwardRef<MapRef, MapProps>(({ locations }, ref) => {
         markersRef.current.set(location.id, marker);
       }
     });
-
   }, [locations]);
 
   if (!VITE_MAPBOX_ACCESS_TOKEN) {
@@ -133,7 +139,10 @@ const MapComponent = forwardRef<MapRef, MapProps>(({ locations }, ref) => {
         <Terminal className="h-4 w-4" />
         <AlertTitle>Mapbox Configuration Error</AlertTitle>
         <AlertDescription>
-          The Mapbox access token is missing. Please create a <code>.env.local</code> file and add: <code>VITE_MAPBOX_ACCESS_TOKEN=your_token_here</code>. Then, restart the application.
+          The Mapbox access token is missing. Please create a{" "}
+          <code>.env.local</code> file and add:{" "}
+          <code>VITE_MAPBOX_ACCESS_TOKEN=your_token_here</code>. Then, restart
+          the application.
         </AlertDescription>
       </Alert>
     );

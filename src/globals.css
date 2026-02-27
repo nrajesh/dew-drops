@@ -93,7 +93,9 @@
   font-family: inherit;
   border-radius: var(--radius);
   padding: 0.75rem 1rem;
-  box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+  box-shadow:
+    0 4px 6px -1px rgb(0 0 0 / 0.1),
+    0 2px 4px -2px rgb(0 0 0 / 0.1);
 }
 
 .mapboxgl-popup.custom-popup .mapboxgl-popup-tip {
@@ -160,7 +162,8 @@
     display: none !important;
   }
   /* Ensure the print button is hidden */
-  .print\:hidden, .pdf-hidden {
+  .print\:hidden,
+  .pdf-hidden {
     display: none !important;
   }
   /* Force all collapsible sections to be open for printing by default if not explicitly closed */

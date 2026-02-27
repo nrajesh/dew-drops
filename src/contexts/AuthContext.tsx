@@ -1,8 +1,16 @@
-import { createContext, useState, useEffect, useContext, ReactNode, useRef, useCallback } from 'react';
-import { supabase } from '@/integrations/supabase/client';
-import type { Session, User } from '@supabase/supabase-js';
-import { showError } from '@/utils/toast';
-import type { Profile } from '@/types';
+import {
+  createContext,
+  useState,
+  useEffect,
+  useContext,
+  ReactNode,
+  useRef,
+  useCallback,
+} from "react";
+import { supabase } from "@/integrations/supabase/client";
+import type { Session, User } from "@supabase/supabase-js";
+import { showError } from "@/utils/toast";
+import type { Profile } from "@/types";
 
 interface AuthContextType {
   session: Session | null;
@@ -14,7 +22,7 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-const ALLOWED_EMAIL = import.meta.env.VITE_ALLOWED_EMAIL || 'write@nrajesh.com';
+const ALLOWED_EMAIL = import.meta.env.VITE_ALLOWED_EMAIL || "write@nrajesh.com";
 
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [session, setSession] = useState<Session | null>(null);
@@ -26,12 +34,13 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const fetchProfile = useCallback(async (user: User | null) => {
     if (user) {
       const { data, error } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', user.id)
+        .from("profiles")
+        .select("*")
+        .eq("id", user.id)
         .single();
-      
-      if (error && error.code !== 'PGRST116') { // Ignore not found error
+
+      if (error && error.code !== "PGRST116") {
+        // Ignore not found error
         console.error("Error fetching profile:", error);
         setProfile(null);
       } else {
@@ -43,7 +52,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   }, []);
 
   useEffect(() => {
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange(async (_event, session) => {
       if (session && session.user.email !== ALLOWED_EMAIL) {
         supabase.auth.signOut();
         showError("You are not authorized to access this application.");
@@ -80,7 +91,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 export const useAuth = () => {
   const context = useContext(AuthContext);
   if (context === undefined) {
-    throw new Error('useAuth must be used within an AuthProvider');
+    throw new Error("useAuth must be used within an AuthProvider");
   }
   return context;
 };

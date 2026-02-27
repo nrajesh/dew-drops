@@ -13,7 +13,14 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from "@/components/ui/dialog";
 import { MultiSelectPopover } from "@/components/MultiSelectPopover";
 
 interface BulkActionsSectionProps {
@@ -61,10 +68,25 @@ export const BulkActionsSection: React.FC<BulkActionsSectionProps> = ({
     <>
       <div className="flex flex-col sm:flex-row justify-between items-center gap-4">
         <h1 className="text-3xl font-bold">Manage Blog Posts</h1>
-        <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
-          <Input type="file" multiple onChange={onFileUpload} accept=".xml,.md" className="max-w-xs" />
+        <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto items-center">
+          <Input
+            type="file"
+            multiple
+            onChange={onFileUpload}
+            accept=".xml,.md"
+            className="max-w-xs"
+          />
+          <a
+            href="/sample-post.md"
+            download
+            className="text-sm text-blue-500 hover:underline shrink-0"
+          >
+            Download Sample (.md)
+          </a>
           {uploadFiles.length > 0 && (
-            <Button onClick={onProcessUploads}>Process Uploads ({uploadFiles.length})</Button>
+            <Button onClick={onProcessUploads}>
+              Process Uploads ({uploadFiles.length})
+            </Button>
           )}
           <Button onClick={onCreateNewPost}>Create New Post</Button>
         </div>
@@ -82,7 +104,11 @@ export const BulkActionsSection: React.FC<BulkActionsSectionProps> = ({
         </div>
         {selectedPosts.size > 0 && (
           <div className="flex flex-wrap items-center gap-2 mt-4 sm:mt-0">
-            <Button variant="outline" size="sm" onClick={() => setIsTagDialogOpen(true)}>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setIsTagDialogOpen(true)}
+            >
               <Tag className="h-4 w-4 mr-2" />
               Edit Tags
             </Button>
@@ -92,16 +118,24 @@ export const BulkActionsSection: React.FC<BulkActionsSectionProps> = ({
             </Button>
             <AlertDialog>
               <AlertDialogTrigger asChild>
-                <Button variant="destructive" size="sm"><Trash2 className="h-4 w-4 mr-2" />Delete ({selectedPosts.size})</Button>
+                <Button variant="destructive" size="sm">
+                  <Trash2 className="h-4 w-4 mr-2" />
+                  Delete ({selectedPosts.size})
+                </Button>
               </AlertDialogTrigger>
               <AlertDialogContent>
                 <AlertDialogHeader>
                   <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
-                  <AlertDialogDescription>This will permanently delete {selectedPosts.size} selected posts.</AlertDialogDescription>
+                  <AlertDialogDescription>
+                    This will permanently delete {selectedPosts.size} selected
+                    posts.
+                  </AlertDialogDescription>
                 </AlertDialogHeader>
                 <AlertDialogFooter>
                   <AlertDialogCancel>Cancel</AlertDialogCancel>
-                  <AlertDialogAction onClick={onDeleteSelected}>Continue</AlertDialogAction>
+                  <AlertDialogAction onClick={onDeleteSelected}>
+                    Continue
+                  </AlertDialogAction>
                 </AlertDialogFooter>
               </AlertDialogContent>
             </AlertDialog>
@@ -114,7 +148,8 @@ export const BulkActionsSection: React.FC<BulkActionsSectionProps> = ({
           <DialogHeader>
             <DialogTitle>Bulk Edit Tags</DialogTitle>
             <DialogDescription>
-              Set new tags for the {selectedPosts.size} selected posts. This will overwrite their existing tags.
+              Set new tags for the {selectedPosts.size} selected posts. This
+              will overwrite their existing tags.
             </DialogDescription>
           </DialogHeader>
           <div className="py-4">
@@ -126,7 +161,9 @@ export const BulkActionsSection: React.FC<BulkActionsSectionProps> = ({
             />
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={handleCancelTagEdit}>Cancel</Button>
+            <Button variant="outline" onClick={handleCancelTagEdit}>
+              Cancel
+            </Button>
             <Button onClick={handleSaveTags}>Save Changes</Button>
           </DialogFooter>
         </DialogContent>

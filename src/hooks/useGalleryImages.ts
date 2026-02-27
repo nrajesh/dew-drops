@@ -1,18 +1,18 @@
-import useSWR from 'swr';
-import { supabase } from '@/integrations/supabase/client';
-import type { GalleryImage } from '@/types';
+import useSWR from "swr";
+import { supabase } from "@/integrations/supabase/client";
+import type { GalleryImage } from "@/types";
 
-const GALLERY_KEY = 'gallery_images:published';
+const GALLERY_KEY = "gallery_images:published";
 
 const fetchPublishedImages = async (): Promise<GalleryImage[]> => {
-    const { data, error } = await supabase
-        .from('gallery_images')
-        .select('*')
-        .eq('published', true)
-        .order('created_at', { ascending: false });
+  const { data, error } = await supabase
+    .from("gallery_images")
+    .select("*")
+    .eq("published", true)
+    .order("created_at", { ascending: false });
 
-    if (error) throw error;
-    return (data ?? []) as GalleryImage[];
+  if (error) throw error;
+  return (data ?? []) as GalleryImage[];
 };
 
 /**
@@ -29,21 +29,21 @@ const fetchPublishedImages = async (): Promise<GalleryImage[]> => {
  * immediately invalidate and refresh.
  */
 export const useGalleryImages = () => {
-    const { data, error, isLoading, mutate } = useSWR<GalleryImage[]>(
-        GALLERY_KEY,
-        fetchPublishedImages,
-        {
-            revalidateOnFocus: false,
-            dedupingInterval: 60_000,          // 60 s — one refetch per minute max
-            keepPreviousData: true,            // instant display on back-navigation
-            errorRetryCount: 2,
-        }
-    );
+  const { data, error, isLoading, mutate } = useSWR<GalleryImage[]>(
+    GALLERY_KEY,
+    fetchPublishedImages,
+    {
+      revalidateOnFocus: false,
+      dedupingInterval: 60_000, // 60 s — one refetch per minute max
+      keepPreviousData: true, // instant display on back-navigation
+      errorRetryCount: 2,
+    },
+  );
 
-    return {
-        images: data ?? [],
-        isLoading,
-        error,
-        mutate,
-    };
+  return {
+    images: data ?? [],
+    isLoading,
+    error,
+    mutate,
+  };
 };

@@ -49,15 +49,26 @@ const App = () => {
           {mainNavItems
             .filter((item) => toggles[item.featureKey] || !item.featureKey)
             .map((item) => {
-              const Component = item.to === "/" ? Index :
-                item.to === "/blog" ? Blog :
-                  item.to === "/gallery" ? Gallery :
-                    item.to === "/portfolio" ? CurriculumVitae :
-                      item.to === "/match-cv" ? MatchCV : // New route for MatchCV
-                        item.to === "/travel" ? Travel :
-                          item.to === "/contact" ? Contact : null;
+              const Component =
+                item.to === "/"
+                  ? Index
+                  : item.to === "/blog"
+                    ? Blog
+                    : item.to === "/gallery"
+                      ? Gallery
+                      : item.to === "/portfolio"
+                        ? CurriculumVitae
+                        : item.to === "/match-cv"
+                          ? MatchCV // New route for MatchCV
+                          : item.to === "/travel"
+                            ? Travel
+                            : item.to === "/contact"
+                              ? Contact
+                              : null;
               if (!Component) return null;
-              return <Route key={item.to} path={item.to} element={<Component />} />;
+              return (
+                <Route key={item.to} path={item.to} element={<Component />} />
+              );
             })}
 
           <Route path="/blog/:id" element={<Post />} />
@@ -68,12 +79,20 @@ const App = () => {
             {managementNavItems
               .filter((item) => toggles[item.featureKey])
               .map((item) => {
-                const Component = item.to === "/manage-blog" ? ManageBlog :
-                  item.to === "/manage-gallery" ? ManageGallery :
-                    item.to === "/manage-travel" ? ManageTravel :
-                      item.to === "/feature-toggles" ? FeatureToggles : null;
+                const Component =
+                  item.to === "/manage-blog"
+                    ? ManageBlog
+                    : item.to === "/manage-gallery"
+                      ? ManageGallery
+                      : item.to === "/manage-travel"
+                        ? ManageTravel
+                        : item.to === "/feature-toggles"
+                          ? FeatureToggles
+                          : null;
                 if (!Component) return null;
-                return <Route key={item.to} path={item.to} element={<Component />} />;
+                return (
+                  <Route key={item.to} path={item.to} element={<Component />} />
+                );
               })}
             <Route path="/profile" element={<Profile />} />
             <Route path="/manage-data" element={<ManageData />} />

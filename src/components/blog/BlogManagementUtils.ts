@@ -1,14 +1,22 @@
 import { supabase } from "@/integrations/supabase/client";
 import type { Post, GalleryImage } from "@/types";
-import { showError, showLoading, updateToastSuccess, updateToastError } from "@/utils/toast";
+import {
+  showError,
+  showLoading,
+  updateToastSuccess,
+  updateToastError,
+} from "@/utils/toast";
 import TurndownService from "turndown";
-import JSZip from 'jszip';
+import JSZip from "jszip";
 import { sanitizeFileName, normalizeTag } from "@/lib/utils"; // Import normalizeTag
 
-type NewPost = Omit<Post, 'id' | 'created_at' | 'user_id'>;
+type NewPost = Omit<Post, "id" | "created_at" | "user_id">;
 
 export const fetchPosts = async (): Promise<Post[]> => {
-  const { data, error } = await supabase.from("posts").select("*").order("published_at", { ascending: false });
+  const { data, error } = await supabase
+    .from("posts")
+    .select("*")
+    .order("published_at", { ascending: false });
   if (error) {
     showError("Failed to fetch posts.");
     console.error(error);
@@ -31,8 +39,8 @@ export const fetchGalleryImages = async (): Promise<GalleryImage[]> => {
 
 export const extractDescriptionFromContent = (content: string): string => {
   // Extract the first 5 lines from the content
-  const contentLines = content.split('\n');
-  let extractedDescription = '';
+  const contentLines = content.split("\n");
+  let extractedDescription = "";
 
   // Find the first code block
   const codeBlockRegex = /```([\s\S]*?)```/;
@@ -40,16 +48,16 @@ export const extractDescriptionFromContent = (content: string): string => {
 
   if (match && match[1]) {
     // If there's a code block, use the first 5 lines of the code block
-    const codeBlockLines = match[1].split('\n');
-    extractedDescription = codeBlockLines.slice(0, 5).join('\n').trim();
+    const codeBlockLines = match[1].split("\n");
+    extractedDescription = codeBlockLines.slice(0, 5).join("\n").trim();
   } else {
     // If no code block, use the first 5 lines of the content
-    extractedDescription = contentLines.slice(0, 5).join('\n').trim();
+    extractedDescription = contentLines.slice(0, 5).join("\n").trim();
   }
 
   // Trim to 500 characters max
   if (extractedDescription.length > 500) {
-    extractedDescription = extractedDescription.substring(0, 497) + '...';
+    extractedDescription = extractedDescription.substring(0, 497) + "...";
   }
 
   return extractedDescription;
@@ -58,36 +66,41 @@ export const extractDescriptionFromContent = (content: string): string => {
 export const stripOuterBackticks = (content: string): string => {
   if (!content) return "";
   let stripped = content;
-  if (stripped.startsWith('```') && stripped.endsWith('```')) {
-    stripped = stripped.replace(/^```[a-zA-Z]*\n?/, '').replace(/\n?```$/, '');
+  if (stripped.startsWith("```") && stripped.endsWith("```")) {
+    stripped = stripped.replace(/^```[a-zA-Z]*\n?/, "").replace(/\n?```$/, "");
   }
   return stripped;
 };
 
-export const parseWordPressXml = async (xmlString: string): Promise<NewPost[]> => {
+export const parseWordPressXml = async (
+  xmlString: string,
+): Promise<NewPost[]> => {
   const parser = new DOMParser();
   const xmlDoc = parser.parseFromString(xmlString, "text/xml");
   const items = xmlDoc.querySelectorAll("item");
   const newPosts: NewPost[] = [];
   const turndownService = new TurndownService();
 
-  items.forEach(item => {
+  items.forEach((item) => {
     const title = item.querySelector("title")?.textContent || "";
-    const pubDate = item.querySelector("pubDate")?.textContent || new Date().toISOString();
+    const pubDate =
+      item.querySelector("pubDate")?.textContent || new Date().toISOString();
     let description = item.querySelector("description")?.textContent || "";
-    let contentHtml = item.getElementsByTagNameNS("*", "encoded")[0]?.textContent || "";
-    const status = item.querySelector("status, \\:status")?.textContent || 'draft';
+    let contentHtml =
+      item.getElementsByTagNameNS("*", "encoded")[0]?.textContent || "";
+    const status =
+      item.querySelector("status, \\:status")?.textContent || "draft";
 
-    contentHtml = contentHtml.replace(/<!--\s*(more|nextpage)\s*-->/gi, '');
+    contentHtml = contentHtml.replace(/<!--\s*(more|nextpage)\s*-->/gi, "");
 
     const content = turndownService.turndown(contentHtml);
 
     const categoryElements = item.querySelectorAll("category");
     const tagSet = new Set<string>();
-    categoryElements.forEach(cat => {
-      const domain = cat.getAttribute('domain');
-      if (domain === 'category' || domain === 'post_tag') {
-        const nicename = cat.getAttribute('nicename');
+    categoryElements.forEach((cat) => {
+      const domain = cat.getAttribute("domain");
+      if (domain === "category" || domain === "post_tag") {
+        const nicename = cat.getAttribute("nicename");
         if (nicename) {
           tagSet.add(normalizeTag(nicename)); // Apply normalization here
         }
@@ -98,7 +111,7 @@ export const parseWordPressXml = async (xmlString: string): Promise<NewPost[]> =
     const cover_image_id: string | null = null;
     const youtube_video_id: string | null = null;
 
-    if (!description || description.trim() === '') {
+    if (!description || description.trim() === "") {
       description = extractDescriptionFromContent(content);
     }
 
@@ -108,7 +121,7 @@ export const parseWordPressXml = async (xmlString: string): Promise<NewPost[]> =
         description,
         content: content,
         published_at: new Date(pubDate).toISOString(),
-        published: status === 'publish',
+        published: status === "publish",
         tags: tags.length > 0 ? tags : null,
         cover_image_id,
         youtube_video_id,
@@ -120,8 +133,8 @@ export const parseWordPressXml = async (xmlString: string): Promise<NewPost[]> =
 
 export const parseMarkdownFile = async (file: File): Promise<NewPost> => {
   const fullContent = await file.text();
-  let title = file.name.replace(/\.md$/, '');
-  let description = '';
+  let title = file.name.replace(/\.md$/, "");
+  let description = "";
   let published_at = new Date().toISOString();
   let published = false; // Default to unpublished
   let content = fullContent;
@@ -136,31 +149,36 @@ export const parseMarkdownFile = async (file: File): Promise<NewPost> => {
     const frontmatterContent = match[1];
     content = match[2];
 
-    frontmatterContent.split(/\r?\n/).forEach(line => {
-      const colonIndex = line.indexOf(':');
+    frontmatterContent.split(/\r?\n/).forEach((line) => {
+      const colonIndex = line.indexOf(":");
       if (colonIndex > -1) {
         const key = line.slice(0, colonIndex).trim();
         let value = line.slice(colonIndex + 1).trim();
 
-        if ((value.startsWith('"') && value.endsWith('"')) || (value.startsWith("'") && value.endsWith("'"))) {
+        if (
+          (value.startsWith('"') && value.endsWith('"')) ||
+          (value.startsWith("'") && value.endsWith("'"))
+        ) {
           value = value.slice(1, -1);
         }
 
         switch (key) {
-          case 'title':
+          case "title":
             title = value;
             break;
-          case 'description':
+          case "description":
             description = value;
             break;
-          case 'published_at':
-          case 'date': {
+          case "published_at":
+          case "date": {
             const trimmedValue = value.trim();
             const dateOnlyRegex = /^\d{4}-\d{2}-\d{2}$/;
 
             if (dateOnlyRegex.test(trimmedValue)) {
-              const parts = trimmedValue.split('-').map(p => parseInt(p, 10));
-              const utcDate = new Date(Date.UTC(parts[0], parts[1] - 1, parts[2]));
+              const parts = trimmedValue.split("-").map((p) => parseInt(p, 10));
+              const utcDate = new Date(
+                Date.UTC(parts[0], parts[1] - 1, parts[2]),
+              );
               published_at = utcDate.toISOString();
             } else {
               const parsedDate = new Date(trimmedValue);
@@ -170,21 +188,24 @@ export const parseMarkdownFile = async (file: File): Promise<NewPost> => {
             }
             break;
           }
-          case 'published':
-            published = value === 'true';
+          case "published":
+            published = value === "true";
             break;
-          case 'tags': {
+          case "tags": {
             let rawTags = value;
-            if (rawTags.startsWith('[') && rawTags.endsWith(']')) {
+            if (rawTags.startsWith("[") && rawTags.endsWith("]")) {
               rawTags = rawTags.slice(1, -1);
             }
-            tags = rawTags.split(',').map(tag => normalizeTag(tag.replace(/^['"]|['"]$/g, ''))).filter(Boolean); // Apply normalization here
+            tags = rawTags
+              .split(",")
+              .map((tag) => normalizeTag(tag.replace(/^['"]|['"]$/g, "")))
+              .filter(Boolean); // Apply normalization here
             break;
           }
-          case 'cover_image_id':
+          case "cover_image_id":
             cover_image_id = value;
             break;
-          case 'youtube_video_id':
+          case "youtube_video_id":
             youtube_video_id = value;
             break;
         }
@@ -192,26 +213,46 @@ export const parseMarkdownFile = async (file: File): Promise<NewPost> => {
     });
   }
 
-  content = content.trim().replace(/<!--\s*(more|nextpage)\s*-->/gi, '');
+  content = content.trim().replace(/<!--\s*(more|nextpage)\s*-->/gi, "");
 
-  if (!description || description.trim() === '') {
+  if (!description || description.trim() === "") {
     description = extractDescriptionFromContent(content);
   }
 
-  return { title, description, content, published_at, published, tags, cover_image_id, youtube_video_id };
+  return {
+    title,
+    description,
+    content,
+    published_at,
+    published,
+    tags,
+    cover_image_id,
+    youtube_video_id,
+  };
 };
 
-export const processUploads = async (userId: string, inserts: NewPost[], updates: { existingId: string; existingTitle: string; newData: NewPost }[]) => {
+export const processUploads = async (
+  userId: string,
+  inserts: NewPost[],
+  updates: { existingId: string; existingTitle: string; newData: NewPost }[],
+) => {
   const toastId = showLoading(`Processing import...`);
   try {
     const insertPromises = [];
     if (inserts.length > 0) {
-      const insertsWithUserId = inserts.map(p => ({ ...p, user_id: userId, published: false })); // Always import as draft
+      const insertsWithUserId = inserts.map((p) => ({
+        ...p,
+        user_id: userId,
+        published: false,
+      })); // Always import as draft
       insertPromises.push(supabase.from("posts").insert(insertsWithUserId));
     }
 
-    const updatePromises = updates.map(u =>
-      supabase.from("posts").update({ ...u.newData, user_id: userId }).eq('id', u.existingId)
+    const updatePromises = updates.map((u) =>
+      supabase
+        .from("posts")
+        .update({ ...u.newData, user_id: userId })
+        .eq("id", u.existingId),
     );
 
     const results = await Promise.all([...insertPromises, ...updatePromises]);
@@ -220,7 +261,10 @@ export const processUploads = async (userId: string, inserts: NewPost[], updates
       if (result.error) throw new Error(result.error.message);
     }
 
-    updateToastSuccess(toastId, `${inserts.length} new posts added, ${updates.length} posts updated.`);
+    updateToastSuccess(
+      toastId,
+      `${inserts.length} new posts added, ${updates.length} posts updated.`,
+    );
     return true;
   } catch (error: unknown) {
     const err = error as Error;
@@ -229,9 +273,14 @@ export const processUploads = async (userId: string, inserts: NewPost[], updates
   }
 };
 
-export const handleBulkDelete = async (postIds: Set<string>): Promise<boolean> => {
+export const handleBulkDelete = async (
+  postIds: Set<string>,
+): Promise<boolean> => {
   const toastId = showLoading(`Deleting ${postIds.size} posts...`);
-  const { error } = await supabase.from("posts").delete().in("id", Array.from(postIds));
+  const { error } = await supabase
+    .from("posts")
+    .delete()
+    .in("id", Array.from(postIds));
   if (error) {
     updateToastError(toastId, error.message);
     return false;
@@ -241,9 +290,14 @@ export const handleBulkDelete = async (postIds: Set<string>): Promise<boolean> =
   }
 };
 
-export const handleBulkTagUpdate = async (selectedPosts: Set<string>, tags: string[]) => {
+export const handleBulkTagUpdate = async (
+  selectedPosts: Set<string>,
+  tags: string[],
+) => {
   const normalizedTags = tags.map(normalizeTag); // Apply normalization here
-  const toastId = showLoading(`Updating tags for ${selectedPosts.size} posts...`);
+  const toastId = showLoading(
+    `Updating tags for ${selectedPosts.size} posts...`,
+  );
   const { error } = await supabase
     .from("posts")
     .update({ tags: normalizedTags })
@@ -258,9 +312,14 @@ export const handleBulkTagUpdate = async (selectedPosts: Set<string>, tags: stri
   }
 };
 
-export const handleBulkStatusChange = async (selectedPosts: Set<string>, published: boolean) => {
+export const handleBulkStatusChange = async (
+  selectedPosts: Set<string>,
+  published: boolean,
+) => {
   const status = published ? "published" : "unpublished";
-  const toastId = showLoading(`Setting ${selectedPosts.size} posts to ${status}...`);
+  const toastId = showLoading(
+    `Setting ${selectedPosts.size} posts to ${status}...`,
+  );
   const { error } = await supabase
     .from("posts")
     .update({ published })
@@ -275,31 +334,47 @@ export const handleBulkStatusChange = async (selectedPosts: Set<string>, publish
   }
 };
 
-export const handleBulkDownload = async (postIds: Set<string>, allPosts: Post[]): Promise<void> => {
-  const toastId = showLoading(`Preparing ${postIds.size} post(s) for download...`);
+export const handleBulkDownload = async (
+  postIds: Set<string>,
+  allPosts: Post[],
+): Promise<void> => {
+  const toastId = showLoading(
+    `Preparing ${postIds.size} post(s) for download...`,
+  );
   try {
     const zip = new JSZip();
-    const postsToDownload = allPosts.filter(post => postIds.has(post.id));
+    const postsToDownload = allPosts.filter((post) => postIds.has(post.id));
 
-    postsToDownload.forEach(post => {
-      const tagsString = post.tags && post.tags.length > 0 ? `\ntags: "${post.tags.map(normalizeTag).join(', ').replace(/"/g, '\\"')}"` : ''; // Normalize tags for export
-      const coverImageIdString = post.cover_image_id ? `\ncover_image_id: "${post.cover_image_id}"` : '';
-      const youtubeVideoIdString = post.youtube_video_id ? `\nyoutube_video_id: "${post.youtube_video_id}"` : '';
+    postsToDownload.forEach((post) => {
+      const tagsString =
+        post.tags && post.tags.length > 0
+          ? `\ntags: "${post.tags.map(normalizeTag).join(", ").replace(/"/g, '\\"')}"`
+          : ""; // Normalize tags for export
+      const coverImageIdString = post.cover_image_id
+        ? `\ncover_image_id: "${post.cover_image_id}"`
+        : "";
+      const youtubeVideoIdString = post.youtube_video_id
+        ? `\nyoutube_video_id: "${post.youtube_video_id}"`
+        : "";
 
       const frontmatter = `---
 title: "${post.title.replace(/"/g, '\\"')}"
-description: "${(post.description || '').replace(/"/g, '\\"')}"
-published_at: ${post.published_at ? new Date(post.published_at).toISOString().split('T')[0] : ''}
+description: "${(post.description || "").replace(/"/g, '\\"')}"
+published_at: ${post.published_at ? new Date(post.published_at).toISOString().split("T")[0] : ""}
 published: ${post.published}${tagsString}${coverImageIdString}${youtubeVideoIdString}
 ---
 
 `;
       // No longer wrapping content in backticks
-      const content = post.content || '';
+      const content = post.content || "";
 
       const markdownContent = frontmatter + content;
-      const sanitizedTitle = sanitizeFileName(post.title).replace(/\.[^/.]+$/, "");
-      const fileName = (sanitizedTitle.trim().length > 0 ? sanitizedTitle : post.id) + ".md";
+      const sanitizedTitle = sanitizeFileName(post.title).replace(
+        /\.[^/.]+$/,
+        "",
+      );
+      const fileName =
+        (sanitizedTitle.trim().length > 0 ? sanitizedTitle : post.id) + ".md";
       zip.file(fileName, markdownContent);
     });
 
@@ -313,7 +388,10 @@ published: ${post.published}${tagsString}${coverImageIdString}${youtubeVideoIdSt
     document.body.removeChild(link);
     URL.revokeObjectURL(link.href);
 
-    updateToastSuccess(toastId, `${postsToDownload.length} post(s) downloaded.`);
+    updateToastSuccess(
+      toastId,
+      `${postsToDownload.length} post(s) downloaded.`,
+    );
   } catch (error: unknown) {
     const err = error as Error;
     updateToastError(toastId, `Download failed: ${err.message}`);

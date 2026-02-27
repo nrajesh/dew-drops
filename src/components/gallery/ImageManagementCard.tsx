@@ -1,9 +1,31 @@
-import type { GalleryImage } from '@/types';
+import type { GalleryImage } from "@/types";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+  CardFooter,
+} from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import { ManagementPagination } from "@/components/ManagementPagination";
 import { ImageListItem } from "./ImageListItem";
 import { Download, Trash2, Search } from "lucide-react";
@@ -19,7 +41,7 @@ interface ImageManagementCardProps {
   onSelectImage: (id: string) => void;
   onSelectAll: (checked: boolean) => void;
   onEdit: (image: GalleryImage) => void;
-  onView: (image: GalleryImage, listType: 'published' | 'unpublished') => void;
+  onView: (image: GalleryImage, listType: "published" | "unpublished") => void;
   onDelete: () => void;
   onBulkPublish: (status: boolean) => void;
   onGenerateTags: () => void;
@@ -33,7 +55,7 @@ interface ImageManagementCardProps {
     onItemsPerPageChange: (value: number) => void;
     totalItems: number;
   };
-  listType: 'published' | 'unpublished';
+  listType: "published" | "unpublished";
   searchValue: string;
   onSearchChange: (value: string) => void;
 }
@@ -59,7 +81,9 @@ export const ImageManagementCard = ({
   searchValue,
   onSearchChange,
 }: ImageManagementCardProps) => {
-  const allOnPageSelected = paginatedImages.length > 0 && paginatedImages.every(i => selectedImages.has(i.id));
+  const allOnPageSelected =
+    paginatedImages.length > 0 &&
+    paginatedImages.every((i) => selectedImages.has(i.id));
 
   return (
     <Card>
@@ -79,8 +103,12 @@ export const ImageManagementCard = ({
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end">
-                    <DropdownMenuItem onClick={() => onBulkPublish(listType === 'unpublished')}>
-                      {listType === 'unpublished' ? 'Publish Selected' : 'Unpublish Selected'}
+                    <DropdownMenuItem
+                      onClick={() => onBulkPublish(listType === "unpublished")}
+                    >
+                      {listType === "unpublished"
+                        ? "Publish Selected"
+                        : "Unpublish Selected"}
                     </DropdownMenuItem>
                     <DropdownMenuItem onClick={onGenerateTags}>
                       Generate Tags (AI)
@@ -93,7 +121,10 @@ export const ImageManagementCard = ({
                 </DropdownMenu>
                 <AlertDialog>
                   <AlertDialogTrigger asChild>
-                    <Button variant="destructive" className="flex-1 sm:flex-none">
+                    <Button
+                      variant="destructive"
+                      className="flex-1 sm:flex-none"
+                    >
                       <Trash2 className="h-4 w-4 mr-2" />
                       Delete ({selectedImages.size})
                     </Button>
@@ -102,7 +133,8 @@ export const ImageManagementCard = ({
                     <AlertDialogHeader>
                       <AlertDialogTitle>Are you sure?</AlertDialogTitle>
                       <AlertDialogDescription>
-                        This will permanently delete the {selectedImages.size} selected image(s). This action cannot be undone.
+                        This will permanently delete the {selectedImages.size}{" "}
+                        selected image(s). This action cannot be undone.
                       </AlertDialogDescription>
                     </AlertDialogHeader>
                     <AlertDialogFooter>
@@ -128,11 +160,20 @@ export const ImageManagementCard = ({
         </div>
       </CardHeader>
       <CardContent>
-        {isLoading ? <p>Loading...</p> : images.length > 0 ? (
+        {isLoading ? (
+          <p>Loading...</p>
+        ) : images.length > 0 ? (
           <>
             <div className="flex items-center space-x-2 mb-4 pb-4 border-b">
-              <Checkbox id={`select-all-${listType}`} checked={allOnPageSelected} onCheckedChange={onSelectAll} disabled={paginatedImages.length === 0} />
-              <label htmlFor={`select-all-${listType}`}>Select All on Page</label>
+              <Checkbox
+                id={`select-all-${listType}`}
+                checked={allOnPageSelected}
+                onCheckedChange={onSelectAll}
+                disabled={paginatedImages.length === 0}
+              />
+              <label htmlFor={`select-all-${listType}`}>
+                Select All on Page
+              </label>
             </div>
             <div className="space-y-2">
               {paginatedImages.map((image) => (
@@ -145,7 +186,7 @@ export const ImageManagementCard = ({
                   onEdit={onEdit}
                   onView={(img) => onView(img, listType)}
                   isBulkActionMode={selectedImages.size > 0}
-                  isPublished={listType === 'published'}
+                  isPublished={listType === "published"}
                 />
               ))}
             </div>
@@ -153,7 +194,9 @@ export const ImageManagementCard = ({
         ) : (
           <div className="text-center py-10 border-dashed border-2 rounded-lg bg-muted">
             <p className="text-muted-foreground">
-              {searchValue ? `No images found for "${searchValue}".` : `No ${listType} images found.`}
+              {searchValue
+                ? `No images found for "${searchValue}".`
+                : `No ${listType} images found.`}
             </p>
           </div>
         )}

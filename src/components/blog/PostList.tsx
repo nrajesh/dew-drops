@@ -1,6 +1,13 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Trash2, Download, Tag, Pencil } from "lucide-react";
 import type { Post } from "@/types";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -15,7 +22,14 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from "@/components/ui/dialog";
 import { MultiSelectPopover } from "@/components/MultiSelectPopover";
 import { ManagementPagination } from "../ManagementPagination";
 import { useAuth } from "@/contexts/AuthContext";
@@ -75,7 +89,8 @@ export const PostList = ({
     setBulkEditTags([]);
   };
 
-  const allOnPageSelected = posts.length > 0 && posts.every(post => selectedPosts.has(post.id));
+  const allOnPageSelected =
+    posts.length > 0 && posts.every((post) => selectedPosts.has(post.id));
 
   return (
     <>
@@ -84,11 +99,17 @@ export const PostList = ({
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
             <div>
               <CardTitle>Post List</CardTitle>
-              <CardDescription>Your current list of blog posts.</CardDescription>
+              <CardDescription>
+                Your current list of blog posts.
+              </CardDescription>
             </div>
             {selectedPosts.size > 0 && (
               <div className="flex items-center gap-2 mt-4 sm:mt-0">
-                <Button variant="outline" size="sm" onClick={() => setIsTagDialogOpen(true)}>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setIsTagDialogOpen(true)}
+                >
                   <Tag className="h-4 w-4 mr-2" />
                   Edit Tags
                 </Button>
@@ -98,16 +119,26 @@ export const PostList = ({
                 </Button>
                 <AlertDialog>
                   <AlertDialogTrigger asChild>
-                    <Button variant="destructive" size="sm"><Trash2 className="h-4 w-4 mr-2" />Delete ({selectedPosts.size})</Button>
+                    <Button variant="destructive" size="sm">
+                      <Trash2 className="h-4 w-4 mr-2" />
+                      Delete ({selectedPosts.size})
+                    </Button>
                   </AlertDialogTrigger>
                   <AlertDialogContent>
                     <AlertDialogHeader>
-                      <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
-                      <AlertDialogDescription>This will permanently delete {selectedPosts.size} selected posts.</AlertDialogDescription>
+                      <AlertDialogTitle>
+                        Are you absolutely sure?
+                      </AlertDialogTitle>
+                      <AlertDialogDescription>
+                        This will permanently delete {selectedPosts.size}{" "}
+                        selected posts.
+                      </AlertDialogDescription>
                     </AlertDialogHeader>
                     <AlertDialogFooter>
                       <AlertDialogCancel>Cancel</AlertDialogCancel>
-                      <AlertDialogAction onClick={onDelete}>Continue</AlertDialogAction>
+                      <AlertDialogAction onClick={onDelete}>
+                        Continue
+                      </AlertDialogAction>
                     </AlertDialogFooter>
                   </AlertDialogContent>
                 </AlertDialog>
@@ -116,28 +147,55 @@ export const PostList = ({
           </div>
         </CardHeader>
         <CardContent>
-          {isLoading ? <p>Loading posts...</p> : posts.length > 0 ? (
+          {isLoading ? (
+            <p>Loading posts...</p>
+          ) : posts.length > 0 ? (
             <>
               <div className="flex items-center border-b pb-2 mb-2 space-x-3">
-                <Checkbox id="select-all" onCheckedChange={(checked) => onSelectAll(Boolean(checked))} checked={allOnPageSelected} disabled={posts.length === 0} />
-                <label htmlFor="select-all" className="text-sm font-medium">Select All</label>
+                <Checkbox
+                  id="select-all"
+                  onCheckedChange={(checked) => onSelectAll(Boolean(checked))}
+                  checked={allOnPageSelected}
+                  disabled={posts.length === 0}
+                />
+                <label htmlFor="select-all" className="text-sm font-medium">
+                  Select All
+                </label>
               </div>
               <div className="space-y-2 mt-4">
                 {posts.map((post) => (
-                  <div key={post.id} className="flex items-center justify-between p-2 rounded-lg border">
+                  <div
+                    key={post.id}
+                    className="flex items-center justify-between p-2 rounded-lg border"
+                  >
                     <div className="flex items-center gap-3">
-                      <Checkbox id={`select-${post.id}`} checked={selectedPosts.has(post.id)} onCheckedChange={() => onSelectPost(post.id)} />
+                      <Checkbox
+                        id={`select-${post.id}`}
+                        checked={selectedPosts.has(post.id)}
+                        onCheckedChange={() => onSelectPost(post.id)}
+                      />
                       <Switch
                         checked={post.published}
-                        onCheckedChange={(checked) => onTogglePublish(post, checked)}
+                        onCheckedChange={(checked) =>
+                          onTogglePublish(post, checked)
+                        }
                         aria-label={`Toggle publish status for ${post.title}`}
                         title={post.published ? "Published" : "Unpublished"}
                       />
-                      <label htmlFor={`select-${post.id}`} className="font-medium truncate pr-2 cursor-pointer">{post.title}</label>
+                      <label
+                        htmlFor={`select-${post.id}`}
+                        className="font-medium truncate pr-2 cursor-pointer"
+                      >
+                        {post.title}
+                      </label>
                     </div>
                     <div className="flex items-center gap-2 shrink-0">
                       {session && (
-                        <Button variant="ghost" size="icon" onClick={() => onEdit(post)}>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => onEdit(post)}
+                        >
                           <Pencil className="h-4 w-4" />
                         </Button>
                       )}
@@ -147,7 +205,9 @@ export const PostList = ({
               </div>
             </>
           ) : (
-            <p className="text-muted-foreground text-center pt-4">No posts found. Add one using the form!</p>
+            <p className="text-muted-foreground text-center pt-4">
+              No posts found. Add one using the form!
+            </p>
           )}
         </CardContent>
         <CardFooter>
@@ -166,7 +226,8 @@ export const PostList = ({
           <DialogHeader>
             <DialogTitle>Bulk Edit Tags</DialogTitle>
             <DialogDescription>
-              Set new tags for the {selectedPosts.size} selected posts. This will overwrite their existing tags.
+              Set new tags for the {selectedPosts.size} selected posts. This
+              will overwrite their existing tags.
             </DialogDescription>
           </DialogHeader>
           <div className="py-4">
@@ -178,7 +239,9 @@ export const PostList = ({
             />
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={handleCancel}>Cancel</Button>
+            <Button variant="outline" onClick={handleCancel}>
+              Cancel
+            </Button>
             <Button onClick={handleSaveTags}>Save Changes</Button>
           </DialogFooter>
         </DialogContent>

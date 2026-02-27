@@ -5,12 +5,37 @@ import * as z from "zod";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDescription } from "@/components/ui/form";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+  FormDescription,
+} from "@/components/ui/form";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from "@/components/ui/dialog";
 import { MultiSelectPopover } from "@/components/MultiSelectPopover";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import { CalendarIcon } from "lucide-react";
 import { format } from "date-fns";
 import { Calendar } from "@/components/ui/calendar";
@@ -19,7 +44,10 @@ import type { Post, GalleryImage } from "@/types";
 
 const formSchema = z.object({
   title: z.string().min(1, "Title is required"),
-  description: z.string().max(500, "Description cannot exceed 500 characters.").optional(),
+  description: z
+    .string()
+    .max(500, "Description cannot exceed 500 characters.")
+    .optional(),
   content: z.string().min(1, "Content is required"),
   published_at: z.date().optional().nullable(),
   published: z.boolean().default(false),
@@ -36,7 +64,11 @@ interface BlogFormDialogProps {
   editingPost: Post | null;
   galleryImages: GalleryImage[];
   uniqueTags: string[];
-  onSubmit: (values: Omit<BlogFormValues, 'published_at'> & { published_at: string | null }) => void; // Adjusted onSubmit type
+  onSubmit: (
+    values: Omit<BlogFormValues, "published_at"> & {
+      published_at: string | null;
+    },
+  ) => void; // Adjusted onSubmit type
 }
 
 export const BlogFormDialog: React.FC<BlogFormDialogProps> = ({
@@ -67,7 +99,9 @@ export const BlogFormDialog: React.FC<BlogFormDialogProps> = ({
         title: editingPost.title,
         description: editingPost.description || "",
         content: editingPost.content || "",
-        published_at: editingPost.published_at ? new Date(editingPost.published_at) : null,
+        published_at: editingPost.published_at
+          ? new Date(editingPost.published_at)
+          : null,
         published: editingPost.published,
         tags: editingPost.tags || [],
         cover_image_id: editingPost.cover_image_id || "--none--",
@@ -91,7 +125,9 @@ export const BlogFormDialog: React.FC<BlogFormDialogProps> = ({
     // Convert Date object to ISO string before passing to onSubmit
     const submittedValues = {
       ...values,
-      published_at: values.published_at ? values.published_at.toISOString() : null,
+      published_at: values.published_at
+        ? values.published_at.toISOString()
+        : null,
     };
     onSubmit(submittedValues);
     // The parent component will handle closing the dialog and resetting editingPost
@@ -101,13 +137,20 @@ export const BlogFormDialog: React.FC<BlogFormDialogProps> = ({
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[800px] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>{editingPost ? "Edit Post" : "Create New Post"}</DialogTitle>
+          <DialogTitle>
+            {editingPost ? "Edit Post" : "Create New Post"}
+          </DialogTitle>
           <DialogDescription>
-            {editingPost ? "Update the details of your blog post." : "Fill in the details for your new blog post."}
+            {editingPost
+              ? "Update the details of your blog post."
+              : "Fill in the details for your new blog post."}
           </DialogDescription>
         </DialogHeader>
         <Form {...form}>
-          <form onSubmit={form.handleSubmit(handleFormSubmit)} className="space-y-4">
+          <form
+            onSubmit={form.handleSubmit(handleFormSubmit)}
+            className="space-y-4"
+          >
             <FormField
               control={form.control}
               name="title"
@@ -128,7 +171,10 @@ export const BlogFormDialog: React.FC<BlogFormDialogProps> = ({
                 <FormItem>
                   <FormLabel>Description (Optional)</FormLabel>
                   <FormControl>
-                    <Textarea placeholder="A short summary of the post..." {...field} />
+                    <Textarea
+                      placeholder="A short summary of the post..."
+                      {...field}
+                    />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -141,7 +187,11 @@ export const BlogFormDialog: React.FC<BlogFormDialogProps> = ({
                 <FormItem>
                   <FormLabel>Content (Markdown)</FormLabel>
                   <FormControl>
-                    <Textarea placeholder="Write your blog post content here using Markdown..." rows={15} {...field} />
+                    <Textarea
+                      placeholder="Write your blog post content here using Markdown..."
+                      rows={15}
+                      {...field}
+                    />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -172,7 +222,10 @@ export const BlogFormDialog: React.FC<BlogFormDialogProps> = ({
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Cover Image</FormLabel>
-                    <Select onValueChange={field.onChange} value={field.value || "--none--"}>
+                    <Select
+                      onValueChange={field.onChange}
+                      value={field.value || "--none--"}
+                    >
                       <FormControl>
                         <SelectTrigger>
                           <SelectValue placeholder="Select a cover image (optional)" />
@@ -182,7 +235,8 @@ export const BlogFormDialog: React.FC<BlogFormDialogProps> = ({
                         <SelectItem value="--none--">No Cover Image</SelectItem>
                         {galleryImages.map((image) => (
                           <SelectItem key={image.id} value={image.id}>
-                            {image.alt_text || generateAltTextFromFileName(image.file_name)}
+                            {image.alt_text ||
+                              generateAltTextFromFileName(image.file_name)}
                           </SelectItem>
                         ))}
                       </SelectContent>
@@ -198,7 +252,11 @@ export const BlogFormDialog: React.FC<BlogFormDialogProps> = ({
                   <FormItem>
                     <FormLabel>YouTube Video ID (Optional)</FormLabel>
                     <FormControl>
-                      <Input placeholder="e.g., dQw4w9WgXcQ" {...field} value={field.value || ""} />
+                      <Input
+                        placeholder="e.g., dQw4w9WgXcQ"
+                        {...field}
+                        value={field.value || ""}
+                      />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -253,9 +311,7 @@ export const BlogFormDialog: React.FC<BlogFormDialogProps> = ({
                       />
                     </FormControl>
                     <div className="space-y-1 leading-none">
-                      <FormLabel>
-                        Published
-                      </FormLabel>
+                      <FormLabel>Published</FormLabel>
                       <FormDescription>
                         If checked, this post will be visible on the blog.
                       </FormDescription>
@@ -265,7 +321,13 @@ export const BlogFormDialog: React.FC<BlogFormDialogProps> = ({
               />
             </div>
             <DialogFooter>
-              <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => onOpenChange(false)}
+              >
+                Cancel
+              </Button>
               <Button type="submit">Save Changes</Button>
             </DialogFooter>
           </form>

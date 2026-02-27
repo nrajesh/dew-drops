@@ -46,6 +46,22 @@ serve(async (req) => {
     for (const table of tables) {
       const { data, error } = await supabaseAdmin.from(table).select('*');
       if (error) throw error;
+
+      // Sanitize backticks from posts content
+      if (table === 'posts' && data) {
+        data.forEach((post: Record<string, unknown>) => {
+          if (post.content && typeof post.content === 'string') {
+            const trimmed = post.content.trim();
+            if (trimmed.startsWith('```') && trimmed.endsWith('```')) {
+              const lines = trimmed.split('\n');
+              if (lines.length >= 2 && lines[0].startsWith('```') && lines[lines.length - 1].trim() === '```') {
+                post.content = lines.slice(1, -1).join('\n').trim();
+              }
+            }
+          }
+        });
+      }
+
       exportData[table] = data;
     }
 

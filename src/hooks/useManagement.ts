@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { showError } from "@/utils/toast";
-import { usePagination } from '@/hooks/usePagination';
+import { usePagination } from "@/hooks/usePagination";
 
 interface UseManagementOptions<T> {
   fetchData: () => Promise<T[]>;
@@ -9,7 +9,11 @@ interface UseManagementOptions<T> {
   updateItemStatus?: (ids: Set<string>, status: boolean) => Promise<boolean>;
   updateItemTags?: (ids: Set<string>, tags: string[]) => Promise<boolean>;
   generateItemTags?: (ids: Set<string>, allItems: T[]) => Promise<number>;
-  downloadItems?: (ids: Set<string>, allItems: T[], extraData?: unknown) => Promise<void>;
+  downloadItems?: (
+    ids: Set<string>,
+    allItems: T[],
+    extraData?: unknown,
+  ) => Promise<void>;
   initialItemsPerPage?: number;
   idKey?: keyof T;
   statusKey?: keyof T;
@@ -17,7 +21,7 @@ interface UseManagementOptions<T> {
 }
 
 export const useManagement = <T extends { id: string }>(
-  options: UseManagementOptions<T>
+  options: UseManagementOptions<T>,
 ) => {
   const { user } = useAuth();
   const {
@@ -28,8 +32,8 @@ export const useManagement = <T extends { id: string }>(
     generateItemTags,
     downloadItems,
     initialItemsPerPage = 10,
-    idKey = 'id' as keyof T,
-    statusKey = 'published' as keyof T,
+    idKey = "id" as keyof T,
+    statusKey = "published" as keyof T,
     filterFn,
   } = options;
 
@@ -37,7 +41,7 @@ export const useManagement = <T extends { id: string }>(
   const [isLoading, setIsLoading] = useState(true);
   const [selectedItems, setSelectedItems] = useState<Set<string>>(new Set());
   const [itemsPerPage, setItemsPerPage] = useState(initialItemsPerPage);
-  const [searchTerm, setSearchTerm] = useState('');
+  const [searchTerm, setSearchTerm] = useState("");
 
   const loadItems = useCallback(async () => {
     setIsLoading(true);
@@ -54,22 +58,18 @@ export const useManagement = <T extends { id: string }>(
     if (!filterFn || !searchTerm) {
       return allItems;
     }
-    return allItems.filter(item => filterFn(item, searchTerm));
+    return allItems.filter((item) => filterFn(item, searchTerm));
   }, [allItems, searchTerm, filterFn]);
 
-  const {
-    currentPage,
-    setCurrentPage,
-    totalPages,
-    paginatedItems,
-  } = usePagination(filteredItems, itemsPerPage);
+  const { currentPage, setCurrentPage, totalPages, paginatedItems } =
+    usePagination(filteredItems, itemsPerPage);
 
   const handleItemsPerPageChange = useCallback((value: number) => {
     setItemsPerPage(value);
   }, []);
 
   const handleSelectItem = useCallback((id: string) => {
-    setSelectedItems(prev => {
+    setSelectedItems((prev) => {
       const newSelection = new Set(prev);
       if (newSelection.has(id)) {
         newSelection.delete(id);
@@ -80,71 +80,134 @@ export const useManagement = <T extends { id: string }>(
     });
   }, []);
 
-  const handleSelectAllOnPage = useCallback((checked: boolean) => {
-    const pageIds = new Set(paginatedItems.map(item => String(item[idKey])));
-    setSelectedItems(prev => {
-      const newSet = new Set(prev);
-      if (checked) {
-        pageIds.forEach(id => newSet.add(id));
-      } else {
-        pageIds.forEach(id => newSet.delete(id));
+  const handleSelectAllOnPage = useCallback(
+    (checked: boolean) => {
+      const pageIds = new Set(
+        paginatedItems.map((item) => String(item[idKey])),
+      );
+      setSelectedItems((prev) => {
+        const newSet = new Set(prev);
+        if (checked) {
+          pageIds.forEach((id) => newSet.add(id));
+        } else {
+          pageIds.forEach((id) => newSet.delete(id));
+        }
+        return newSet;
+      });
+    },
+    [paginatedItems, idKey],
+  );
+
+  const handleBulkDelete = useCallback(
+    async (
+      ids: Set<string>,
+      setter: (s: Set<string>) => void,
+      allItems: T[],
+    ) => {
+      if (!user) {
+        showError("You must be logged in to delete items.");
+        return;
       }
-      return newSet;
-    });
-  }, [paginatedItems, idKey]);
+      if (ids.size === 0) return;
+      if (await deleteItems(Array.from(ids), allItems)) {
+        setter(new Set());
+        loadItems();
+      }
+    },
+    [user, deleteItems, loadItems],
+  );
 
-  const handleBulkDelete = useCallback(async (ids: Set<string>, setter: (s: Set<string>) => void, allItems: T[]) => {
-    if (!user) { showError("You must be logged in to delete items."); return; }
-    if (ids.size === 0) return;
-    if (await deleteItems(Array.from(ids), allItems)) {
+  const handleBulkStatusChange = useCallback(
+    async (
+      ids: Set<string>,
+      setter: (s: Set<string>) => void,
+      status: boolean,
+    ) => {
+      if (!user) {
+        showError("You must be logged in to change item status.");
+        return;
+      }
+      if (ids.size === 0 || !updateItemStatus) return;
+      if (await updateItemStatus(ids, status)) {
+        setter(new Set());
+        loadItems();
+      }
+    },
+    [user, updateItemStatus, loadItems],
+  );
+
+  const handleBulkTagUpdate = useCallback(
+    async (
+      ids: Set<string>,
+      setter: (s: Set<string>) => void,
+      tags: string[],
+    ) => {
+      if (!user) {
+        showError("You must be logged in to update tags.");
+        return;
+      }
+      if (ids.size === 0 || !updateItemTags) return;
+      if (await updateItemTags(ids, tags)) {
+        setter(new Set());
+        loadItems();
+      }
+    },
+    [user, updateItemTags, loadItems],
+  );
+
+  const handleGenerateTags = useCallback(
+    async (
+      ids: Set<string>,
+      setter: (s: Set<string>) => void,
+      allItems: T[],
+    ) => {
+      if (!user) {
+        showError("You must be logged in to generate tags.");
+        return;
+      }
+      if (ids.size === 0 || !generateItemTags) return;
+      if ((await generateItemTags(ids, allItems)) > 0) {
+        setter(new Set());
+        loadItems();
+      }
+    },
+    [user, generateItemTags, loadItems],
+  );
+
+  const handleBulkDownload = useCallback(
+    async (
+      ids: Set<string>,
+      setter: (s: Set<string>) => void,
+      allItems: T[],
+      extraData?: unknown,
+    ) => {
+      if (ids.size === 0 || !downloadItems) return;
+      await downloadItems(ids, allItems, extraData);
       setter(new Set());
-      loadItems();
-    }
-  }, [user, deleteItems, loadItems]);
+    },
+    [downloadItems],
+  );
 
-  const handleBulkStatusChange = useCallback(async (ids: Set<string>, setter: (s: Set<string>) => void, status: boolean) => {
-    if (!user) { showError("You must be logged in to change item status."); return; }
-    if (ids.size === 0 || !updateItemStatus) return;
-    if (await updateItemStatus(ids, status)) {
-      setter(new Set());
-      loadItems();
-    }
-  }, [user, updateItemStatus, loadItems]);
+  const handleToggleStatus = useCallback(
+    async (item: T) => {
+      if (!user) {
+        showError("You must be logged in to change item status.");
+        return;
+      }
+      if (!updateItemStatus) return;
+      const currentStatus = item[statusKey] as unknown as boolean;
+      if (
+        await updateItemStatus(new Set([String(item[idKey])]), !currentStatus)
+      ) {
+        loadItems();
+      }
+    },
+    [user, updateItemStatus, loadItems, idKey, statusKey],
+  );
 
-  const handleBulkTagUpdate = useCallback(async (ids: Set<string>, setter: (s: Set<string>) => void, tags: string[]) => {
-    if (!user) { showError("You must be logged in to update tags."); return; }
-    if (ids.size === 0 || !updateItemTags) return;
-    if (await updateItemTags(ids, tags)) {
-      setter(new Set());
-      loadItems();
-    }
-  }, [user, updateItemTags, loadItems]);
-
-  const handleGenerateTags = useCallback(async (ids: Set<string>, setter: (s: Set<string>) => void, allItems: T[]) => {
-    if (!user) { showError("You must be logged in to generate tags."); return; }
-    if (ids.size === 0 || !generateItemTags) return;
-    if (await generateItemTags(ids, allItems) > 0) {
-      setter(new Set());
-      loadItems();
-    }
-  }, [user, generateItemTags, loadItems]);
-
-  const handleBulkDownload = useCallback(async (ids: Set<string>, setter: (s: Set<string>) => void, allItems: T[], extraData?: unknown) => {
-    if (ids.size === 0 || !downloadItems) return;
-    await downloadItems(ids, allItems, extraData);
-    setter(new Set());
-  }, [downloadItems]);
-
-  const handleToggleStatus = useCallback(async (item: T) => {
-    if (!user) { showError("You must be logged in to change item status."); return; }
-    if (!updateItemStatus) return;
-    const currentStatus = item[statusKey] as unknown as boolean;
-    if (await updateItemStatus(new Set([String(item[idKey])]), !currentStatus)) {
-      loadItems();
-    }
-  }, [user, updateItemStatus, loadItems, idKey, statusKey]);
-
-  const allOnPageSelected = paginatedItems.length > 0 && paginatedItems.every(item => selectedItems.has(String(item[idKey])));
+  const allOnPageSelected =
+    paginatedItems.length > 0 &&
+    paginatedItems.every((item) => selectedItems.has(String(item[idKey])));
 
   return {
     allItems,

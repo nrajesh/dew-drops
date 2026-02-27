@@ -4,21 +4,24 @@
  * engine, which properly respects `page-break-*` CSS rules — avoiding the
  * canvas-slice line-splitting problem of the old html2canvas approach.
  */
-export const generateCareerFitPdf = (htmlContent: string, _filename: string): Promise<void> => {
+export const generateCareerFitPdf = (
+  htmlContent: string,
+  _filename: string,
+): Promise<void> => {
   return new Promise((resolve, reject) => {
-    const iframe = document.createElement('iframe');
-    iframe.style.position = 'fixed';
-    iframe.style.top = '-9999px';
-    iframe.style.left = '-9999px';
-    iframe.style.width = '210mm';
-    iframe.style.height = '297mm';
-    iframe.style.border = 'none';
+    const iframe = document.createElement("iframe");
+    iframe.style.position = "fixed";
+    iframe.style.top = "-9999px";
+    iframe.style.left = "-9999px";
+    iframe.style.width = "210mm";
+    iframe.style.height = "297mm";
+    iframe.style.border = "none";
     document.body.appendChild(iframe);
 
     const doc = iframe.contentDocument || iframe.contentWindow?.document;
     if (!doc) {
       document.body.removeChild(iframe);
-      reject(new Error('Could not access iframe document'));
+      reject(new Error("Could not access iframe document"));
       return;
     }
 
@@ -48,7 +51,9 @@ export const generateCareerFitPdf = (htmlContent: string, _filename: string): Pr
         try {
           iframe.contentWindow?.focus();
           iframe.contentWindow?.print();
-        } catch (_) { /* ignore */ }
+        } catch (_) {
+          /* ignore */
+        }
         setTimeout(() => {
           if (document.body.contains(iframe)) document.body.removeChild(iframe);
           resolve();

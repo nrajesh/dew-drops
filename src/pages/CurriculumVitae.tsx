@@ -1,15 +1,55 @@
 import { useEffect, useState, useCallback } from "react";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Terminal, Mail, Phone, Globe, MapPin, Briefcase, GraduationCap, Zap, Link as LinkIcon, Award, Languages, Heart, BookOpen, Users, Printer, ChevronDown, Linkedin, Code } from "lucide-react";
-import type { JsonResume, ResumeWork, ResumeEducation, ResumeSkill, ResumeAward, ResumeLanguage, ResumeInterest, ResumePublication, ResumeReference, ResumeProject } from "@/types/resume";
+import {
+  Terminal,
+  Mail,
+  Phone,
+  Globe,
+  MapPin,
+  Briefcase,
+  GraduationCap,
+  Zap,
+  Link as LinkIcon,
+  Award,
+  Languages,
+  Heart,
+  BookOpen,
+  Users,
+  Printer,
+  ChevronDown,
+  Linkedin,
+  Code,
+} from "lucide-react";
+import type {
+  JsonResume,
+  ResumeWork,
+  ResumeEducation,
+  ResumeSkill,
+  ResumeAward,
+  ResumeLanguage,
+  ResumeInterest,
+  ResumePublication,
+  ResumeReference,
+  ResumeProject,
+} from "@/types/resume";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible";
 import { Button } from "@/components/ui/button";
 import { cn, formatDate } from "@/lib/utils"; // Import centralized formatDate
-import { Link } from 'react-router-dom'; // Import Link for navigation
+import { Link } from "react-router-dom"; // Import Link for navigation
 import { supabase } from "@/integrations/supabase/client"; // Import Supabase client
 
 const RESUME_URL = import.meta.env.VITE_RESUME_URL;
@@ -35,7 +75,7 @@ const CurriculumVitae = () => {
   const ensureAbsoluteUrl = (url: string) => {
     if (!url) return url;
     // Check if the URL already starts with http:// or https://
-    if (!url.startsWith('http://') && !url.startsWith('https://')) {
+    if (!url.startsWith("http://") && !url.startsWith("https://")) {
       // Prepend https:// to ensure it's treated as an absolute URL
       return `https://${url}`;
     }
@@ -44,10 +84,10 @@ const CurriculumVitae = () => {
 
   // Helper function to convert newlines to <br> tags
   const formatTextWithLineBreaks = (text: string) => {
-    return text.split('\n').map((line, index) => (
+    return text.split("\n").map((line, index) => (
       <span key={index}>
         {line}
-        {index < text.split('\n').length - 1 && <br />}
+        {index < text.split("\n").length - 1 && <br />}
       </span>
     ));
   };
@@ -78,9 +118,9 @@ const CurriculumVitae = () => {
       // Fetch feature flag status
       try {
         const { data, error: dbError } = await supabase
-          .from('feature_toggles')
-          .select('is_enabled')
-          .eq('feature_key', 'match_cv')
+          .from("feature_toggles")
+          .select("is_enabled")
+          .eq("feature_key", "match_cv")
           .single();
 
         if (dbError) {
@@ -103,12 +143,12 @@ const CurriculumVitae = () => {
     document.title = `${resume?.basics.name || "Rajesh Narayanan"}-Resume.pdf`;
 
     // Add a class to the body to force light mode for printing
-    document.body.classList.add('print-light-mode');
+    document.body.classList.add("print-light-mode");
 
     window.print();
 
     // Remove the class after printing
-    document.body.classList.remove('print-light-mode');
+    document.body.classList.remove("print-light-mode");
     document.title = originalTitle;
   }, [resume]);
 
@@ -130,7 +170,9 @@ const CurriculumVitae = () => {
           <Terminal className="h-4 w-4" />
           <AlertTitle>Error loading CV</AlertTitle>
           <AlertDescription>
-            {error} Please ensure <code>VITE_RESUME_URL</code> is set correctly in your environment variables and points to a valid JSON Resume Gist.
+            {error} Please ensure <code>VITE_RESUME_URL</code> is set correctly
+            in your environment variables and points to a valid JSON Resume
+            Gist.
           </AlertDescription>
         </Alert>
       </div>
@@ -141,12 +183,25 @@ const CurriculumVitae = () => {
     return <div className="text-center py-8">No resume data found.</div>;
   }
 
-  const { basics, work, education, skills, awards, languages, interests, publications, references, projects } = resume;
+  const {
+    basics,
+    work,
+    education,
+    skills,
+    awards,
+    languages,
+    interests,
+    publications,
+    references,
+    projects,
+  } = resume;
 
   return (
     <div className="max-w-4xl mx-auto space-y-8">
       <div className="flex flex-col sm:flex-row justify-end items-end sm:items-center gap-2 print:hidden mb-4 group">
-        <p className="text-sm text-muted-foreground opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200">Collapsed sections will not be printed.</p>
+        <p className="text-sm text-muted-foreground opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200">
+          Collapsed sections will not be printed.
+        </p>
         <Button onClick={handlePrint} className="flex items-center gap-2">
           <Printer className="h-4 w-4" /> Print to PDF
         </Button>
@@ -156,46 +211,84 @@ const CurriculumVitae = () => {
         <CardHeader className="flex flex-col sm:flex-row items-center sm:items-start gap-6">
           <Avatar className="h-24 w-24">
             <AvatarImage
-              src={basics.picture?.includes('media.licdn.com') ? undefined : basics.picture}
+              src={
+                basics.picture?.includes("media.licdn.com")
+                  ? undefined
+                  : basics.picture
+              }
               alt={basics.name}
             />
-            <AvatarFallback>{basics.name.split(' ').map(n => n[0]).join('')}</AvatarFallback>
+            <AvatarFallback>
+              {basics.name
+                .split(" ")
+                .map((n) => n[0])
+                .join("")}
+            </AvatarFallback>
           </Avatar>
           <div className="text-center sm:text-left">
             <CardTitle className="text-4xl font-bold">{basics.name}</CardTitle>
-            <CardDescription className="text-xl text-muted-foreground">{basics.label}</CardDescription>
+            <CardDescription className="text-xl text-muted-foreground">
+              {basics.label}
+            </CardDescription>
             <div className="flex flex-wrap justify-center sm:justify-start gap-x-4 gap-y-2 mt-4 text-sm">
               {basics.email && (
-                <a href={`mailto:${basics.email}`} className="flex items-center gap-1 hover:text-primary transition-colors">
+                <a
+                  href={`mailto:${basics.email}`}
+                  className="flex items-center gap-1 hover:text-primary transition-colors"
+                >
                   <Mail className="h-4 w-4" /> {basics.email}
                 </a>
               )}
               {basics.phone && (
-                <a href={`tel:${basics.phone}`} className="flex items-center gap-1 hover:text-primary transition-colors">
+                <a
+                  href={`tel:${basics.phone}`}
+                  className="flex items-center gap-1 hover:text-primary transition-colors"
+                >
                   <Phone className="h-4 w-4" /> {basics.phone}
                 </a>
               )}
               {basics.location?.city && (
                 <span className="flex items-center gap-1 text-muted-foreground">
-                  <MapPin className="h-4 w-4" /> {basics.location.city}, {basics.location.countryCode}
+                  <MapPin className="h-4 w-4" /> {basics.location.city},{" "}
+                  {basics.location.countryCode}
                 </span>
               )}
             </div>
-            {(basics.profiles && basics.profiles.length > 0) || basics.website ? (
+            {(basics.profiles && basics.profiles.length > 0) ||
+            basics.website ? (
               <div className="flex flex-wrap justify-center sm:justify-start gap-2 mt-4">
-                {basics.profiles && basics.profiles.map((profile, index) => {
-                  const isLinkedIn = profile.network.toLowerCase() === 'linkedin';
-                  // Apply ensureAbsoluteUrl to profile URLs unless it's the hardcoded LinkedIn URL
-                  const displayUrl = isLinkedIn ? 'https://linkedin.com/in/nrajesh' : ensureAbsoluteUrl(profile.url);
-                  return (
-                    <a key={index} href={displayUrl} target="_blank" rel="noopener noreferrer" className="text-sm text-primary hover:underline flex items-center gap-1">
-                      {isLinkedIn ? <Linkedin className="h-4 w-4" /> : <LinkIcon className="h-4 w-4" />}
-                      {profile.network}
-                    </a>
-                  );
-                })}
+                {basics.profiles &&
+                  basics.profiles.map((profile, index) => {
+                    const isLinkedIn =
+                      profile.network.toLowerCase() === "linkedin";
+                    // Apply ensureAbsoluteUrl to profile URLs unless it's the hardcoded LinkedIn URL
+                    const displayUrl = isLinkedIn
+                      ? "https://linkedin.com/in/nrajesh"
+                      : ensureAbsoluteUrl(profile.url);
+                    return (
+                      <a
+                        key={index}
+                        href={displayUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-sm text-primary hover:underline flex items-center gap-1"
+                      >
+                        {isLinkedIn ? (
+                          <Linkedin className="h-4 w-4" />
+                        ) : (
+                          <LinkIcon className="h-4 w-4" />
+                        )}
+                        {profile.network}
+                      </a>
+                    );
+                  })}
                 {basics.website && (
-                  <a href={ensureAbsoluteUrl(basics.website)} target="_blank" rel="noopener noreferrer" className="text-sm text-primary hover:underline flex items-center gap-1">
+                  <a
+                    href={ensureAbsoluteUrl(basics.website)}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-sm text-primary hover:underline flex items-center gap-1"
+                  >
                     <Globe className="h-4 w-4" /> Website
                   </a>
                 )}
@@ -205,15 +298,17 @@ const CurriculumVitae = () => {
         </CardHeader>
         {basics.summary && (
           <CardContent>
-            <p className="text-muted-foreground">{formatTextWithLineBreaks(basics.summary)}</p>
+            <p className="text-muted-foreground">
+              {formatTextWithLineBreaks(basics.summary)}
+            </p>
           </CardContent>
         )}
         {matchCvFeatureEnabled && (
-          <div className="flex justify-center mt-4 pb-6 print:hidden"> {/* Added print:hidden here */}
+          <div className="flex justify-center mt-4 pb-6 print:hidden">
+            {" "}
+            {/* Added print:hidden here */}
             <Link to="/match-cv">
-              <Button>
-                Match CV with a Job
-              </Button>
+              <Button>Match CV with a Job</Button>
             </Link>
           </div>
         )}
@@ -221,12 +316,26 @@ const CurriculumVitae = () => {
 
       {work && work.length > 0 && (
         <Card>
-          <Collapsible open={isWorkOpen} onOpenChange={setIsWorkOpen} className="cv-collapsible-section">
+          <Collapsible
+            open={isWorkOpen}
+            onOpenChange={setIsWorkOpen}
+            className="cv-collapsible-section"
+          >
             <CardHeader>
               <CollapsibleTrigger asChild>
-                <Button variant="ghost" className="w-full justify-between p-0 hover:bg-transparent">
-                  <CardTitle className="flex items-center gap-2 text-primary"><Briefcase className="h-5 w-5" /> Work Experience</CardTitle>
-                  <ChevronDown className={cn("h-5 w-5 transition-transform", isWorkOpen ? "rotate-180" : "rotate-0")} />
+                <Button
+                  variant="ghost"
+                  className="w-full justify-between p-0 hover:bg-transparent"
+                >
+                  <CardTitle className="flex items-center gap-2 text-primary">
+                    <Briefcase className="h-5 w-5" /> Work Experience
+                  </CardTitle>
+                  <ChevronDown
+                    className={cn(
+                      "h-5 w-5 transition-transform",
+                      isWorkOpen ? "rotate-180" : "rotate-0",
+                    )}
+                  />
                 </Button>
               </CollapsibleTrigger>
             </CardHeader>
@@ -234,16 +343,35 @@ const CurriculumVitae = () => {
               <CardContent>
                 <div className="prose dark:prose-invert max-w-none space-y-6">
                   {work.map((job: ResumeWork, index: number) => (
-                    <div key={index} className="border-b pb-4 last:border-b-0 last:pb-0">
-                      <h3 className="text-lg font-semibold">{job.position} at {job.name} ({job.location})</h3>
+                    <div
+                      key={index}
+                      className="border-b pb-4 last:border-b-0 last:pb-0"
+                    >
+                      <h3 className="text-lg font-semibold">
+                        {job.position} at {job.name} ({job.location})
+                      </h3>
                       <p className="text-muted-foreground">
-                        {formatDate(job.startDate, { year: 'numeric', month: 'short' })} – {job.endDate ? formatDate(job.endDate, { year: 'numeric', month: 'short' }) : "Present"}
+                        {formatDate(job.startDate, {
+                          year: "numeric",
+                          month: "short",
+                        })}{" "}
+                        –{" "}
+                        {job.endDate
+                          ? formatDate(job.endDate, {
+                              year: "numeric",
+                              month: "short",
+                            })
+                          : "Present"}
                       </p>
-                      {job.summary && <p>{formatTextWithLineBreaks(job.summary)}</p>}
+                      {job.summary && (
+                        <p>{formatTextWithLineBreaks(job.summary)}</p>
+                      )}
                       {job.highlights && job.highlights.length > 0 && (
                         <ul className="list-disc list-inside text-muted-foreground mt-2 space-y-1">
                           {job.highlights.map((highlight, hIndex) => (
-                            <li key={hIndex}>{formatTextWithLineBreaks(highlight)}</li>
+                            <li key={hIndex}>
+                              {formatTextWithLineBreaks(highlight)}
+                            </li>
                           ))}
                         </ul>
                       )}
@@ -258,12 +386,26 @@ const CurriculumVitae = () => {
 
       {education && education.length > 0 && (
         <Card>
-          <Collapsible open={isEducationOpen} onOpenChange={setIsEducationOpen} className="cv-collapsible-section">
+          <Collapsible
+            open={isEducationOpen}
+            onOpenChange={setIsEducationOpen}
+            className="cv-collapsible-section"
+          >
             <CardHeader>
               <CollapsibleTrigger asChild>
-                <Button variant="ghost" className="w-full justify-between p-0 hover:bg-transparent">
-                  <CardTitle className="flex items-center gap-2 text-primary"><GraduationCap className="h-5 w-5" /> Education</CardTitle>
-                  <ChevronDown className={cn("h-5 w-5 transition-transform", isEducationOpen ? "rotate-180" : "rotate-0")} />
+                <Button
+                  variant="ghost"
+                  className="w-full justify-between p-0 hover:bg-transparent"
+                >
+                  <CardTitle className="flex items-center gap-2 text-primary">
+                    <GraduationCap className="h-5 w-5" /> Education
+                  </CardTitle>
+                  <ChevronDown
+                    className={cn(
+                      "h-5 w-5 transition-transform",
+                      isEducationOpen ? "rotate-180" : "rotate-0",
+                    )}
+                  />
                 </Button>
               </CollapsibleTrigger>
             </CardHeader>
@@ -271,15 +413,34 @@ const CurriculumVitae = () => {
               <CardContent>
                 <div className="prose dark:prose-invert max-w-none space-y-6">
                   {education.map((edu: ResumeEducation, index: number) => (
-                    <div key={index} className="border-b pb-4 last:border-b-0 last:pb-0">
-                      <h3 className="text-lg font-semibold">{edu.institution}</h3>
-                      <p className="text-muted-foreground">{edu.studyType} in {edu.area}</p>
+                    <div
+                      key={index}
+                      className="border-b pb-4 last:border-b-0 last:pb-0"
+                    >
+                      <h3 className="text-lg font-semibold">
+                        {edu.institution}
+                      </h3>
                       <p className="text-muted-foreground">
-                        {formatDate(edu.startDate, { year: 'numeric', month: 'short' })} – {edu.endDate ? formatDate(edu.endDate, { year: 'numeric', month: 'short' }) : "Present"}
+                        {edu.studyType} in {edu.area}
+                      </p>
+                      <p className="text-muted-foreground">
+                        {formatDate(edu.startDate, {
+                          year: "numeric",
+                          month: "short",
+                        })}{" "}
+                        –{" "}
+                        {edu.endDate
+                          ? formatDate(edu.endDate, {
+                              year: "numeric",
+                              month: "short",
+                            })
+                          : "Present"}
                       </p>
                       {edu.gpa && <p>GPA: {edu.gpa}</p>}
                       {edu.courses && edu.courses.length > 0 && (
-                        <p className="text-xs text-muted-foreground mt-2">Courses: {edu.courses.join(', ')}</p>
+                        <p className="text-xs text-muted-foreground mt-2">
+                          Courses: {edu.courses.join(", ")}
+                        </p>
                       )}
                     </div>
                   ))}
@@ -292,25 +453,42 @@ const CurriculumVitae = () => {
 
       {skills && skills.length > 0 && (
         <Card>
-          <Collapsible open={isSkillsOpen} onOpenChange={setIsSkillsOpen} className="cv-collapsible-section">
+          <Collapsible
+            open={isSkillsOpen}
+            onOpenChange={setIsSkillsOpen}
+            className="cv-collapsible-section"
+          >
             <CardHeader>
               <CollapsibleTrigger asChild>
-                <Button variant="ghost" className="w-full justify-between p-0 hover:bg-transparent">
-                  <CardTitle className="flex items-center gap-2 text-primary"><Zap className="h-5 w-5" /> Skills</CardTitle>
-                  <ChevronDown className={cn("h-5 w-5 transition-transform", isSkillsOpen ? "rotate-180" : "rotate-0")} />
+                <Button
+                  variant="ghost"
+                  className="w-full justify-between p-0 hover:bg-transparent"
+                >
+                  <CardTitle className="flex items-center gap-2 text-primary">
+                    <Zap className="h-5 w-5" /> Skills
+                  </CardTitle>
+                  <ChevronDown
+                    className={cn(
+                      "h-5 w-5 transition-transform",
+                      isSkillsOpen ? "rotate-180" : "rotate-0",
+                    )}
+                  />
                 </Button>
               </CollapsibleTrigger>
             </CardHeader>
             <CollapsibleContent>
               <CardContent className="space-y-4">
                 {skills.map((skill: ResumeSkill, index: number) => (
-                  <div key={index} className="border-b pb-4 last:border-b-0 last:pb-0">
+                  <div
+                    key={index}
+                    className="border-b pb-4 last:border-b-0 last:pb-0"
+                  >
                     <h3 className="text-lg font-semibold">
                       {skill.name} {skill.level && `(${skill.level})`}
                     </h3>
                     {skill.keywords && skill.keywords.length > 0 && (
                       <p className="text-sm text-muted-foreground mt-1">
-                        {skill.keywords.join(', ')}
+                        {skill.keywords.join(", ")}
                       </p>
                     )}
                   </div>
@@ -323,12 +501,26 @@ const CurriculumVitae = () => {
 
       {awards && awards.length > 0 && (
         <Card>
-          <Collapsible open={isAwardsOpen} onOpenChange={setIsAwardsOpen} className="cv-collapsible-section">
+          <Collapsible
+            open={isAwardsOpen}
+            onOpenChange={setIsAwardsOpen}
+            className="cv-collapsible-section"
+          >
             <CardHeader>
               <CollapsibleTrigger asChild>
-                <Button variant="ghost" className="w-full justify-between p-0 hover:bg-transparent">
-                  <CardTitle className="flex items-center gap-2 text-primary"><Award className="h-5 w-5" /> Awards</CardTitle>
-                  <ChevronDown className={cn("h-5 w-5 transition-transform", isAwardsOpen ? "rotate-180" : "rotate-0")} />
+                <Button
+                  variant="ghost"
+                  className="w-full justify-between p-0 hover:bg-transparent"
+                >
+                  <CardTitle className="flex items-center gap-2 text-primary">
+                    <Award className="h-5 w-5" /> Awards
+                  </CardTitle>
+                  <ChevronDown
+                    className={cn(
+                      "h-5 w-5 transition-transform",
+                      isAwardsOpen ? "rotate-180" : "rotate-0",
+                    )}
+                  />
                 </Button>
               </CollapsibleTrigger>
             </CardHeader>
@@ -336,10 +528,21 @@ const CurriculumVitae = () => {
               <CardContent>
                 <div className="prose dark:prose-invert max-w-none space-y-6">
                   {awards.map((award: ResumeAward, index: number) => (
-                    <div key={index} className="border-b pb-4 last:border-b-0 last:pb-0">
+                    <div
+                      key={index}
+                      className="border-b pb-4 last:border-b-0 last:pb-0"
+                    >
                       <h3 className="text-lg font-semibold">{award.title}</h3>
-                      <p className="text-muted-foreground">{award.awarder} - {formatDate(award.date, { year: 'numeric', month: 'short' })}</p>
-                      {award.summary && <p>{formatTextWithLineBreaks(award.summary)}</p>}
+                      <p className="text-muted-foreground">
+                        {award.awarder} -{" "}
+                        {formatDate(award.date, {
+                          year: "numeric",
+                          month: "short",
+                        })}
+                      </p>
+                      {award.summary && (
+                        <p>{formatTextWithLineBreaks(award.summary)}</p>
+                      )}
                     </div>
                   ))}
                 </div>
@@ -351,12 +554,26 @@ const CurriculumVitae = () => {
 
       {languages && languages.length > 0 && (
         <Card>
-          <Collapsible open={isLanguagesOpen} onOpenChange={setIsLanguagesOpen} className="cv-collapsible-section">
+          <Collapsible
+            open={isLanguagesOpen}
+            onOpenChange={setIsLanguagesOpen}
+            className="cv-collapsible-section"
+          >
             <CardHeader>
               <CollapsibleTrigger asChild>
-                <Button variant="ghost" className="w-full justify-between p-0 hover:bg-transparent">
-                  <CardTitle className="flex items-center gap-2 text-primary"><Languages className="h-5 w-5" /> Languages</CardTitle>
-                  <ChevronDown className={cn("h-5 w-5 transition-transform", isLanguagesOpen ? "rotate-180" : "rotate-0")} />
+                <Button
+                  variant="ghost"
+                  className="w-full justify-between p-0 hover:bg-transparent"
+                >
+                  <CardTitle className="flex items-center gap-2 text-primary">
+                    <Languages className="h-5 w-5" /> Languages
+                  </CardTitle>
+                  <ChevronDown
+                    className={cn(
+                      "h-5 w-5 transition-transform",
+                      isLanguagesOpen ? "rotate-180" : "rotate-0",
+                    )}
+                  />
                 </Button>
               </CollapsibleTrigger>
             </CardHeader>
@@ -375,12 +592,26 @@ const CurriculumVitae = () => {
 
       {interests && interests.length > 0 && (
         <Card>
-          <Collapsible open={isInterestsOpen} onOpenChange={setIsInterestsOpen} className="cv-collapsible-section">
+          <Collapsible
+            open={isInterestsOpen}
+            onOpenChange={setIsInterestsOpen}
+            className="cv-collapsible-section"
+          >
             <CardHeader>
               <CollapsibleTrigger asChild>
-                <Button variant="ghost" className="w-full justify-between p-0 hover:bg-transparent">
-                  <CardTitle className="flex items-center gap-2 text-primary"><Heart className="h-5 w-5" /> Interests</CardTitle>
-                  <ChevronDown className={cn("h-5 w-5 transition-transform", isInterestsOpen ? "rotate-180" : "rotate-0")} />
+                <Button
+                  variant="ghost"
+                  className="w-full justify-between p-0 hover:bg-transparent"
+                >
+                  <CardTitle className="flex items-center gap-2 text-primary">
+                    <Heart className="h-5 w-5" /> Interests
+                  </CardTitle>
+                  <ChevronDown
+                    className={cn(
+                      "h-5 w-5 transition-transform",
+                      isInterestsOpen ? "rotate-180" : "rotate-0",
+                    )}
+                  />
                 </Button>
               </CollapsibleTrigger>
             </CardHeader>
@@ -388,7 +619,10 @@ const CurriculumVitae = () => {
               <CardContent className="flex flex-wrap gap-2">
                 {interests.map((interest: ResumeInterest, index: number) => (
                   <Badge key={index} variant="secondary" className="px-3 py-1">
-                    {interest.name} {interest.keywords && interest.keywords.length > 0 && `(${interest.keywords.join(', ')})`}
+                    {interest.name}{" "}
+                    {interest.keywords &&
+                      interest.keywords.length > 0 &&
+                      `(${interest.keywords.join(", ")})`}
                   </Badge>
                 ))}
               </CardContent>
@@ -399,12 +633,26 @@ const CurriculumVitae = () => {
 
       {publications && publications.length > 0 && (
         <Card>
-          <Collapsible open={isPublicationsOpen} onOpenChange={setIsPublicationsOpen} className="cv-collapsible-section">
+          <Collapsible
+            open={isPublicationsOpen}
+            onOpenChange={setIsPublicationsOpen}
+            className="cv-collapsible-section"
+          >
             <CardHeader>
               <CollapsibleTrigger asChild>
-                <Button variant="ghost" className="w-full justify-between p-0 hover:bg-transparent">
-                  <CardTitle className="flex items-center gap-2 text-primary"><BookOpen className="h-5 w-5" /> Publications</CardTitle>
-                  <ChevronDown className={cn("h-5 w-5 transition-transform", isPublicationsOpen ? "rotate-180" : "rotate-0")} />
+                <Button
+                  variant="ghost"
+                  className="w-full justify-between p-0 hover:bg-transparent"
+                >
+                  <CardTitle className="flex items-center gap-2 text-primary">
+                    <BookOpen className="h-5 w-5" /> Publications
+                  </CardTitle>
+                  <ChevronDown
+                    className={cn(
+                      "h-5 w-5 transition-transform",
+                      isPublicationsOpen ? "rotate-180" : "rotate-0",
+                    )}
+                  />
                 </Button>
               </CollapsibleTrigger>
             </CardHeader>
@@ -412,10 +660,18 @@ const CurriculumVitae = () => {
               <CardContent>
                 <div className="prose dark:prose-invert max-w-none space-y-6">
                   {publications.map((pub: ResumePublication, index: number) => (
-                    <div key={index} className="border-b pb-4 last:border-b-0 last:pb-0">
+                    <div
+                      key={index}
+                      className="border-b pb-4 last:border-b-0 last:pb-0"
+                    >
                       <h3 className="text-lg font-semibold">
                         {pub.url ? (
-                          <a href={ensureAbsoluteUrl(pub.url)} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline flex items-center">
+                          <a
+                            href={ensureAbsoluteUrl(pub.url)}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-primary hover:underline flex items-center"
+                          >
                             {pub.name}
                             <LinkIcon className="h-4 w-4 inline-block ml-2" />
                           </a>
@@ -423,8 +679,15 @@ const CurriculumVitae = () => {
                           pub.name
                         )}
                       </h3>
-                      <p className="text-muted-foreground">{formatDate(pub.releaseDate, { year: 'numeric', month: 'short' })}</p>
-                      {pub.summary && <p>{formatTextWithLineBreaks(pub.summary)}</p>}
+                      <p className="text-muted-foreground">
+                        {formatDate(pub.releaseDate, {
+                          year: "numeric",
+                          month: "short",
+                        })}
+                      </p>
+                      {pub.summary && (
+                        <p>{formatTextWithLineBreaks(pub.summary)}</p>
+                      )}
                     </div>
                   ))}
                 </div>
@@ -436,12 +699,26 @@ const CurriculumVitae = () => {
 
       {projects && projects.length > 0 && (
         <Card>
-          <Collapsible open={isProjectsOpen} onOpenChange={setIsProjectsOpen} className="cv-collapsible-section">
+          <Collapsible
+            open={isProjectsOpen}
+            onOpenChange={setIsProjectsOpen}
+            className="cv-collapsible-section"
+          >
             <CardHeader>
               <CollapsibleTrigger asChild>
-                <Button variant="ghost" className="w-full justify-between p-0 hover:bg-transparent">
-                  <CardTitle className="flex items-center gap-2 text-primary"><Code className="h-5 w-5" /> Projects</CardTitle>
-                  <ChevronDown className={cn("h-5 w-5 transition-transform", isProjectsOpen ? "rotate-180" : "rotate-0")} />
+                <Button
+                  variant="ghost"
+                  className="w-full justify-between p-0 hover:bg-transparent"
+                >
+                  <CardTitle className="flex items-center gap-2 text-primary">
+                    <Code className="h-5 w-5" /> Projects
+                  </CardTitle>
+                  <ChevronDown
+                    className={cn(
+                      "h-5 w-5 transition-transform",
+                      isProjectsOpen ? "rotate-180" : "rotate-0",
+                    )}
+                  />
                 </Button>
               </CollapsibleTrigger>
             </CardHeader>
@@ -449,10 +726,18 @@ const CurriculumVitae = () => {
               <CardContent>
                 <div className="prose dark:prose-invert max-w-none space-y-6">
                   {projects.map((project: ResumeProject, index: number) => (
-                    <div key={index} className="border-b pb-4 last:border-b-0 last:pb-0">
+                    <div
+                      key={index}
+                      className="border-b pb-4 last:border-b-0 last:pb-0"
+                    >
                       <h3 className="text-lg font-semibold">
                         {project.url ? (
-                          <a href={ensureAbsoluteUrl(project.url)} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline flex items-center">
+                          <a
+                            href={ensureAbsoluteUrl(project.url)}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-primary hover:underline flex items-center"
+                          >
                             {project.name}
                             <LinkIcon className="h-4 w-4 inline-block ml-2" />
                           </a>
@@ -462,23 +747,45 @@ const CurriculumVitae = () => {
                       </h3>
                       {(project.startDate || project.endDate) && (
                         <p className="text-muted-foreground">
-                          {project.startDate ? formatDate(project.startDate, { year: 'numeric', month: 'short' }) : ''} 
-                          {project.startDate && project.endDate ? ' – ' : ''}
-                          {project.endDate ? formatDate(project.endDate, { year: 'numeric', month: 'short' }) : project.startDate ? 'Present' : ''}
+                          {project.startDate
+                            ? formatDate(project.startDate, {
+                                year: "numeric",
+                                month: "short",
+                              })
+                            : ""}
+                          {project.startDate && project.endDate ? " – " : ""}
+                          {project.endDate
+                            ? formatDate(project.endDate, {
+                                year: "numeric",
+                                month: "short",
+                              })
+                            : project.startDate
+                              ? "Present"
+                              : ""}
                         </p>
                       )}
-                      {project.description && <p className="mt-2">{formatTextWithLineBreaks(project.description)}</p>}
+                      {project.description && (
+                        <p className="mt-2">
+                          {formatTextWithLineBreaks(project.description)}
+                        </p>
+                      )}
                       {project.highlights && project.highlights.length > 0 && (
                         <ul className="list-disc list-inside text-muted-foreground mt-2 space-y-1">
                           {project.highlights.map((highlight, hIndex) => (
-                            <li key={hIndex}>{formatTextWithLineBreaks(highlight)}</li>
+                            <li key={hIndex}>
+                              {formatTextWithLineBreaks(highlight)}
+                            </li>
                           ))}
                         </ul>
                       )}
                       {project.keywords && project.keywords.length > 0 && (
                         <div className="flex flex-wrap gap-2 mt-3">
                           {project.keywords.map((keyword, kIndex) => (
-                            <Badge key={kIndex} variant="secondary" className="text-xs">
+                            <Badge
+                              key={kIndex}
+                              variant="secondary"
+                              className="text-xs"
+                            >
                               {keyword}
                             </Badge>
                           ))}
@@ -495,12 +802,26 @@ const CurriculumVitae = () => {
 
       {references && references.length > 0 && (
         <Card>
-          <Collapsible open={isReferencesOpen} onOpenChange={setIsReferencesOpen} className="cv-collapsible-section">
+          <Collapsible
+            open={isReferencesOpen}
+            onOpenChange={setIsReferencesOpen}
+            className="cv-collapsible-section"
+          >
             <CardHeader>
               <CollapsibleTrigger asChild>
-                <Button variant="ghost" className="w-full justify-between p-0 hover:bg-transparent">
-                  <CardTitle className="flex items-center gap-2 text-primary"><Users className="h-5 w-5" /> References</CardTitle>
-                  <ChevronDown className={cn("h-5 w-5 transition-transform", isReferencesOpen ? "rotate-180" : "rotate-0")} />
+                <Button
+                  variant="ghost"
+                  className="w-full justify-between p-0 hover:bg-transparent"
+                >
+                  <CardTitle className="flex items-center gap-2 text-primary">
+                    <Users className="h-5 w-5" /> References
+                  </CardTitle>
+                  <ChevronDown
+                    className={cn(
+                      "h-5 w-5 transition-transform",
+                      isReferencesOpen ? "rotate-180" : "rotate-0",
+                    )}
+                  />
                 </Button>
               </CollapsibleTrigger>
             </CardHeader>
@@ -508,9 +829,14 @@ const CurriculumVitae = () => {
               <CardContent>
                 <div className="prose dark:prose-invert max-w-none space-y-6">
                   {references.map((ref: ResumeReference, index: number) => (
-                    <div key={index} className="border-b pb-4 last:border-b-0 last:pb-0">
+                    <div
+                      key={index}
+                      className="border-b pb-4 last:border-b-0 last:pb-0"
+                    >
                       <h3 className="text-lg font-semibold">{ref.name}</h3>
-                      <p className="text-muted-foreground">{formatTextWithLineBreaks(ref.reference)}</p>
+                      <p className="text-muted-foreground">
+                        {formatTextWithLineBreaks(ref.reference)}
+                      </p>
                     </div>
                   ))}
                 </div>

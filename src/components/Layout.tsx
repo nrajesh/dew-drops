@@ -1,20 +1,53 @@
 import { NavLink, Outlet, Link } from "react-router-dom";
-import { Menu, LogIn, LogOut, Plus, Bot, User as UserIcon, Text } from "lucide-react";
+import {
+  Menu,
+  LogIn,
+  LogOut,
+  Plus,
+  Bot,
+  User as UserIcon,
+  Text,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger, SheetDescription } from "@/components/ui/sheet";
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  SheetTrigger,
+  SheetDescription,
+} from "@/components/ui/sheet";
 import { ThemeToggle } from "./ThemeToggle";
 import React, { useState, useCallback, useMemo } from "react"; // Added React import
 import { Toaster as Sonner } from "@/components/ui/sonner";
-import { mainNavItems, managementNavItems, navFeatures, settingsNavItems } from "@/config/navigation";
+import {
+  mainNavItems,
+  managementNavItems,
+  navFeatures,
+  settingsNavItems,
+} from "@/config/navigation";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { showError, showSuccess } from "@/utils/toast";
 import { useFeatureToggles } from "@/contexts/FeatureToggleContext";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from "@/components/ui/dialog";
 import { BlogForm, PostFormData } from "@/components/blog/BlogForm";
 import { useNavigate } from "react-router-dom";
 import Chat from "@/pages/Chat";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { FontSizeLineHeightSliders } from "./FontSizeLineHeightSliders"; // Import the new component
 
@@ -22,24 +55,33 @@ const NavContent = ({ onLinkClick }: { onLinkClick?: () => void }) => {
   const { toggles } = useFeatureToggles();
   const { session } = useAuth();
 
-  const visibleMainNavItems = useMemo(() => 
-    mainNavItems.filter(item => toggles[item.featureKey] || !item.featureKey),
-    [toggles]
+  const visibleMainNavItems = useMemo(
+    () =>
+      mainNavItems.filter(
+        (item) => toggles[item.featureKey] || !item.featureKey,
+      ),
+    [toggles],
   );
-  const visibleManagementNavItems = useMemo(() => 
-    session ? managementNavItems.filter(item => toggles[item.featureKey]) : [],
-    [session, toggles]
+  const visibleManagementNavItems = useMemo(
+    () =>
+      session
+        ? managementNavItems.filter((item) => toggles[item.featureKey])
+        : [],
+    [session, toggles],
   );
-  const visibleSettingsNavItems = useMemo(() => 
-    session ? settingsNavItems : [],
-    [session]
+  const visibleSettingsNavItems = useMemo(
+    () => (session ? settingsNavItems : []),
+    [session],
   );
 
-  const navLinkClassName = useCallback(({ isActive }: { isActive: boolean }) =>
-    `flex items-center gap-3 rounded-lg px-3 py-2 transition-all hover:bg-sidebar-accent hover:text-sidebar-accent-foreground ${
-      isActive ? "bg-sidebar-primary text-sidebar-primary-foreground" : "text-sidebar-foreground"
-    }`,
-    []
+  const navLinkClassName = useCallback(
+    ({ isActive }: { isActive: boolean }) =>
+      `flex items-center gap-3 rounded-lg px-3 py-2 transition-all hover:bg-sidebar-accent hover:text-sidebar-accent-foreground ${
+        isActive
+          ? "bg-sidebar-primary text-sidebar-primary-foreground"
+          : "text-sidebar-foreground"
+      }`,
+    [],
   );
 
   const areManagementItemsVisible = visibleManagementNavItems.length > 0;
@@ -124,7 +166,7 @@ const Layout = () => {
   const handleLogout = useCallback(async () => {
     const { error } = await supabase.auth.signOut();
 
-    if (error && error.name !== 'AuthSessionMissingError') {
+    if (error && error.name !== "AuthSessionMissingError") {
       showError("Logout failed. Please try again.");
       console.error("Logout error:", error);
     } else {
@@ -133,10 +175,13 @@ const Layout = () => {
     }
   }, []);
 
-  const handleFormSubmit = useCallback((values: PostFormData) => {
-    setIsAddBlogDialogOpen(false);
-    navigate('/manage-blog', { state: { newPostData: values } });
-  }, [navigate]);
+  const handleFormSubmit = useCallback(
+    (values: PostFormData) => {
+      setIsAddBlogDialogOpen(false);
+      navigate("/manage-blog", { state: { newPostData: values } });
+    },
+    [navigate],
+  );
 
   const avatarFallback = useMemo(() => {
     if (profile?.first_name && profile?.last_name) {
@@ -154,7 +199,10 @@ const Layout = () => {
         <div className="hidden border-r bg-sidebar md:block print:hidden">
           <div className="flex h-full max-h-screen flex-col">
             <div className="flex h-14 items-center border-b border-sidebar-border px-4 lg:h-[60px] lg:px-6">
-              <NavLink to="/" className="flex items-center gap-2 font-semibold text-sidebar-foreground">
+              <NavLink
+                to="/"
+                className="flex items-center gap-2 font-semibold text-sidebar-foreground"
+              >
                 <span className="">My Portfolio</span>
               </NavLink>
             </div>
@@ -167,12 +215,19 @@ const Layout = () => {
           <header className="flex h-14 items-center gap-4 border-b bg-background px-4 md:px-6 lg:h-[60px] print:hidden">
             <Sheet open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>
               <SheetTrigger asChild>
-                <Button variant="outline" size="icon" className="shrink-0 md:hidden print:hidden">
+                <Button
+                  variant="outline"
+                  size="icon"
+                  className="shrink-0 md:hidden print:hidden"
+                >
                   <Menu className="h-5 w-5" />
                   <span className="sr-only">Toggle navigation menu</span>
                 </Button>
               </SheetTrigger>
-              <SheetContent side="left" className="flex flex-col bg-sidebar p-0">
+              <SheetContent
+                side="left"
+                className="flex flex-col bg-sidebar p-0"
+              >
                 <SheetHeader className="sr-only">
                   <SheetTitle>Main Menu</SheetTitle>
                   <SheetDescription>
@@ -189,15 +244,20 @@ const Layout = () => {
                   </NavLink>
                 </div>
                 <div className="flex-1 overflow-auto py-2">
-                  <MemoizedNavContent onLinkClick={() => setMobileMenuOpen(false)} />
+                  <MemoizedNavContent
+                    onLinkClick={() => setMobileMenuOpen(false)}
+                  />
                 </div>
               </SheetContent>
             </Sheet>
-            <div className="w-full flex-1">
-            </div>
+            <div className="w-full flex-1"></div>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="icon" aria-label="Adjust font settings">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  aria-label="Adjust font settings"
+                >
                   <Text className="h-[1.2rem] w-[1.2rem]" />
                   <span className="sr-only">Adjust font settings</span>
                 </Button>
@@ -212,9 +272,15 @@ const Layout = () => {
             {session ? (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" className="relative h-8 w-8 rounded-full">
+                  <Button
+                    variant="ghost"
+                    className="relative h-8 w-8 rounded-full"
+                  >
                     <Avatar className="h-8 w-8">
-                      <AvatarImage src={profile?.avatar_url || undefined} alt="User avatar" />
+                      <AvatarImage
+                        src={profile?.avatar_url || undefined}
+                        alt="User avatar"
+                      />
                       <AvatarFallback>{avatarFallback}</AvatarFallback>
                     </Avatar>
                   </Button>
@@ -249,12 +315,21 @@ const Layout = () => {
           </main>
           <footer className="border-t bg-background px-6 py-4 print:hidden">
             <div className="flex items-center justify-between text-sm text-muted-foreground">
-              <p>&copy; {new Date().getFullYear()} My Portfolio. All rights reserved.</p>
+              <p>
+                &copy; {new Date().getFullYear()} My Portfolio. All rights
+                reserved.
+              </p>
               <div className="flex items-center gap-4">
-                <Link to="/contact" className="hover:text-primary transition-colors">
+                <Link
+                  to="/contact"
+                  className="hover:text-primary transition-colors"
+                >
                   Contact
                 </Link>
-                <Link to="/privacy" className="hover:text-primary transition-colors">
+                <Link
+                  to="/privacy"
+                  className="hover:text-primary transition-colors"
+                >
                   Privacy Policy
                 </Link>
               </div>
@@ -288,7 +363,7 @@ const Layout = () => {
       </div>
 
       {/* Removed Shadcn UI Toaster, keeping Sonner */}
-      <Sonner /> 
+      <Sonner />
 
       <Dialog open={isAddBlogDialogOpen} onOpenChange={setIsAddBlogDialogOpen}>
         <DialogContent className="max-w-4xl w-[90vw] max-h-[90vh] overflow-y-auto">

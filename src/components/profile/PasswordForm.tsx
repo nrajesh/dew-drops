@@ -26,13 +26,17 @@ import { showSuccess, showError } from "@/utils/toast";
 import { Loader2 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 
-const passwordFormSchema = z.object({
-  newPassword: z.string().min(6, "Password must be at least 6 characters long"),
-  confirmNewPassword: z.string(),
-}).refine((data) => data.newPassword === data.confirmNewPassword, {
-  message: "Passwords do not match",
-  path: ["confirmNewPassword"],
-});
+const passwordFormSchema = z
+  .object({
+    newPassword: z
+      .string()
+      .min(6, "Password must be at least 6 characters long"),
+    confirmNewPassword: z.string(),
+  })
+  .refine((data) => data.newPassword === data.confirmNewPassword, {
+    message: "Passwords do not match",
+    path: ["confirmNewPassword"],
+  });
 
 type PasswordFormValues = z.infer<typeof passwordFormSchema>;
 
@@ -79,13 +83,14 @@ export const PasswordForm: React.FC = () => {
     <Card>
       <CardHeader>
         <CardTitle>Change Password</CardTitle>
-        <CardDescription>
-          Update your account password.
-        </CardDescription>
+        <CardDescription>Update your account password.</CardDescription>
       </CardHeader>
       <CardContent>
         <Form {...passwordForm}>
-          <form onSubmit={passwordForm.handleSubmit(onSubmitPassword)} className="space-y-6">
+          <form
+            onSubmit={passwordForm.handleSubmit(onSubmitPassword)}
+            className="space-y-6"
+          >
             <FormField
               control={passwordForm.control}
               name="newPassword"
@@ -113,7 +118,9 @@ export const PasswordForm: React.FC = () => {
               )}
             />
             <Button type="submit" disabled={isSubmittingPassword}>
-              {isSubmittingPassword && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              {isSubmittingPassword && (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              )}
               Change Password
             </Button>
           </form>

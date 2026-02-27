@@ -1,7 +1,23 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import { Download, Upload, Trash2, Loader2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { showError, showSuccess } from "@/utils/toast";
@@ -12,8 +28,11 @@ const ManageData = () => {
   const [importFile, setImportFile] = useState<File | null>(null);
 
   const handleFunctionError = async (error: unknown) => {
-    const err = error as { message?: string; context?: { json: () => Promise<{ error?: string }> } };
-    if (err.context && typeof err.context.json === 'function') {
+    const err = error as {
+      message?: string;
+      context?: { json: () => Promise<{ error?: string }> };
+    };
+    if (err.context && typeof err.context.json === "function") {
       try {
         const errorBody = await err.context.json();
         return errorBody.error || err.message || "Unknown error";
@@ -21,7 +40,9 @@ const ManageData = () => {
         return err.message || "Unknown error";
       }
     }
-    return err?.message || (error instanceof Error ? error.message : "Unknown error");
+    return (
+      err?.message || (error instanceof Error ? error.message : "Unknown error")
+    );
   };
 
   const handleExport = async () => {
@@ -30,11 +51,13 @@ const ManageData = () => {
       const { data, error } = await supabase.functions.invoke("export-data");
       if (error) throw error;
 
-      const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
+      const blob = new Blob([JSON.stringify(data, null, 2)], {
+        type: "application/json",
+      });
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = `portfolio-backup-${new Date().toISOString().split('T')[0]}.json`;
+      a.download = `portfolio-backup-${new Date().toISOString().split("T")[0]}.json`;
       document.body.appendChild(a);
       a.click();
       a.remove();
@@ -95,11 +118,18 @@ const ManageData = () => {
       <Card>
         <CardHeader>
           <CardTitle>Export Data</CardTitle>
-          <CardDescription>Download all your portfolio data as a single JSON file. This includes blog posts, gallery images, and travel locations.</CardDescription>
+          <CardDescription>
+            Download all your portfolio data as a single JSON file. This
+            includes blog posts, gallery images, and travel locations.
+          </CardDescription>
         </CardHeader>
         <CardContent>
           <Button onClick={handleExport} disabled={!!isLoading}>
-            {isLoading === 'export' ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Download className="mr-2 h-4 w-4" />}
+            {isLoading === "export" ? (
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            ) : (
+              <Download className="mr-2 h-4 w-4" />
+            )}
             Export All Data
           </Button>
         </CardContent>
@@ -109,15 +139,29 @@ const ManageData = () => {
         <CardHeader>
           <CardTitle className="text-destructive">Import Data</CardTitle>
           <CardDescription>
-            <span className="font-bold text-destructive">Warning:</span> This will permanently delete all existing data and replace it with the data from your backup file. This action cannot be undone.
+            <span className="font-bold text-destructive">Warning:</span> This
+            will permanently delete all existing data and replace it with the
+            data from your backup file. This action cannot be undone.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          <Input type="file" accept=".json" onChange={(e) => setImportFile(e.target.files?.[0] || null)} disabled={!!isLoading} />
+          <Input
+            type="file"
+            accept=".json"
+            onChange={(e) => setImportFile(e.target.files?.[0] || null)}
+            disabled={!!isLoading}
+          />
           <AlertDialog>
             <AlertDialogTrigger asChild>
-              <Button variant="destructive" disabled={!importFile || !!isLoading}>
-                {isLoading === 'import' ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Upload className="mr-2 h-4 w-4" />}
+              <Button
+                variant="destructive"
+                disabled={!importFile || !!isLoading}
+              >
+                {isLoading === "import" ? (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                ) : (
+                  <Upload className="mr-2 h-4 w-4" />
+                )}
                 Import Data
               </Button>
             </AlertDialogTrigger>
@@ -125,12 +169,17 @@ const ManageData = () => {
               <AlertDialogHeader>
                 <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
                 <AlertDialogDescription>
-                  This will permanently delete all current posts, gallery images, and travel locations, replacing them with the content from the selected file. This action cannot be undone.
+                  This will permanently delete all current posts, gallery
+                  images, and travel locations, replacing them with the content
+                  from the selected file. This action cannot be undone.
                 </AlertDialogDescription>
               </AlertDialogHeader>
               <AlertDialogFooter>
                 <AlertDialogCancel>Cancel</AlertDialogCancel>
-                <AlertDialogAction onClick={handleImport} className="bg-destructive hover:bg-destructive/90">
+                <AlertDialogAction
+                  onClick={handleImport}
+                  className="bg-destructive hover:bg-destructive/90"
+                >
                   Yes, delete and import
                 </AlertDialogAction>
               </AlertDialogFooter>
@@ -143,14 +192,20 @@ const ManageData = () => {
         <CardHeader>
           <CardTitle className="text-destructive">Reset All Data</CardTitle>
           <CardDescription>
-            <span className="font-bold text-destructive">Warning:</span> This will permanently delete all your blog posts, gallery images, and travel locations. This action cannot be undone.
+            <span className="font-bold text-destructive">Warning:</span> This
+            will permanently delete all your blog posts, gallery images, and
+            travel locations. This action cannot be undone.
           </CardDescription>
         </CardHeader>
         <CardContent>
           <AlertDialog>
             <AlertDialogTrigger asChild>
               <Button variant="destructive" disabled={!!isLoading}>
-                {isLoading === 'reset' ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Trash2 className="mr-2 h-4 w-4" />}
+                {isLoading === "reset" ? (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                ) : (
+                  <Trash2 className="mr-2 h-4 w-4" />
+                )}
                 Reset All Data
               </Button>
             </AlertDialogTrigger>
@@ -158,12 +213,17 @@ const ManageData = () => {
               <AlertDialogHeader>
                 <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
                 <AlertDialogDescription>
-                  This will permanently delete all posts, gallery images, and travel locations. This action cannot be undone and your data will be lost forever.
+                  This will permanently delete all posts, gallery images, and
+                  travel locations. This action cannot be undone and your data
+                  will be lost forever.
                 </AlertDialogDescription>
               </AlertDialogHeader>
               <AlertDialogFooter>
                 <AlertDialogCancel>Cancel</AlertDialogCancel>
-                <AlertDialogAction onClick={handleReset} className="bg-destructive hover:bg-destructive/90">
+                <AlertDialogAction
+                  onClick={handleReset}
+                  className="bg-destructive hover:bg-destructive/90"
+                >
                   Yes, delete everything
                 </AlertDialogAction>
               </AlertDialogFooter>

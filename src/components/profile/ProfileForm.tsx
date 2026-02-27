@@ -24,8 +24,14 @@ import { Loader2, Upload } from "lucide-react";
 import * as z from "zod";
 
 const profileFormSchema = z.object({
-  first_name: z.string().min(1, "First name is required").max(50, "First name cannot exceed 50 characters"),
-  last_name: z.string().min(1, "Last name is required").max(50, "Last name cannot exceed 50 characters"),
+  first_name: z
+    .string()
+    .min(1, "First name is required")
+    .max(50, "First name cannot exceed 50 characters"),
+  last_name: z
+    .string()
+    .min(1, "Last name is required")
+    .max(50, "Last name cannot exceed 50 characters"),
   avatar_url: z.string().url("Invalid URL").optional().or(z.literal("")),
 });
 
@@ -38,7 +44,12 @@ interface ProfileFormProps {
   setIsAvatarModalOpen: (isOpen: boolean) => void;
 }
 
-export const ProfileForm: React.FC<ProfileFormProps> = ({ form, onSubmit, isSubmitting, setIsAvatarModalOpen }) => {
+export const ProfileForm: React.FC<ProfileFormProps> = ({
+  form,
+  onSubmit,
+  isSubmitting,
+  setIsAvatarModalOpen,
+}) => {
   return (
     <Card>
       <CardHeader>
@@ -53,9 +64,13 @@ export const ProfileForm: React.FC<ProfileFormProps> = ({ form, onSubmit, isSubm
             <div className="flex flex-col items-center gap-4">
               <div className="relative group">
                 <Avatar className="h-24 w-24">
-                  <AvatarImage src={form.watch("avatar_url") || "/gallery/placeholder.svg"} alt="User Avatar" />
+                  <AvatarImage
+                    src={form.watch("avatar_url") || "/gallery/placeholder.svg"}
+                    alt="User Avatar"
+                  />
                   <AvatarFallback>
-                    {form.watch("first_name")?.charAt(0) || ""}{form.watch("last_name")?.charAt(0) || ""}
+                    {form.watch("first_name")?.charAt(0) || ""}
+                    {form.watch("last_name")?.charAt(0) || ""}
                   </AvatarFallback>
                 </Avatar>
                 <Button
@@ -98,7 +113,9 @@ export const ProfileForm: React.FC<ProfileFormProps> = ({ form, onSubmit, isSubm
               )}
             />
             <Button type="submit" disabled={isSubmitting}>
-              {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              {isSubmitting && (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              )}
               Save Changes
             </Button>
           </form>

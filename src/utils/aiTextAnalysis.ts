@@ -15,7 +15,7 @@ interface JobDescriptionAnalysisResult {
  * @throws An error if the text is not a formal job description or if AI processing fails.
  */
 export const analyzeAndTranslateJobDescription = async (
-  jobDescriptionText: string
+  jobDescriptionText: string,
 ): Promise<JobDescriptionAnalysisResult> => {
   const prompt = `You are an expert AI assistant for analyzing job descriptions.
 Your task is to first determine if the provided text is a formal job description.
@@ -67,19 +67,31 @@ ${jobDescriptionText}
   try {
     const rawResponse = await sendMessageToGemini(prompt);
     // Gemini might sometimes wrap JSON in markdown code blocks, so we need to extract it.
-    const jsonString = rawResponse.replace(/```json\n([\s\S]*?)\n```/, '$1').trim();
+    const jsonString = rawResponse
+      .replace(/```json\n([\s\S]*?)\n```/, "$1")
+      .trim();
 
     const result: JobDescriptionAnalysisResult = JSON.parse(jsonString);
 
-    if (!result.isValidJobDescription && result.processedText === "INVALID_JOB_DESCRIPTION") {
-      throw new Error("The provided text does not appear to be a formal job description. Please ensure you paste a formal job description.");
+    if (
+      !result.isValidJobDescription &&
+      result.processedText === "INVALID_JOB_DESCRIPTION"
+    ) {
+      throw new Error(
+        "The provided text does not appear to be a formal job description. Please ensure you paste a formal job description.",
+      );
     }
 
     return result;
   } catch (error: unknown) {
-    console.error("Error during job description analysis and translation:", error);
+    console.error(
+      "Error during job description analysis and translation:",
+      error,
+    );
     if (error instanceof Error && error.message.includes("JSON.parse")) {
-      throw new Error("Failed to parse AI response for job description analysis. Please try again.");
+      throw new Error(
+        "Failed to parse AI response for job description analysis. Please try again.",
+      );
     }
     throw error;
   }

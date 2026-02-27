@@ -1,32 +1,62 @@
-import { useEffect, useState } from 'react';
-import { useParams, useNavigate, Link } from 'react-router-dom';
-import { supabase } from '@/integrations/supabase/client';
-import type { Post as PostType, GalleryImage } from '@/types';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Skeleton } from '@/components/ui/skeleton';
-import { Calendar, ArrowLeft, ArrowRight, Edit } from 'lucide-react';
+import { useEffect, useState } from "react";
+import { useParams, useNavigate, Link } from "react-router-dom";
+import { supabase } from "@/integrations/supabase/client";
+import type { Post as PostType, GalleryImage } from "@/types";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Calendar, ArrowLeft, ArrowRight, Edit } from "lucide-react";
 import { AspectRatio } from "@/components/ui/aspect-ratio";
-import { Button } from '@/components/ui/button';
-import { useAuth } from '@/contexts/AuthContext';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
-import { BlogForm, PostFormData } from '@/components/blog/BlogForm';
-import { showSuccess, showError, showLoading, dismissToast } from '@/utils/toast';
-import ReactMarkdown from 'react-markdown';
-import remarkGfm from 'remark-gfm';
-import { extractDescriptionFromContent, stripOuterBackticks } from "@/components/blog/BlogManagementUtils"; // Import utility functions
-import { formatDate } from '@/lib/utils'; // Import centralized formatDate
+import { Button } from "@/components/ui/button";
+import { useAuth } from "@/contexts/AuthContext";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from "@/components/ui/dialog";
+import { BlogForm, PostFormData } from "@/components/blog/BlogForm";
+import {
+  showSuccess,
+  showError,
+  showLoading,
+  dismissToast,
+} from "@/utils/toast";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
+import {
+  extractDescriptionFromContent,
+  stripOuterBackticks,
+} from "@/components/blog/BlogManagementUtils"; // Import utility functions
+import { formatDate } from "@/lib/utils"; // Import centralized formatDate
 
 const PLACEHOLDER_IMAGE_URL = "/gallery/placeholder.svg";
 
 type NavPost = { id: string; title: string };
 
-const PostNavigation = ({ prev, next }: { prev: NavPost | null; next: NavPost | null }) => {
+const PostNavigation = ({
+  prev,
+  next,
+}: {
+  prev: NavPost | null;
+  next: NavPost | null;
+}) => {
   if (!prev && !next) return null;
 
   return (
     <div className="mt-8 grid grid-cols-1 md:grid-cols-2 gap-4">
       {prev ? (
-        <Button asChild variant="outline" className="h-auto text-left justify-start">
+        <Button
+          asChild
+          variant="outline"
+          className="h-auto text-left justify-start"
+        >
           <Link to={`/blog/${prev.id}`} className="flex items-center gap-3 p-4">
             <ArrowLeft className="h-5 w-5 shrink-0" />
             <div className="overflow-hidden">
@@ -35,10 +65,16 @@ const PostNavigation = ({ prev, next }: { prev: NavPost | null; next: NavPost | 
             </div>
           </Link>
         </Button>
-      ) : <div />}
+      ) : (
+        <div />
+      )}
 
       {next ? (
-        <Button asChild variant="outline" className="h-auto text-right justify-end">
+        <Button
+          asChild
+          variant="outline"
+          className="h-auto text-right justify-end"
+        >
           <Link to={`/blog/${next.id}`} className="flex items-center gap-3 p-4">
             <div className="overflow-hidden">
               <p className="text-xs text-muted-foreground">Next Post</p>
@@ -47,7 +83,9 @@ const PostNavigation = ({ prev, next }: { prev: NavPost | null; next: NavPost | 
             <ArrowRight className="h-5 w-5 shrink-0" />
           </Link>
         </Button>
-      ) : <div />}
+      ) : (
+        <div />
+      )}
     </div>
   );
 };
@@ -58,7 +96,10 @@ const Post = () => {
   const [post, setPost] = useState<PostType | null>(null);
   const [coverImageUrl, setCoverImageUrl] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
-  const [postNav, setPostNav] = useState<{ prev: NavPost | null; next: NavPost | null }>({ prev: null, next: null });
+  const [postNav, setPostNav] = useState<{
+    prev: NavPost | null;
+    next: NavPost | null;
+  }>({ prev: null, next: null });
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [galleryImages, setGalleryImages] = useState<GalleryImage[]>([]);
   const [uniqueTags, setUniqueTags] = useState<string[]>([]);
@@ -75,25 +116,30 @@ const Post = () => {
       setPostNav({ prev: null, next: null });
 
       const { data: allPosts, error: allPostsError } = await supabase
-        .from('posts')
-        .select('id, title, published_at')
-        .eq('published', true)
-        .order('published_at', { ascending: false });
+        .from("posts")
+        .select("id, title, published_at")
+        .eq("published", true)
+        .order("published_at", { ascending: false });
 
       if (allPostsError) {
-        console.error('Error fetching post list for navigation:', allPostsError);
+        console.error(
+          "Error fetching post list for navigation:",
+          allPostsError,
+        );
       }
 
       const { data: currentPostData, error: currentPostError } = await supabase
-        .from('posts')
-        .select('*, gallery_images(image_url)')
-        .eq('id', id)
+        .from("posts")
+        .select("*, gallery_images(image_url)")
+        .eq("id", id)
         .single();
 
       if (currentPostError) {
-        console.error('Error fetching post:', currentPostError);
+        console.error("Error fetching post:", currentPostError);
       } else {
-        const fetchedPost = currentPostData as PostType & { gallery_images?: GalleryImage };
+        const fetchedPost = currentPostData as PostType & {
+          gallery_images?: GalleryImage;
+        };
         setPost(fetchedPost);
         if (fetchedPost.cover_image_id && fetchedPost.gallery_images) {
           setCoverImageUrl(fetchedPost.gallery_images.image_url);
@@ -102,10 +148,14 @@ const Post = () => {
         }
 
         if (allPosts) {
-          const currentIndex = allPosts.findIndex(p => p.id === id);
+          const currentIndex = allPosts.findIndex((p) => p.id === id);
           if (currentIndex !== -1) {
-            const nextPost = currentIndex > 0 ? allPosts[currentIndex - 1] : null;
-            const prevPost = currentIndex < allPosts.length - 1 ? allPosts[currentIndex + 1] : null;
+            const nextPost =
+              currentIndex > 0 ? allPosts[currentIndex - 1] : null;
+            const prevPost =
+              currentIndex < allPosts.length - 1
+                ? allPosts[currentIndex + 1]
+                : null;
             setPostNav({ prev: prevPost, next: nextPost });
           }
         }
@@ -114,7 +164,10 @@ const Post = () => {
     };
 
     const fetchGalleryImages = async () => {
-      const { data, error } = await supabase.from("gallery_images").select("id, image_url, alt_text").order("created_at", { ascending: false });
+      const { data, error } = await supabase
+        .from("gallery_images")
+        .select("id, image_url, alt_text")
+        .order("created_at", { ascending: false });
       if (error) {
         console.error("Error fetching gallery images:", error);
       } else {
@@ -128,8 +181,8 @@ const Post = () => {
         console.error("Error fetching tags:", error);
       } else {
         const allTags = new Set<string>();
-        (data as { tags: string[] | null }[]).forEach(post => {
-          post.tags?.forEach(tag => allTags.add(tag));
+        (data as { tags: string[] | null }[]).forEach((post) => {
+          post.tags?.forEach((tag) => allTags.add(tag));
         });
         setUniqueTags(Array.from(allTags).sort());
       }
@@ -142,12 +195,18 @@ const Post = () => {
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
-      if (e.key === 'ArrowLeft' && postNav.prev) navigate(`/blog/${postNav.prev.id}`);
-      if (e.key === 'ArrowRight' && postNav.next) navigate(`/blog/${postNav.next.id}`);
+      if (
+        e.target instanceof HTMLInputElement ||
+        e.target instanceof HTMLTextAreaElement
+      )
+        return;
+      if (e.key === "ArrowLeft" && postNav.prev)
+        navigate(`/blog/${postNav.prev.id}`);
+      if (e.key === "ArrowRight" && postNav.next)
+        navigate(`/blog/${postNav.next.id}`);
     };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
   }, [postNav, navigate]);
 
   const minSwipeDistance = 50;
@@ -155,7 +214,8 @@ const Post = () => {
     setTouchEnd(null);
     setTouchStart(e.targetTouches[0].clientX);
   };
-  const onTouchMove = (e: React.TouchEvent) => setTouchEnd(e.targetTouches[0].clientX);
+  const onTouchMove = (e: React.TouchEvent) =>
+    setTouchEnd(e.targetTouches[0].clientX);
   const onTouchEnd = () => {
     if (!touchStart || !touchEnd) return;
     const distance = touchStart - touchEnd;
@@ -173,7 +233,7 @@ const Post = () => {
     const toastId = showLoading("Updating post...");
 
     let description = values.description;
-    if (!description || description.trim() === '') {
+    if (!description || description.trim() === "") {
       description = extractDescriptionFromContent(values.content);
     }
 
@@ -185,7 +245,10 @@ const Post = () => {
       content: content,
     };
 
-    const { error } = await supabase.from("posts").update(postData).eq("id", post.id);
+    const { error } = await supabase
+      .from("posts")
+      .update(postData)
+      .eq("id", post.id);
 
     dismissToast(toastId);
     if (error) {
@@ -195,15 +258,17 @@ const Post = () => {
       setIsEditDialogOpen(false);
       // Refresh the post data
       const { data: updatedPostData, error: updatedPostError } = await supabase
-        .from('posts')
-        .select('*, gallery_images(image_url)')
-        .eq('id', post.id)
+        .from("posts")
+        .select("*, gallery_images(image_url)")
+        .eq("id", post.id)
         .single();
 
       if (updatedPostError) {
-        console.error('Error fetching updated post:', updatedPostError);
+        console.error("Error fetching updated post:", updatedPostError);
       } else {
-        const updatedPost = updatedPostData as PostType & { gallery_images?: GalleryImage };
+        const updatedPost = updatedPostData as PostType & {
+          gallery_images?: GalleryImage;
+        };
         setPost(updatedPost);
         if (updatedPost.cover_image_id && updatedPost.gallery_images) {
           setCoverImageUrl(updatedPost.gallery_images.image_url);
@@ -236,7 +301,12 @@ const Post = () => {
   const finalCoverImageUrl = coverImageUrl || PLACEHOLDER_IMAGE_URL;
 
   return (
-    <div onTouchStart={onTouchStart} onTouchMove={onTouchMove} onTouchEnd={onTouchEnd} className="max-w-4xl mx-auto">
+    <div
+      onTouchStart={onTouchStart}
+      onTouchMove={onTouchMove}
+      onTouchEnd={onTouchEnd}
+      className="max-w-4xl mx-auto"
+    >
       <article>
         <Card>
           {finalCoverImageUrl && (
@@ -252,14 +322,20 @@ const Post = () => {
           <CardHeader>
             <div className="flex items-center justify-between">
               <div>
-                <CardTitle className="text-4xl font-bold">{post.title}</CardTitle>
+                <CardTitle className="text-4xl font-bold">
+                  {post.title}
+                </CardTitle>
                 <CardDescription className="flex items-center gap-2 pt-2">
                   <Calendar className="h-4 w-4" />
                   <span>Published on {formatDate(post.published_at)}</span>
                 </CardDescription>
               </div>
               {session && (
-                <Button variant="ghost" size="icon" onClick={() => setIsEditDialogOpen(true)}>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => setIsEditDialogOpen(true)}
+                >
                   <Edit className="h-5 w-5" />
                   <span className="sr-only">Edit Post</span>
                 </Button>
@@ -284,7 +360,7 @@ const Post = () => {
             )}
             <div className="prose dark:prose-invert max-w-none">
               <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                {stripOuterBackticks(post.content || '')}
+                {stripOuterBackticks(post.content || "")}
               </ReactMarkdown>
             </div>
           </CardContent>

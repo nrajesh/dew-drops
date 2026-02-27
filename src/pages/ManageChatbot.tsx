@@ -3,17 +3,47 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/components/ui/form";
 import { Textarea } from "@/components/ui/textarea";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
-import { showSuccess, showError, showLoading, dismissToast } from "@/utils/toast";
+import {
+  showSuccess,
+  showError,
+  showLoading,
+  dismissToast,
+} from "@/utils/toast";
 import { Loader2, Sparkles } from "lucide-react";
-import type { JsonResume, ResumeWork, ResumeEducation, ResumeSkill, ResumeAward, ResumeLanguage, ResumeInterest, ResumePublication, ResumeReference } from "@/types/resume";
+import type {
+  JsonResume,
+  ResumeWork,
+  ResumeEducation,
+  ResumeSkill,
+  ResumeAward,
+  ResumeLanguage,
+  ResumeInterest,
+  ResumePublication,
+  ResumeReference,
+} from "@/types/resume";
 
 const formSchema = z.object({
-  content: z.string().min(10, "Knowledge base content must be at least 10 characters."),
+  content: z
+    .string()
+    .min(10, "Knowledge base content must be at least 10 characters."),
 });
 
 const RESUME_URL = import.meta.env.VITE_RESUME_URL;
@@ -22,7 +52,17 @@ const RESUME_URL = import.meta.env.VITE_RESUME_URL;
 const formatResumeData = (resumeData: JsonResume): string => {
   let resumeContext = "\n\n== CURRICULUM VITAE (PORTFOLIO) ==\n";
 
-  const { basics, work, education, skills, awards, languages, interests, publications, references } = resumeData;
+  const {
+    basics,
+    work,
+    education,
+    skills,
+    awards,
+    languages,
+    interests,
+    publications,
+    references,
+  } = resumeData;
 
   if (basics) {
     resumeContext += `Name: ${basics.name}\n`;
@@ -31,98 +71,164 @@ const formatResumeData = (resumeData: JsonResume): string => {
     if (basics.email) resumeContext += `Email: ${basics.email}\n`;
     if (basics.phone) resumeContext += `Phone: ${basics.phone}\n`;
     if (basics.website) resumeContext += `Website: ${basics.website}\n`;
-    if (basics.location?.city) resumeContext += `Location: ${basics.location.city}, ${basics.location.countryCode}\n`;
+    if (basics.location?.city)
+      resumeContext += `Location: ${basics.location.city}, ${basics.location.countryCode}\n`;
 
     if (basics.profiles && basics.profiles.length > 0) {
       resumeContext += "\nSocial Profiles:\n";
-      resumeContext += basics.profiles.map(profile => `- ${profile.network}: ${profile.url}`).join('\n');
-      resumeContext += '\n';
+      resumeContext += basics.profiles
+        .map((profile) => `- ${profile.network}: ${profile.url}`)
+        .join("\n");
+      resumeContext += "\n";
     }
   }
 
   if (work && work.length > 0) {
     resumeContext += "\nWork Experience:\n";
-    resumeContext += work.map((job: ResumeWork) => `
-- ${job.position} at ${job.company} (${job.startDate} - ${job.endDate || 'Present'})
-  ${job.location ? `Location: ${job.location}` : ''}
-  ${job.summary ? `Summary: ${job.summary}` : ''}
-  ${job.highlights && job.highlights.length > 0 ? `Highlights: ${job.highlights.join('; ')}` : ''}
-`.split('\n').filter(line => line.trim() !== '').join('\n')).join('\n');
-    resumeContext += '\n';
+    resumeContext += work
+      .map((job: ResumeWork) =>
+        `
+- ${job.position} at ${job.company} (${job.startDate} - ${job.endDate || "Present"})
+  ${job.location ? `Location: ${job.location}` : ""}
+  ${job.summary ? `Summary: ${job.summary}` : ""}
+  ${job.highlights && job.highlights.length > 0 ? `Highlights: ${job.highlights.join("; ")}` : ""}
+`
+          .split("\n")
+          .filter((line) => line.trim() !== "")
+          .join("\n"),
+      )
+      .join("\n");
+    resumeContext += "\n";
   }
 
   if (education && education.length > 0) {
     resumeContext += "\nEducation:\n";
-    resumeContext += education.map((edu: ResumeEducation) => `
-- ${edu.studyType} in ${edu.area} from ${edu.institution} (${edu.startDate} - ${edu.endDate || 'Present'})
-  ${edu.gpa ? `GPA: ${edu.gpa}` : ''}
-  ${edu.courses && edu.courses.length > 0 ? `Courses: ${edu.courses.join(', ')}` : ''}
-`.split('\n').filter(line => line.trim() !== '').join('\n')).join('\n');
-    resumeContext += '\n';
+    resumeContext += education
+      .map((edu: ResumeEducation) =>
+        `
+- ${edu.studyType} in ${edu.area} from ${edu.institution} (${edu.startDate} - ${edu.endDate || "Present"})
+  ${edu.gpa ? `GPA: ${edu.gpa}` : ""}
+  ${edu.courses && edu.courses.length > 0 ? `Courses: ${edu.courses.join(", ")}` : ""}
+`
+          .split("\n")
+          .filter((line) => line.trim() !== "")
+          .join("\n"),
+      )
+      .join("\n");
+    resumeContext += "\n";
   }
 
   if (skills && skills.length > 0) {
     resumeContext += "\nSkills:\n";
-    resumeContext += skills.map((skill: ResumeSkill) => `
-- ${skill.name} (Level: ${skill.level || 'N/A'})
-  ${skill.keywords && skill.keywords.length > 0 ? `Keywords: ${skill.keywords.join(', ')}` : ''}
-`.split('\n').filter(line => line.trim() !== '').join('\n')).join('\n');
-    resumeContext += '\n';
+    resumeContext += skills
+      .map((skill: ResumeSkill) =>
+        `
+- ${skill.name} (Level: ${skill.level || "N/A"})
+  ${skill.keywords && skill.keywords.length > 0 ? `Keywords: ${skill.keywords.join(", ")}` : ""}
+`
+          .split("\n")
+          .filter((line) => line.trim() !== "")
+          .join("\n"),
+      )
+      .join("\n");
+    resumeContext += "\n";
   }
 
   if (awards && awards.length > 0) {
     resumeContext += "\nAwards:\n";
-    resumeContext += awards.map((award: ResumeAward) => `
+    resumeContext += awards
+      .map((award: ResumeAward) =>
+        `
 - ${award.title} from ${award.awarder} on ${award.date}
-  ${award.summary ? `Summary: ${award.summary}` : ''}
-`.split('\n').filter(line => line.trim() !== '').join('\n')).join('\n');
-    resumeContext += '\n';
+  ${award.summary ? `Summary: ${award.summary}` : ""}
+`
+          .split("\n")
+          .filter((line) => line.trim() !== "")
+          .join("\n"),
+      )
+      .join("\n");
+    resumeContext += "\n";
   }
 
   if (publications && publications.length > 0) {
     resumeContext += "\nPublications:\n";
-    resumeContext += publications.map((pub: ResumePublication) => `
+    resumeContext += publications
+      .map((pub: ResumePublication) =>
+        `
 - ${pub.name} by ${pub.publisher} (${pub.releaseDate})
-  ${pub.website ? `Link: ${pub.website}` : ''}
-  ${pub.summary ? `Summary: ${pub.summary}` : ''}
-`.split('\n').filter(line => line.trim() !== '').join('\n')).join('\n');
-    resumeContext += '\n';
+  ${pub.website ? `Link: ${pub.website}` : ""}
+  ${pub.summary ? `Summary: ${pub.summary}` : ""}
+`
+          .split("\n")
+          .filter((line) => line.trim() !== "")
+          .join("\n"),
+      )
+      .join("\n");
+    resumeContext += "\n";
   }
 
   if (languages && languages.length > 0) {
     resumeContext += "\nLanguages:\n";
-    resumeContext += languages.map((lang: ResumeLanguage) =>
-      `- ${lang.language} (Fluency: ${lang.fluency})`
-    ).join('\n');
-    resumeContext += '\n';
+    resumeContext += languages
+      .map(
+        (lang: ResumeLanguage) =>
+          `- ${lang.language} (Fluency: ${lang.fluency})`,
+      )
+      .join("\n");
+    resumeContext += "\n";
   }
 
   if (interests && interests.length > 0) {
     resumeContext += "\nInterests:\n";
-    resumeContext += interests.map((interest: ResumeInterest) => `
+    resumeContext += interests
+      .map((interest: ResumeInterest) =>
+        `
 - ${interest.name}
-  ${interest.keywords && interest.keywords.length > 0 ? `Keywords: ${interest.keywords.join(', ')}` : ''}
-`.split('\n').filter(line => line.trim() !== '').join('\n')).join('\n');
-    resumeContext += '\n';
+  ${interest.keywords && interest.keywords.length > 0 ? `Keywords: ${interest.keywords.join(", ")}` : ""}
+`
+          .split("\n")
+          .filter((line) => line.trim() !== "")
+          .join("\n"),
+      )
+      .join("\n");
+    resumeContext += "\n";
   }
 
   if (references && references.length > 0) {
     resumeContext += "\nReferences:\n";
-    resumeContext += references.map((ref: ResumeReference) =>
-      `- ${ref.name}: ${ref.reference}`
-    ).join('\n');
-    resumeContext += '\n';
+    resumeContext += references
+      .map((ref: ResumeReference) => `- ${ref.name}: ${ref.reference}`)
+      .join("\n");
+    resumeContext += "\n";
   }
   return resumeContext;
 };
 
-
 const generateContextFromData = async (): Promise<string> => {
   const [postsRes, locationsRes, imagesRes, resumeRes] = await Promise.all([
-    supabase.from('posts').select('title, description, tags').eq('published', true).limit(20),
-    supabase.from('travel_locations').select('title, name, description').eq('published', true).limit(20),
-    supabase.from('gallery_images').select('alt_text, tags').eq('published', true).limit(30),
-    RESUME_URL ? fetch(RESUME_URL).then(res => res.ok ? res.json() : null).catch(e => { console.error("Failed to fetch resume for chatbot context:", e); return null; }) : Promise.resolve(null),
+    supabase
+      .from("posts")
+      .select("title, description, tags")
+      .eq("published", true)
+      .limit(20),
+    supabase
+      .from("travel_locations")
+      .select("title, name, description")
+      .eq("published", true)
+      .limit(20),
+    supabase
+      .from("gallery_images")
+      .select("alt_text, tags")
+      .eq("published", true)
+      .limit(30),
+    RESUME_URL
+      ? fetch(RESUME_URL)
+          .then((res) => (res.ok ? res.json() : null))
+          .catch((e) => {
+            console.error("Failed to fetch resume for chatbot context:", e);
+            return null;
+          })
+      : Promise.resolve(null),
   ]);
 
   let context = `
@@ -155,26 +261,35 @@ The following sections contain the user's personal content available on the site
 
   if (postsRes.data && postsRes.data.length > 0) {
     context += "\n\n== BLOG POSTS ==\n";
-    context += postsRes.data.map((p: { title?: string; description?: string; tags?: string[] }) =>
-      `Title: ${p.title}\nDescription: ${p.description || 'N/A'}\nTags: ${p.tags?.join(', ') || 'N/A'}`
-    ).join('\n\n');
-    context += '\n';
+    context += postsRes.data
+      .map(
+        (p: { title?: string; description?: string; tags?: string[] }) =>
+          `Title: ${p.title}\nDescription: ${p.description || "N/A"}\nTags: ${p.tags?.join(", ") || "N/A"}`,
+      )
+      .join("\n\n");
+    context += "\n";
   }
 
   if (locationsRes.data && locationsRes.data.length > 0) {
     context += "\n\n== TRAVEL LOCATIONS ==\n";
-    context += locationsRes.data.map((l: { title?: string; name?: string; description?: string }) =>
-      `Location: ${l.title} (${l.name})\nDescription: ${l.description || 'N/A'}`
-    ).join('\n\n');
-    context += '\n';
+    context += locationsRes.data
+      .map(
+        (l: { title?: string; name?: string; description?: string }) =>
+          `Location: ${l.title} (${l.name})\nDescription: ${l.description || "N/A"}`,
+      )
+      .join("\n\n");
+    context += "\n";
   }
 
   if (imagesRes.data && imagesRes.data.length > 0) {
     context += "\n\n== GALLERY IMAGES ==\n";
-    context += imagesRes.data.map((i: { alt_text?: string; tags?: string[] }) =>
-      `Image Description: ${i.alt_text || 'N/A'}\nTags: ${i.tags?.join(', ') || 'N/A'}`
-    ).join('\n\n');
-    context += '\n';
+    context += imagesRes.data
+      .map(
+        (i: { alt_text?: string; tags?: string[] }) =>
+          `Image Description: ${i.alt_text || "N/A"}\nTags: ${i.tags?.join(", ") || "N/A"}`,
+      )
+      .join("\n\n");
+    context += "\n";
   }
 
   if (resumeRes) {
@@ -204,7 +319,8 @@ const ManageChatbot = () => {
         .eq("id", 1)
         .single();
 
-      if (error && error.code !== 'PGRST116') { // Ignore "0 rows" error
+      if (error && error.code !== "PGRST116") {
+        // Ignore "0 rows" error
         showError("Failed to load knowledge base.");
         console.error(error);
       } else if (data) {
@@ -217,7 +333,9 @@ const ManageChatbot = () => {
 
   const handleGenerate = async () => {
     setIsGenerating(true);
-    const toastId = showLoading("Generating knowledge base from your content...");
+    const toastId = showLoading(
+      "Generating knowledge base from your content...",
+    );
     try {
       const generatedContent = await generateContextFromData();
       form.setValue("content", generatedContent);
@@ -239,14 +357,12 @@ const ManageChatbot = () => {
     }
     setIsSubmitting(true);
     const toastId = showLoading("Saving knowledge base...");
-    const { error } = await supabase
-      .from("chatbot_knowledge")
-      .upsert({
-        id: 1,
-        content: values.content,
-        user_id: user.id,
-        updated_at: new Date().toISOString(),
-      });
+    const { error } = await supabase.from("chatbot_knowledge").upsert({
+      id: 1,
+      content: values.content,
+      user_id: user.id,
+      updated_at: new Date().toISOString(),
+    });
 
     dismissToast(toastId);
     if (error) {
@@ -262,7 +378,9 @@ const ManageChatbot = () => {
       <CardHeader>
         <CardTitle>Chatbot Knowledge Base</CardTitle>
         <CardDescription>
-          This is the central text the AI chatbot uses to answer questions. You can edit it directly or generate a new one from your portfolio content.
+          This is the central text the AI chatbot uses to answer questions. You
+          can edit it directly or generate a new one from your portfolio
+          content.
         </CardDescription>
       </CardHeader>
       <CardContent>
@@ -287,12 +405,26 @@ const ManageChatbot = () => {
               )}
             />
             <div className="flex gap-2">
-              <Button type="submit" disabled={isLoading || isSubmitting || isGenerating}>
-                {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              <Button
+                type="submit"
+                disabled={isLoading || isSubmitting || isGenerating}
+              >
+                {isSubmitting && (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                )}
                 Save Knowledge Base
               </Button>
-              <Button type="button" variant="outline" onClick={handleGenerate} disabled={isLoading || isSubmitting || isGenerating}>
-                {isGenerating ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Sparkles className="mr-2 h-4 w-4" />}
+              <Button
+                type="button"
+                variant="outline"
+                onClick={handleGenerate}
+                disabled={isLoading || isSubmitting || isGenerating}
+              >
+                {isGenerating ? (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                ) : (
+                  <Sparkles className="mr-2 h-4 w-4" />
+                )}
                 Generate from Portfolio
               </Button>
             </div>

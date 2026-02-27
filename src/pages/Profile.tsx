@@ -15,10 +15,15 @@ import { AvatarModal } from "@/components/profile/AvatarModal";
 import { AccountActions } from "@/components/profile/AccountActions";
 import { showSuccess, showError } from "@/utils/toast";
 
-
 const profileFormSchema = z.object({
-  first_name: z.string().min(1, "First name is required").max(50, "First name cannot exceed 50 characters"),
-  last_name: z.string().min(1, "Last name is required").max(50, "Last name cannot exceed 50 characters"),
+  first_name: z
+    .string()
+    .min(1, "First name is required")
+    .max(50, "First name cannot exceed 50 characters"),
+  last_name: z
+    .string()
+    .min(1, "Last name is required")
+    .max(50, "Last name cannot exceed 50 characters"),
   avatar_url: z.string().url("Invalid URL").optional().or(z.literal("")),
 });
 
@@ -99,7 +104,9 @@ const Profile = () => {
     return (
       <div className="flex flex-col items-center justify-center min-h-[calc(100vh-100px)] space-y-4">
         <h2 className="text-2xl font-bold">Please Log In</h2>
-        <p className="text-muted-foreground">You need to be logged in to view your profile settings.</p>
+        <p className="text-muted-foreground">
+          You need to be logged in to view your profile settings.
+        </p>
         <Button onClick={() => navigate("/login")}>Go to Login</Button>
       </div>
     );

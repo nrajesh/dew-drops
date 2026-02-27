@@ -9,7 +9,11 @@ import {
   CommandItem,
   CommandList,
 } from "@/components/ui/command";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import { Button } from "@/components/ui/button";
 import { normalizeTag } from "@/lib/utils"; // Import normalizeTag
 
@@ -77,10 +81,16 @@ export function MultiSelectPopover({
   const filteredSuggestions = normalizedSuggestions.filter(
     (suggestion) =>
       !normalizedSelected.includes(suggestion) &&
-      suggestion.toLowerCase().includes(normalizedInputValue.toLowerCase())
+      suggestion.toLowerCase().includes(normalizedInputValue.toLowerCase()),
   );
 
-  const showCreateOption = canCreate && normalizedInputValue && !normalizedSuggestions.some(s => s.toLowerCase() === normalizedInputValue.toLowerCase()) && !normalizedSelected.includes(normalizedInputValue);
+  const showCreateOption =
+    canCreate &&
+    normalizedInputValue &&
+    !normalizedSuggestions.some(
+      (s) => s.toLowerCase() === normalizedInputValue.toLowerCase(),
+    ) &&
+    !normalizedSelected.includes(normalizedInputValue);
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
@@ -92,20 +102,24 @@ export function MultiSelectPopover({
         >
           <div className="flex flex-wrap gap-1">
             {selected.length > 0 ? (
-              selected.map((tag) => ( // Display original selected tag
-                <Badge
-                  key={tag}
-                  variant="secondary"
-                  className="mr-1"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    handleUnselect(tag);
-                  }}
-                >
-                  {tag}
-                  <X className="ml-1 h-3 w-3 cursor-pointer" />
-                </Badge>
-              ))
+              selected.map(
+                (
+                  tag, // Display original selected tag
+                ) => (
+                  <Badge
+                    key={tag}
+                    variant="secondary"
+                    className="mr-1"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleUnselect(tag);
+                    }}
+                  >
+                    {tag}
+                    <X className="ml-1 h-3 w-3 cursor-pointer" />
+                  </Badge>
+                ),
+              )
             ) : (
               <span className="text-muted-foreground">{placeholder}</span>
             )}
@@ -126,7 +140,9 @@ export function MultiSelectPopover({
           />
           <CommandList>
             <CommandEmpty>
-              {inputValue && canCreate ? `Press Enter to create "${inputValue}"` : "No tags found."}
+              {inputValue && canCreate
+                ? `Press Enter to create "${inputValue}"`
+                : "No tags found."}
             </CommandEmpty>
             <CommandGroup>
               {showCreateOption && (

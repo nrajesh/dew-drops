@@ -1,8 +1,14 @@
-import { createContext, useState, useEffect, useContext, ReactNode } from 'react';
-import { supabase } from '@/integrations/supabase/client';
-import { navFeatures } from '@/config/navigation';
-import { useAuth } from './AuthContext';
-import { showError } from '@/utils/toast';
+import {
+  createContext,
+  useState,
+  useEffect,
+  useContext,
+  ReactNode,
+} from "react";
+import { supabase } from "@/integrations/supabase/client";
+import { navFeatures } from "@/config/navigation";
+import { useAuth } from "./AuthContext";
+import { showError } from "@/utils/toast";
 
 type Toggles = Record<string, boolean>;
 
@@ -13,7 +19,9 @@ interface FeatureToggleContextType {
   updateToggle: (featureKey: string, isEnabled: boolean) => Promise<void>;
 }
 
-const FeatureToggleContext = createContext<FeatureToggleContextType | undefined>(undefined);
+const FeatureToggleContext = createContext<
+  FeatureToggleContextType | undefined
+>(undefined);
 
 const defaultToggles = (): Toggles => {
   try {
@@ -32,28 +40,40 @@ const defaultToggles = (): Toggles => {
       [navFeatures.FEATURE_TOGGLES]: true,
     };
   } catch (e) {
-    console.error("Error constructing default toggles, navFeatures might be incomplete:", e);
+    console.error(
+      "Error constructing default toggles, navFeatures might be incomplete:",
+      e,
+    );
     return { [navFeatures.HOME]: true };
   }
 };
 
 const fetchToggles = async (): Promise<Toggles> => {
   try {
-    const { data, error } = await supabase.from('feature_toggles').select('feature_key, is_enabled');
+    const { data, error } = await supabase
+      .from("feature_toggles")
+      .select("feature_key, is_enabled");
     if (error) throw error;
 
     const toggles = defaultToggles();
-    data.forEach(toggle => {
+    data.forEach((toggle) => {
       toggles[toggle.feature_key] = toggle.is_enabled;
     });
     return toggles;
   } catch (error) {
-    console.error("Failed to fetch feature toggles from DB, using defaults:", error);
+    console.error(
+      "Failed to fetch feature toggles from DB, using defaults:",
+      error,
+    );
     return defaultToggles();
   }
 };
 
-export const FeatureToggleProvider = ({ children }: { children: ReactNode }) => {
+export const FeatureToggleProvider = ({
+  children,
+}: {
+  children: ReactNode;
+}) => {
   // ✅ FIX: Initialize with defaults synchronously so the app renders immediately.
   // The loading flag is now only true briefly — the Supabase fetch updates toggles
   // in the background without blocking the initial render.
@@ -74,10 +94,10 @@ export const FeatureToggleProvider = ({ children }: { children: ReactNode }) => 
     }
     try {
       const { error } = await supabase
-        .from('feature_toggles')
+        .from("feature_toggles")
         .upsert(
           { feature_key: featureKey, is_enabled: isEnabled, user_id: user.id },
-          { onConflict: 'feature_key, user_id' }
+          { onConflict: "feature_key, user_id" },
         );
       if (error) throw error;
       await refetchToggles();
@@ -94,7 +114,9 @@ export const FeatureToggleProvider = ({ children }: { children: ReactNode }) => 
   }, []); // intentionally run once on mount
 
   return (
-    <FeatureToggleContext.Provider value={{ toggles, loading, refetchToggles, updateToggle }}>
+    <FeatureToggleContext.Provider
+      value={{ toggles, loading, refetchToggles, updateToggle }}
+    >
       {children}
     </FeatureToggleContext.Provider>
   );
@@ -103,7 +125,9 @@ export const FeatureToggleProvider = ({ children }: { children: ReactNode }) => 
 export const useFeatureToggles = () => {
   const context = useContext(FeatureToggleContext);
   if (context === undefined) {
-    throw new Error('useFeatureToggles must be used within a FeatureToggleProvider');
+    throw new Error(
+      "useFeatureToggles must be used within a FeatureToggleProvider",
+    );
   }
   return context;
 };

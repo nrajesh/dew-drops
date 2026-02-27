@@ -7,7 +7,11 @@ interface PaginationControlsProps {
   onPageChange: (page: number) => void;
 }
 
-export const PaginationControls = ({ currentPage, totalPages, onPageChange }: PaginationControlsProps) => {
+export const PaginationControls = ({
+  currentPage,
+  totalPages,
+  onPageChange,
+}: PaginationControlsProps) => {
   if (totalPages <= 1) return null;
 
   return (

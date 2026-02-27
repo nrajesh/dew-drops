@@ -1,7 +1,12 @@
 import { supabase } from "@/integrations/supabase/client";
 import type { GalleryImage } from "@/types";
-import { showError, showLoading, updateToastSuccess, updateToastError } from "@/utils/toast";
-import JSZip from 'jszip';
+import {
+  showError,
+  showLoading,
+  updateToastSuccess,
+  updateToastError,
+} from "@/utils/toast";
+import JSZip from "jszip";
 import { normalizeTag } from "@/lib/utils"; // Import normalizeTag
 
 export const fetchImages = async (): Promise<GalleryImage[]> => {
@@ -18,7 +23,10 @@ export const fetchImages = async (): Promise<GalleryImage[]> => {
   return data as GalleryImage[];
 };
 
-export const updateImageAltText = async (imageId: string, altText: string): Promise<boolean> => {
+export const updateImageAltText = async (
+  imageId: string,
+  altText: string,
+): Promise<boolean> => {
   const toastId = showLoading("Updating alt text...");
   const { error } = await supabase
     .from("gallery_images")
@@ -34,18 +42,24 @@ export const updateImageAltText = async (imageId: string, altText: string): Prom
   }
 };
 
-export const handleDelete = async (imageIds: string[], allImages: GalleryImage[]): Promise<boolean> => {
+export const handleDelete = async (
+  imageIds: string[],
+  allImages: GalleryImage[],
+): Promise<boolean> => {
   const toastId = showLoading(`Deleting ${imageIds.length} image(s)...`);
   try {
-    const imagesToDelete = allImages.filter(img => imageIds.includes(img.id));
-    const fileNamesToDelete = imagesToDelete.map(img => img.file_name);
+    const imagesToDelete = allImages.filter((img) => imageIds.includes(img.id));
+    const fileNamesToDelete = imagesToDelete.map((img) => img.file_name);
 
     if (fileNamesToDelete.length > 0) {
       const { error: storageError } = await supabase.storage
         .from("gallery")
         .remove(fileNamesToDelete);
 
-      if (storageError && storageError.message !== 'The resource was not found') {
+      if (
+        storageError &&
+        storageError.message !== "The resource was not found"
+      ) {
         throw new Error(`Storage error: ${storageError.message}`);
       }
     }
@@ -59,7 +73,10 @@ export const handleDelete = async (imageIds: string[], allImages: GalleryImage[]
       throw new Error(`Database error: ${dbError.message}`);
     }
 
-    updateToastError(toastId, `${imageIds.length} image(s) deleted successfully.`);
+    updateToastError(
+      toastId,
+      `${imageIds.length} image(s) deleted successfully.`,
+    );
     return true;
   } catch (error: unknown) {
     const err = error as Error;
@@ -68,8 +85,13 @@ export const handleDelete = async (imageIds: string[], allImages: GalleryImage[]
   }
 };
 
-export const handleBulkPublish = async (imageIds: Set<string>, publishStatus: boolean): Promise<boolean> => {
-  const toastId = showLoading(`${publishStatus ? "Publishing" : "Unpublishing"} ${imageIds.size} image(s)...`);
+export const handleBulkPublish = async (
+  imageIds: Set<string>,
+  publishStatus: boolean,
+): Promise<boolean> => {
+  const toastId = showLoading(
+    `${publishStatus ? "Publishing" : "Unpublishing"} ${imageIds.size} image(s)...`,
+  );
   try {
     const { error } = await supabase
       .from("gallery_images")
@@ -78,7 +100,10 @@ export const handleBulkPublish = async (imageIds: Set<string>, publishStatus: bo
 
     if (error) throw error;
 
-    updateToastSuccess(toastId, `${imageIds.size} image(s) ${publishStatus ? "published" : "unpublished"} successfully.`);
+    updateToastSuccess(
+      toastId,
+      `${imageIds.size} image(s) ${publishStatus ? "published" : "unpublished"} successfully.`,
+    );
     return true;
   } catch (error: unknown) {
     const err = error as Error;
@@ -87,17 +112,25 @@ export const handleBulkPublish = async (imageIds: Set<string>, publishStatus: bo
   }
 };
 
-export const handleGenerateTags = async (imageIds: Set<string>, allImages: GalleryImage[]): Promise<number> => {
-  const toastId = showLoading(`Generating tags for ${imageIds.size} image(s)...`);
-  const imagesToProcess = allImages.filter(img => imageIds.has(img.id));
+export const handleGenerateTags = async (
+  imageIds: Set<string>,
+  allImages: GalleryImage[],
+): Promise<number> => {
+  const toastId = showLoading(
+    `Generating tags for ${imageIds.size} image(s)...`,
+  );
+  const imagesToProcess = allImages.filter((img) => imageIds.has(img.id));
   let successCount = 0;
   let errorCount = 0;
 
   for (const image of imagesToProcess) {
     try {
-      const { data, error } = await supabase.functions.invoke('generate-image-tags', {
-        body: { fileName: image.file_name },
-      });
+      const { data, error } = await supabase.functions.invoke(
+        "generate-image-tags",
+        {
+          body: { fileName: image.file_name },
+        },
+      );
 
       if (error) throw error;
 
@@ -105,9 +138,9 @@ export const handleGenerateTags = async (imageIds: Set<string>, allImages: Galle
       if (tags && Array.isArray(tags)) {
         const normalizedTags = tags.map(normalizeTag); // Apply normalization here
         const { error: updateError } = await supabase
-          .from('gallery_images')
+          .from("gallery_images")
           .update({ tags: normalizedTags })
-          .eq('id', image.id);
+          .eq("id", image.id);
 
         if (updateError) throw updateError;
         successCount++;
@@ -119,9 +152,15 @@ export const handleGenerateTags = async (imageIds: Set<string>, allImages: Galle
   }
 
   if (successCount > 0 && errorCount > 0) {
-    updateToastError(toastId, `Generated tags for ${successCount} images, but ${errorCount} failed.`);
+    updateToastError(
+      toastId,
+      `Generated tags for ${successCount} images, but ${errorCount} failed.`,
+    );
   } else if (successCount > 0) {
-    updateToastSuccess(toastId, `${successCount} image(s) updated with new tags.`);
+    updateToastSuccess(
+      toastId,
+      `${successCount} image(s) updated with new tags.`,
+    );
   } else if (errorCount > 0) {
     updateToastError(toastId, `${errorCount} image(s) failed to process.`);
   } else {
@@ -130,25 +169,41 @@ export const handleGenerateTags = async (imageIds: Set<string>, allImages: Galle
   return successCount;
 };
 
-export const handleBulkDownload = async (imageIds: Set<string>, allImages: GalleryImage[]): Promise<void> => {
+export const handleBulkDownload = async (
+  imageIds: Set<string>,
+  allImages: GalleryImage[],
+): Promise<void> => {
   if (imageIds.size === 0) {
     showError("No images selected for download.");
     return;
   }
 
-  const toastId = showLoading(`Preparing ${imageIds.size} image(s) for download...`);
+  const toastId = showLoading(
+    `Preparing ${imageIds.size} image(s) for download...`,
+  );
   try {
     const zip = new JSZip();
-    const imagesToDownload = allImages.filter(img => imageIds.has(img.id));
-    const metadata: { fileName: string; alt_text: string | null; tags: string[] }[] = [];
+    const imagesToDownload = allImages.filter((img) => imageIds.has(img.id));
+    const metadata: {
+      fileName: string;
+      alt_text: string | null;
+      tags: string[];
+    }[] = [];
 
     const downloadPromises = imagesToDownload.map(async (image) => {
-      const { data: blob, error } = await supabase.storage.from('gallery').download(image.file_name);
+      const { data: blob, error } = await supabase.storage
+        .from("gallery")
+        .download(image.file_name);
 
-      if (error) throw new Error(`Failed to download ${image.file_name}: ${error.message}`);
+      if (error)
+        throw new Error(
+          `Failed to download ${image.file_name}: ${error.message}`,
+        );
 
       if (blob) {
-        const originalFileName = image.file_name.split('/').pop()?.split('_').slice(1).join('_') || image.file_name;
+        const originalFileName =
+          image.file_name.split("/").pop()?.split("_").slice(1).join("_") ||
+          image.file_name;
         zip.file(originalFileName, blob);
         metadata.push({
           fileName: originalFileName,
@@ -161,17 +216,20 @@ export const handleBulkDownload = async (imageIds: Set<string>, allImages: Galle
     await Promise.all(downloadPromises);
 
     zip.file("metadata.json", JSON.stringify(metadata, null, 2));
-    const zipBlob = await zip.generateAsync({ type: 'blob' });
+    const zipBlob = await zip.generateAsync({ type: "blob" });
 
-    const link = document.createElement('a');
+    const link = document.createElement("a");
     link.href = URL.createObjectURL(zipBlob);
-    link.download = `gallery-export-${new Date().toISOString().split('T')[0]}.zip`;
+    link.download = `gallery-export-${new Date().toISOString().split("T")[0]}.zip`;
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
     URL.revokeObjectURL(link.href);
 
-    updateToastSuccess(toastId, `${imagesToDownload.length} image(s) and metadata downloaded successfully.`);
+    updateToastSuccess(
+      toastId,
+      `${imagesToDownload.length} image(s) and metadata downloaded successfully.`,
+    );
   } catch (error: unknown) {
     const err = error as Error;
     updateToastError(toastId, `Download failed: ${err.message}`);
