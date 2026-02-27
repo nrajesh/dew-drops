@@ -195,7 +195,7 @@ export const useGalleryManagement = () => {
     if (metadata) {
       metadata.forEach(item => {
         if (item.file_name) {
-          metadataMap.set(item.file_name, { alt_text: item.alt_text, tags: item.tags });
+          metadataMap.set(item.file_name, { alt_text: (item.alt_text as string) ?? '', tags: (item.tags as string[]) ?? [] });
         }
       });
     }
