@@ -83,7 +83,21 @@ const BlogEditor = () => {
     const [showPreview, setShowPreview] = useState(false);
     const textareaRef = useRef<HTMLTextAreaElement>(null);
 
-    // ── Markdown insert helper ────────────────────────────────────
+    const form = useForm<EditorFormData>({
+        resolver: zodResolver(editorSchema),
+        defaultValues: {
+            title: "",
+            description: "",
+            content: "",
+            published_at: new Date().toISOString().split("T")[0],
+            published: false,
+            tags: [],
+            cover_image_id: null,
+            youtube_video_id: "",
+        },
+    });
+
+    // ── Markdown insert helpers (need form, so defined after useForm) ────
     const insertMarkdown = useCallback(
         (before: string, after = "", placeholder = "text") => {
             const el = textareaRef.current;
@@ -114,8 +128,6 @@ const BlogEditor = () => {
         const selected = el.value.substring(el.selectionStart, el.selectionEnd);
         const url = window.prompt("Enter URL:", "https://");
         if (!url) return;
-        insertMarkdown(`[${selected || "link text"}]`, "", "");
-        // Rebuild properly for link syntax
         const start = el.selectionStart;
         const end = el.selectionEnd;
         const linkText = selected || "link text";
@@ -128,21 +140,8 @@ const BlogEditor = () => {
             el.focus();
             el.setSelectionRange(start, start + linkText.length + url.length + 4);
         });
-    }, [form, insertMarkdown]);
+    }, [form]);
 
-    const form = useForm<EditorFormData>({
-        resolver: zodResolver(editorSchema),
-        defaultValues: {
-            title: "",
-            description: "",
-            content: "",
-            published_at: new Date().toISOString().split("T")[0],
-            published: false,
-            tags: [],
-            cover_image_id: null,
-            youtube_video_id: "",
-        },
-    });
 
     // Track dirty state
     useEffect(() => {
