@@ -9,6 +9,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { supabase } from "@/integrations/supabase/client";
 import { showSuccess, showError, showLoading, dismissToast } from "@/utils/toast";
+import { Wand2, Loader2 } from "lucide-react";
 import { usePaginationNavigation } from "@/hooks/usePaginationNavigation";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useGalleryManagement } from "@/hooks/useGalleryManagement";
@@ -80,6 +81,7 @@ const ManageGallery = () => {
   const [lightboxImageIndex, setLightboxImageIndex] = useState<number | null>(null);
   const [activeLightboxList, setActiveLightboxList] = useState<'published' | 'unpublished' | null>(null);
   const [activeTab, setActiveTab] = useState<'published' | 'unpublished'>('published');
+  const [isGeneratingTags, setIsGeneratingTags] = useState(false);
 
   const form = useForm<z.infer<typeof editSchema>>({
     resolver: zodResolver(editSchema),
@@ -132,6 +134,32 @@ const ManageGallery = () => {
       const err = error as Error;
       dismissToast(toastId);
       showError(`Update failed: ${err.message}`);
+    }
+  };
+
+  const handleInlineGenerateTags = async () => {
+    if (!editingImage) return;
+    setIsGeneratingTags(true);
+    try {
+      const { data: signedUrlData, error: signedUrlError } = await supabase.storage
+        .from('gallery')
+        .createSignedUrl(editingImage.file_name, 60);
+      if (signedUrlError) throw signedUrlError;
+
+      const { data, error } = await supabase.functions.invoke('generate-tags-from-url', {
+        body: { imageUrl: signedUrlData.signedUrl, imageId: editingImage.id },
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+
+      const generatedTags: string[] = data?.tags ?? [];
+      // Populate the form field so the user can review/edit before saving
+      form.setValue('tags', generatedTags.join(', '), { shouldDirty: true });
+      showSuccess(`${generatedTags.length} tags generated — review and save!`);
+    } catch (err: unknown) {
+      showError(`Tag generation failed: ${(err as Error).message}`);
+    } finally {
+      setIsGeneratingTags(false);
     }
   };
 
@@ -272,7 +300,24 @@ const ManageGallery = () => {
                 name="tags"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Tags (comma-separated)</FormLabel>
+                    <div className="flex items-center justify-between gap-2">
+                      <FormLabel>Tags (comma-separated)</FormLabel>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={handleInlineGenerateTags}
+                        disabled={isGeneratingTags}
+                        className="h-7 gap-1 text-xs"
+                      >
+                        {isGeneratingTags ? (
+                          <Loader2 className="h-3 w-3 animate-spin" />
+                        ) : (
+                          <Wand2 className="h-3 w-3" />
+                        )}
+                        {isGeneratingTags ? 'Generating…' : 'AI Generate'}
+                      </Button>
+                    </div>
                     <FormControl>
                       <Input
                         placeholder="e.g., nature, mountains, sunset"

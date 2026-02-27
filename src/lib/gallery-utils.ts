@@ -4,32 +4,45 @@ import { showSuccess, showError } from '@/utils/toast';
 import JSZip from 'jszip';
 import { saveAs } from 'file-saver';
 
+/**
+ * Strips user-id prefix + timestamp from the stored file path to produce a
+ * short, human-readable name like "IMG_2807.jpg".
+ */
+const friendlyName = (fileName: string) =>
+  fileName.split('/').pop()?.split('_').slice(2).join('_') ||
+  fileName.split('/').pop() ||
+  fileName;
 
-export const generateTagsForImage = async (image: GalleryImage) => {
+export const generateTagsForImage = async (image: GalleryImage): Promise<string[]> => {
+  const name = friendlyName(image.file_name);
   try {
-    // Create a temporary signed URL to grant the Edge Function access,
-    // which is necessary for non-public images.
     const { data: signedUrlData, error: signedUrlError } = await supabase
       .storage
       .from('gallery')
-      .createSignedUrl(image.file_name, 60); // URL is valid for 60 seconds
+      .createSignedUrl(image.file_name, 60);
 
-    if (signedUrlError) {
-      throw signedUrlError;
-    }
+    if (signedUrlError) throw signedUrlError;
 
-    // Invoke the new function that accepts a URL
     const { data, error } = await supabase.functions.invoke('generate-tags-from-url', {
       body: { imageUrl: signedUrlData.signedUrl, imageId: image.id },
     });
 
     if (error) throw error;
-    if (data.error) throw new Error(data.error);
+    if (data?.error) throw new Error(data.error);
 
-    showSuccess(`Tags generated for ${image.file_name}`);
+    const tags: string[] = data?.tags ?? [];
+
+    if (tags.length > 0) {
+      showSuccess(`✅ ${name} — ${tags.length} tags: ${tags.slice(0, 5).join(', ')}${tags.length > 5 ? ` +${tags.length - 5} more` : ''}`);
+    } else {
+      showSuccess(`✅ ${name} — no tags returned`);
+    }
+
+    return tags;
   } catch (error: unknown) {
     const err = error as Error;
-    showError(`Failed to generate tags for ${image.file_name}: ${err.message}`);
+    showError(`❌ ${name}: ${err.message}`);
+    return [];
   }
 };
 

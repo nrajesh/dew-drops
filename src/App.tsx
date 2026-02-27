@@ -24,6 +24,7 @@ const ManageData = lazy(() => import("./pages/ManageData"));
 const ManageChatbot = lazy(() => import("./pages/ManageChatbot"));
 const CurriculumVitae = lazy(() => import("./pages/CurriculumVitae"));
 const MatchCV = lazy(() => import("./pages/MatchCV")); // Lazy load MatchCV page
+const BlogEditor = lazy(() => import("./pages/BlogEditor"));
 
 const FullPageLoader = () => (
   <div className="flex items-center justify-center h-screen bg-background">
@@ -77,6 +78,8 @@ const App = () => {
             <Route path="/profile" element={<Profile />} />
             <Route path="/manage-data" element={<ManageData />} />
             <Route path="/manage-chatbot" element={<ManageChatbot />} />
+            <Route path="/manage-blog/new" element={<BlogEditor />} />
+            <Route path="/manage-blog/edit/:id" element={<BlogEditor />} />
           </Route>
         </Route>
         <Route path="*" element={<NotFound />} />

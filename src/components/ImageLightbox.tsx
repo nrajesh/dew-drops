@@ -1,4 +1,4 @@
-import React, { useEffect, useCallback, useState } from 'react';
+import React, { useEffect, useCallback, useState, useRef } from 'react';
 import { X, ChevronLeft, ChevronRight, Trash2, Tag, Info, ShoppingCart } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -29,7 +29,21 @@ export const ImageLightbox: React.FC<ImageLightboxProps> = ({
   const { user } = useAuth();
   const isAuthenticated = !!user;
   const [showExif, setShowExif] = useState(false);
-  const [showPurchaseDisabledOverlay, setShowPurchaseDisabledOverlay] = useState(false); // Renamed state
+  const [showPurchaseDisabledOverlay, setShowPurchaseDisabledOverlay] = useState(false);
+  const touchStartX = useRef<number | null>(null);
+
+  const handleTouchStart = useCallback((e: React.TouchEvent) => {
+    touchStartX.current = e.touches[0].clientX;
+  }, []);
+
+  const handleTouchEnd = useCallback((e: React.TouchEvent) => {
+    if (touchStartX.current === null) return;
+    const deltaX = e.changedTouches[0].clientX - touchStartX.current;
+    touchStartX.current = null;
+    if (Math.abs(deltaX) < 50) return; // ignore small taps
+    if (deltaX < 0 && hasNext) onNavigate('next');
+    if (deltaX > 0 && hasPrev) onNavigate('prev');
+  }, [hasNext, hasPrev, onNavigate]);
 
   const getImageUrl = (fileName: string) => {
     const { data } = supabase.storage.from('gallery').getPublicUrl(fileName);
@@ -126,10 +140,12 @@ export const ImageLightbox: React.FC<ImageLightboxProps> = ({
             <X className="h-6 w-6" />
           </Button>
 
-          {/* Main Image Area - Click to close */}
+          {/* Main Image Area - Click to close, swipe to navigate */}
           <div
             className="relative flex items-center justify-center h-[80vh] cursor-pointer"
             onClick={onClose}
+            onTouchStart={handleTouchStart}
+            onTouchEnd={handleTouchEnd}
           >
 
             {/* Navigation Buttons */}

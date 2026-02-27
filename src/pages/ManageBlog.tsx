@@ -1,14 +1,16 @@
 import { useRef } from "react";
+import { useNavigate } from "react-router-dom";
 import { usePaginationNavigation } from "@/hooks/usePaginationNavigation";
-import { BlogFormDialog } from "@/components/blog/BlogFormDialog";
 import { BulkActionsSection } from "@/components/blog/BulkActionsSection";
 import { UpdatePostsDialog } from "@/components/blog/UpdatePostsDialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useBlogManagement } from "@/hooks/useBlogManagement";
 import { PostList } from "@/components/blog/PostList";
+import type { Post } from "@/types";
 
 const ManageBlog = () => {
   const containerRef = useRef<HTMLDivElement>(null);
+  const navigate = useNavigate();
 
   const {
     posts,
@@ -23,39 +25,37 @@ const ManageBlog = () => {
     setItemsPerPage,
     handleSelectPost,
     handleSelectAll,
-
     handleTogglePublish,
-    galleryImages,
     uniqueTags,
-    editingPost,
-    setEditingPost,
     selectedFiles,
     setSelectedFiles,
-
     isUpdateDialogVisible,
     setIsUpdateDialogVisible,
     postsToInsert,
     postsToUpdate,
     selectedUpdates,
     setSelectedUpdates,
-    handleFormSubmit,
-    handleUpload,
     handleConfirmAndProcessUploads,
     handleBulkDelete,
     handleBulkTagUpdate,
     handleBulkDownload,
+    handleUpload,
     activeTab,
     setActiveTab,
     searchTerm,
     setSearchTerm,
   } = useBlogManagement();
 
+  const handleEditPost = (post: Post) => {
+    navigate(`/manage-blog/edit/${post.id}`);
+  };
+
   usePaginationNavigation({
     currentPage,
     totalPages,
     onPageChange: setCurrentPage,
     targetRef: containerRef,
-    enabled: !editingPost && !isUpdateDialogVisible,
+    enabled: !isUpdateDialogVisible,
   });
 
   return (
@@ -69,7 +69,7 @@ const ManageBlog = () => {
         onBulkDownload={handleBulkDownload}
         onDeleteSelected={handleBulkDelete}
         uniqueTags={uniqueTags}
-        onCreateNewPost={() => setEditingPost({} as import('@/types').Post)} // Open dialog for new post
+        onCreateNewPost={() => navigate("/manage-blog/new")}
         searchTerm={searchTerm}
         onSearch={setSearchTerm}
       />
@@ -85,7 +85,7 @@ const ManageBlog = () => {
             selectedPosts={selectedPosts}
             onSelectPost={handleSelectPost}
             onSelectAll={handleSelectAll}
-            onEdit={setEditingPost}
+            onEdit={handleEditPost}
             onDelete={handleBulkDelete}
             onDownload={handleBulkDownload}
             onBulkTagUpdate={handleBulkTagUpdate}
@@ -106,7 +106,7 @@ const ManageBlog = () => {
             selectedPosts={selectedPosts}
             onSelectPost={handleSelectPost}
             onSelectAll={handleSelectAll}
-            onEdit={setEditingPost}
+            onEdit={handleEditPost}
             onDelete={handleBulkDelete}
             onDownload={handleBulkDownload}
             onBulkTagUpdate={handleBulkTagUpdate}
@@ -122,15 +122,6 @@ const ManageBlog = () => {
           />
         </TabsContent>
       </Tabs>
-
-      <BlogFormDialog
-        isOpen={editingPost !== null}
-        onOpenChange={(isOpen) => !isOpen && setEditingPost(null)}
-        editingPost={editingPost}
-        galleryImages={galleryImages}
-        uniqueTags={uniqueTags}
-        onSubmit={(values) => handleFormSubmit(values as unknown as import('@/components/blog/BlogForm').PostFormData)}
-      />
 
       <UpdatePostsDialog
         isOpen={isUpdateDialogVisible}

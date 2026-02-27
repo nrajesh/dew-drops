@@ -33,7 +33,7 @@ const defaultToggles = (): Toggles => {
     };
   } catch (e) {
     console.error("Error constructing default toggles, navFeatures might be incomplete:", e);
-    return { [navFeatures.HOME]: true }; // Minimal safe default on error
+    return { [navFeatures.HOME]: true };
   }
 };
 
@@ -49,21 +49,22 @@ const fetchToggles = async (): Promise<Toggles> => {
     return toggles;
   } catch (error) {
     console.error("Failed to fetch feature toggles from DB, using defaults:", error);
-    return defaultToggles(); // Return defaults on error
+    return defaultToggles();
   }
 };
 
 export const FeatureToggleProvider = ({ children }: { children: ReactNode }) => {
-  const [toggles, setToggles] = useState<Toggles>({});
-  const [loading, setLoading] = useState(true);
+  // ✅ FIX: Initialize with defaults synchronously so the app renders immediately.
+  // The loading flag is now only true briefly — the Supabase fetch updates toggles
+  // in the background without blocking the initial render.
+  const [toggles, setToggles] = useState<Toggles>(defaultToggles);
+  const loading = false; // app renders immediately with defaults; Supabase updates silently
   const { user } = useAuth();
 
   const refetchToggles = async () => {
-    setLoading(true);
     const globalToggles = await fetchToggles();
-    globalToggles[navFeatures.HOME] = true; // Home is always on.
+    globalToggles[navFeatures.HOME] = true;
     setToggles(globalToggles);
-    setLoading(false);
   };
 
   const updateToggle = async (featureKey: string, isEnabled: boolean) => {
@@ -87,8 +88,10 @@ export const FeatureToggleProvider = ({ children }: { children: ReactNode }) => 
   };
 
   useEffect(() => {
+    // Fetch real toggles from Supabase in the background; app is already
+    // rendering with defaults so this is non-blocking.
     refetchToggles();
-  }, []);
+  }, []); // intentionally run once on mount
 
   return (
     <FeatureToggleContext.Provider value={{ toggles, loading, refetchToggles, updateToggle }}>

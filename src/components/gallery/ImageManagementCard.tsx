@@ -69,12 +69,12 @@ export const ImageManagementCard = ({
             <CardTitle>{title}</CardTitle>
             <CardDescription>{description}</CardDescription>
           </div>
-          <div className="flex gap-2 self-start sm:self-center">
+          <div className="flex flex-wrap gap-2 self-start sm:self-center w-full sm:w-auto">
             {selectedImages.size > 0 && (
               <>
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
-                    <Button variant="outline">
+                    <Button variant="outline" className="flex-1 sm:flex-none">
                       Bulk Actions ({selectedImages.size})
                     </Button>
                   </DropdownMenuTrigger>
@@ -83,7 +83,7 @@ export const ImageManagementCard = ({
                       {listType === 'unpublished' ? 'Publish Selected' : 'Unpublish Selected'}
                     </DropdownMenuItem>
                     <DropdownMenuItem onClick={onGenerateTags}>
-                      Generate Tags
+                      Generate Tags (AI)
                     </DropdownMenuItem>
                     <DropdownMenuItem onClick={onDownload}>
                       <Download className="h-4 w-4 mr-2" />
@@ -93,7 +93,7 @@ export const ImageManagementCard = ({
                 </DropdownMenu>
                 <AlertDialog>
                   <AlertDialogTrigger asChild>
-                    <Button variant="destructive">
+                    <Button variant="destructive" className="flex-1 sm:flex-none">
                       <Trash2 className="h-4 w-4 mr-2" />
                       Delete ({selectedImages.size})
                     </Button>

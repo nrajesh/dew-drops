@@ -1,6 +1,6 @@
 import { Card, CardContent } from "@/components/ui/card";
 import { AspectRatio } from "@/components/ui/aspect-ratio";
-import { useEffect, useState, useMemo, useRef, lazy, Suspense, useCallback } from "react";
+import { useMemo, useRef, lazy, Suspense, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import type { GalleryImage } from "@/types";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -10,79 +10,78 @@ import { useDebounce } from "@/hooks/useDebounce";
 import { PaginationControls } from "@/components/PaginationControls";
 import { usePaginationNavigation } from "@/hooks/usePaginationNavigation";
 import { Button } from "@/components/ui/button";
-import { searchImagesByMetadata } from "@/utils/embeddings"; // Import the utility function
+import { searchImagesByMetadata } from "@/utils/embeddings";
+import { useGalleryImages } from "@/hooks/useGalleryImages";
+import { useState, useEffect } from "react";
 
-const LazyImageLightbox = lazy(() => import("@/components/ImageLightbox").then(module => ({ default: module.ImageLightbox })));
+const LazyImageLightbox = lazy(() =>
+  import("@/components/ImageLightbox").then((module) => ({
+    default: module.ImageLightbox,
+  }))
+);
 
 const IMAGES_PER_PAGE = 9;
 
+/** Builds a CDN URL with optional Supabase image transform query params. */
+const getImageUrl = (fileName: string, opts?: { width?: number; quality?: number }) => {
+  const { data } = supabase.storage.from("gallery").getPublicUrl(fileName, {
+    transform: opts
+      ? { width: opts.width, quality: opts.quality }
+      : undefined,
+  });
+  return data.publicUrl;
+};
+
 const Gallery = () => {
-  const [allImages, setAllImages] = useState<GalleryImage[]>([]);
-  const [displayImages, setDisplayImages] = useState<GalleryImage[]>([]); // Images currently being displayed after filtering/search
-  const [loading, setLoading] = useState(true);
+  const { images: allImages, isLoading, mutate } = useGalleryImages();
+
   const [selectedImageIndex, setSelectedImageIndex] = useState<number | null>(null);
-  const [activeMake, setActiveMake] = useState<string | 'all'>('all');
+  const [activeMake, setActiveMake] = useState<string | "all">("all");
   const [searchTerm, setSearchTerm] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
+  const [displayImages, setDisplayImages] = useState<GalleryImage[]>([]);
   const containerRef = useRef<HTMLDivElement>(null);
 
   const debouncedSearchTerm = useDebounce(searchTerm, 500);
 
-  const fetchImages = useCallback(async () => {
-    setLoading(true);
-    const { data, error } = await supabase
-      .from("gallery_images")
-      .select("*")
-      .eq("published", true)
-      .order("created_at", { ascending: false });
+  // Derive display list — runs whenever allImages / filters change
+  const applyFiltersAndSearch = useCallback(async () => {
+    let result = allImages;
 
-    if (error) {
-      console.error("Error fetching gallery images:", error);
-      setAllImages([]);
-      setDisplayImages([]);
+    if (debouncedSearchTerm) {
+      result = await searchImagesByMetadata(debouncedSearchTerm, allImages);
     } else {
-      setAllImages(data as GalleryImage[]);
-      // Initial display of all images
-      setDisplayImages(data as GalleryImage[]);
+      result = allImages.filter((image) => {
+        const makeValue = image.exif_data?.Make;
+        const makeString =
+          typeof makeValue === "object" &&
+            makeValue !== null &&
+            "description" in makeValue
+            ? (makeValue as { description: string }).description
+            : (makeValue as string | undefined);
+        return activeMake === "all" || makeString === activeMake;
+      });
     }
-    setLoading(false);
-  }, []);
 
-  useEffect(() => {
-    fetchImages();
-  }, [fetchImages]);
-
-  // Effect to handle filtering/searching
-  useEffect(() => {
-    const applyFiltersAndSearch = async () => {
-      let currentFilteredImages = allImages;
-
-      if (debouncedSearchTerm) {
-        currentFilteredImages = await searchImagesByMetadata(debouncedSearchTerm, allImages);
-      } else {
-        currentFilteredImages = allImages.filter(image => {
-          const makeValue = image.exif_data?.Make;
-          const makeString = typeof makeValue === 'object' && makeValue !== null && 'description' in makeValue ? makeValue.description : makeValue;
-          const makeFilter = activeMake === 'all' || makeString === activeMake;
-          return makeFilter;
-        });
-      }
-      setDisplayImages(currentFilteredImages);
-      setCurrentPage(1); // Reset to first page on filter/search change
-    };
-
-    applyFiltersAndSearch();
+    setDisplayImages(result);
+    setCurrentPage(1);
   }, [allImages, activeMake, debouncedSearchTerm]);
 
+  // Run filter whenever deps change
+  useEffect(() => {
+    applyFiltersAndSearch();
+  }, [allImages, activeMake, debouncedSearchTerm, applyFiltersAndSearch]);
 
   const deviceMakes = useMemo(() => {
-    const makes = allImages.map(img => {
-      const make = img.exif_data?.Make;
-      if (typeof make === 'object' && make !== null && 'description' in make) {
-        return make.description;
-      }
-      return make;
-    }).filter(Boolean) as string[];
+    const makes = allImages
+      .map((img) => {
+        const make = img.exif_data?.Make;
+        if (typeof make === "object" && make !== null && "description" in make) {
+          return (make as { description: string }).description;
+        }
+        return make as string | undefined;
+      })
+      .filter(Boolean) as string[];
     return Array.from(new Set(makes)).sort();
   }, [allImages]);
 
@@ -100,21 +99,19 @@ const Gallery = () => {
     enabled: selectedImageIndex === null,
   });
 
-  const getThumbnailUrl = (fileName: string) => {
-    const { data } = supabase.storage.from('gallery').getPublicUrl(fileName);
-    return data.publicUrl;
-  };
-
-  const handleNavigate = (direction: 'prev' | 'next') => {
+  const handleNavigate = (direction: "prev" | "next") => {
     if (selectedImageIndex === null || displayImages.length < 2) return;
-    if (direction === 'next') {
-      setSelectedImageIndex((prevIndex) => (prevIndex! + 1) % displayImages.length);
+    if (direction === "next") {
+      setSelectedImageIndex((prev) => (prev! + 1) % displayImages.length);
     } else {
-      setSelectedImageIndex((prevIndex) => (prevIndex! - 1 + displayImages.length) % displayImages.length);
+      setSelectedImageIndex(
+        (prev) => (prev! - 1 + displayImages.length) % displayImages.length
+      );
     }
   };
 
-  const selectedImage = selectedImageIndex !== null ? displayImages[selectedImageIndex] : null;
+  const selectedImage =
+    selectedImageIndex !== null ? displayImages[selectedImageIndex] : null;
 
   return (
     <>
@@ -140,11 +137,18 @@ const Gallery = () => {
 
           {deviceMakes.length > 0 && (
             <div className="flex flex-wrap gap-2 justify-center">
-              <Button variant={activeMake === 'all' ? 'default' : 'outline'} onClick={() => setActiveMake('all')}>
+              <Button
+                variant={activeMake === "all" ? "default" : "outline"}
+                onClick={() => setActiveMake("all")}
+              >
                 All
               </Button>
-              {deviceMakes.map(make => (
-                <Button key={make} variant={activeMake === make ? 'default' : 'outline'} onClick={() => setActiveMake(make)}>
+              {deviceMakes.map((make) => (
+                <Button
+                  key={make}
+                  variant={activeMake === make ? "default" : "outline"}
+                  onClick={() => setActiveMake(make)}
+                >
                   {make}
                 </Button>
               ))}
@@ -152,11 +156,13 @@ const Gallery = () => {
           )}
 
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
-            {loading ? (
+            {isLoading ? (
               Array.from({ length: IMAGES_PER_PAGE }).map((_, index) => (
                 <Card key={index} className="overflow-hidden">
                   <CardContent className="p-0">
-                    <AspectRatio ratio={4 / 3}><Skeleton className="h-full w-full" /></AspectRatio>
+                    <AspectRatio ratio={4 / 3}>
+                      <Skeleton className="h-full w-full" />
+                    </AspectRatio>
                   </CardContent>
                 </Card>
               ))
@@ -166,16 +172,20 @@ const Gallery = () => {
                   key={image.id}
                   className="overflow-hidden group cursor-pointer"
                   onClick={() => {
-                    const globalIndex = displayImages.findIndex(img => img.id === image.id);
+                    const globalIndex = displayImages.findIndex(
+                      (img) => img.id === image.id
+                    );
                     setSelectedImageIndex(globalIndex);
                   }}
                 >
                   <CardContent className="p-0">
                     <AspectRatio ratio={4 / 3}>
                       <img
-                        src={getThumbnailUrl(image.file_name)}
+                        src={getImageUrl(image.file_name, { width: 600, quality: 75 })}
                         alt={image.alt_text || "Gallery image"}
                         className="h-full w-full object-cover bg-background transition-transform duration-300 group-hover:scale-105"
+                        loading="lazy"
+                        decoding="async"
                       />
                     </AspectRatio>
                   </CardContent>
@@ -183,13 +193,19 @@ const Gallery = () => {
               ))
             ) : (
               <div className="col-span-full text-center py-10 border-dashed border-2 rounded-lg bg-muted">
-                <p className="text-muted-foreground">No images found. Try adjusting your search or filters.</p>
+                <p className="text-muted-foreground">
+                  No images found. Try adjusting your search or filters.
+                </p>
               </div>
             )}
           </div>
         </div>
         <div className="mt-8">
-          <PaginationControls currentPage={currentPage} totalPages={totalPages} onPageChange={setCurrentPage} />
+          <PaginationControls
+            currentPage={currentPage}
+            totalPages={totalPages}
+            onPageChange={setCurrentPage}
+          />
         </div>
       </div>
       <Suspense fallback={null}>
@@ -199,7 +215,7 @@ const Gallery = () => {
           onNavigate={handleNavigate}
           hasNext={displayImages.length > 1}
           hasPrev={displayImages.length > 1}
-          onUpdate={fetchImages}
+          onUpdate={() => mutate()}
         />
       </Suspense>
     </>
