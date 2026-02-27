@@ -1,4 +1,5 @@
-import { useEffect, useState, useCallback, useMemo } from "react";
+import { useEffect, useState, useCallback, useMemo, useRef } from "react";
+import type React from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -18,7 +19,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDescription } from "@/components/ui/form";
 import { MultiSelectPopover } from "@/components/MultiSelectPopover";
 import { CoverImagePicker } from "@/components/blog/CoverImagePicker";
-import { ArrowLeft, Save, Youtube, FileText, Eye, EyeOff } from "lucide-react";
+import { ArrowLeft, Save, Youtube, FileText, Eye, EyeOff, Bold, Italic, Underline, Strikethrough, Code, Link, Quote, Heading2 } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { marked } from "marked";
 
@@ -80,6 +81,54 @@ const BlogEditor = () => {
     const [uniqueTags, setUniqueTags] = useState<string[]>([]);
     const [isDirty, setIsDirty] = useState(false);
     const [showPreview, setShowPreview] = useState(false);
+    const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+    // ── Markdown insert helper ────────────────────────────────────
+    const insertMarkdown = useCallback(
+        (before: string, after = "", placeholder = "text") => {
+            const el = textareaRef.current;
+            if (!el) return;
+            const start = el.selectionStart;
+            const end = el.selectionEnd;
+            const selected = el.value.substring(start, end);
+            const insertion = selected || placeholder;
+            const newValue =
+                el.value.substring(0, start) +
+                before +
+                insertion +
+                after +
+                el.value.substring(end);
+            form.setValue("content", newValue, { shouldDirty: true });
+            requestAnimationFrame(() => {
+                el.focus();
+                const cursorStart = start + before.length;
+                el.setSelectionRange(cursorStart, cursorStart + insertion.length);
+            });
+        },
+        [form]
+    );
+
+    const insertLink = useCallback(() => {
+        const el = textareaRef.current;
+        if (!el) return;
+        const selected = el.value.substring(el.selectionStart, el.selectionEnd);
+        const url = window.prompt("Enter URL:", "https://");
+        if (!url) return;
+        insertMarkdown(`[${selected || "link text"}]`, "", "");
+        // Rebuild properly for link syntax
+        const start = el.selectionStart;
+        const end = el.selectionEnd;
+        const linkText = selected || "link text";
+        const newValue =
+            el.value.substring(0, start) +
+            `[${linkText}](${url})` +
+            el.value.substring(end);
+        form.setValue("content", newValue, { shouldDirty: true });
+        requestAnimationFrame(() => {
+            el.focus();
+            el.setSelectionRange(start, start + linkText.length + url.length + 4);
+        });
+    }, [form, insertMarkdown]);
 
     const form = useForm<EditorFormData>({
         resolver: zodResolver(editorSchema),
@@ -293,12 +342,41 @@ const BlogEditor = () => {
                             name="content"
                             render={({ field }) => (
                                 <FormItem>
-                                    <div className="flex items-center gap-2">
-                                        <FormLabel>Content</FormLabel>
+                                    {/* ── Toolbar row ────────────────────── */}
+                                    <div className="flex items-center gap-1 flex-wrap">
+                                        <FormLabel className="mr-1">Content</FormLabel>
                                         <span className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full bg-muted text-muted-foreground">
                                             <FileText className="h-3 w-3" />
                                             Markdown
                                         </span>
+
+                                        {/* Formatting buttons — only in edit mode */}
+                                        {!showPreview && (
+                                            <div className="flex items-center gap-0.5 bg-muted rounded-md px-1 py-0.5 ml-1">
+                                                {([
+                                                    { icon: <Bold className="h-3.5 w-3.5" />, title: "Bold", action: () => insertMarkdown("**", "**", "bold text") },
+                                                    { icon: <Italic className="h-3.5 w-3.5" />, title: "Italic", action: () => insertMarkdown("*", "*", "italic text") },
+                                                    { icon: <Underline className="h-3.5 w-3.5" />, title: "Underline", action: () => insertMarkdown("<u>", "</u>", "underlined") },
+                                                    { icon: <Strikethrough className="h-3.5 w-3.5" />, title: "Strikethrough", action: () => insertMarkdown("~~", "~~", "strikethrough") },
+                                                    { icon: <Code className="h-3.5 w-3.5" />, title: "Inline code", action: () => insertMarkdown("`", "`", "code") },
+                                                    { icon: <Link className="h-3.5 w-3.5" />, title: "Link", action: insertLink },
+                                                    { icon: <Quote className="h-3.5 w-3.5" />, title: "Blockquote", action: () => insertMarkdown("> ", "", "quoted text") },
+                                                    { icon: <Heading2 className="h-3.5 w-3.5" />, title: "Heading", action: () => insertMarkdown("## ", "", "Heading") },
+                                                ] as { icon: React.ReactNode; title: string; action: () => void }[]).map(({ icon, title, action }) => (
+                                                    <button
+                                                        key={title}
+                                                        type="button"
+                                                        title={title}
+                                                        onClick={action}
+                                                        className="p-1 rounded hover:bg-background hover:text-foreground text-muted-foreground transition-colors"
+                                                    >
+                                                        {icon}
+                                                    </button>
+                                                ))}
+                                            </div>
+                                        )}
+
+                                        {/* Preview toggle — flush right */}
                                         <button
                                             type="button"
                                             onClick={() => setShowPreview((p) => !p)}
@@ -311,6 +389,7 @@ const BlogEditor = () => {
                                             )}
                                         </button>
                                     </div>
+
                                     <FormControl>
                                         {showPreview ? (
                                             <div
@@ -326,6 +405,10 @@ const BlogEditor = () => {
                                                 placeholder="Write your full article here using Markdown…"
                                                 className="min-h-[350px] font-mono text-sm"
                                                 {...field}
+                                                ref={(el) => {
+                                                    field.ref(el);
+                                                    (textareaRef as React.MutableRefObject<HTMLTextAreaElement | null>).current = el;
+                                                }}
                                             />
                                         )}
                                     </FormControl>
