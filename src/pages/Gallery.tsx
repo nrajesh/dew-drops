@@ -12,7 +12,7 @@ import { usePaginationNavigation } from "@/hooks/usePaginationNavigation";
 import { Button } from "@/components/ui/button";
 import { searchImagesByMetadata } from "@/utils/embeddings";
 import { useGalleryImages } from "@/hooks/useGalleryImages";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 
 const LazyImageLightbox = lazy(() =>
   import("@/components/ImageLightbox").then((module) => ({
@@ -68,10 +68,9 @@ const Gallery = () => {
   }, [allImages, activeMake, debouncedSearchTerm]);
 
   // Run filter whenever deps change
-  useMemo(() => {
+  useEffect(() => {
     applyFiltersAndSearch();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [allImages, activeMake, debouncedSearchTerm]);
+  }, [allImages, activeMake, debouncedSearchTerm, applyFiltersAndSearch]);
 
   const deviceMakes = useMemo(() => {
     const makes = allImages
