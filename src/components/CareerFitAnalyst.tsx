@@ -53,6 +53,7 @@ export const CareerFitAnalyst = () => {
   const [_user, setUser] = useState<User | null>(null);
   const [displayOverallStepIndex, setDisplayOverallStepIndex] = useState(-1); // New state for visual progress
   const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
+  const [showTimeoutWarning, setShowTimeoutWarning] = useState(false);
 
   useEffect(() => {
     const checkUser = async () => {
@@ -123,6 +124,23 @@ export const CareerFitAnalyst = () => {
       setOriginalLanguage(null);
     }
   }, [isPreProcessing, isMatching]);
+
+  // Effect for a 2-minute timeout warning specifically for URL matching
+  useEffect(() => {
+    let timeoutId: NodeJS.Timeout;
+
+    if (inputMethod === "url" && (isFetchingUrl || isPreProcessing || isMatching)) {
+      timeoutId = setTimeout(() => {
+        setShowTimeoutWarning(true);
+      }, 120000); // 120 seconds = 2 minutes
+    } else {
+      setShowTimeoutWarning(false);
+    }
+
+    return () => {
+      if (timeoutId) clearTimeout(timeoutId);
+    };
+  }, [inputMethod, isFetchingUrl, isPreProcessing, isMatching]);
 
   // Effect to advance the display index every 4 seconds
   useEffect(() => {
@@ -229,8 +247,8 @@ export const CareerFitAnalyst = () => {
     if (contextError || geminiClientError) {
       showError(
         contextError ||
-          geminiClientError ||
-          "An error occurred with the AI service or context loading.",
+        geminiClientError ||
+        "An error occurred with the AI service or context loading.",
       );
       return;
     }
@@ -276,7 +294,7 @@ export const CareerFitAnalyst = () => {
       console.error("Error in pre-analysis or career fit analysis:", err);
       showError(
         err.message ||
-          "Sorry, an error occurred during job description validation or analysis. Please check your input and try again.",
+        "Sorry, an error occurred during job description validation or analysis. Please check your input and try again.",
       );
     } finally {
       setIsPreProcessing(false);
@@ -301,6 +319,7 @@ export const CareerFitAnalyst = () => {
     setIsPreProcessing(false);
     setOriginalLanguage(null);
     setDisplayOverallStepIndex(-1); // Reset display index
+    setShowTimeoutWarning(false);
   }, [resetMatch]);
 
   const handleDownloadText = useCallback(() => {
@@ -624,6 +643,24 @@ export const CareerFitAnalyst = () => {
                 This step may take a few minutes depending on the length of your
                 job description and the number of matching criteria.
               </p>
+            )}
+            {showTimeoutWarning && (
+              <Alert variant="destructive" className="mt-4 text-left">
+                <AlertCircle className="h-4 w-4" />
+                <AlertTitle>Taking longer than expected?</AlertTitle>
+                <AlertDescription>
+                  Fetching URL content relies on Supabase Edge Functions. If this is taking longer than 2 minutes, there might be a platform issue. Please check the <a href="https://status.supabase.com" target="_blank" rel="noopener noreferrer" className="underline font-medium hover:text-foreground">Supabase Status</a> page or try switching to the <span
+                    className="underline font-medium hover:text-foreground cursor-pointer"
+                    onClick={() => {
+                      if (window.confirm("This will reload the page and cancel the current analysis. Are you sure you want to proceed?")) {
+                        window.location.reload();
+                      }
+                    }}
+                  >
+                    "Paste Description"
+                  </span> option instead.
+                </AlertDescription>
+              </Alert>
             )}
           </div>
         ) : (
