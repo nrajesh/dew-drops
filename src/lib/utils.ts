@@ -218,8 +218,14 @@ export const markdownToPlainText = (markdown: string): string => {
  * @returns The cleaned plain text.
  */
 export const cleanJobDescriptionText = (text: string): string => {
-  // 1. Strip HTML tags
+  // 1. Parse HTML into a DOM Document
   const doc = new DOMParser().parseFromString(text, "text/html");
+
+  // 1a. Remove elements that contain non-visible, noisy text (scripts, styles)
+  const elementsToRemove = doc.querySelectorAll("script, style, noscript");
+  elementsToRemove.forEach((el) => el.remove());
+
+  // 1b. Get visible text content
   let plainText = doc.body.textContent || "";
 
   // 2. Remove specific LinkedIn boilerplate text more robustly
