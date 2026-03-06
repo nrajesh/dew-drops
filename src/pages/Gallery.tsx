@@ -22,14 +22,9 @@ const LazyImageLightbox = lazy(() =>
 
 const IMAGES_PER_PAGE = 9;
 
-/** Builds a CDN URL with optional Supabase image transform query params. */
-const getImageUrl = (
-  fileName: string,
-  opts?: { width?: number; quality?: number },
-) => {
-  const { data } = supabase.storage.from("gallery").getPublicUrl(fileName, {
-    transform: opts ? { width: opts.width, quality: opts.quality } : undefined,
-  });
+/** Builds a CDN URL for the image. */
+const getImageUrl = (fileName: string) => {
+  const { data } = supabase.storage.from("gallery").getPublicUrl(fileName);
   return data.publicUrl;
 };
 
@@ -58,8 +53,8 @@ const Gallery = () => {
         const makeValue = image.exif_data?.Make;
         const makeString =
           typeof makeValue === "object" &&
-          makeValue !== null &&
-          "description" in makeValue
+            makeValue !== null &&
+            "description" in makeValue
             ? (makeValue as { description: string }).description
             : (makeValue as string | undefined);
         return activeMake === "all" || makeString === activeMake;
@@ -193,10 +188,7 @@ const Gallery = () => {
                   <CardContent className="p-0">
                     <AspectRatio ratio={4 / 3}>
                       <img
-                        src={getImageUrl(image.file_name, {
-                          width: 600,
-                          quality: 75,
-                        })}
+                        src={getImageUrl(image.file_name)}
                         alt={image.alt_text || "Gallery image"}
                         className="h-full w-full object-cover bg-background transition-transform duration-300 group-hover:scale-105"
                         loading="lazy"

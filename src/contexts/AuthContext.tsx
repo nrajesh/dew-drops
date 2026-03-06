@@ -4,7 +4,6 @@ import {
   useEffect,
   useContext,
   ReactNode,
-  useRef,
   useCallback,
 } from "react";
 import { supabase } from "@/integrations/supabase/client";
@@ -29,7 +28,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
-  const isInitialLoad = useRef(true);
 
   const fetchProfile = useCallback(async (user: User | null) => {
     if (user) {
@@ -52,11 +50,46 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   }, []);
 
   useEffect(() => {
+    let mounted = true;
+
+    const initializeAuth = async () => {
+      try {
+        const { data: { session: initialSession }, error } = await supabase.auth.getSession();
+
+        if (error) throw error;
+
+        if (initialSession && initialSession.user.email !== ALLOWED_EMAIL) {
+          await supabase.auth.signOut();
+          if (mounted) {
+            showError("You are not authorized to access this application.");
+            setSession(null);
+            setUser(null);
+            setProfile(null);
+          }
+        } else if (mounted) {
+          setSession(initialSession);
+          const authUser = initialSession?.user ?? null;
+          setUser(authUser);
+          await fetchProfile(authUser);
+        }
+      } catch (error) {
+        console.error("Auth initialization error:", error);
+      } finally {
+        if (mounted) {
+          setLoading(false);
+        }
+      }
+    };
+
+    initializeAuth();
+
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange(async (_event, session) => {
+      if (!mounted) return;
+
       if (session && session.user.email !== ALLOWED_EMAIL) {
-        supabase.auth.signOut();
+        await supabase.auth.signOut();
         showError("You are not authorized to access this application.");
         setSession(null);
         setUser(null);
@@ -67,14 +100,12 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         setUser(authUser);
         await fetchProfile(authUser);
       }
-
-      if (isInitialLoad.current) {
-        setLoading(false);
-        isInitialLoad.current = false;
-      }
     });
 
-    return () => subscription.unsubscribe();
+    return () => {
+      mounted = false;
+      subscription.unsubscribe();
+    };
   }, [fetchProfile]);
 
   const value = {

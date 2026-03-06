@@ -43,8 +43,10 @@ interface ImageManagementCardProps {
   onEdit: (image: GalleryImage) => void;
   onView: (image: GalleryImage, listType: "published" | "unpublished") => void;
   onDelete: () => void;
+  onDeleteSingle: (id: string) => void;
   onBulkPublish: (status: boolean) => void;
   onGenerateTags: () => void;
+  onGenerateTagsSingle: (id: string) => void;
   onDownload: () => void;
   onTogglePublish: (image: GalleryImage) => void;
   paginationProps: {
@@ -72,8 +74,10 @@ export const ImageManagementCard = ({
   onEdit,
   onView,
   onDelete,
+  onDeleteSingle,
   onBulkPublish,
   onGenerateTags,
+  onGenerateTagsSingle,
   onDownload,
   onTogglePublish,
   paginationProps,
@@ -94,59 +98,62 @@ export const ImageManagementCard = ({
             <CardDescription>{description}</CardDescription>
           </div>
           <div className="flex flex-wrap gap-2 self-start sm:self-center w-full sm:w-auto">
-            {selectedImages.size > 0 && (
-              <>
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button variant="outline" className="flex-1 sm:flex-none">
-                      Bulk Actions ({selectedImages.size})
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end">
-                    <DropdownMenuItem
-                      onClick={() => onBulkPublish(listType === "unpublished")}
-                    >
-                      {listType === "unpublished"
-                        ? "Publish Selected"
-                        : "Unpublish Selected"}
-                    </DropdownMenuItem>
-                    <DropdownMenuItem onClick={onGenerateTags}>
-                      Generate Tags (AI)
-                    </DropdownMenuItem>
-                    <DropdownMenuItem onClick={onDownload}>
-                      <Download className="h-4 w-4 mr-2" />
-                      Download Selected
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
-                <AlertDialog>
-                  <AlertDialogTrigger asChild>
-                    <Button
-                      variant="destructive"
-                      className="flex-1 sm:flex-none"
-                    >
-                      <Trash2 className="h-4 w-4 mr-2" />
-                      Delete ({selectedImages.size})
-                    </Button>
-                  </AlertDialogTrigger>
-                  <AlertDialogContent>
-                    <AlertDialogHeader>
-                      <AlertDialogTitle>Are you sure?</AlertDialogTitle>
-                      <AlertDialogDescription>
-                        This will permanently delete the {selectedImages.size}{" "}
-                        selected image(s). This action cannot be undone.
-                      </AlertDialogDescription>
-                    </AlertDialogHeader>
-                    <AlertDialogFooter>
-                      <AlertDialogCancel>Cancel</AlertDialogCancel>
-                      <AlertDialogAction onClick={onDelete}>
-                        Delete
-                      </AlertDialogAction>
-                    </AlertDialogFooter>
-                  </AlertDialogContent>
-                </AlertDialog>
-              </>
-            )}
+            <>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    variant="outline"
+                    className="flex-1 sm:flex-none"
+                    disabled={selectedImages.size === 0}
+                  >
+                    Bulk Actions ({selectedImages.size})
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem
+                    onClick={() => onBulkPublish(listType === "unpublished")}
+                  >
+                    {listType === "unpublished"
+                      ? "Publish Selected"
+                      : "Unpublish Selected"}
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={onGenerateTags}>
+                    Generate Tags (AI)
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={onDownload}>
+                    <Download className="h-4 w-4 mr-2" />
+                    Download Selected
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button
+                    variant="destructive"
+                    className="flex-1 sm:flex-none"
+                    disabled={selectedImages.size === 0}
+                  >
+                    <Trash2 className="h-4 w-4 mr-2" />
+                    Delete ({selectedImages.size})
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      This will permanently delete the {selectedImages.size}{" "}
+                      selected image(s). This action cannot be undone.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                    <AlertDialogAction onClick={onDelete}>
+                      Delete
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+            </>
           </div>
         </div>
         <div className="relative">
@@ -185,6 +192,20 @@ export const ImageManagementCard = ({
                   onTogglePublish={onTogglePublish}
                   onEdit={onEdit}
                   onView={(img) => onView(img, listType)}
+                  onDeleteSingle={() => {
+                    if (selectedImages.has(image.id) && selectedImages.size > 1) {
+                      onDelete();
+                    } else {
+                      onDeleteSingle(image.id);
+                    }
+                  }}
+                  onGenerateTagsSingle={() => {
+                    if (selectedImages.has(image.id) && selectedImages.size > 1) {
+                      onGenerateTags();
+                    } else {
+                      onGenerateTagsSingle(image.id);
+                    }
+                  }}
                   isBulkActionMode={selectedImages.size > 0}
                   isPublished={listType === "published"}
                 />
