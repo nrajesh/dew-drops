@@ -190,20 +190,20 @@ export const useGalleryManagement = () => {
       errorMsg: string,
       selectedIds: Set<string>,
     ) =>
-    async () => {
-      if (selectedIds.size === 0) return;
-      const toastId = showLoading(loadingMsg);
-      try {
-        await action(Array.from(selectedIds));
-        dismissToast(toastId);
-        showSuccess(successMsg);
-        reloadAllGalleryData();
-      } catch (error: unknown) {
-        const err = error as Error;
-        dismissToast(toastId);
-        showError(`${errorMsg}: ${err.message}`);
-      }
-    };
+      async () => {
+        if (selectedIds.size === 0) return;
+        const toastId = showLoading(loadingMsg);
+        try {
+          await action(Array.from(selectedIds));
+          dismissToast(toastId);
+          showSuccess(successMsg);
+          reloadAllGalleryData();
+        } catch (error: unknown) {
+          const err = error as Error;
+          dismissToast(toastId);
+          showError(`${errorMsg}: ${err.message}`);
+        }
+      };
 
   const handleBulkDelete = async (ids: string[]) => {
     const { error } = await supabase
@@ -232,11 +232,18 @@ export const useGalleryManagement = () => {
     );
     let successCount = 0;
 
-    // Run sequentially — each image shows its own result toast, and we avoid
-    // hammering the Gemini API with many concurrent requests.
-    for (const image of imagesToTag) {
-      const tags = await generateTagsForImage(image);
-      if (tags.length > 0) successCount++;
+    // Run concurrently in chunks of 5 to avoid hammering the Gemini API
+    // while still being much faster than sequential.
+    const CONCURRENCY = 5;
+    for (let i = 0; i < imagesToTag.length; i += CONCURRENCY) {
+      const chunk = imagesToTag.slice(i, i + CONCURRENCY);
+      const results = await Promise.all(
+        chunk.map(async (image) => {
+          const tags = await generateTagsForImage(image);
+          return tags.length > 0 ? 1 : 0;
+        })
+      );
+      successCount += results.reduce<number>((sum, val) => sum + val, 0);
     }
 
     dismissToast(toastId);
@@ -257,6 +264,24 @@ export const useGalleryManagement = () => {
       (img) => ids.includes(img.id),
     );
     await downloadImagesAsZip(imagesToDownload);
+  };
+
+  const handleDeleteSingle = async (id: string) => {
+    const toastId = showLoading("Deleting image...");
+    try {
+      await handleBulkDelete([id]);
+      dismissToast(toastId);
+      showSuccess("Image deleted.");
+      reloadAllGalleryData();
+    } catch (error: unknown) {
+      const err = error as Error;
+      dismissToast(toastId);
+      showError(`Delete failed: ${err.message}`);
+    }
+  };
+
+  const handleGenerateTagsSingle = async (id: string) => {
+    await handleGenerateTags([id]);
   };
 
   const handleTogglePublishStatus = async (image: GalleryImage) => {
@@ -410,6 +435,8 @@ export const useGalleryManagement = () => {
       selectedPublishedImages,
     ),
     handleTogglePublishStatus,
+    handleDeleteSingle,
+    handleGenerateTagsSingle,
     publishedSearchQuery,
     setPublishedSearchQuery,
     unpublishedImages,

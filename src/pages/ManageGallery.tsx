@@ -33,6 +33,7 @@ import { usePaginationNavigation } from "@/hooks/usePaginationNavigation";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useGalleryManagement } from "@/hooks/useGalleryManagement";
 import { generateAltTextFromFileName, normalizeTag } from "@/lib/utils";
+import { generateTagsForImage } from "@/lib/gallery-utils";
 import type { GalleryImage } from "@/types";
 import { ImageUploadCard } from "@/components/gallery/ImageUploadCard";
 import { ImageManagementCard } from "@/components/gallery/ImageManagementCard";
@@ -82,6 +83,8 @@ const ManageGallery = () => {
     handleGenerateTagsPublished,
     handleBulkDownloadPublished,
     handleTogglePublishStatus,
+    handleDeleteSingle,
+    handleGenerateTagsSingle,
     publishedSearchQuery,
     setPublishedSearchQuery,
 
@@ -186,25 +189,11 @@ const ManageGallery = () => {
     if (!editingImage) return;
     setIsGeneratingTags(true);
     try {
-      const { data: signedUrlData, error: signedUrlError } =
-        await supabase.storage
-          .from("gallery")
-          .createSignedUrl(editingImage.file_name, 60);
-      if (signedUrlError) throw signedUrlError;
-
-      const { data, error } = await supabase.functions.invoke(
-        "generate-tags-from-url",
-        {
-          body: { imageUrl: signedUrlData.signedUrl, imageId: editingImage.id },
-        },
-      );
-      if (error) throw error;
-      if (data?.error) throw new Error(data.error);
-
-      const generatedTags: string[] = data?.tags ?? [];
-      // Populate the form field so the user can review/edit before saving
-      form.setValue("tags", generatedTags.join(", "), { shouldDirty: true });
-      showSuccess(`${generatedTags.length} tags generated — review and save!`);
+      const generatedTags = await generateTagsForImage(editingImage, false);
+      if (generatedTags.length > 0) {
+        // Populate the form field so the user can review/edit before saving
+        form.setValue("tags", generatedTags.join(", "), { shouldDirty: true });
+      }
     } catch (err: unknown) {
       showError(`Tag generation failed: ${(err as Error).message}`);
     } finally {
@@ -299,8 +288,10 @@ const ManageGallery = () => {
               onEdit={setEditingImage}
               onView={openLightbox}
               onDelete={handleBulkDeletePublished}
+              onDeleteSingle={handleDeleteSingle}
               onBulkPublish={(status) => handleBulkPublishPublished(status)}
               onGenerateTags={handleGenerateTagsPublished}
+              onGenerateTagsSingle={handleGenerateTagsSingle}
               onDownload={handleBulkDownloadPublished}
               onTogglePublish={handleTogglePublishStatus}
               paginationProps={{
@@ -329,8 +320,10 @@ const ManageGallery = () => {
               onEdit={setEditingImage}
               onView={openLightbox}
               onDelete={handleBulkDeleteUnpublished}
+              onDeleteSingle={handleDeleteSingle}
               onBulkPublish={(status) => handleBulkPublishUnpublished(status)}
               onGenerateTags={handleGenerateTagsUnpublished}
+              onGenerateTagsSingle={handleGenerateTagsSingle}
               onDownload={handleBulkDownloadUnpublished}
               onTogglePublish={handleTogglePublishStatus}
               paginationProps={{

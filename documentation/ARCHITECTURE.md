@@ -132,12 +132,14 @@ sequenceDiagram
     API-->>SBC: Acknowledge entry creation
     
     alt If AI function triggered (e.g. Generate Tags)
-        Hook->>SBC: supabase.functions.invoke('generate-tags-from-url')
-        SBC->>API: Execute Edge Function
-        API->>AI: Send image to Gemini
-        AI-->>API: Return generated tags
-        API-->>SBC: Tags response
-        SBC-->>Hook: Return tags data
+        Hook->>SBC: supabase.storage.from('gallery').download(image)
+        SBC->>API: Fetch raw image Blob
+        API-->>SBC: Image Blob returned
+        Hook->>Hook: Downscale via HTML5 Canvas (max 800px)
+        Hook->>AI: Send base64 string to Gemini API directly
+        AI-->>Hook: Return generated tags
+        Hook->>SBC: supabase.from('gallery_images').update({tags})
+        SBC->>API: Execute authenticated UPDATE
     end
     
     Hook-->>UI: Update Local State
