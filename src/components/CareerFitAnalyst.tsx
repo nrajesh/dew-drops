@@ -34,13 +34,13 @@ import {
 import { analyzeAndTranslateJobDescription } from "@/utils/aiTextAnalysis";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
-import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/contexts/AuthContext";
 import { generateCareerFitPdf } from "@/utils/pdfGenerator";
-import { User } from "@supabase/supabase-js";
 
 const MIN_JOB_DESCRIPTION_LENGTH = 250;
 
 export const CareerFitAnalyst = () => {
+  const { session } = useAuth();
   const [jobDescription, setJobDescription] = useState("");
   const [jobDescriptionUrl, setJobDescriptionUrl] = useState("");
   const [isButtonEnabled, setIsButtonEnabled] = useState(false);
@@ -50,31 +50,9 @@ export const CareerFitAnalyst = () => {
   );
   const [inputMethod, setInputMethod] = useState<"text" | "url">("text");
   const [isFetchingUrl, setIsFetchingUrl] = useState(false);
-  const [_user, setUser] = useState<User | null>(null);
   const [displayOverallStepIndex, setDisplayOverallStepIndex] = useState(-1); // New state for visual progress
   const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
   const [showTimeoutWarning, setShowTimeoutWarning] = useState(false);
-
-  useEffect(() => {
-    const checkUser = async () => {
-      const {
-        data: { session },
-      } = await supabase.auth.getSession();
-      setUser(session?.user ?? null);
-    };
-
-    checkUser();
-
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
-      setUser(session?.user ?? null);
-    });
-
-    return () => {
-      subscription.unsubscribe();
-    };
-  }, []);
 
   const {
     isMatching,
@@ -129,7 +107,10 @@ export const CareerFitAnalyst = () => {
   useEffect(() => {
     let timeoutId: NodeJS.Timeout;
 
-    if (inputMethod === "url" && (isFetchingUrl || isPreProcessing || isMatching)) {
+    if (
+      inputMethod === "url" &&
+      (isFetchingUrl || isPreProcessing || isMatching)
+    ) {
       timeoutId = setTimeout(() => {
         setShowTimeoutWarning(true);
       }, 120000); // 120 seconds = 2 minutes
@@ -212,27 +193,12 @@ export const CareerFitAnalyst = () => {
 
   const fetchJobDescriptionFromUrl = useCallback(
     async (url: string): Promise<string> => {
-      try {
-        const { data, error } = await supabase.functions.invoke(
-          "fetch-url-content",
-          {
-            body: { url },
-          },
-        );
-
-        if (error) {
-          throw new Error(error.message);
-        }
-        if (!data || !data.content) {
-          throw new Error("Failed to retrieve content from the URL.");
-        }
-        return data.content;
-      } catch (error: unknown) {
-        const err = error as Error;
-        throw new Error(
-          `Error fetching job description from URL via proxy: ${err.message}`,
-        );
-      }
+      console.log(
+        `Attempting to fetch job description from URL: ${url} (Simulation)`,
+      );
+      throw new Error(
+        "URL fetching is disabled in the local preview mode. Please use the 'Paste Description' option instead.",
+      );
     },
     [],
   );
@@ -247,8 +213,8 @@ export const CareerFitAnalyst = () => {
     if (contextError || geminiClientError) {
       showError(
         contextError ||
-        geminiClientError ||
-        "An error occurred with the AI service or context loading.",
+          geminiClientError ||
+          "An error occurred with the AI service or context loading.",
       );
       return;
     }
@@ -294,7 +260,7 @@ export const CareerFitAnalyst = () => {
       console.error("Error in pre-analysis or career fit analysis:", err);
       showError(
         err.message ||
-        "Sorry, an error occurred during job description validation or analysis. Please check your input and try again.",
+          "Sorry, an error occurred during job description validation or analysis. Please check your input and try again.",
       );
     } finally {
       setIsPreProcessing(false);
@@ -649,16 +615,10 @@ export const CareerFitAnalyst = () => {
                 <AlertCircle className="h-4 w-4" />
                 <AlertTitle>Taking longer than expected?</AlertTitle>
                 <AlertDescription>
-                  Fetching URL content relies on Supabase Edge Functions. If this is taking longer than 2 minutes, there might be a platform issue. Please check the <a href="https://status.supabase.com" target="_blank" rel="noopener noreferrer" className="underline font-medium hover:text-foreground">Supabase Status</a> page or try switching to the <span
-                    className="underline font-medium hover:text-foreground cursor-pointer"
-                    onClick={() => {
-                      if (window.confirm("This will reload the page and cancel the current analysis. Are you sure you want to proceed?")) {
-                        window.location.reload();
-                      }
-                    }}
-                  >
-                    "Paste Description"
-                  </span> option instead.
+                  This process might be taking longer due to the complexity of
+                  the job description. If it takes more than 5 minutes, please
+                  try a shorter selection or refresh and use the "Paste
+                  Description" option.
                 </AlertDescription>
               </Alert>
             )}
@@ -870,7 +830,7 @@ export const CareerFitAnalyst = () => {
                   </>
                 ) : (
                   <>
-                    <FileText className="mr-2 h-4 w-4" /> Download as PDF
+                    <FileText className="mr-2 h-4 w-4" /> Print to PDF
                   </>
                 )}
               </Button>
