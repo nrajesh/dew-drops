@@ -197,7 +197,7 @@ export const CareerFitAnalyst = () => {
         `Attempting to fetch job description from URL: ${url} (Simulation)`,
       );
       throw new Error(
-        "URL fetching is disabled in the local preview mode. Please use the 'Paste Description' option instead.",
+        "URL fetching is currently disabled. Please use the 'Paste Description' option instead.",
       );
     },
     [],

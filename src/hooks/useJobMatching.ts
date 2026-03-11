@@ -65,7 +65,7 @@ export const useJobMatching = () => {
         error.message.includes("quota") ||
         error.message.includes("rate limit")
       ) {
-        return "You've exceeded your AI service quota. Please check your API key plan or try again later.";
+        return "AI service is currently unavailable. Admin needs to modify the API key or increase the quota.";
       } else if (
         error.message.includes("VITE_GEMINI_API_KEY is not set") ||
         error.message.includes("VITE_GEMINI_MODEL_NAME is not set")
