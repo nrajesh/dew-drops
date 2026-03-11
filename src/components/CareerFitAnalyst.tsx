@@ -192,36 +192,50 @@ export const CareerFitAnalyst = () => {
   const fetchJobDescriptionFromUrl = useCallback(
     async (url: string): Promise<string> => {
       console.log(
-        `Attempting to fetch job description from URL: ${url} using CORS proxy`,
+        `Attempting to fetch job description from URL: ${url} using CORS proxies`,
       );
 
-      try {
-        const proxyUrl = `https://corsproxy.io/?url=${encodeURIComponent(url)}`;
-        const response = await fetch(proxyUrl);
+      const proxies = [
+        (u: string) => `https://corsproxy.io/?url=${encodeURIComponent(u)}`,
+        (u: string) => `https://api.allorigins.win/get?url=${encodeURIComponent(u)}`,
+      ];
 
-        if (!response.ok) {
-          throw new Error(
-            `Failed to fetch URL content (Status: ${response.status})`,
-          );
-        }
+      let lastError: Error | null = null;
 
-        const html = await response.text();
-        
-        if (!html || html.trim() === "") {
-          throw new Error("URL returned empty content.");
-        }
+      for (const getProxyUrl of proxies) {
+        try {
+          const proxyUrl = getProxyUrl(url);
+          console.log(`Trying proxy: ${proxyUrl}`);
+          const response = await fetch(proxyUrl);
 
-        return html;
-      } catch (error) {
-        console.error("Error fetching URL:", error);
-        if (error instanceof Error) {
-          throw error;
+          if (!response.ok) {
+            throw new Error(`Proxy returned status: ${response.status}`);
+          }
+
+          let html: string;
+          if (proxyUrl.includes("allorigins.win")) {
+            const data = await response.json();
+            html = data.contents;
+          } else {
+            html = await response.text();
+          }
+
+          if (html && html.trim() !== "") {
+            return html;
+          }
+          throw new Error("Proxy returned empty content.");
+        } catch (error) {
+          console.warn(`Proxy failed:`, error);
+          lastError = error instanceof Error ? error : new Error(String(error));
+          // Continue to next proxy
         }
-        throw new Error("Failed to fetch content from the provided URL.");
       }
+
+      throw lastError || new Error("Failed to fetch content from the provided URL using available proxies.");
     },
     [],
   );
+
 
   const handleSubmit = useCallback(async () => {
     if (!resume) {
