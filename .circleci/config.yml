@@ -34,10 +34,4 @@ jobs:
 workflows:
   check_and_build:
     jobs:
-      - build_and_test:
-          filters:
-            branches:
-              only:
-                - main
-                - pre-prod
-                - "feature/*"
+      - build_and_test
