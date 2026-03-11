@@ -100,8 +100,7 @@ CRITICAL FORMATTING RULES FOR REASONING:
 - Each bullet point MUST be a SINGLE sentence, maximum 20 words total.
 - Lead with **Bold Title:** then one short sentence. No paragraphs. No follow-on clauses.
 - Do NOT write "My profile demonstrates..." prose — be direct and specific.
-- Bad example:  + **Leadership:** My profile demonstrates over 20 years of experience in IT services, aligning with the 15+ years requirement. This includes significant roles such as Program Lead and Project Portfolio Manager, showcasing my capability in end-to-end delivery ownership and leadership.
-- Good example: + **Leadership:** 20+ years across Program Lead, Delivery Manager, and Portfolio Manager roles directly match the seniority requirement.
+- You MUST generate at least 2 fewer gaps than the number of matching areas (e.g., if you have 6 Matching Areas, generate at most 4 Gaps).
 
 Here is the job description: ${jobDescription}
 Here is a summary of my profile (CV and chatbot knowledge): ${chatbotKnowledge}
@@ -118,8 +117,10 @@ For the "reasoning" markdown string, follow this structure strictly. Ensure each
 ...
 
 ## Gaps
-- **[Missing skill]:** [Single sentence ≤ 20 words identifying the gap and one bridging soft skill]
-- **[Another gap]:** [Single sentence ≤ 20 words]
+- **[Missing skill]:** [Single sentence identifying the gap]
+  - **Mitigation:** [Single sentence detailing specifically how this gap will be addressed or bridged with existing soft skills/tangential experience]
+- **[Another gap]:** [Single sentence identifying the gap]
+  - **Mitigation:** [Single sentence detailing mitigation]
 ...
 
 Now, generate the JSON object.

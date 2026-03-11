@@ -8,7 +8,7 @@ import {
 } from "@/components/ui/card";
 import { MapPin, Search } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
-import { supabase } from "@/integrations/supabase/client";
+import { localDataProvider } from "@/lib/LocalDataProvider";
 import type { TravelLocation } from "@/types";
 import { showError } from "@/utils/toast";
 import type { MapRef } from "@/components/Map";
@@ -33,49 +33,33 @@ const Travel = () => {
   useEffect(() => {
     const fetchLocationsAndPosts = async () => {
       setLoading(true);
-      const { data: locationsData, error: locationsError } = await supabase
-        .from("travel_locations")
-        .select("*")
-        .eq("published", true)
-        .order("created_at", { ascending: false });
+      try {
+        const locationsData = localDataProvider
+          .getTravelLocations()
+          .filter((l) => l.published)
+          .sort(
+            (a, b) =>
+              new Date(b.created_at || 0).getTime() -
+              new Date(a.created_at || 0).getTime(),
+          );
 
-      if (locationsError) {
-        showError("Could not fetch travel locations.");
-        console.error(locationsError);
-        setLoading(false);
-        return;
+        const posts = localDataProvider.getPosts();
+        const postsMap = new Map(posts.map((p) => [p.id, p.title]));
+
+        const enrichedLocations = locationsData.map((loc) => {
+          const postId = loc.blog_url?.startsWith("/blog/")
+            ? loc.blog_url.split("/").pop()
+            : null;
+          return {
+            ...loc,
+            blog_title: postId ? postsMap.get(postId) : undefined,
+          };
+        });
+        setAllLocations(enrichedLocations as TravelLocation[]);
+      } catch (err) {
+        showError("Could not fetch local travel data.");
+        console.error(err);
       }
-
-      const postIds = locationsData
-        .map((l) =>
-          l.blog_url?.startsWith("/blog/") ? l.blog_url.split("/").pop() : null,
-        )
-        .filter((id): id is string => id !== null);
-
-      if (postIds.length > 0) {
-        const { data: postsData, error: postsError } = await supabase
-          .from("posts")
-          .select("id, title")
-          .in("id", postIds);
-
-        if (postsError) {
-          console.error("Could not fetch linked blog posts:", postsError);
-          setAllLocations(locationsData as TravelLocation[]);
-        } else {
-          const postsMap = new Map(postsData.map((p) => [p.id, p.title]));
-          const enrichedLocations = locationsData.map((loc) => {
-            const postId = loc.blog_url?.split("/").pop();
-            return {
-              ...loc,
-              blog_title: postId ? postsMap.get(postId) : undefined,
-            };
-          });
-          setAllLocations(enrichedLocations as TravelLocation[]);
-        }
-      } else {
-        setAllLocations(locationsData as TravelLocation[]);
-      }
-
       setLoading(false);
     };
 

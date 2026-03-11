@@ -23,8 +23,11 @@ const isMobileDevice = (): boolean => {
  */
 export const generateCareerFitPdf = (
   htmlContent: string,
-  _filename: string,
+  filename: string, // Use the provided filename
 ): Promise<void> => {
+  // Update document title so browsers use it in the print dialog
+  const originalTitle = document.title;
+  
   // ─── Mobile path: open in new tab → print from there ───
   if (isMobileDevice()) {
     return new Promise((resolve) => {
@@ -83,36 +86,37 @@ export const generateCareerFitPdf = (
     doc.write(htmlContent);
     doc.close();
 
-    // Wait for fonts and images to load before printing
-    iframe.onload = () => {
+    let printTriggered = false;
+    const triggerPrint = () => {
+      if (printTriggered) return;
+      printTriggered = true;
       try {
+        // Temporarily change main document title so the PDF printer sees the desired filename
+        document.title = filename.replace(/\.pdf$/i, "");
         iframe.contentWindow?.focus();
         iframe.contentWindow?.print();
-        // Clean up after a brief delay to allow the print dialog to open
+        // Restore title after a delay
         setTimeout(() => {
-          document.body.removeChild(iframe);
+          document.title = originalTitle;
+          if (document.body.contains(iframe)) {
+             document.body.removeChild(iframe);
+          }
           resolve();
         }, 1000);
       } catch (err) {
-        document.body.removeChild(iframe);
+        document.title = originalTitle;
+        if (document.body.contains(iframe)) {
+          document.body.removeChild(iframe);
+        }
         reject(err);
       }
     };
 
+    // Wait for fonts and images to load before printing
+    iframe.onload = triggerPrint;
+
     // Fallback: if onload doesn't fire (some situations), trigger after a delay
-    setTimeout(() => {
-      if (document.body.contains(iframe)) {
-        try {
-          iframe.contentWindow?.focus();
-          iframe.contentWindow?.print();
-        } catch (_) {
-          /* ignore */
-        }
-        setTimeout(() => {
-          if (document.body.contains(iframe)) document.body.removeChild(iframe);
-          resolve();
-        }, 1000);
-      }
-    }, 2500);
+    setTimeout(triggerPrint, 2500);
   });
 };
+

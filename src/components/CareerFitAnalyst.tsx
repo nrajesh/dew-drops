@@ -34,13 +34,11 @@ import {
 import { analyzeAndTranslateJobDescription } from "@/utils/aiTextAnalysis";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
-import { useAuth } from "@/contexts/AuthContext";
 import { generateCareerFitPdf } from "@/utils/pdfGenerator";
 
 const MIN_JOB_DESCRIPTION_LENGTH = 250;
 
 export const CareerFitAnalyst = () => {
-  const { session } = useAuth();
   const [jobDescription, setJobDescription] = useState("");
   const [jobDescriptionUrl, setJobDescriptionUrl] = useState("");
   const [isButtonEnabled, setIsButtonEnabled] = useState(false);
@@ -194,11 +192,33 @@ export const CareerFitAnalyst = () => {
   const fetchJobDescriptionFromUrl = useCallback(
     async (url: string): Promise<string> => {
       console.log(
-        `Attempting to fetch job description from URL: ${url} (Simulation)`,
+        `Attempting to fetch job description from URL: ${url} using CORS proxy`,
       );
-      throw new Error(
-        "URL fetching is currently disabled. Please use the 'Paste Description' option instead.",
-      );
+
+      try {
+        const proxyUrl = `https://corsproxy.io/?url=${encodeURIComponent(url)}`;
+        const response = await fetch(proxyUrl);
+
+        if (!response.ok) {
+          throw new Error(
+            `Failed to fetch URL content (Status: ${response.status})`,
+          );
+        }
+
+        const html = await response.text();
+        
+        if (!html || html.trim() === "") {
+          throw new Error("URL returned empty content.");
+        }
+
+        return html;
+      } catch (error) {
+        console.error("Error fetching URL:", error);
+        if (error instanceof Error) {
+          throw error;
+        }
+        throw new Error("Failed to fetch content from the provided URL.");
+      }
     },
     [],
   );
@@ -288,20 +308,63 @@ export const CareerFitAnalyst = () => {
     setShowTimeoutWarning(false);
   }, [resetMatch]);
 
-  const handleDownloadText = useCallback(() => {
+  const handleDownloadText = useCallback(async () => {
     if (matchResult?.reasoning) {
-      // Clean the reasoning to ensure proper formatting
-      const cleanedReasoning = matchResult.reasoning
-        .replace(/\\n\+/g, "\n+") // Replace escaped \n+ with actual newline + bullet
-        .replace(/\\n/g, "\n") // Replace any remaining escaped newlines
-        .replace(/\n{3,}/g, "\n\n"); // Normalize multiple newlines
+      // Re-parse the full reasoning for the download (matching the PDF comprehensiveness)
+      const { matchingLines, gapLines } = parseReasoningSections(matchResult.reasoning, {
+        matchingMax: 10,
+        gapsMax: 10,
+      });
+      
+      const cleanedHighlights = (matchResult.highlights ?? "")
+        .replace(/\\n/g, "\n")
+        .replace(/\n{3,}/g, "\n\n");
 
-      const plainTextContent = markdownToPlainText(cleanedReasoning);
-      downloadTextFile(plainTextContent, "CareerFitAnalysis.txt");
+      const highlightLines = cleanedHighlights
+        .split("\n")
+        .filter((l) => l.trim().startsWith("-"))
+        .map((l) => l.replace(/^\s*-\s*/, "").trim())
+        .filter(Boolean);
+
+      let content = "CAREER FIT ANALYSIS REPORT\n";
+      content += `Rajesh Narayanan · ${new Date().toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" })}\n`;
+      content += `Overall Match: ${matchResult.percentage}%\n`;
+      if (inputMethod === "url") {
+        content += `Source: ${jobDescriptionUrl}\n`;
+      }
+      content += "================================\n\n";
+
+      if (highlightLines.length > 0) {
+        content += "JOB HIGHLIGHTS:\n";
+        highlightLines.forEach((line) => {
+          content += `- ${markdownToPlainText(line)}\n`;
+        });
+        content += "\n";
+      }
+
+      if (matchingLines.length > 0) {
+        content += "MATCHING AREAS:\n";
+        matchingLines.forEach((line) => {
+          content += `- ${markdownToPlainText(line)}\n`;
+        });
+        content += "\n";
+      }
+
+      if (gapLines.length > 0) {
+        content += "AREAS TO BRIDGE:\n";
+        gapLines.forEach((gapObj) => {
+          content += `- ${markdownToPlainText(gapObj.gap)}\n`;
+          if (gapObj.mitigation) {
+            content += `  Mitigation: ${markdownToPlainText(gapObj.mitigation)}\n`;
+          }
+        });
+      }
+
+      await downloadTextFile(content.trim(), "CareerFitAnalysis.txt");
     } else {
       showError("No analysis result to download.");
     }
-  }, [matchResult?.reasoning]);
+  }, [matchResult, inputMethod, jobDescriptionUrl]);
 
   const handleDownloadPdf = useCallback(async () => {
     if (!matchResult) {
@@ -324,27 +387,12 @@ export const CareerFitAnalyst = () => {
         .replace(/\n{3,}/g, "\n\n");
 
       // Split reasoning into Matching and Gaps sections
-      const lines = cleanedReasoning.split("\n");
-      const matchingItems: string[] = [];
-      const gapItems: string[] = [];
-      let inMatching = false,
-        inGaps = false;
-      for (const line of lines) {
-        if (line.startsWith("## Matching Areas")) {
-          inMatching = true;
-          inGaps = false;
-          continue;
-        }
-        if (line.startsWith("## Gaps")) {
-          inMatching = false;
-          inGaps = true;
-          continue;
-        }
-        const trimmed = line.replace(/^\s*[+-]\s*/, "").trim();
-        if (trimmed.length === 0) continue;
-        if (inMatching) matchingItems.push(trimmed);
-        else if (inGaps) gapItems.push(trimmed);
-      }
+      const parsedForPdf = parseReasoningSections(cleanedReasoning, {
+        matchingMax: 10,
+        gapsMax: 10,
+      });
+      const matchingItems = parsedForPdf.matchingLines;
+      const gapItems = parsedForPdf.gapLines;
 
       // Parse bullet highlights
       const highlightLines = cleanedHighlights
@@ -527,7 +575,14 @@ export const CareerFitAnalyst = () => {
     <h2 class="section-title">Areas to Bridge</h2>
     <p class="section-subtitle gap-subtitle">Identified gaps and how I can address them</p>
     <ul class="result-list">
-      ${gapItems.map((l) => `<li class="result-item gap"><span class="icon gap-icon">→</span><span>${renderBold(l)}</span></li>`).join("")}
+      ${gapItems.map((g) => `
+        <li class="result-item gap">
+          <span class="icon gap-icon">→</span>
+          <div style="flex: 1;">
+            <div>${renderBold(g.gap)}</div>
+            ${g.mitigation ? `<div style="font-size: 10pt; color: #4b5563; margin-top: 4px; padding-left: 8px; border-left: 2px solid #e5e7eb;">${renderBold(g.mitigation)}</div>` : ''}
+          </div>
+        </li>`).join("")}
     </ul>
   </div>
 
@@ -571,12 +626,23 @@ export const CareerFitAnalyst = () => {
         {displayError && (
           <Alert variant="destructive">
             <AlertTriangle className="h-4 w-4" />
-            <AlertTitle>Configuration Error</AlertTitle>
-            <AlertDescription>
-              {displayError} Please ensure <code>VITE_GEMINI_API_KEY</code>,{" "}
-              <code>VITE_GEMINI_MODEL_NAME</code>, and{" "}
-              <code>VITE_RESUME_URL</code> are correctly set in your environment
-              variables.
+            <AlertTitle>
+              {displayError.includes("VITE_GEMINI") ||
+              displayError.includes("set and accessible")
+                ? "Configuration Error"
+                : "Analysis Error"}
+            </AlertTitle>
+            <AlertDescription className="space-y-2">
+              <p>{displayError}</p>
+              {(displayError.includes("VITE_GEMINI") ||
+                displayError.includes("set and accessible")) && (
+                <p className="text-sm opacity-90">
+                  Please ensure <code>VITE_GEMINI_API_KEY</code>,{" "}
+                  <code>VITE_GEMINI_MODEL_NAME</code>, and{" "}
+                  <code>VITE_RESUME_URL</code> are correctly set in your
+                  environment variables.
+                </p>
+              )}
             </AlertDescription>
           </Alert>
         )}
@@ -791,21 +857,35 @@ export const CareerFitAnalyst = () => {
                     Areas to Bridge
                   </p>
                 </div>
-                <ul className="space-y-2">
-                  {parsedSections.gapLines.map((line, i) => (
+                <ul className="space-y-4">
+                  {parsedSections.gapLines.map((gapObj, i) => (
                     <li
                       key={i}
                       className="flex gap-2 text-sm text-foreground leading-snug"
                     >
                       <span className="mt-0.5 text-amber-500 shrink-0">→</span>
-                      <span
-                        dangerouslySetInnerHTML={{
-                          __html: line.replace(
-                            /\*\*(.+?)\*\*/g,
-                            "<strong>$1</strong>",
-                          ),
-                        }}
-                      />
+                      <div className="flex-1 space-y-1">
+                        <span
+                          dangerouslySetInnerHTML={{
+                            __html: gapObj.gap.replace(
+                              /\*\*(.+?)\*\*/g,
+                              "<strong>$1</strong>",
+                            ),
+                          }}
+                        />
+                        {gapObj.mitigation && (
+                          <div className="text-xs text-muted-foreground border-l-2 border-amber-200 dark:border-amber-800 pl-2 ml-1 italic">
+                            <span 
+                              dangerouslySetInnerHTML={{
+                                __html: gapObj.mitigation.replace(
+                                  /\*\*(.+?)\*\*/g,
+                                  "<strong>$1</strong>",
+                                ),
+                              }}
+                            />
+                          </div>
+                        )}
+                      </div>
                     </li>
                   ))}
                 </ul>

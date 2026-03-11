@@ -1,4 +1,4 @@
-import { supabase } from "@/integrations/supabase/client";
+import { localDataProvider } from "@/lib/LocalDataProvider";
 import type { TravelLocation, Post } from "@/types";
 import {
   showError,
@@ -9,136 +9,111 @@ import {
 
 const MAPBOX_ACCESS_TOKEN = import.meta.env.VITE_MAPBOX_ACCESS_TOKEN;
 
+/**
+ * Fetches locations from local data provider.
+ */
 export const fetchLocations = async (): Promise<TravelLocation[]> => {
-  const { data, error } = await supabase
-    .from("travel_locations")
-    .select("*")
-    .order("created_at", { ascending: false });
-  if (error) {
-    showError("Failed to fetch locations.");
+  try {
+    return localDataProvider.getTravelLocations();
+  } catch (error) {
+    showError("Failed to fetch locations (Local).");
     console.error(error);
     return [];
   }
-  return data as TravelLocation[];
 };
 
+/**
+ * Fetches blog posts from local data provider for linking.
+ */
 export const fetchBlogPosts = async (): Promise<
   Pick<Post, "id" | "title">[]
 > => {
-  const { data, error } = await supabase
-    .from("posts")
-    .select("id, title")
-    .order("published_at", { ascending: false });
-  if (error) {
-    showError("Failed to fetch blog posts for linking.");
+  try {
+    const posts = localDataProvider.getPosts();
+    return posts.map((p) => ({ id: p.id, title: p.title }));
+  } catch (error) {
+    showError("Failed to fetch blog posts for linking (Local).");
     return [];
   }
-  return data as Pick<Post, "id" | "title">[];
 };
 
+/**
+ * Geocodes a location name using Mapbox.
+ */
 export const geocodeLocation = async (
   locationName: string,
 ): Promise<{ latitude: number; longitude: number }> => {
   if (!MAPBOX_ACCESS_TOKEN) {
-    throw new Error(
-      "Mapbox access token is not configured. Please set VITE_MAPBOX_ACCESS_TOKEN in your .env file.",
-    );
+    // Return mock coordinates if Mapbox is not configured
+    console.warn("Mapbox token missing; returning mock coordinates.");
+    return { latitude: 0, longitude: 0 };
   }
-  const response = await fetch(
-    `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(
-      locationName,
-    )}.json?access_token=${MAPBOX_ACCESS_TOKEN}&limit=1`,
-  );
-  const data = await response.json();
-  if (data.features && data.features.length > 0) {
-    const [longitude, latitude] = data.features[0].center;
-    return { latitude, longitude };
-  } else {
-    throw new Error(
-      `Could not find coordinates for "${locationName}". Please provide them manually or check the spelling.`,
+
+  try {
+    const response = await fetch(
+      `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(
+        locationName,
+      )}.json?access_token=${MAPBOX_ACCESS_TOKEN}&limit=1`,
     );
+    const data = await response.json();
+    if (data.features && data.features.length > 0) {
+      const [longitude, latitude] = data.features[0].center;
+      return { latitude, longitude };
+    } else {
+      throw new Error(`Could not find coordinates for "${locationName}".`);
+    }
+  } catch (error) {
+    console.error("Geocoding error:", error);
+    return { latitude: 0, longitude: 0 };
   }
 };
 
+/**
+ * Simulates processing uploads and insertions.
+ */
 export const processUploads = async (
   userId: string,
   inserts: Partial<TravelLocation>[],
   updates: { existingId: string; newData: Partial<TravelLocation> }[],
 ): Promise<boolean> => {
-  const toastId = showLoading(`Processing import...`);
+  const toastId = showLoading(`Processing import (Simulation)...`);
+  await new Promise((resolve) => setTimeout(resolve, 1000));
+
   try {
-    const insertPromises = [];
-    if (inserts.length > 0) {
-      const insertsWithUserId = inserts.map((item) => ({
-        ...item,
-        user_id: userId,
-      }));
-      insertPromises.push(
-        supabase.from("travel_locations").insert(insertsWithUserId),
-      );
-    }
-
-    const updatePromises = updates.map((u) =>
-      supabase
-        .from("travel_locations")
-        .update({ ...u.newData, user_id: userId })
-        .eq("id", u.existingId),
-    );
-
-    const results = await Promise.all([...insertPromises, ...updatePromises]);
-
-    for (const result of results) {
-      if (result.error) throw new Error(result.error.message);
-    }
+    console.log("Simulating travel processing for user:", userId);
+    console.log("Inserts:", inserts);
+    console.log("Updates:", updates);
 
     updateToastSuccess(
       toastId,
-      `${inserts.length} new locations added, ${updates.length} locations updated.`,
+      `${inserts.length} locations added, ${updates.length} updated (Simulated).`,
     );
     return true;
   } catch (error: unknown) {
     const err = error as Error;
-    updateToastError(toastId, `Import failed: ${err.message}`);
+    updateToastError(toastId, `Simulation failed: ${err.message}`);
     return false;
   }
 };
 
+/**
+ * Simulates bulk deletion.
+ */
 export const handleBulkDelete = async (
   locationIds: string[],
-  allLocations: TravelLocation[],
+  _allLocations: TravelLocation[],
 ): Promise<boolean> => {
-  const toastId = showLoading(`Deleting ${locationIds.length} locations...`);
+  const toastId = showLoading(
+    `Deleting ${locationIds.length} locations (Simulation)...`,
+  );
+  await new Promise((resolve) => setTimeout(resolve, 800));
+
   try {
-    const locationsToDelete = allLocations.filter((loc) =>
-      locationIds.includes(loc.id),
+    console.log("Simulating deletion of IDs:", locationIds);
+    updateToastSuccess(
+      toastId,
+      `${locationIds.length} locations removed (Simulated).`,
     );
-    const imageFilesToDelete = locationsToDelete
-      .map((loc) => loc.marker_image_url)
-      .filter((url): url is string => !!url)
-      .map((url) => url.substring(url.lastIndexOf("/") + 1));
-
-    if (imageFilesToDelete.length > 0) {
-      const { error: storageError } = await supabase.storage
-        .from("mapmarkers")
-        .remove(imageFilesToDelete);
-      if (storageError) {
-        console.error(
-          "Could not delete some images from storage:",
-          storageError,
-        );
-        showError(
-          "Could not delete some marker images, but proceeding with location deletion.",
-        );
-      }
-    }
-
-    const { error } = await supabase
-      .from("travel_locations")
-      .delete()
-      .in("id", locationIds);
-    if (error) throw error;
-
-    updateToastSuccess(toastId, `${locationIds.length} locations removed.`);
     return true;
   } catch (error: unknown) {
     const err = error as Error;
@@ -147,24 +122,26 @@ export const handleBulkDelete = async (
   }
 };
 
+/**
+ * Simulates bulk status update.
+ */
 export const handleBulkPublish = async (
   locationIds: Set<string>,
   publishStatus: boolean,
 ): Promise<boolean> => {
   const toastId = showLoading(
-    `${publishStatus ? "Publishing" : "Unpublishing"} ${locationIds.size} location(s)...`,
+    `${publishStatus ? "Publishing" : "Unpublishing"} ${locationIds.size} location(s) (Simulation)...`,
   );
+  await new Promise((resolve) => setTimeout(resolve, 600));
+
   try {
-    const { error } = await supabase
-      .from("travel_locations")
-      .update({ published: publishStatus })
-      .in("id", Array.from(locationIds));
-
-    if (error) throw error;
-
+    console.log(
+      `Simulating status update to ${publishStatus} for:`,
+      Array.from(locationIds),
+    );
     updateToastSuccess(
       toastId,
-      `${locationIds.size} location(s) ${publishStatus ? "published" : "unpublished"} successfully.`,
+      `${locationIds.size} location(s) updated (Simulated).`,
     );
     return true;
   } catch (error: unknown) {
@@ -174,6 +151,9 @@ export const handleBulkPublish = async (
   }
 };
 
+/**
+ * Downloads a CSV of selected locations.
+ */
 export const handleBulkDownload = async (
   locationIds: Set<string>,
   allLocations: TravelLocation[],

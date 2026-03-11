@@ -1,146 +1,138 @@
-import { supabase } from "@/integrations/supabase/client";
 import type { GalleryImage } from "@/types";
-import { showSuccess, showError } from "@/utils/toast";
+import { analyzeImage } from "@/integrations/gemini/client";
+import { showError } from "@/utils/toast";
 import JSZip from "jszip";
 import { saveAs } from "file-saver";
-import { getGeminiModel } from "@/integrations/gemini/client";
-
 
 /**
- * Strips user-id prefix + timestamp from the stored file path to produce a
- * short, human-readable name like "IMG_2807.jpg".
+ * Generates a low-resolution base64 version of an image for faster AI processing.
  */
-const friendlyName = (fileName: string) =>
-  fileName.split("/").pop()?.split("_").slice(2).join("_") ||
-  fileName.split("/").pop() ||
-  fileName;
+const generateLowResVersion = async (
+  imageUrl: string,
+  maxWidth = 512,
+): Promise<string> => {
+  // Ensure absolute URL if it's a relative path
+  const fullUrl = imageUrl.startsWith("/")
+    ? window.location.origin + imageUrl
+    : imageUrl;
 
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    // Use anonymous crossOrigin only for external URLs to avoid CORS issues on local ones
+    if (fullUrl.startsWith("http") && !fullUrl.includes(window.location.host)) {
+      img.crossOrigin = "anonymous";
+    }
+
+    img.onload = () => {
+      try {
+        const canvas = document.createElement("canvas");
+        const ratio = img.width / img.height;
+        canvas.width = Math.min(maxWidth, img.width);
+        canvas.height = canvas.width / ratio;
+
+        const ctx = canvas.getContext("2d");
+        if (!ctx) {
+          reject(new Error("Failed to get canvas context"));
+          return;
+        }
+        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+        resolve(canvas.toDataURL("image/jpeg", 0.7));
+      } catch (err) {
+        reject(err);
+      }
+    };
+    img.onerror = () => reject(new Error(`Failed to load image: ${fullUrl}`));
+    img.src = fullUrl;
+  });
+};
+
+/**
+ * Generates tags for an image using Gemini.
+ * Uses a low-res version to simulate optimized transmission.
+ */
 export const generateTagsForImage = async (
   image: GalleryImage,
-  saveToDb: boolean = true
 ): Promise<string[]> => {
-  const name = friendlyName(image.file_name);
   try {
-    const currentModel = getGeminiModel();
+    const imageUrl = image.image_url || `/uploads/${image.file_name}`;
+    console.log("Optimizing image for AI identification:", image.file_name);
 
-    // Download the raw image
-    const { data: blob, error: downloadError } = await supabase.storage
-      .from("gallery")
-      .download(image.file_name);
-
-    if (downloadError) throw downloadError;
-    if (!blob) throw new Error("Failed to download image data.");
-
-    // Downscale the image using an HTML Canvas to prevent massive Base64
-    // strings from crashing the browser tab or hitting Gemini API limits.
-    const base64Data = await new Promise<string>((resolve, reject) => {
-      const img = new Image();
-      const objectUrl = URL.createObjectURL(blob);
-      img.onload = () => {
-        URL.revokeObjectURL(objectUrl);
-        const canvas = document.createElement("canvas");
-        let { width, height } = img;
-        const maxSize = 800; // Procure low-resolution photo
-
-        if (width > height) {
-          if (width > maxSize) {
-            height = Math.round((height * maxSize) / width);
-            width = maxSize;
-          }
-        } else {
-          if (height > maxSize) {
-            width = Math.round((width * maxSize) / height);
-            height = maxSize;
-          }
+    let lowResData: string;
+    try {
+      lowResData = await generateLowResVersion(imageUrl);
+    } catch (err: unknown) {
+      if (err instanceof Error) {
+        console.warn("Low-res optimization failed:", err.message);
+      }
+      // Fallback: try to fetch and convert to base64 directly if canvas/loading failed
+      try {
+        console.log("Attempting direct base64 conversion fallback...");
+        const fullUrl = imageUrl.startsWith("/")
+          ? window.location.origin + imageUrl
+          : imageUrl;
+        const response = await fetch(fullUrl);
+        const blob = await response.blob();
+        lowResData = await new Promise((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onloadend = () => resolve(reader.result as string);
+          reader.onerror = reject;
+          reader.readAsDataURL(blob);
+        });
+      } catch (fallbackErr: unknown) {
+        if (fallbackErr instanceof Error) {
+          console.error("All fallback attempts failed:", fallbackErr.message);
         }
-
-        canvas.width = width;
-        canvas.height = height;
-        const ctx = canvas.getContext("2d");
-        if (!ctx) return reject(new Error("No 2d context"));
-        ctx.drawImage(img, 0, 0, width, height);
-
-        // Export as heavily compressed JPEG
-        const dataUrl = canvas.toDataURL("image/jpeg", 0.7);
-        resolve(dataUrl.split(",")[1]);
-      };
-      img.onerror = () => {
-        URL.revokeObjectURL(objectUrl);
-        reject(new Error("Failed to process image blob"));
-      };
-      img.src = objectUrl;
-    });
-
-    const prompt =
-      "Analyze this image and provide a comma-separated list of 5-10 relevant keywords for search purposes. Only return the keywords, nothing else. Example: 'nature, mountain, lake, sunset, landscape'";
-
-    const imagePart = {
-      inlineData: {
-        data: base64Data,
-        mimeType: "image/jpeg",
-      },
-    };
-
-    const result = await currentModel.generateContent([prompt, imagePart]);
-    const response = await result.response;
-    const text = response.text();
-
-    const normalizeTag = (tag: string) => tag.normalize("NFC").trim();
-    const tags: string[] = text
-      .split(",")
-      .map((tag) => normalizeTag(tag.toLowerCase()))
-      .filter(Boolean);
-
-    // Optionally update the database record
-    if (saveToDb) {
-      const { error: updateError } = await supabase
-        .from("gallery_images")
-        .update({ tags })
-        .eq("id", image.id);
-
-      if (updateError) {
-        throw new Error(`Failed to update tags in DB: ${updateError.message}`);
+        throw new Error("Could not process image for AI analysis");
       }
     }
 
-    if (tags.length > 0) {
-      showSuccess(
-        `✅ ${name} — ${tags.length} tags: ${tags.slice(0, 5).join(", ")}${tags.length > 5 ? ` +${tags.length - 5} more` : ""}`,
-      );
-    } else {
-      showSuccess(`✅ ${name} — no tags returned`);
-    }
+    console.log(
+      `Sending optimized payload (${lowResData.length} chars) to AI service...`,
+    );
 
+    const tags = await analyzeImage(
+      lowResData,
+      "Generate 5-10 specific tags for this image (e.g., location, subjects, mood). Return as a comma-separated list. No preamble.",
+    );
+
+    console.log("AI Generated tags:", tags);
+    if (!tags || tags.length === 0) {
+      throw new Error("AI service returned no tags");
+    }
     return tags;
   } catch (error: unknown) {
-    const err = error as Error;
-    showError(`❌ ${name}: ${err.message}`);
-    return [];
+    if (error instanceof Error) {
+      console.error("Tag generation error:", error);
+    }
+    throw error;
   }
 };
 
-export const downloadImagesAsZip = async (images: GalleryImage[]) => {
+/**
+ * Downloads a list of images as a ZIP file.
+ */
+export const downloadImagesAsZip = async (
+  images: GalleryImage[],
+): Promise<void> => {
+  if (images.length === 0) return;
+
   const zip = new JSZip();
+  const folder = zip.folder("images");
 
-  const imagePromises = images.map(async (image) => {
-    if (image.image_url) {
-      try {
-        const response = await fetch(image.image_url);
-        if (!response.ok) {
-          console.error(`Failed to fetch image: ${image.file_name}`);
-          return;
-        }
-        const blob = await response.blob();
-        zip.file(image.file_name, blob);
-      } catch (error) {
-        console.error(`Error downloading image ${image.file_name}:`, error);
-      }
-    }
-  });
+  try {
+    const downloadPromises = images.map(async (image) => {
+      const imageUrl = image.image_url || `/uploads/${image.file_name}`;
+      const response = await fetch(imageUrl);
+      if (!response.ok) throw new Error(`Failed to fetch ${image.file_name}`);
+      const blob = await response.blob();
+      folder?.file(image.file_name, blob);
+    });
 
-  await Promise.all(imagePromises);
-
-  zip.generateAsync({ type: "blob" }).then((content) => {
-    saveAs(content, "gallery-images.zip");
-  });
+    await Promise.all(downloadPromises);
+    const content = await zip.generateAsync({ type: "blob" });
+    saveAs(content, "gallery_images.zip");
+  } catch (error: unknown) {
+    const err = error as Error;
+    showError(`Failed to download images: ${err.message} `);
+  }
 };

@@ -4,7 +4,6 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Button } from "@/components/ui/button";
 import { Edit, Image as ImageIcon, Eye, Trash2, Wand2 } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
-import { supabase } from "@/integrations/supabase/client";
 import {
   ContextMenu,
   ContextMenuContent,
@@ -57,17 +56,8 @@ export const ImageListItem = ({
   const [showDeleteAlert, setShowDeleteAlert] = useState(false);
   const label = readableLabel(image.file_name);
 
-  const thumbnailUrl = (() => {
-    if (image.image_url) return image.image_url;
-    try {
-      const { data } = supabase.storage
-        .from("gallery")
-        .getPublicUrl(image.file_name);
-      return data.publicUrl;
-    } catch {
-      return null;
-    }
-  })();
+  // Use local URL or fallback for local version
+  const thumbnailUrl = image.image_url || "/placeholder.svg";
 
   return (
     <>
@@ -75,7 +65,6 @@ export const ImageListItem = ({
         <ContextMenuTrigger asChild>
           <div className="flex items-center justify-between p-2 rounded-lg border gap-3 min-h-[80px]">
             <div className="flex items-center gap-3 flex-grow min-w-0">
-              {/* Checkbox — only ever selects, never opens lightbox */}
               <Checkbox
                 id={`select-${image.id}`}
                 checked={isSelected}
@@ -84,7 +73,6 @@ export const ImageListItem = ({
                 className="shrink-0"
               />
 
-              {/* Thumbnail — clicking always opens the lightbox */}
               <div
                 className="shrink-0 h-16 w-24 rounded overflow-hidden bg-muted flex items-center justify-center cursor-pointer"
                 onClick={() => onView(image)}
@@ -102,9 +90,7 @@ export const ImageListItem = ({
                 )}
               </div>
 
-              {/* Text column — NOT clickable; use the Eye button to open lightbox */}
               <div className="flex flex-col min-w-0">
-                {/* No htmlFor — clicking the label no longer triggers the checkbox */}
                 <span className="font-medium text-sm truncate leading-snug">
                   {label}
                 </span>
@@ -180,7 +166,10 @@ export const ImageListItem = ({
             {isPublished ? "Unpublish" : "Publish"}
           </ContextMenuItem>
           <ContextMenuSeparator />
-          <ContextMenuItem onSelect={() => setShowDeleteAlert(true)} className="text-destructive focus:text-destructive">
+          <ContextMenuItem
+            onSelect={() => setShowDeleteAlert(true)}
+            className="text-destructive focus:text-destructive"
+          >
             <Trash2 className="mr-2 h-4 w-4" />
             Delete Image
           </ContextMenuItem>
@@ -192,15 +181,18 @@ export const ImageListItem = ({
           <AlertDialogHeader>
             <AlertDialogTitle>Are you sure?</AlertDialogTitle>
             <AlertDialogDescription>
-              This will permanently delete "{label}". This action cannot be undone.
+              This will permanently delete "{label}". This action cannot be
+              undone (Simulation).
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={() => {
-              onDeleteSingle();
-              setShowDeleteAlert(false);
-            }}>
+            <AlertDialogAction
+              onClick={() => {
+                onDeleteSingle();
+                setShowDeleteAlert(false);
+              }}
+            >
               Delete
             </AlertDialogAction>
           </AlertDialogFooter>

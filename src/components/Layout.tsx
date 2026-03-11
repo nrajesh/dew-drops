@@ -27,7 +27,6 @@ import {
   settingsNavItems,
 } from "@/config/navigation";
 import { useAuth } from "@/contexts/AuthContext";
-import { supabase } from "@/integrations/supabase/client";
 import { showError, showSuccess } from "@/utils/toast";
 import { useFeatureToggles } from "@/contexts/FeatureToggleContext";
 import {
@@ -157,23 +156,22 @@ const MemoizedNavContent = React.memo(NavContent);
 
 const Layout = () => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const { session, profile } = useAuth();
+  const { session, profile, signOut } = useAuth();
   const [isAddBlogDialogOpen, setIsAddBlogDialogOpen] = useState(false);
   const [isChatOpen, setIsChatOpen] = useState(false);
   const navigate = useNavigate();
   const { toggles } = useFeatureToggles();
 
   const handleLogout = useCallback(async () => {
-    const { error } = await supabase.auth.signOut();
-
-    if (error && error.name !== "AuthSessionMissingError") {
-      showError("Logout failed. Please try again.");
-      console.error("Logout error:", error);
-    } else {
+    try {
+      await signOut();
       showSuccess("You have been logged out.");
       window.location.href = "/";
+    } catch (error) {
+      showError("Logout failed. Please try again.");
+      console.error("Logout error:", error);
     }
-  }, []);
+  }, [signOut]);
 
   const handleFormSubmit = useCallback(
     (values: PostFormData) => {

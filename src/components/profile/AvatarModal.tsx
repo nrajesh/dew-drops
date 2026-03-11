@@ -13,7 +13,6 @@ import { Input } from "@/components/ui/input";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Loader2, Upload, Link as LinkIcon, XCircle } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
 import { showSuccess, showError } from "@/utils/toast";
 import { useAuth } from "@/contexts/AuthContext";
 import { UseFormReturn } from "react-hook-form";
@@ -43,14 +42,13 @@ export const AvatarModal: React.FC<AvatarModalProps> = ({
   onOpenChange,
   form,
 }) => {
-  const { user, profile, fetchProfile } = useAuth();
+  const { session } = useAuth();
   const [isSavingAvatar, setIsSavingAvatar] = React.useState(false);
   const [avatarOption, setAvatarOption] = React.useState<"url" | "upload">(
     "url",
   );
   const [selectedFile, setSelectedFile] = React.useState<File | null>(null);
   const [filePreview, setFilePreview] = React.useState<string | null>(null);
-  const currentAvatarUrl = profile?.avatar_url || null;
 
   React.useEffect(() => {
     if (isOpen) {
@@ -59,55 +57,6 @@ export const AvatarModal: React.FC<AvatarModalProps> = ({
       setFilePreview(null);
     }
   }, [isOpen, form]);
-
-  const uploadAvatar = React.useCallback(async (file: File, userId: string) => {
-    const fileExt = file.name.split(".").pop();
-    const fileName = `${userId}/${Date.now()}.${fileExt}`;
-    const filePath = fileName;
-
-    const { error: uploadError } = await supabase.storage
-      .from("avatars")
-      .upload(filePath, file, {
-        cacheControl: "3600",
-        upsert: false,
-      });
-
-    if (uploadError) {
-      throw uploadError;
-    }
-
-    const { data: publicUrlData } = supabase.storage
-      .from("avatars")
-      .getPublicUrl(filePath);
-
-    return publicUrlData.publicUrl;
-  }, []);
-
-  const deleteOldAvatar = React.useCallback(
-    async (oldAvatarUrl: string, userId: string) => {
-      if (!oldAvatarUrl || oldAvatarUrl.includes("/placeholder.svg")) return;
-
-      try {
-        const urlParts = oldAvatarUrl.split("/");
-        const bucketName = urlParts[urlParts.indexOf("storage") + 1];
-        const pathSegments = urlParts.slice(urlParts.indexOf(bucketName) + 1);
-        const filePath = pathSegments.join("/");
-
-        if (filePath.startsWith(`${userId}/`)) {
-          const { error: deleteError } = await supabase.storage
-            .from(bucketName)
-            .remove([filePath]);
-
-          if (deleteError) {
-            console.error("Error deleting old avatar:", deleteError.message);
-          }
-        }
-      } catch (error) {
-        console.error("Error parsing old avatar URL for deletion:", error);
-      }
-    },
-    [],
-  );
 
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -122,58 +71,33 @@ export const AvatarModal: React.FC<AvatarModalProps> = ({
 
   const handleSaveAvatar = async () => {
     setIsSavingAvatar(true);
-    if (!user) {
+    if (!session) {
       showError("User not logged in.");
       setIsSavingAvatar(false);
       return;
     }
 
-    let newAvatarUrl = form.getValues("avatar_url");
-
     try {
+      // Simulation: saving avatar
+      await new Promise((resolve) => setTimeout(resolve, 1000));
+
+      let newAvatarUrl = form.getValues("avatar_url");
       if (avatarOption === "upload" && selectedFile) {
-        if (
-          currentAvatarUrl &&
-          !currentAvatarUrl.includes("/placeholder.svg") &&
-          currentAvatarUrl.includes(user.id)
-        ) {
-          await deleteOldAvatar(currentAvatarUrl, user.id);
-        }
-        newAvatarUrl = await uploadAvatar(selectedFile, user.id);
-      } else if (avatarOption === "url" && newAvatarUrl !== currentAvatarUrl) {
-        if (
-          currentAvatarUrl &&
-          !currentAvatarUrl.includes("/placeholder.svg") &&
-          currentAvatarUrl.includes(user.id)
-        ) {
-          await deleteOldAvatar(currentAvatarUrl, user.id);
-        }
-      } else if (
-        avatarOption === "url" &&
-        !newAvatarUrl &&
-        currentAvatarUrl &&
-        !currentAvatarUrl.includes("/placeholder.svg") &&
-        currentAvatarUrl.includes(user.id)
-      ) {
-        await deleteOldAvatar(currentAvatarUrl, user.id);
+        newAvatarUrl = filePreview || "";
       }
 
-      const { error: updateProfileError } = await supabase
-        .from("profiles")
-        .update({
-          avatar_url: newAvatarUrl || null,
-          updated_at: new Date().toISOString(),
-        })
-        .eq("id", user.id);
-
-      if (updateProfileError) {
-        throw updateProfileError;
-      }
+      console.log(
+        "Simulated avatar save for:",
+        session.user.email,
+        "New URL:",
+        newAvatarUrl,
+      );
 
       form.setValue("avatar_url", newAvatarUrl || "");
       onOpenChange(false);
-      showSuccess("Avatar updated successfully!");
-      fetchProfile();
+      showSuccess(
+        "Avatar updated successfully (Simulation: local preview mode)!",
+      );
     } catch (error: unknown) {
       const err = error as Error;
       showError(`Failed to update avatar: ${err.message}`);

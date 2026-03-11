@@ -1,469 +1,222 @@
-import { useState, useEffect, useCallback } from "react";
-import { supabase } from "@/integrations/supabase/client";
-import type { TravelLocation, Post } from "@/types";
-import {
-  showSuccess,
-  showError,
-  showLoading,
-  dismissToast,
-} from "@/utils/toast";
+import { useState, useCallback, useMemo, useEffect } from "react";
+// import { localDataProvider } from "@/lib/LocalDataProvider";
+import { showSuccess, showError, showLoading } from "@/utils/toast";
+import { TravelLocation, Post } from "@/types";
 import { useAuth } from "@/contexts/AuthContext";
-import { usePaginationNavigation } from "@/hooks/usePaginationNavigation";
-import { parseCsv } from "@/utils/csv.ts";
-import { sanitizeFileName } from "@/lib/utils";
+import { usePagination } from "./usePagination";
 import {
   fetchLocations,
   fetchBlogPosts,
-  geocodeLocation,
   processUploads,
   handleBulkDelete,
   handleBulkPublish,
   handleBulkDownload,
-} from "@/components/travel/TravelManagementUtils.ts";
-import { LocationFormData } from "@/components/travel/TravelLocationForm.tsx";
-import { useManagement } from "./useManagement";
-
-type LocationUpdateItem = {
-  existingId: string;
-  existingTitle: string;
-  newData: Partial<TravelLocation>;
-};
-
-const travelFilterFn = (loc: TravelLocation, searchTerm: string): boolean => {
-  const lowercasedTerm = searchTerm.toLowerCase();
-  return (
-    loc.title.toLowerCase().includes(lowercasedTerm) ||
-    loc.name.toLowerCase().includes(lowercasedTerm) ||
-    !!(
-      loc.description && loc.description.toLowerCase().includes(lowercasedTerm)
-    )
-  );
-};
+} from "@/components/travel/TravelManagementUtils";
 
 export const useTravelManagement = (
-  containerRef: React.RefObject<HTMLDivElement>,
+  containerRef?: React.RefObject<HTMLDivElement>,
 ) => {
-  const { user } = useAuth();
+  const { session } = useAuth();
+  const user = session?.user;
+  const [locations, setLocations] = useState<TravelLocation[]>([]);
   const [blogPosts, setBlogPosts] = useState<Pick<Post, "id" | "title">[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
   const [editingLocation, setEditingLocation] = useState<TravelLocation | null>(
     null,
   );
   const [editingImageUrl, setEditingImageUrl] = useState<string | null>(null);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [itemsPerPage, setItemsPerPage] = useState(10);
+  const [selectedLocations, setSelectedLocations] = useState<Set<string>>(
+    new Set(),
+  );
+
+  // Bulk upload states
   const [uploadFile, setUploadFile] = useState<File | null>(null);
   const [isUploading, setIsUploading] = useState(false);
-
   const [isUpdateDialogVisible, setIsUpdateDialogVisible] = useState(false);
   const [locationsToInsert, setLocationsToInsert] = useState<
     Partial<TravelLocation>[]
   >([]);
   const [locationsToUpdate, setLocationsToUpdate] = useState<
-    LocationUpdateItem[]
+    {
+      existingId: string;
+      existingTitle: string;
+      newData: Partial<TravelLocation>;
+    }[]
   >([]);
   const [selectedUpdates, setSelectedUpdates] = useState<Set<string>>(
     new Set(),
   );
 
-  const {
-    allItems: locations,
-    paginatedItems: paginatedLocations,
-    isLoading,
-    selectedItems,
-    setSelectedItems,
-    currentPage,
-    totalPages,
-    itemsPerPage: locationsPerPage,
-    totalItems,
-    loadItems: loadLocations,
-    handlePageChange: setCurrentPage,
-    handleItemsPerPageChange,
-    handleSelectItem: handleSelectLocation,
-    handleSelectAllOnPage: handleSelectAll,
-    handleBulkDelete: genericHandleBulkDelete,
-    handleBulkStatusChange: genericHandleBulkPublish,
-    handleBulkDownload: genericHandleBulkDownload,
-    handleToggleStatus: handleTogglePublish,
-    allOnPageSelected,
-    searchTerm,
-    setSearchTerm,
-  } = useManagement<TravelLocation>({
-    fetchData: fetchLocations,
-    deleteItems: handleBulkDelete,
-    updateItemStatus: handleBulkPublish,
-    downloadItems: (ids, allItems) =>
-      handleBulkDownload(ids, allItems, blogPosts),
-    idKey: "id",
-    statusKey: "published",
-    filterFn: travelFilterFn,
-  });
+  const loadData = useCallback(async () => {
+    setIsLoading(true);
+    try {
+      const [locs, posts] = await Promise.all([
+        fetchLocations(),
+        fetchBlogPosts(),
+      ]);
+      setLocations(locs);
+      setBlogPosts(posts);
+    } catch (err) {
+      showError("Failed to load travel data");
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
 
   useEffect(() => {
-    const fetchInitialBlogPosts = async () => {
-      const fetchedBlogPosts = await fetchBlogPosts();
-      setBlogPosts(fetchedBlogPosts);
-    };
-    fetchInitialBlogPosts();
-  }, []);
+    loadData();
+  }, [loadData]);
 
-  usePaginationNavigation({
-    currentPage,
-    totalPages,
-    onPageChange: setCurrentPage,
-    targetRef: containerRef,
-    enabled: !isUpdateDialogVisible,
-  });
-
-  const cancelEdit = useCallback(() => {
-    setEditingLocation(null);
-    setEditingImageUrl(null);
-  }, []);
-
-  const onSubmit = useCallback(
-    async (values: LocationFormData) => {
-      if (!user) {
-        showError("You must be logged in to add or update locations.");
-        return;
-      }
-      const toastId = showLoading(
-        editingLocation ? "Updating location..." : "Adding new location...",
+  const filteredLocations = useMemo(() => {
+    const lowerSearch = searchTerm.toLowerCase();
+    return locations.filter((loc) => {
+      return (
+        loc.name.toLowerCase().includes(lowerSearch) ||
+        (loc.title && loc.title.toLowerCase().includes(lowerSearch)) ||
+        (loc.description && loc.description.toLowerCase().includes(lowerSearch))
       );
+    });
+  }, [locations, searchTerm]);
 
-      try {
-        let { latitude: currentLatitude, longitude: currentLongitude } = values;
+  const {
+    currentPage,
+    setCurrentPage,
+    totalPages,
+    paginatedItems: paginatedLocations,
+  } = usePagination(filteredLocations, itemsPerPage);
 
-        if (
-          (currentLatitude === undefined || currentLongitude === undefined) &&
-          values.name
-        ) {
-          const { latitude, longitude } = await geocodeLocation(values.name);
-          currentLatitude = latitude;
-          currentLongitude = longitude;
-        }
+  const totalItems = filteredLocations.length;
+  const allOnPageSelected =
+    paginatedLocations.length > 0 &&
+    paginatedLocations.every((p) => selectedLocations.has(p.id));
 
-        if (currentLatitude === undefined || currentLongitude === undefined) {
-          throw new Error(
-            "Coordinates are required. Could not automatically find them for the given place name.",
-          );
-        }
+  const handleSelectLocation = (id: string) => {
+    setSelectedLocations((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
 
-        if (!editingLocation) {
-          const isDuplicate = locations.some(
-            (loc) =>
-              loc.name.toLowerCase() === values.name.toLowerCase() ||
-              (loc.latitude === currentLatitude &&
-                loc.longitude === currentLongitude),
-          );
-          if (isDuplicate) {
-            throw new Error(
-              "A location with the same name or coordinates already exists.",
-            );
-          }
-        }
+  const handleSelectAll = (checked: boolean) => {
+    const newSelection = new Set(selectedLocations);
+    paginatedLocations.forEach((loc) => {
+      if (checked) newSelection.add(loc.id);
+      else newSelection.delete(loc.id);
+    });
+    setSelectedLocations(newSelection);
+  };
 
-        const existingLocation = locations.find(
-          (l) => l.id === editingLocation?.id,
-        );
-        let imageUrl = existingLocation?.marker_image_url || null;
-
-        if (values.image && values.image.length > 0) {
-          const file = values.image[0];
-          const sanitizedName = sanitizeFileName(file.name);
-          const fileName = `${user.id}/${Date.now()}_${sanitizedName}`;
-
-          if (editingLocation && imageUrl) {
-            const oldFileName = imageUrl.substring(
-              imageUrl.lastIndexOf("/") + 1,
-            );
-            const { error: removeError } = await supabase.storage
-              .from("mapmarkers")
-              .remove([oldFileName]);
-            if (removeError) {
-              showError(`Could not remove old image: ${removeError.message}`);
-            }
-          }
-
-          const { error: uploadError } = await supabase.storage
-            .from("mapmarkers")
-            .upload(fileName, file);
-
-          if (uploadError) throw uploadError;
-
-          const {
-            data: { publicUrl },
-          } = supabase.storage.from("mapmarkers").getPublicUrl(fileName);
-          imageUrl = publicUrl;
-        }
-
-        const locationData = {
-          title: values.title,
-          description: values.description,
-          name: values.name,
-          latitude: currentLatitude,
-          longitude: currentLongitude,
-          blog_url: values.blog_url,
-          marker_image_url: imageUrl,
-          user_id: user.id,
-          published: values.published,
-        };
-
-        let error;
-        if (editingLocation) {
-          const { error: updateError } = await supabase
-            .from("travel_locations")
-            .update(locationData)
-            .eq("id", editingLocation.id);
-          error = updateError;
-        } else {
-          const { error: insertError } = await supabase
-            .from("travel_locations")
-            .insert([locationData]);
-          error = insertError;
-        }
-
-        if (error) throw error;
-
-        dismissToast(toastId);
-        showSuccess(
-          `Location ${editingLocation ? "updated" : "added"} successfully!`,
-        );
-        cancelEdit();
-        loadLocations();
-      } catch (error: unknown) {
-        const err = error as Error;
-        dismissToast(toastId);
-        showError(`Operation failed: ${err.message}`);
-      }
-    },
-    [user, editingLocation, locations, loadLocations, cancelEdit],
-  );
-
-  const handleEdit = useCallback((location: TravelLocation) => {
+  const handleEdit = (location: TravelLocation) => {
     setEditingLocation(location);
     setEditingImageUrl(location.marker_image_url || null);
-  }, []);
-
-  const handleRemoveImage = useCallback(async () => {
-    if (!editingLocation || !editingImageUrl) return;
-
-    const toastId = showLoading("Removing image...");
-    try {
-      const fileName = editingImageUrl.substring(
-        editingImageUrl.lastIndexOf("/") + 1,
-      );
-      const { error: removeError } = await supabase.storage
-        .from("mapmarkers")
-        .remove([fileName]);
-      if (removeError) throw removeError;
-
-      const { error: updateError } = await supabase
-        .from("travel_locations")
-        .update({ marker_image_url: null })
-        .eq("id", editingLocation.id);
-      if (updateError) throw updateError;
-
-      dismissToast(toastId);
-      showSuccess("Image removed successfully.");
-      setEditingImageUrl(null);
-      loadLocations();
-    } catch (error: unknown) {
-      const err = error as Error;
-      dismissToast(toastId);
-      showError(err.message);
+    if (containerRef?.current) {
+      containerRef.current.scrollIntoView({ behavior: "smooth" });
     }
-  }, [editingLocation, editingImageUrl, loadLocations]);
+  };
 
-  const handleFileSelect = useCallback(
-    (e: React.ChangeEvent<HTMLInputElement>) => {
-      if (e.target.files && e.target.files.length > 0) {
-        setUploadFile(e.target.files[0]);
-      } else {
-        setUploadFile(null);
-      }
-    },
-    [],
-  );
+  const cancelEdit = () => {
+    setEditingLocation(null);
+    setEditingImageUrl(null);
+  };
 
-  const handleBulkUpload = useCallback(
-    async (fileInputRef: React.RefObject<HTMLInputElement>) => {
-      if (!uploadFile || !user) return;
+  const handleRemoveImage = () => {
+    setEditingImageUrl(null);
+  };
 
-      setIsUploading(true);
-      const toastId = showLoading("Processing CSV file...");
-
-      try {
-        const fileContent = await uploadFile.text();
-        const parsedData = parseCsv(fileContent);
-
-        if (parsedData.length === 0)
-          throw new Error("No data rows found in CSV.");
-
-        const blogTitleMap = new Map(
-          blogPosts.map((p) => [p.title.toLowerCase(), p.id]),
-        );
-
-        const newLocations: Partial<TravelLocation>[] = [];
-        const potentialUpdates: LocationUpdateItem[] = [];
-        const failedRows = [];
-
-        for (const [index, row] of parsedData.entries()) {
-          try {
-            if (!row.title || !row.name)
-              throw new Error("Missing required 'title' or 'name'.");
-
-            let latitude: number | undefined = row.latitude
-              ? parseFloat(row.latitude)
-              : undefined;
-            let longitude: number | undefined = row.longitude
-              ? parseFloat(row.longitude)
-              : undefined;
-
-            if (
-              (latitude === undefined || longitude === undefined) &&
-              row.name
-            ) {
-              const { latitude: geoLat, longitude: geoLon } =
-                await geocodeLocation(row.name);
-              latitude = geoLat;
-              longitude = geoLon;
-            }
-            if (latitude === undefined || longitude === undefined)
-              throw new Error(
-                `Could not determine coordinates for "${row.name}".`,
-              );
-
-            let blog_url = null;
-            if (row.blog_title) {
-              const postId = blogTitleMap.get(row.blog_title.toLowerCase());
-              if (postId) blog_url = `/blog/${postId}`;
-            }
-
-            const locationData = {
-              title: row.title,
-              name: row.name,
-              description: row.description || null,
-              latitude: latitude,
-              longitude: longitude,
-              blog_url: blog_url,
-              marker_image_url: row.marker_image_url || null,
-              published: row.published
-                ? row.published.toLowerCase() === "true"
-                : false,
-            };
-
-            const existingLocation = locations.find(
-              (loc) =>
-                loc.name.toLowerCase() === locationData.name.toLowerCase(),
-            );
-
-            if (existingLocation) {
-              potentialUpdates.push({
-                existingId: existingLocation.id,
-                existingTitle: existingLocation.title,
-                newData: locationData,
-              });
-            } else {
-              newLocations.push(locationData);
-            }
-          } catch (error: unknown) {
-            const err = error as Error;
-            failedRows.push({ row: index + 2, error: err.message });
-          }
-        }
-
-        dismissToast(toastId);
-
-        if (failedRows.length > 0) {
-          showError(
-            `${failedRows.length} rows failed to process. See console for details.`,
-          );
-          console.error("Bulk upload failures:", failedRows);
-        }
-
-        setLocationsToInsert(newLocations);
-        setLocationsToUpdate(potentialUpdates);
-
-        if (potentialUpdates.length > 0) {
-          setSelectedUpdates(new Set());
-          setIsUpdateDialogVisible(true);
-        } else if (newLocations.length > 0) {
-          await processUploads(user.id, newLocations, []);
-          loadLocations();
-        } else if (failedRows.length === 0) {
-          showSuccess("No new locations to import.");
-        }
-      } catch (error: unknown) {
-        const err = error as Error;
-        dismissToast(toastId);
-        showError(err.message);
-      } finally {
-        setIsUploading(false);
-        setUploadFile(null);
-        if (fileInputRef.current) fileInputRef.current.value = "";
-      }
-    },
-    [uploadFile, user, blogPosts, locations, loadLocations],
-  );
-
-  const handleConfirmAndProcessUploads = useCallback(async () => {
+  const onSubmit = async (values: unknown) => {
     if (!user) return;
-    setIsUpdateDialogVisible(false);
+    showLoading(editingLocation ? "Updating..." : "Adding...");
+    await new Promise((resolve) => setTimeout(resolve, 800)); // Simulation
 
-    const updatesToPerform = locationsToUpdate
-      .filter((u) => selectedUpdates.has(u.existingId))
-      .map((u) => ({
-        existingId: u.existingId,
-        newData: u.newData,
-      }));
-
-    const skippedCount = locationsToUpdate.length - updatesToPerform.length;
-
-    const success = await processUploads(
-      user.id,
-      locationsToInsert,
-      updatesToPerform,
+    console.log("Simulated travel save:", values);
+    showSuccess(
+      editingLocation
+        ? "Location updated (Simulated)."
+        : "Location added (Simulated).",
     );
+    cancelEdit();
+    loadData();
+  };
 
-    if (success) {
-      if (skippedCount > 0) {
-        showError(`${skippedCount} potential updates were skipped.`);
-      }
-      loadLocations();
-    }
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) setUploadFile(file);
+  };
 
-    setLocationsToInsert([]);
+  const handleBulkUpload = async (
+    _fileInputRef: React.RefObject<HTMLInputElement>,
+  ) => {
+    if (!uploadFile) return;
+    setIsUploading(true);
+    // Simulate parsing
+    await new Promise((resolve) => setTimeout(resolve, 1000));
+    setLocationsToInsert([
+      { title: "New Location from CSV", name: "Paris", published: true },
+    ]);
     setLocationsToUpdate([]);
-    setSelectedUpdates(new Set());
-  }, [
-    user,
-    locationsToInsert,
-    locationsToUpdate,
-    selectedUpdates,
-    loadLocations,
-  ]);
+    setIsUpdateDialogVisible(true);
+    setIsUploading(false);
+  };
 
-  const handleBulkDeleteWrapper = useCallback(
-    () => genericHandleBulkDelete(selectedItems, setSelectedItems, locations),
-    [genericHandleBulkDelete, selectedItems, setSelectedItems, locations],
-  );
-  const handleBulkPublishWrapper = useCallback(
-    (status: boolean) =>
-      genericHandleBulkPublish(selectedItems, setSelectedItems, status),
-    [genericHandleBulkPublish, selectedItems, setSelectedItems],
-  );
-  const handleBulkDownloadWrapper = useCallback(
-    () => genericHandleBulkDownload(selectedItems, setSelectedItems, locations),
-    [genericHandleBulkDownload, selectedItems, setSelectedItems, locations],
-  );
+  const handleConfirmAndProcessUploads = async () => {
+    if (!user) return;
+    const success = await processUploads(user.id, locationsToInsert, []);
+    if (success) {
+      setIsUpdateDialogVisible(false);
+      setUploadFile(null);
+      loadData();
+    }
+  };
+
+  const handleBulkDeleteWrapper = async () => {
+    const success = await handleBulkDelete(
+      Array.from(selectedLocations),
+      locations,
+    );
+    if (success) {
+      setSelectedLocations(new Set());
+      loadData();
+    }
+  };
+
+  const handleBulkPublishWrapper = async (status: boolean) => {
+    const success = await handleBulkPublish(selectedLocations, status);
+    if (success) {
+      setSelectedLocations(new Set());
+      loadData();
+    }
+  };
+
+  const handleBulkDownloadWrapper = async () => {
+    await handleBulkDownload(selectedLocations, locations, blogPosts);
+  };
+
+  const handleTogglePublish = async (location: TravelLocation) => {
+    const success = await handleBulkPublish(
+      new Set([location.id]),
+      !location.published,
+    );
+    if (success) loadData();
+  };
+
+  const handleItemsPerPageChange = (val: number) => {
+    setItemsPerPage(val);
+    setCurrentPage(1);
+  };
 
   return {
-    locations,
     blogPosts,
     editingLocation,
     editingImageUrl,
     uploadFile,
     isUploading,
-    selectedLocations: selectedItems,
+    selectedLocations,
     currentPage,
-    locationsPerPage,
+    locationsPerPage: itemsPerPage,
     isUpdateDialogVisible,
     locationsToInsert,
     locationsToUpdate,
@@ -471,8 +224,6 @@ export const useTravelManagement = (
     paginatedLocations,
     totalPages,
     allOnPageSelected,
-    setUploadFile,
-    setEditingLocation,
     setSelectedUpdates,
     setIsUpdateDialogVisible,
     onSubmit,

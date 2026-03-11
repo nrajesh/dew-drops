@@ -72,3 +72,62 @@ export const extractJobKeywords = async (
     throw error;
   }
 };
+
+/**
+ * Analyzes an image and generates descriptive tags.
+ * @param base64Image The base64 encoded image string (including data:image/jpeg;base64,... prefix)
+ * @param prompt The prompt to guide the analysis
+ * @returns A promise that resolves to an array of tags
+ */
+export const analyzeImage = async (
+  base64Image: string,
+  prompt: string = "Generate a comma-separated list of 5-10 descriptive and specific tags for this image. Only return the tags, nothing else.",
+): Promise<string[]> => {
+  try {
+    const currentModel = getGeminiModel();
+
+    const isBase64 = base64Image.startsWith("data:");
+
+    if (!isBase64) {
+      console.warn(
+        "analyzeImage received a non-base64 string. Gemini requires base64 data for inline images. Attempting to use as raw text (may fail).",
+      );
+      // If it's not base64, we can't easily send it as an image to Gemini via inlineData.
+      // We'll just send the prompt and hope for the best or it will fail as it did before.
+      const result = await currentModel.generateContent([prompt]);
+      const response = await result.response;
+      return response
+        .text()
+        .split(",")
+        .map((t) => t.trim().toLowerCase())
+        .filter(Boolean);
+    }
+
+    // Extract base64 content and mime type
+    const mimeType =
+      base64Image.match(/data:([^;]+);base64/)?.[1] || "image/jpeg";
+    const base64Data = base64Image.replace(/^data:[^;]+;base64,/, "");
+
+    const result = await currentModel.generateContent([
+      prompt,
+      {
+        inlineData: {
+          data: base64Data,
+          mimeType: mimeType,
+        },
+      },
+    ]);
+
+    const response = await result.response;
+    const text = response.text();
+
+    return text
+      .split(",")
+      .map((tag) => tag.trim().toLowerCase())
+      .filter(Boolean);
+  } catch (error: unknown) {
+    const e = error as Error;
+    console.error("Error analyzing image with Gemini:", e);
+    throw new Error(e.message || "Failed to analyze image");
+  }
+};
