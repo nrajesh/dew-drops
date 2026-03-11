@@ -131,3 +131,50 @@ export const analyzeImage = async (
     throw new Error(e.message || "Failed to analyze image");
   }
 };
+export const sendMessageToGeminiWithImage = async (
+  prompt: string,
+  base64Image: string,
+) => {
+  try {
+    const currentModel = getGeminiModel();
+    const mimeType =
+      base64Image.match(/data:([^;]+);base64/)?.[1] || "image/jpeg";
+    const base64Data = base64Image.replace(/^data:[^;]+;base64,/, "");
+
+    const result = await currentModel.generateContent([
+      prompt,
+      {
+        inlineData: {
+          data: base64Data,
+          mimeType: mimeType,
+        },
+      },
+    ]);
+
+    const response = await result.response;
+    return response.text();
+  } catch (error: unknown) {
+    const e = error as Error;
+    console.error("Error interacting with Gemini Vision:", e);
+    throw new Error(e.message || "Failed to communicate with AI Vision service");
+  }
+};
+
+export const fetchUrlContentWithJina = async (url: string): Promise<string> => {
+  try {
+    const jinaUrl = `https://r.jina.ai/${url}`;
+    const response = await fetch(jinaUrl);
+    if (!response.ok) {
+      throw new Error(`Jina Reader failed with status: ${response.status}`);
+    }
+    return await response.text();
+  } catch (error) {
+    console.error("Jina Reader error:", error);
+    throw new Error("Failed to fetch clean content from the provided URL.");
+  }
+};
+
+export const isLocalFilePath = (input: string): boolean => {
+  const localPathRegex = /^(\/|[a-zA-Z]:\\|~\/)/;
+  return localPathRegex.test(input.trim());
+};

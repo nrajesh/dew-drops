@@ -11,22 +11,37 @@ import type {
 } from "@/types/resume";
 
 // This function will be passed from the component where sendMessageToGemini is available
+// This function will be passed from the component where sendMessageToGemini is available
 type SendMessageToGeminiFunction = (message: string) => Promise<string>;
+type SendMessageToGeminiWithImageFunction = (prompt: string, image: string) => Promise<string>;
 
 export const generateJobMatchReasoning = async (
   jobDescription: string,
   chatbotKnowledge: string | null,
   resume: JsonResume,
   sendMessageToGemini: SendMessageToGeminiFunction,
-  onStepUpdate: (stepIndex: number) => void, // New callback for step updates
+  onStepUpdate: (stepIndex: number) => void,
+  base64Image?: string,
+  sendMessageToGeminiWithImage?: SendMessageToGeminiWithImageFunction,
 ): Promise<{ percentage: number; reasoning: string; highlights: string }> => {
-  // Simplified return type
-  onStepUpdate(0); // Step 1: Extracting Key Criteria
-  // Step 1: Extract job requirements using Gemini
-  const jobRequirements = await extractJobKeywords(jobDescription);
+  // Step 1: Extract job requirements
+  onStepUpdate(0); 
+  
+  let jobRequirements: string[] = [];
+  if (base64Image && sendMessageToGeminiWithImage) {
+    // For vision, we extract keywords from the prompt or let the final analysis handle it.
+    // To keep simple mapping, we'll extract keywords from the vision model first if possible,
+    // or just use a generic list if it's too complex.
+    // For now, let's assume we extract keywords from the image.
+    const keywordPrompt = `Extract 5-10 key skills, technologies, and responsibilities as a comma-separated list from this job description image. Only return the keywords.`;
+    const keywordResponse = await sendMessageToGeminiWithImage(keywordPrompt, base64Image);
+    jobRequirements = keywordResponse.split(",").map(s => s.trim()).filter(Boolean);
+  } else {
+    jobRequirements = await extractJobKeywords(jobDescription);
+  }
 
   onStepUpdate(1); // Step 2: Text Preprocessing
-  // Step 2: Prepare CV sections for AI consumption
+  // ... prepare CV content (unchanged) ...
   const allCvContent: string[] = [];
   if (resume.basics?.summary) allCvContent.push(resume.basics.summary);
   resume.work?.forEach((w: ResumeWork) =>
@@ -57,7 +72,6 @@ export const generateJobMatchReasoning = async (
   const combinedCvText = allCvContent.join(" ");
 
   onStepUpdate(2); // Step 3: Skill & Experience Mapping
-  // Step 3: Collect all skills from CV for direct comparison
   const allCvSkills: string[] = [];
   resume.skills?.forEach((s) => {
     allCvSkills.push(s.name);
@@ -84,51 +98,37 @@ export const generateJobMatchReasoning = async (
     (req: string) => !cvSkillsSet.has(req),
   );
 
-  onStepUpdate(3); // Step 4: Gap Identification & Soft Skill Leverage
-  // Step 4 is now just a placeholder for the final step.
+  onStepUpdate(3); // Step 4: Gap Identification
+  onStepUpdate(4); // Step 5: Generating Report
 
-  onStepUpdate(4); // Step 5: Generating Match Report & Percentage
+  const systemPrompt = `You are a career fit analyst. Your task is to provide a professional assessment of how well my profile aligns with ${base64Image ? "the attached job description image" : "the provided job description text"}. Tone: first-person passive (my/I).
 
-  const systemPrompt = `You are a career fit analyst for my personal portfolio. Your task is to provide a professional assessment of how well my profile aligns with a given job description. The output must be in a first-person passive tone (using 'my' instead of 'Rajesh's' or 'the candidate').
+Your final output must be a single, valid JSON object with:
+- "percentage": number (0-100)
+- "highlights": JSON-escaped markdown listing 5 critical requirements as short bullets.
+- "reasoning": JSON-escaped markdown with '## Matching Areas' and '## Gaps' (with Mitigations).
 
-Your final output must be a single, valid JSON object with three keys: "percentage", "highlights", and "reasoning".
-- "percentage": A number between 0 and 100, representing the overall match.
-- "highlights": A JSON-escaped markdown string with ONLY a '## Job Highlights' section listing the 5 most critical requirements from the job description as short bullet points (each ≤ 10 words, starting with '- '). These are key criteria a recruiter would scan for.
-- "reasoning": A JSON-escaped markdown string containing ONLY the 'Matching Areas' and 'Gaps' sections. Do NOT include any other sections. Ensure all double quotes within the markdown are escaped with a backslash (\\\\") and all newlines are escaped as (\\\\n).
+RULES:
+- Each bullet MUST be a single sentence (≤ 20 words).
+- Lead with **Bold Title:**
+- Generate 2 fewer gaps than matching areas.
 
-CRITICAL FORMATTING RULES FOR REASONING:
-- Each bullet point MUST be a SINGLE sentence, maximum 20 words total.
-- Lead with **Bold Title:** then one short sentence. No paragraphs. No follow-on clauses.
-- Do NOT write "My profile demonstrates..." prose — be direct and specific.
-- You MUST generate at least 2 fewer gaps than the number of matching areas (e.g., if you have 6 Matching Areas, generate at most 4 Gaps).
+Contextual Data:
+- Resume Summary: ${chatbotKnowledge}
+- Overlapping Skills: ${overlaps.join(", ")}
+- Missing Skills: ${missing.join(", ")}
+- Full Resume Content: ${combinedCvText}
+${!base64Image ? `\nJob Description Text: ${jobDescription}` : ""}
 
-Here is the job description: ${jobDescription}
-Here is a summary of my profile (CV and chatbot knowledge): ${chatbotKnowledge}
-My detailed resume data (JSON): ${JSON.stringify(resume, null, 2)}
-Identified overlapping skills/requirements: ${overlaps.join(", ")}
-Identified missing skills/requirements: ${missing.join(", ")}
-Combined CV text for broader context: ${combinedCvText}
+Now, analyze the ${base64Image ? "image" : "text"} and generate the JSON object.`;
 
-For the "reasoning" markdown string, follow this structure strictly. Ensure each point starts with '+ ' or '- ' and is left-aligned.
+  let rawResponse: string;
+  if (base64Image && sendMessageToGeminiWithImage) {
+    rawResponse = await sendMessageToGeminiWithImage(systemPrompt, base64Image);
+  } else {
+    rawResponse = await sendMessageToGemini(systemPrompt);
+  }
 
-## Matching Areas
-+ **[Concise Title]:** [Single sentence ≤ 20 words with a specific data point]
-+ **[Another Title]:** [Single sentence ≤ 20 words]
-...
-
-## Gaps
-- **[Missing skill]:** [Single sentence identifying the gap]
-  - **Mitigation:** [Single sentence detailing specifically how this gap will be addressed or bridged with existing soft skills/tangential experience]
-- **[Another gap]:** [Single sentence identifying the gap]
-  - **Mitigation:** [Single sentence detailing mitigation]
-...
-
-Now, generate the JSON object.
-`;
-
-  const rawResponse = await sendMessageToGemini(systemPrompt);
-
-  // Gemini might sometimes wrap JSON in markdown code blocks, so we need to extract it.
   const jsonString = rawResponse
     .replace(/```json\n([\s\S]*?)\n```/, "$1")
     .trim();
@@ -140,27 +140,18 @@ Now, generate the JSON object.
       highlights?: string;
     } = JSON.parse(jsonString);
 
-    if (
-      typeof result.percentage !== "number" ||
-      typeof result.reasoning !== "string"
-    ) {
-      throw new Error("AI response is not in the expected JSON format.");
+    if (typeof result.percentage !== "number" || typeof result.reasoning !== "string") {
+      throw new Error("AI response format invalid.");
     }
-
-    // Trim multiple consecutive newlines to a maximum of two for better formatting
-    const finalReasoning = result.reasoning.replace(/\n{3,}/g, "\n\n").trim();
-    const finalHighlights = (result.highlights ?? "")
-      .replace(/\n{3,}/g, "\n\n")
-      .trim();
 
     return {
       percentage: result.percentage,
-      reasoning: finalReasoning,
-      highlights: finalHighlights,
+      reasoning: result.reasoning.replace(/\n{3,}/g, "\n\n").trim(),
+      highlights: (result.highlights ?? "").replace(/\n{3,}/g, "\n\n").trim(),
     };
   } catch (e) {
-    console.error("Failed to parse JSON response from AI:", e);
-    console.error("Raw AI response:", rawResponse);
+    console.error("AI Parse Error:", e, rawResponse);
     throw new Error("The AI returned an invalid response. Please try again.");
   }
 };
+

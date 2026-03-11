@@ -15,7 +15,6 @@ import {
   Sparkles,
   AlertTriangle,
   Download,
-  Link as LinkIcon,
   FileText,
   CheckCircle2,
   AlertCircle,
@@ -31,22 +30,28 @@ import {
   markdownToPlainText,
   cleanJobDescriptionText,
 } from "@/lib/utils";
+import {
+  fetchUrlContentWithJina,
+  isLocalFilePath
+} from "@/integrations/gemini/client";
 import { analyzeAndTranslateJobDescription } from "@/utils/aiTextAnalysis";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
 import { generateCareerFitPdf } from "@/utils/pdfGenerator";
+import { Image as ImageIcon, Upload, X } from "lucide-react";
 
 const MIN_JOB_DESCRIPTION_LENGTH = 250;
 
 export const CareerFitAnalyst = () => {
   const [jobDescription, setJobDescription] = useState("");
   const [jobDescriptionUrl, setJobDescriptionUrl] = useState("");
+  const [jobDescriptionImage, setJobDescriptionImage] = useState<string | null>(null);
   const [isButtonEnabled, setIsButtonEnabled] = useState(false);
   const [isPreProcessing, setIsPreProcessing] = useState(false);
   const [_originalLanguage, setOriginalLanguage] = useState<string | null>(
     null,
   );
-  const [inputMethod, setInputMethod] = useState<"text" | "url">("text");
+  const [inputMethod, setInputMethod] = useState<"text" | "url" | "image">("text");
   const [isFetchingUrl, setIsFetchingUrl] = useState(false);
   const [displayOverallStepIndex, setDisplayOverallStepIndex] = useState(-1); // New state for visual progress
   const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
@@ -171,6 +176,23 @@ export const CareerFitAnalyst = () => {
     displayOverallStepIndex,
   ]);
 
+  const handleImageUpload = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setJobDescriptionImage(reader.result as string);
+        setIsButtonEnabled(true);
+      };
+      reader.readAsDataURL(file);
+    }
+  }, []);
+
+  const removeImage = useCallback(() => {
+    setJobDescriptionImage(null);
+    setIsButtonEnabled(false);
+  }, []);
+
   const handleInputChange = useCallback(
     (e: React.ChangeEvent<HTMLTextAreaElement>) => {
       const value = e.target.value;
@@ -189,123 +211,59 @@ export const CareerFitAnalyst = () => {
     [],
   );
 
-  const fetchJobDescriptionFromUrl = useCallback(
-    async (url: string): Promise<string> => {
-      console.log(
-        `Attempting to fetch job description from URL: ${url} using robust CORS proxies`,
-      );
-
-      const proxies = [
-        (u: string) => `https://corsproxy.io/?url=${encodeURIComponent(u)}`,
-        (u: string) => `https://api.allorigins.win/get?url=${encodeURIComponent(u)}`,
-        (u: string) => `https://api.codetabs.com/v1/proxy?url=${encodeURIComponent(u)}`,
-      ];
-
-      let lastError: Error | null = null;
-      const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
-
-      for (let i = 0; i < proxies.length; i++) {
-        const getProxyUrl = proxies[i];
-        try {
-          const proxyUrl = getProxyUrl(url);
-          console.log(`Trying proxy ${i + 1}/${proxies.length}: ${proxyUrl}`);
-          
-          const response = await fetch(proxyUrl);
-
-          if (!response.ok) {
-            throw new Error(`Proxy returned status: ${response.status}`);
-          }
-
-          let html: string;
-          if (proxyUrl.includes("allorigins.win")) {
-            const data = await response.json();
-            html = data.contents;
-          } else {
-            html = await response.text();
-          }
-
-          if (html && html.trim() !== "" && !html.includes("Cloudflare") && html.length > 500) {
-            console.log(`Successfully fetched content using proxy ${i + 1}`);
-            return html;
-          }
-          throw new Error("Proxy returned empty, too short, or blocked content.");
-        } catch (error) {
-          console.warn(`Proxy ${i + 1} failed:`, error);
-          lastError = error instanceof Error ? error : new Error(String(error));
-          
-          if (i < proxies.length - 1) {
-            console.log("Waiting before trying next proxy...");
-            await delay(1000); // 1s delay before next proxy
-          }
-        }
-      }
-
-      throw lastError || new Error("Failed to fetch content from the provided URL using all available proxies.");
-    },
-    [],
-  );
-
-
-
   const handleSubmit = useCallback(async () => {
     if (!resume) {
-      showError(
-        "Resume data is not available for matching. Please ensure VITE_RESUME_URL is set and accessible.",
-      );
-      return;
-    }
-    if (contextError || geminiClientError) {
-      showError(
-        contextError ||
-          geminiClientError ||
-          "An error occurred with the AI service or context loading.",
-      );
+      showError("Resume data is not available.");
       return;
     }
 
-    if (inputMethod === "text") {
-      if (jobDescription.length < MIN_JOB_DESCRIPTION_LENGTH) {
-        showError(
-          `Please enter at least ${MIN_JOB_DESCRIPTION_LENGTH} characters for a meaningful match.`,
-        );
-        return;
-      }
-    } else {
-      // inputMethod === "url"
-      if (!jobDescriptionUrl.trim()) {
-        showError("Please enter a valid URL.");
-        return;
-      }
-      setIsFetchingUrl(true);
+    if (inputMethod === "url" && isLocalFilePath(jobDescriptionUrl)) {
+      showError("This looks like a local file path. Please use the 'Upload Screenshot' tab instead.");
+      return;
+    }
+
+    if (inputMethod === "text" && jobDescription.length < MIN_JOB_DESCRIPTION_LENGTH) {
+      showError(`Please enter at least ${MIN_JOB_DESCRIPTION_LENGTH} characters.`);
+      return;
+    }
+
+    if (inputMethod === "url" && !jobDescriptionUrl.trim()) {
+      showError("Please enter a valid URL.");
+      return;
+    }
+
+    if (inputMethod === "image" && !jobDescriptionImage) {
+      showError("Please upload a screenshot of the job description.");
+      return;
     }
 
     setIsPreProcessing(true);
+    if (inputMethod === "url") setIsFetchingUrl(true);
 
     try {
       let textToAnalyze = jobDescription;
 
       if (inputMethod === "url") {
-        const fetchedHtml = await fetchJobDescriptionFromUrl(jobDescriptionUrl);
-        textToAnalyze = cleanJobDescriptionText(fetchedHtml);
-        setJobDescription(textToAnalyze); // Update textarea with cleaned content
+        const content = await fetchUrlContentWithJina(jobDescriptionUrl);
+        textToAnalyze = cleanJobDescriptionText(content);
+        setJobDescription(textToAnalyze);
       }
 
-      const analysisResult =
-        await analyzeAndTranslateJobDescription(textToAnalyze);
-      setOriginalLanguage(analysisResult.originalLanguage);
-
-      if (!analysisResult.isValidJobDescription) {
-        throw new Error(analysisResult.processedText); // Throw error to be caught below
+      if (inputMethod === "image" && jobDescriptionImage) {
+        // Vision path: Directly match against the image
+        await performJobMatch("", jobDescriptionImage);
+      } else {
+        // Text/URL path: Validate then match
+        const analysisResult = await analyzeAndTranslateJobDescription(textToAnalyze);
+        if (!analysisResult.isValidJobDescription) {
+          throw new Error(analysisResult.processedText);
+        }
+        await performJobMatch(analysisResult.processedText);
       }
-
-      await performJobMatch(analysisResult.processedText);
     } catch (error: unknown) {
       const err = error as Error;
-      console.error("Error in pre-analysis or career fit analysis:", err);
-      showError(
-        err.message ||
-          "Sorry, an error occurred during job description validation or analysis. Please check your input and try again.",
-      );
+      console.error("Analysis failed:", err);
+      showError(err.message || "An error occurred during analysis.");
     } finally {
       setIsPreProcessing(false);
       setIsFetchingUrl(false);
@@ -314,10 +272,8 @@ export const CareerFitAnalyst = () => {
     inputMethod,
     jobDescription,
     jobDescriptionUrl,
+    jobDescriptionImage,
     resume,
-    contextError,
-    geminiClientError,
-    fetchJobDescriptionFromUrl,
     performJobMatch,
   ]);
 
@@ -325,6 +281,7 @@ export const CareerFitAnalyst = () => {
     resetMatch();
     setJobDescription("");
     setJobDescriptionUrl("");
+    setJobDescriptionImage(null);
     setIsButtonEnabled(false);
     setIsPreProcessing(false);
     setOriginalLanguage(null);
@@ -717,14 +674,14 @@ export const CareerFitAnalyst = () => {
           <>
             <Tabs
               defaultValue="text"
-              onValueChange={(value) => setInputMethod(value as "text" | "url")}
+              onValueChange={(value) => setInputMethod(value as "text" | "url" | "image")}
             >
-              <TabsList className="grid w-full grid-cols-2">
+              <TabsList className="grid w-full grid-cols-3">
                 <TabsTrigger
                   value="text"
                   className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
                 >
-                  Paste Description
+                  Paste Text
                 </TabsTrigger>
                 <TabsTrigger
                   value="url"
@@ -732,8 +689,16 @@ export const CareerFitAnalyst = () => {
                 >
                   Provide URL
                 </TabsTrigger>
+                <TabsTrigger
+                  value="image"
+                  className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
+                >
+                  <ImageIcon className="mr-2 h-4 w-4" />
+                  Upload Screenshot
+                </TabsTrigger>
               </TabsList>
-              <TabsContent value="text">
+              
+              <TabsContent value="text" className="space-y-4">
                 <Textarea
                   placeholder={`Paste your job description here (minimum ${MIN_JOB_DESCRIPTION_LENGTH} characters)...`}
                   value={jobDescription}
@@ -741,63 +706,92 @@ export const CareerFitAnalyst = () => {
                   className="min-h-[200px]"
                   disabled={!resume || !!displayError}
                 />
-                <p className="text-sm text-muted-foreground mt-2">
-                  {jobDescription.length}/{MIN_JOB_DESCRIPTION_LENGTH}{" "}
-                  characters minimum
-                </p>
-                <p className="text-sm text-muted-foreground mt-2">
-                  Matching job descriptions longer than 2000 characters in
-                  length or using an URL to match can take a several minutes to
-                  complete.
-                </p>
+                <div className="flex justify-between items-center text-sm text-muted-foreground">
+                  <span>{jobDescription.length}/{MIN_JOB_DESCRIPTION_LENGTH} characters minimum</span>
+                </div>
               </TabsContent>
-              <TabsContent value="url">
-                <div className="flex items-center gap-2">
+
+              <TabsContent value="url" className="space-y-4">
+                <div className="space-y-2">
                   <Input
                     type="url"
-                    placeholder="https://example.com/job-description"
+                    placeholder="https://amazon.jobs/..."
                     value={jobDescriptionUrl}
                     onChange={handleUrlChange}
                     disabled={!resume || !!displayError}
                   />
-                  <Button
-                    onClick={handleSubmit}
-                    disabled={!isButtonEnabled || !resume || !!displayError}
-                  >
-                    <LinkIcon className="mr-2 h-4 w-4" />
-                    Fetch & Analyze
-                  </Button>
+                  <p className="text-xs text-muted-foreground">
+                    I'll use the Jina Reader to extract clean text from the job post.
+                  </p>
                 </div>
-                <p className="text-sm text-muted-foreground mt-2">
-                  Provide a URL where the job description is hosted.
-                </p>
-                <p className="text-sm text-muted-foreground mt-2">
-                  Matching job descriptions longer than 2000 characters in
-                  length or using an URL to match can take a several minutes to
-                  complete.
+              </TabsContent>
+
+              <TabsContent value="image" className="space-y-4">
+                <div className="flex flex-col items-center justify-center border-2 border-dashed rounded-lg p-6 transition-colors hover:border-primary/50">
+                  {jobDescriptionImage ? (
+                    <div className="relative w-full max-w-[300px] aspect-video">
+                      <img 
+                        src={jobDescriptionImage} 
+                        alt="Job Description" 
+                        className="w-full h-full object-contain rounded"
+                      />
+                      <Button
+                        variant="destructive"
+                        size="icon"
+                        className="absolute -top-2 -right-2 h-6 w-6 rounded-full"
+                        onClick={removeImage}
+                      >
+                        <X className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  ) : (
+                    <div className="text-center space-y-2">
+                      <div className="p-3 bg-secondary rounded-full w-fit mx-auto">
+                        <Upload className="h-6 w-6 text-primary" />
+                      </div>
+                      <div className="space-y-1">
+                        <p className="text-sm font-medium">Upload a screenshot</p>
+                        <p className="text-xs text-muted-foreground">PNG or JPG of the job description</p>
+                      </div>
+                      <Input
+                        type="file"
+                        accept="image/*"
+                        className="hidden"
+                        id="image-upload"
+                        onChange={handleImageUpload}
+                      />
+                      <Button asChild variant="outline" size="sm">
+                        <label htmlFor="image-upload" className="cursor-pointer">
+                          Select Image
+                        </label>
+                      </Button>
+                    </div>
+                  )}
+                </div>
+                <p className="text-xs text-muted-foreground text-center">
+                  Gemini Vision will analyze the contents of your screenshot directly.
                 </p>
               </TabsContent>
             </Tabs>
 
-            {!matchResult && inputMethod === "text" && (
-              <Button
-                onClick={handleSubmit}
-                disabled={!isButtonEnabled || !resume || !!displayError}
-                className="w-full"
-              >
-                <Sparkles className="mr-2 h-4 w-4" />
-                Match my Portfolio with your Job Description
-              </Button>
-            )}
+            <Button
+              onClick={matchResult ? handleAnalyzeAnother : handleSubmit}
+              disabled={!isButtonEnabled || !resume || !!displayError || isPreProcessing}
+              className="w-full"
+            >
+              {isPreProcessing || isFetchingUrl ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Processing...
+                </>
+              ) : (
+                <>
+                  <Sparkles className="mr-2 h-4 w-4" />
+                  {matchResult ? "Analyze Another Selection" : "Match Portfolio with Job Description"}
+                </>
+              )}
+            </Button>
 
-            {matchResult && (
-              <Button
-                onClick={handleAnalyzeAnother}
-                className="w-full pdf-hidden"
-              >
-                Analyze Another Job Description
-              </Button>
-            )}
           </>
         )}
 

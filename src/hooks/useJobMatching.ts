@@ -4,6 +4,7 @@ import { usePortfolioData } from "@/hooks/usePortfolioData";
 import { generateJobMatchReasoning } from "@/utils/jobMatchUtils";
 import {
   sendMessageToGemini,
+  sendMessageToGeminiWithImage,
   getGeminiInitializationError,
 } from "@/integrations/gemini/client";
 import { showError } from "@/utils/toast";
@@ -75,22 +76,14 @@ export const useJobMatching = () => {
         error.message.includes("Failed to parse JSON response from AI")
       ) {
         return "The AI returned an unexpected response format. Please try again.";
-      } else if (
-        error.message.includes(
-          "The provided text does not appear to be a formal job description",
-        )
-      ) {
-        return error.message; // Specific error from analyzeAndTranslateJobDescription
       }
-      return error.message; // Use the specific error message if none of the above match
-    } else if (typeof error === "string") {
-      return `AI analysis error: ${error}`;
+      return error.message;
     }
     return "Sorry, an unexpected error occurred during AI analysis. Please try again later.";
   };
 
   const performJobMatch = useCallback(
-    async (jobDescription: string) => {
+    async (jobDescription: string, base64Image?: string) => {
       if (contextLoading) {
         throw new Error("Portfolio context is still loading. Please wait.");
       }
@@ -118,6 +111,8 @@ export const useJobMatching = () => {
             resume,
             sendMessageToGemini,
             setCurrentStepIndex,
+            base64Image,
+            sendMessageToGeminiWithImage
           );
         setMatchResult({ percentage, reasoning, highlights });
         return { percentage, reasoning, highlights };
@@ -155,3 +150,4 @@ export const useJobMatching = () => {
     totalSteps: analysisSteps.length,
   };
 };
+
