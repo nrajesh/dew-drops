@@ -62,9 +62,10 @@ export const useJobMatching = () => {
         return "The request to the AI model was malformed. This might be a temporary issue or an invalid prompt.";
       } else if (
         error.message.includes("429") ||
+        error.message.includes("quota") ||
         error.message.includes("rate limit")
       ) {
-        return "You've hit the AI service rate limit. Please wait a moment and try again.";
+        return "You've exceeded your AI service quota. Please check your API key plan or try again later.";
       } else if (
         error.message.includes("VITE_GEMINI_API_KEY is not set") ||
         error.message.includes("VITE_GEMINI_MODEL_NAME is not set")
