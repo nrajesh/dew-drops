@@ -51,13 +51,19 @@ import type {
   ResumeProject,
 } from "@/types/resume";
 
+import { useFeatureToggles } from "@/contexts/FeatureToggleContext";
+import { navFeatures } from "@/config/navigation";
+
 const RESUME_URL = import.meta.env.VITE_RESUME_URL;
 
 const CurriculumVitae = () => {
+  const { toggles } = useFeatureToggles();
   const [resume, setResume] = useState<JsonResume | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [matchCvFeatureEnabled] = useState(true); // Always enabled in local mode
+  
+  const matchCvFeatureEnabled = toggles[navFeatures.MATCH_CV];
+
 
   // State for collapsible sections
   const [isWorkOpen, setIsWorkOpen] = useState(true);
