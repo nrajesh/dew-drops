@@ -192,20 +192,24 @@ export const CareerFitAnalyst = () => {
   const fetchJobDescriptionFromUrl = useCallback(
     async (url: string): Promise<string> => {
       console.log(
-        `Attempting to fetch job description from URL: ${url} using CORS proxies`,
+        `Attempting to fetch job description from URL: ${url} using robust CORS proxies`,
       );
 
       const proxies = [
         (u: string) => `https://corsproxy.io/?url=${encodeURIComponent(u)}`,
         (u: string) => `https://api.allorigins.win/get?url=${encodeURIComponent(u)}`,
+        (u: string) => `https://api.codetabs.com/v1/proxy?url=${encodeURIComponent(u)}`,
       ];
 
       let lastError: Error | null = null;
+      const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
-      for (const getProxyUrl of proxies) {
+      for (let i = 0; i < proxies.length; i++) {
+        const getProxyUrl = proxies[i];
         try {
           const proxyUrl = getProxyUrl(url);
-          console.log(`Trying proxy: ${proxyUrl}`);
+          console.log(`Trying proxy ${i + 1}/${proxies.length}: ${proxyUrl}`);
+          
           const response = await fetch(proxyUrl);
 
           if (!response.ok) {
@@ -220,21 +224,27 @@ export const CareerFitAnalyst = () => {
             html = await response.text();
           }
 
-          if (html && html.trim() !== "") {
+          if (html && html.trim() !== "" && !html.includes("Cloudflare") && html.length > 500) {
+            console.log(`Successfully fetched content using proxy ${i + 1}`);
             return html;
           }
-          throw new Error("Proxy returned empty content.");
+          throw new Error("Proxy returned empty, too short, or blocked content.");
         } catch (error) {
-          console.warn(`Proxy failed:`, error);
+          console.warn(`Proxy ${i + 1} failed:`, error);
           lastError = error instanceof Error ? error : new Error(String(error));
-          // Continue to next proxy
+          
+          if (i < proxies.length - 1) {
+            console.log("Waiting before trying next proxy...");
+            await delay(1000); // 1s delay before next proxy
+          }
         }
       }
 
-      throw lastError || new Error("Failed to fetch content from the provided URL using available proxies.");
+      throw lastError || new Error("Failed to fetch content from the provided URL using all available proxies.");
     },
     [],
   );
+
 
 
   const handleSubmit = useCallback(async () => {
