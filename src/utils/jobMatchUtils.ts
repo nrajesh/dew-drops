@@ -169,18 +169,28 @@ Generate the expert JSON assessment now.`;
   try {
     const result: {
       percentage: number;
-      reasoning: string;
-      highlights?: string;
+      reasoning: string | string[];
+      highlights?: string | string[];
     } = JSON.parse(jsonString);
 
-    if (typeof result.percentage !== "number" || typeof result.reasoning !== "string") {
+    // Defensive handling for cases where AI returns an array instead of a string
+    const ensureString = (val: any): string => {
+      if (typeof val === "string") return val;
+      if (Array.isArray(val)) return val.join("\n");
+      return String(val ?? "");
+    };
+
+    const reasoning = ensureString(result.reasoning);
+    const highlights = ensureString(result.highlights);
+
+    if (typeof result.percentage !== "number" || !reasoning) {
       throw new Error("Invalid structure.");
     }
 
     return {
       percentage: Math.min(100, Math.max(0, result.percentage)),
-      reasoning: result.reasoning.replace(/\n{3,}/g, "\n\n").trim(),
-      highlights: (result.highlights ?? "").replace(/\n{3,}/g, "\n\n").trim(),
+      reasoning: reasoning.replace(/\n{3,}/g, "\n\n").trim(),
+      highlights: highlights.replace(/\n{3,}/g, "\n\n").trim(),
     };
   } catch (parseError) {
     console.error("Final JSON Parse Failure:", parseError, "\nProcessed String:", jsonString, "\nRaw:", rawResponse);
