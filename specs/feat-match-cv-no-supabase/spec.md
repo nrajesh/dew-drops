@@ -1,28 +1,22 @@
-# Match-CV: Alternative URL Fetching Integration
+# Match-CV V2: Vision & Robust Scraping
 
 ## Problem Statement
-The Match-CV module currently has the URL fetching functionality disabled. Previously, this relied on a Supabase Edge Function (`fetch-url-content`) to bypass CORS restrictions. The goal is to re-enable "URL fetching" and subsequently CV matchmaking without relying on Supabase integrations.
+The Match-CV module previously relied on a Supabase Edge Function (`fetch-url-content`) and subsequently a brittle multi-proxy chain to bypass CORS and Cloudflare blocks. Match-CV V2 reworks this into a robust, multimodal entry system that prioritizes reliability and user experience.
 
 ## Goals
-- Re-enable the ability for users to provide a URL for a job description.
-- Fetch the job description content directly from the client without running into CORS issues.
-- Maintain the existing Gemini-based CV matchmaking flow.
-- Remove any dependency on Supabase Edge Functions for this specific feature.
-
-## Non-Goals
-- Changing the Gemini AI matching logic or prompt structure.
-- Modifying the UI beyond re-enabling the URL fetch inputs and flows.
+- **Vision-First Analysis**: Enable users to upload screenshots of job descriptions to bypass scraping issues entirely.
+- **Robust Scraping**: Integrate `r.jina.ai` for clean, markdown-formatted text extraction from public URLs.
+- **Non-Supabase Integration**: Maintain 100% decoupling from Supabase for this feature.
+- **Improved UX**: Add Drag & Drop support and fix mobile layout issues for input selection.
 
 ## User Stories
-- As a user, I want to paste a URL of a job description so that the system automatically fetches the text instead of me manually copy-pasting it.
-- As a user, I want the system to seamlessly evaluate the fetched job description against the portfolio.
+- As a user, I want to upload a screenshot of a job description so that I can match it against my CV even if the website is heavily protected.
+- As a user, I want to drag an image file onto the analyst UI for quick upload.
+- As a user, I want to paste a URL and have the system reliably extract the core job text.
 
 ## Functional Requirements
-- The system must accept a valid HTTP/HTTPS URL.
-- The system must attempt to fetch the text content from the provided URL using a CORS proxy (e.g., `api.allorigins.win`).
-- Upon successful fetch, the text must be cleaned and passed to the existing Gemini matching workflow.
-- If fetching fails, the system must display an appropriate error toast to the user.
-
-## Non-Functional Requirements
-- **Performance**: URL text retrieval should ideally take less than 5 seconds.
-- **Reliability**: The proxy solution must handle basic static sites effectively (CSR sites might return empty body, but that is a known limitation of simple proxies).
+- **Input Methods**: Support Text Paste, URL Input, and Image Upload (PNG/JPG).
+- **Vision Logic**: Gemini 1.5 must analyze images directly when provided, extracting requirements and performing the match in one flow.
+- **Jina Scraper**: Use `https://r.jina.ai/{url}` for high-performance extraction.
+- **Local Path Warning**: Detect local file paths (e.g., `/Users/`) and guide users to use the Image Upload instead.
+- **Report Generation**: Reasoning must include '## Matching Areas' and '## Gaps' (with mitigations) for all input methods.

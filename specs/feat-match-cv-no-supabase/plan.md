@@ -1,35 +1,31 @@
-# Implementation Plan: Match-CV Alternative Integration
+# Implementation Plan: Match-CV V2 (Vision & Robust Scraping)
 
 ## Goal Description
-The Match-CV module currently has the URL fetching functionality disabled, as it previously relied on a Supabase Edge Function (`fetch-url-content`). 
-The goal is to re-enabling URL fetching using a free CORS proxy (`api.allorigins.win`) directly from the client. The CV matchmaking itself already leverages a client-side `@google/generative-ai` integration via `sendMessageToGemini`, so we just need to ensure the fetched URL text is passed seamlessly into this existing matching pipeline without depending on any Supabase serverless functions.
-
-## User Review Required
-No major architectural changes are required. The free CORS proxy `api.allorigins.win` is suitable for most use cases but might struggle with heavily dynamic Single Page Applications (SPAs). This is a known limitation of client-side proxies without a dedicated backend scraping service.
+The Match-CV module has been upgraded to V2 to solve long-standing reliability issues with URL fetching (403/522 errors) and to support local file paths. This is achieved through a multimodal "Vision-first" strategy and refined scraping.
 
 ## Proposed Changes
 
 ### Match-CV Module
-This component's URL fetching logic needs to be re-activated.
 
 #### [MODIFY] [CareerFitAnalyst.tsx](file:///Users/nrajesh/Github/dew-drops/src/components/CareerFitAnalyst.tsx)
-- Re-implement `fetchJobDescriptionFromUrl` to use `fetch(https://api.allorigins.win/raw?url=${encodeURIComponent(url)})`.
-- Handle potential errors (e.g., non-200 responses) and throw human-readable errors.
-- Ensure the fetched HTML string is passed correctly to the rest of the existing pipeline (`cleanJobDescriptionText`, `analyzeAndTranslateJobDescription`) so that spam validation and language translation are maintained exactly like the paste-text flow.
-- Remove the dummy `throw new Error("URL fetching is currently disabled...")` placeholder.
+- **Vision Integration**: Added an "Upload Screenshot" tab supporting PNG/JPG uploads.
+- **Drag & Drop**: Implemented file drop support with visual feedback for the upload area.
+- **Robust Scraper**: Replaced legacy proxy chains with `r.jina.ai` for clean markdown extraction from URLs.
+- **Mobile UX**: Fixed tab layout to wrap on smaller screens and ensure touch-friendly targets.
+- **Local Path Warning**: GUIDES users to upload files when a local path (e.g., `/Users/`) is detected.
+
+#### [MODIFY] [jobMatchUtils.ts](file:///Users/nrajesh/Github/dew-drops/src/utils/jobMatchUtils.ts)
+- **Multimodal AI**: Updated prompt logic to handle both text and image buffers.
+- **Consistent Gaps**: Refined the system prompt to guarantee "Matching Areas" and "Gaps" (with mitigations) are produced for every analysis.
 
 ## Verification Plan
 
 ### Automated Tests
-- `npm run dev` and ensure there are no build, linting, or typescript errors (`pnpm lint`, `pnpm exec tsc --noEmit`).
+- `pnpm lint` and `pnpm exec tsc --noEmit` to ensure type safety and code quality.
+- `pnpm build` to verify production bundle integrity.
 
 ### Manual Verification
-1. Run the local development server.
-2. Navigate to the Match Maker page (`/match-cv`).
-3. Switch the tab to **Provide URL**.
-4. Enter a known public job description URL (e.g., a standard standard job board post or a simple web page).
-5. Click **Fetch & Analyze**.
-6. Verify that:
-   - The text is fetched without CORS errors.
-   - The text is mapped properly into the text box.
-   - The matching process completes successfully and returns the percentage/reasoning.
+1. **Screenshot Upload**: Verify that dragging or selecting a job description screenshot extracts requirements correctly.
+2. **Jina Scraping**: Test with an Amazon or LinkedIn URL to confirm 403 blocks are bypassed.
+3. **Mobile Layout**: Check the tab navigation on a simulated mobile view to ensure no overlapping text.
+4. **Gap Analysis**: Confirm that results always include the "Areas to Bridge" section even for high-match scores.

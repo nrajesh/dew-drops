@@ -9,7 +9,7 @@ This application provides a comprehensive suite of features for a personal portf
 ### Core Features
 
 *   **Refactored Architecture**: The codebase has been significantly optimized by centralizing data management logic into reusable custom React hooks (`useManagement`, `useBlogManagement`, `useTravelManagement`), making the application more robust and maintainable.
-*   **AI-Powered Career Fit Analyst**: A standout feature that analyzes job descriptions against the portfolio's content and a detailed JSON Resume, providing a match percentage and a reasoned breakdown of strengths and gaps.
+*   **AI-Powered Career Fit Analyst (V2)**: A standout feature that analyzes job descriptions against the portfolio's content and a detailed JSON Resume. It supports **Vision-first analysis** (screenshot uploads), robust URL scraping via **Jina Reader**, and standard text pasting, providing a match percentage and a reasoned breakdown of strengths and gaps with mitigations.
 *   **Dynamic CV/Portfolio Page**: Displays a professional curriculum vitae from a JSON Resume source, complete with collapsible sections for readability and a print-to-PDF function.
 *   **AI Chatbot**: An integrated chatbot that answers questions about the portfolio using a knowledge base that can be manually edited or automatically generated from all site content, including the CV.
 *   **Text Readability Controls**: Users can adjust the base font size and line height across the site for a comfortable reading experience.

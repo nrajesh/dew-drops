@@ -136,11 +136,13 @@ sequenceDiagram
         SBC->>API: Fetch raw image Blob
         API-->>SBC: Image Blob returned
         Hook->>Hook: Downscale via HTML5 Canvas (max 800px)
-        Hook->>AI: Send base64 string to Gemini API directly
-        AI-->>Hook: Return generated tags
-        Hook->>SBC: supabase.from('gallery_images').update({tags})
-        SBC->>API: Execute authenticated UPDATE
+        Hook->>AI: Send base64 string + prompt to Gemini 1.5
+        AI-->>Hook: Return generated analysis (JSON)
+        Hook->>SBC: supabase.from('gallery_images').update({tags}) (if gallery)
+        SBC->>API: Execute authenticated UPDATE (if gallery)
     end
+
+    Note over Hook, AI: Match-CV V2 utilizes Jina (r.jina.ai) for URL fetching<br/>and Gemini Vision for direct image analysis.
     
     Hook-->>UI: Update Local State
     UI-->>U: Render updated view (Published)
