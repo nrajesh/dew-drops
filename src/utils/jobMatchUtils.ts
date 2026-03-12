@@ -101,42 +101,59 @@ export const generateJobMatchReasoning = async (
   onStepUpdate(3); // Step 4: Gap Identification
   onStepUpdate(4); // Step 5: Generating Report
 
-  const systemPrompt = `You are a career fit analyst. Profile alignment assessment for ${base64Image ? "the attached image" : "the provided text"}.
-Tone: first-person passive (my/I).
+  const systemPrompt = `You are a career fit analyst assessing profile alignment for ${base64Image ? "a job description image" : "job description text"}.
 
-Your final output MUST be a single, valid JSON object. No Markdown headers before or after.
+Your output MUST be a JSON object with these exact keys:
 {
-  "percentage": number,
-  "highlights": "Markdown listing 5 critical job requirements as short bullets (e.g., '- Requirement')",
+  "percentage": number (0-100),
+  "highlights": "Markdown bullets (max 5 items, e.g., '- Requirement')",
   "reasoning": "Markdown with ONLY '## Matching Areas' and '## Gaps' sections"
 }
 
-RULES:
-- 'reasoning' MUST contain both headers: '## Matching Areas' and '## Gaps'.
-- Each bullet MUST be a single sentence (≤ 20 words).
-- Lead with **Bold Title:**
-- '## Gaps' section is REQUIRED. If you find no major gaps, focus on a "Niche Industry specific experience" or "Advanced certifications" that I might not have yet. Each gap MUST have a '- **Mitigation:**' bullet point underneath.
-- Strictly generate 2 fewer gaps than matching areas.
+STRICT CONSTRAINTS:
+- No preamble or wrapping text. Just the JSON.
+- 'reasoning' MUST have both '## Matching Areas' and '## Gaps' headers.
+- Each bullet point in 'reasoning' MUST be one short sentence.
+- For every gap in '## Gaps', you MUST provide a '- **Mitigation:**' bullet immediately below it.
+- To prevent truncation, keep the total response under 800 words.
 
 Context:
-- Summary: ${chatbotKnowledge}
-- Overlaps: ${overlaps.join(", ")}
-- Missing (Gaps): ${missing.join(", ")}
-- CV Context: ${combinedCvText}
-${!base64Image ? `\nJob Text: ${jobDescription}` : ""}
+- Profile Summary: ${chatbotKnowledge}
+- Key Overlaps: ${overlaps.join(", ")}
+- Key Gaps: ${missing.join(", ")}
+- Experience Highlights: ${combinedCvText.slice(0, 2000)}...
+${!base64Image ? `\nJD Text: ${jobDescription.slice(0, 3000)}` : ""}
 
-Analyze the ${base64Image ? "image" : "text"} and generate the JSON object now.`;
+Generate the JSON assessment now.`;
 
   let rawResponse: string;
-  if (base64Image && sendMessageToGeminiWithImage) {
-    rawResponse = await sendMessageToGeminiWithImage(systemPrompt, base64Image);
-  } else {
-    rawResponse = await sendMessageToGemini(systemPrompt);
+  try {
+    if (base64Image && sendMessageToGeminiWithImage) {
+      rawResponse = await sendMessageToGeminiWithImage(systemPrompt, base64Image);
+    } else {
+      rawResponse = await sendMessageToGemini(systemPrompt);
+    }
+  } catch (apiError) {
+    console.error("Gemini API call failed:", apiError);
+    throw new Error("Failed to connect to the AI service. Please check your connection and try again.");
   }
 
-  const jsonString = rawResponse
-    .replace(/```json\n([\s\S]*?)\n```/, "$1")
-    .trim();
+  // Robustly extract JSON from the response
+  const extractJson = (text: string) => {
+    // Try to find content between triple backticks first
+    const match = text.match(/```json\s*([\s\S]*?)\s*```/) || text.match(/```\s*([\s\S]*?)\s*```/);
+    if (match) return match[1].trim();
+    
+    // Fallback: Find the first { and last }
+    const firstBrace = text.indexOf('{');
+    const lastBrace = text.lastIndexOf('}');
+    if (firstBrace !== -1 && lastBrace !== -1 && lastBrace > firstBrace) {
+      return text.substring(firstBrace, lastBrace + 1).trim();
+    }
+    return text.trim();
+  };
+
+  const jsonString = extractJson(rawResponse);
 
   try {
     const result: {
@@ -146,17 +163,17 @@ Analyze the ${base64Image ? "image" : "text"} and generate the JSON object now.`
     } = JSON.parse(jsonString);
 
     if (typeof result.percentage !== "number" || typeof result.reasoning !== "string") {
-      throw new Error("AI response format invalid.");
+      throw new Error("Missing required fields (percentage/reasoning).");
     }
 
     return {
-      percentage: result.percentage,
+      percentage: Math.min(100, Math.max(0, result.percentage)),
       reasoning: result.reasoning.replace(/\n{3,}/g, "\n\n").trim(),
       highlights: (result.highlights ?? "").replace(/\n{3,}/g, "\n\n").trim(),
     };
-  } catch (e) {
-    console.error("AI Parse Error:", e, rawResponse);
-    throw new Error("The AI returned an invalid response. Please try again.");
+  } catch (parseError) {
+    console.error("AI Response Parsing Failure:", parseError, "\nRaw Response:", rawResponse);
+    throw new Error("The AI returned a malformed response. This usually happens if the job description is extremely long. Please try again with a more focused selection.");
   }
 };
 
