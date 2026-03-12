@@ -21,7 +21,6 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
-import { supabase } from "@/integrations/supabase/client";
 import { showSuccess, showError } from "@/utils/toast";
 import { Loader2 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
@@ -41,7 +40,7 @@ const passwordFormSchema = z
 type PasswordFormValues = z.infer<typeof passwordFormSchema>;
 
 export const PasswordForm: React.FC = () => {
-  const { user } = useAuth();
+  const { session } = useAuth();
   const [isSubmittingPassword, setIsSubmittingPassword] = React.useState(false);
 
   const passwordForm = useForm<PasswordFormValues>({
@@ -52,24 +51,22 @@ export const PasswordForm: React.FC = () => {
     },
   });
 
-  const onSubmitPassword = async (values: PasswordFormValues) => {
+  const onSubmitPassword = async (_values: PasswordFormValues) => {
     setIsSubmittingPassword(true);
-    if (!user) {
+    if (!session) {
       showError("User not logged in.");
       setIsSubmittingPassword(false);
       return;
     }
 
     try {
-      const { error } = await supabase.auth.updateUser({
-        password: values.newPassword,
-      });
+      // Simulation: update password locally
+      await new Promise((resolve) => setTimeout(resolve, 1000));
+      console.log("Password update simulation for:", session.user.email);
 
-      if (error) {
-        throw error;
-      }
-
-      showSuccess("Password updated successfully!");
+      showSuccess(
+        "Password updated successfully (Simulation: local preview mode)!",
+      );
       passwordForm.reset();
     } catch (error: unknown) {
       const err = error as Error;

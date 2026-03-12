@@ -19,14 +19,8 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import {
-  showSuccess,
-  showError,
-  showLoading,
-  dismissToast,
-} from "@/utils/toast";
+import { showSuccess, showLoading, dismissToast } from "@/utils/toast";
 import { useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
 
 const formSchema = z.object({
   name: z.string().min(2, { message: "Name must be at least 2 characters." }),
@@ -56,49 +50,16 @@ const Contact = () => {
     setIsSubmitting(true);
     const toastId = showLoading("Sending your message...");
 
-    try {
-      const { data, error } = await supabase.functions.invoke(
-        "send-contact-email",
-        {
-          body: values,
-        },
-      );
+    // Simulate local send
+    await new Promise((resolve) => setTimeout(resolve, 1500));
+    console.log("Form submitted locally:", values);
 
-      dismissToast(toastId);
-
-      if (error) {
-        // The function returned a non-2xx response. The error object from Supabase contains the response.
-        const errorBody = await error.context.json();
-        throw new Error(errorBody.error || error.message);
-      }
-
-      if (data?.error) {
-        // The function returned 2xx but with an error payload.
-        throw new Error(data.error);
-      }
-
-      showSuccess("Message sent successfully! I'll get back to you soon.");
-      form.reset();
-    } catch (error: unknown) {
-      const err = error as Error;
-      dismissToast(toastId);
-      console.error("Failed to send message:", err);
-
-      const errorMessage = err.message || "An unknown error occurred.";
-      if (errorMessage.includes("Missing API Key")) {
-        showError(
-          "Configuration needed: Please add the Resend API key to your Supabase project.",
-        );
-      } else if (errorMessage.includes("verified domains")) {
-        showError(
-          "Email configuration error: The sending domain is not verified. Please check your Resend account.",
-        );
-      } else {
-        showError(`Error: ${errorMessage}`);
-      }
-    } finally {
-      setIsSubmitting(false);
-    }
+    dismissToast(toastId);
+    showSuccess(
+      "Message sent successfully (Local mode simulation)! I'll get back to you soon.",
+    );
+    form.reset();
+    setIsSubmitting(false);
   }
 
   return (

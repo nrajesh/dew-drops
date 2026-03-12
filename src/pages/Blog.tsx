@@ -7,7 +7,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { useEffect, useState, useMemo, useRef, lazy, Suspense } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { localDataProvider } from "@/lib/LocalDataProvider";
 import type { Post } from "@/types";
 import { Link } from "react-router-dom";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -40,23 +40,26 @@ const Blog = () => {
   useEffect(() => {
     const fetchInitialData = async () => {
       setLoading(true);
-      const { data: postsData, error: postsError } = await supabase
-        .from("posts")
-        .select("*")
-        .eq("published", true)
-        .order("published_at", { ascending: false });
+      try {
+        const postsData = localDataProvider
+          .getPosts()
+          .filter((p) => p.published)
+          .sort(
+            (a, b) =>
+              new Date(b.published_at || 0).getTime() -
+              new Date(a.published_at || 0).getTime(),
+          );
 
-      if (postsError) {
-        console.error("Error fetching posts:", postsError);
-      } else {
-        setAllPosts(postsData as Post[]);
+        setAllPosts(postsData);
         const allTags = new Set<string>();
-        (postsData as Post[]).forEach((post) => {
+        postsData.forEach((post) => {
           if (post.tags) {
             post.tags.forEach((tag) => allTags.add(tag));
           }
         });
         setUniqueTags(Array.from(allTags).sort());
+      } catch (err) {
+        console.error("Error fetching local posts:", err);
       }
       setLoading(false);
     };
@@ -141,34 +144,57 @@ const Blog = () => {
               </Card>
             ))
           ) : paginatedPosts.length > 0 ? (
-            paginatedPosts.map((post) => (
-              <Card key={post.id} className="flex flex-col h-full">
-                <CardHeader>
-                  <Link to={`/blog/${post.id}`} className="hover:underline">
-                    <CardTitle>{post.title}</CardTitle>
-                  </Link>
-                  <CardDescription>
-                    {formatDate(post.published_at)}
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="flex-grow">
-                  <p className="text-sm">{post.description}</p>
-                  {post.tags && post.tags.length > 0 && (
-                    <div className="flex flex-wrap gap-1 mt-2">
-                      {post.tags.map((tag) => (
-                        <span
-                          key={tag}
-                          className="text-xs px-2 py-1 rounded-full bg-muted text-muted-foreground"
-                        >
-                          {tag}
-                        </span>
-                      ))}
-                    </div>
+            paginatedPosts.map((post) => {
+              const coverImage = post.cover_image_id
+                ? localDataProvider.getGalleryImageById(post.cover_image_id)
+                : null;
+              return (
+                <Card
+                  key={post.id}
+                  className="flex flex-col h-full overflow-hidden"
+                >
+                  {coverImage && (
+                    <Link to={`/blog/${post.id}`}>
+                      <div className="aspect-video w-full overflow-hidden">
+                        <img
+                          src={`/uploads/${coverImage.file_name}`}
+                          alt={coverImage.alt_text || post.title}
+                          className="object-cover w-full h-full transition-transform hover:scale-105 duration-300"
+                        />
+                      </div>
+                    </Link>
                   )}
-                </CardContent>
-                {/* Removed redundant "Read More" button from CardFooter */}
-              </Card>
-            ))
+                  <CardHeader>
+                    <Link
+                      to={`/blog/${post.id}`}
+                      className="hover:underline text-primary"
+                    >
+                      <CardTitle className="line-clamp-2">
+                        {post.title}
+                      </CardTitle>
+                    </Link>
+                    <CardDescription>
+                      {formatDate(post.published_at)}
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent className="flex-grow">
+                    <p className="text-sm line-clamp-3">{post.description}</p>
+                    {post.tags && post.tags.length > 0 && (
+                      <div className="flex flex-wrap gap-1 mt-3">
+                        {post.tags.map((tag) => (
+                          <span
+                            key={tag}
+                            className="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded bg-secondary text-secondary-foreground"
+                          >
+                            {tag}
+                          </span>
+                        ))}
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              );
+            })
           ) : (
             <p className="text-center text-muted-foreground col-span-full">
               No posts found. Try adjusting your search or filters.

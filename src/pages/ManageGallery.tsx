@@ -2,6 +2,7 @@ import { useRef, useEffect, useState, Suspense, lazy } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
+import { localCache } from "@/lib/LocalCache";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -21,7 +22,6 @@ import {
   DialogDescription,
   DialogFooter,
 } from "@/components/ui/dialog";
-import { supabase } from "@/integrations/supabase/client";
 import {
   showSuccess,
   showError,
@@ -32,7 +32,6 @@ import { Wand2, Loader2 } from "lucide-react";
 import { usePaginationNavigation } from "@/hooks/usePaginationNavigation";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useGalleryManagement } from "@/hooks/useGalleryManagement";
-import { generateAltTextFromFileName, normalizeTag } from "@/lib/utils";
 import { generateTagsForImage } from "@/lib/gallery-utils";
 import type { GalleryImage } from "@/types";
 import { ImageUploadCard } from "@/components/gallery/ImageUploadCard";
@@ -151,31 +150,31 @@ const ManageGallery = () => {
     if (!editingImage) return;
     const toastId = showLoading("Updating image data...");
     try {
-      let finalAltText = values.alt_text;
-      if (!finalAltText || finalAltText.trim() === "") {
-        finalAltText = generateAltTextFromFileName(editingImage.file_name);
+      // Simulation: we just log and show success in local preview mode
+      console.log("Saving image update locally (Simulation/UI-only):", values);
+
+      // Save tags to localCache for persistence in local simulation
+      if (values.tags) {
+        const tagList = values.tags
+          .split(",")
+          .map((t) => t.trim())
+          .filter(Boolean);
+        localCache.setCachedTags(
+          `${editingImage.file_name}_${editingImage.id}`,
+          tagList,
+        );
+      } else {
+        // If tags are empty, clear them from cache
+        localCache.setCachedTags(
+          `${editingImage.file_name}_${editingImage.id}`,
+          [],
+        );
       }
 
-      const tagsArray =
-        values.tags
-          ?.split(",")
-          .map((t) => normalizeTag(t))
-          .filter(Boolean) || [];
+      await new Promise((resolve) => setTimeout(resolve, 800));
 
-      const updateData = {
-        alt_text: finalAltText,
-        tags: tagsArray,
-        purchase_link: values.purchase_link || null,
-      };
-
-      const { error } = await supabase
-        .from("gallery_images")
-        .update(updateData)
-        .eq("id", editingImage.id);
-
-      if (error) throw error;
       dismissToast(toastId);
-      showSuccess("Image data updated successfully!");
+      showSuccess("Image data updated successfully (Local Simulation)!");
       setEditingImage(null);
       reloadAllGalleryData();
     } catch (error: unknown) {
@@ -189,7 +188,7 @@ const ManageGallery = () => {
     if (!editingImage) return;
     setIsGeneratingTags(true);
     try {
-      const generatedTags = await generateTagsForImage(editingImage, false);
+      const generatedTags = await generateTagsForImage(editingImage);
       if (generatedTags.length > 0) {
         // Populate the form field so the user can review/edit before saving
         form.setValue("tags", generatedTags.join(", "), { shouldDirty: true });

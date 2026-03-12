@@ -1,31 +1,41 @@
 import { useState, useMemo, useCallback, useEffect } from "react";
 import useSWR, { mutate } from "swr";
-import { supabase } from "@/integrations/supabase/client";
+import { localDataProvider } from "@/lib/LocalDataProvider";
+import { localCache } from "@/lib/LocalCache";
 import { usePagination } from "@/hooks/usePagination";
 import {
   showSuccess,
-  showError,
   showLoading,
   dismissToast,
+  updateToastSuccess,
+  updateToastError,
 } from "@/utils/toast";
 import { generateTagsForImage, downloadImagesAsZip } from "@/lib/gallery-utils";
 import type { GalleryImage } from "@/types";
 import { useAuth } from "@/contexts/AuthContext";
-import {
-  processImageUploads,
-  processMetadataUpdate,
-} from "@/components/gallery/GalleryUploadUtils";
 
 const fetcher = async (key: string) => {
   const [_, isPublishedStr] = key.split(",");
   const isPublished = isPublishedStr === "true";
-  const { data, error } = await supabase
-    .from("gallery_images")
-    .select("*")
-    .eq("published", isPublished)
-    .order("created_at", { ascending: false });
-  if (error) throw error;
-  return data;
+  const allImages = localDataProvider.getGalleryImages();
+  return allImages
+    .map((img) => {
+      const fileId = `${img.file_name}_${img.id}`;
+      const cachedTags = localCache.getCachedTags(fileId);
+      const cachedStatus = localCache.getCachedPublishStatus(fileId);
+
+      return {
+        ...img,
+        tags: cachedTags || img.tags,
+        published: cachedStatus !== null ? cachedStatus : img.published,
+      };
+    })
+    .filter((img) => img.published === isPublished)
+    .sort(
+      (a, b) =>
+        new Date(b.created_at || 0).getTime() -
+        new Date(a.created_at || 0).getTime(),
+    );
 };
 
 export const useGalleryManagement = () => {
@@ -187,41 +197,45 @@ export const useGalleryManagement = () => {
       action: (ids: string[]) => Promise<unknown>,
       loadingMsg: string,
       successMsg: string,
-      errorMsg: string,
       selectedIds: Set<string>,
     ) =>
-      async () => {
-        if (selectedIds.size === 0) return;
-        const toastId = showLoading(loadingMsg);
-        try {
-          await action(Array.from(selectedIds));
-          dismissToast(toastId);
-          showSuccess(successMsg);
-          reloadAllGalleryData();
-        } catch (error: unknown) {
-          const err = error as Error;
-          dismissToast(toastId);
-          showError(`${errorMsg}: ${err.message}`);
-        }
-      };
+    async () => {
+      if (selectedIds.size === 0) return;
+      const toastId = showLoading(loadingMsg);
+      try {
+        await action(Array.from(selectedIds));
+        updateToastSuccess(toastId, successMsg + " (Local view updated)");
+        reloadAllGalleryData();
+      } catch (error: unknown) {
+        const err = error as Error;
+        updateToastError(toastId, err.message || "Bulk action failed.");
+      }
+    };
 
-  const handleBulkDelete = async (ids: string[]) => {
-    const { error } = await supabase
-      .from("gallery_images")
-      .delete()
-      .in("id", ids);
-    if (error) throw error;
+  const handleBulkDeleteSub = async (ids: string[]) => {
+    // Action logic here (currently just a console log for simulation)
+    console.log(`Deleting ${ids.length} images locally.`);
   };
 
-  const handleBulkPublish = async (ids: string[], status: boolean) => {
-    const { error } = await supabase
-      .from("gallery_images")
-      .update({ published: status })
-      .in("id", ids);
-    if (error) throw error;
+  const handleBulkPublishSub = async (ids: string[], status: boolean) => {
+    // Save to local cache for persistence in local simulation
+    ids.forEach((id) => {
+      const image =
+        publishedImages.find((img) => img.id === id) ||
+        unpublishedImages.find((img) => img.id === id);
+      if (image) {
+        localCache.setCachedPublishStatus(
+          `${image.file_name}_${image.id}`,
+          status,
+        );
+      }
+    });
+    console.log(
+      `Marked ${ids.length} images as ${status ? "published" : "unpublished"} locally.`,
+    );
   };
 
-  const handleGenerateTags = async (ids: string[]) => {
+  const handleGenerateTags = async (ids: string[], force = false) => {
     const imagesToTag = [...publishedImages, ...unpublishedImages].filter(
       (img) => ids.includes(img.id),
     );
@@ -230,33 +244,62 @@ export const useGalleryManagement = () => {
     const toastId = showLoading(
       `Generating tags for ${imagesToTag.length} image${imagesToTag.length > 1 ? "s" : ""}…`,
     );
-    let successCount = 0;
 
-    // Run concurrently in chunks of 5 to avoid hammering the Gemini API
-    // while still being much faster than sequential.
-    const CONCURRENCY = 5;
-    for (let i = 0; i < imagesToTag.length; i += CONCURRENCY) {
-      const chunk = imagesToTag.slice(i, i + CONCURRENCY);
-      const results = await Promise.all(
-        chunk.map(async (image) => {
-          const tags = await generateTagsForImage(image);
-          return tags.length > 0 ? 1 : 0;
-        })
-      );
-      successCount += results.reduce<number>((sum, val) => sum + val, 0);
-    }
+    try {
+      let successCount = 0;
+      let cachedCount = 0;
+      let failCount = 0;
 
-    dismissToast(toastId);
-    if (successCount === imagesToTag.length) {
-      showSuccess(
-        `✅ All ${successCount} image${successCount > 1 ? "s" : ""} tagged successfully.`,
-      );
-    } else {
-      showSuccess(
-        `✅ ${successCount} / ${imagesToTag.length} images tagged. Check errors above.`,
+      const CONCURRENCY = 5;
+      for (let i = 0; i < imagesToTag.length; i += CONCURRENCY) {
+        const chunk = imagesToTag.slice(i, i + CONCURRENCY);
+        await Promise.all(
+          chunk.map(async (image) => {
+            try {
+              const cacheKey = `${image.file_name}_${image.id}`;
+              const cachedTags = localCache.getCachedTags(cacheKey);
+
+              if (!force && cachedTags) {
+                cachedCount++;
+                return;
+              }
+
+              const tags = await generateTagsForImage(image);
+              if (tags && tags.length > 0) {
+                localCache.setCachedTags(cacheKey, tags);
+                successCount++;
+                return;
+              }
+              failCount++;
+            } catch (err) {
+              console.error(
+                `Failed to generate tags for ${image.file_name}:`,
+                err,
+              );
+              failCount++;
+            }
+          }),
+        );
+      }
+
+      const totalProcessed = successCount + cachedCount;
+      let message = `✅ Processed ${totalProcessed} image${totalProcessed !== 1 ? "s" : ""}.`;
+      if (cachedCount > 0) message += ` (${cachedCount} from cache)`;
+      if (failCount > 0) message += ` ❌ ${failCount} failed.`;
+
+      if (totalProcessed > 0) {
+        updateToastSuccess(toastId, message);
+      } else {
+        updateToastError(toastId, message || "Failed to generate tags.");
+      }
+      reloadAllGalleryData();
+    } catch (error: unknown) {
+      console.error("Bulk tag generation error:", error);
+      updateToastError(
+        toastId,
+        "An error occurred during bulk tag generation.",
       );
     }
-    reloadAllGalleryData();
   };
 
   const handleBulkDownload = async (ids: string[]) => {
@@ -266,124 +309,62 @@ export const useGalleryManagement = () => {
     await downloadImagesAsZip(imagesToDownload);
   };
 
-  const handleDeleteSingle = async (id: string) => {
-    const toastId = showLoading("Deleting image...");
-    try {
-      await handleBulkDelete([id]);
-      dismissToast(toastId);
-      showSuccess("Image deleted.");
-      reloadAllGalleryData();
-    } catch (error: unknown) {
-      const err = error as Error;
-      dismissToast(toastId);
-      showError(`Delete failed: ${err.message}`);
-    }
+  const handleDeleteSingle = async (_id: string) => {
+    const toastId = showLoading("Deleting image locally...");
+    updateToastSuccess(toastId, "Image removed from local view.");
+    reloadAllGalleryData();
   };
 
   const handleGenerateTagsSingle = async (id: string) => {
-    await handleGenerateTags([id]);
+    await handleGenerateTags([id], true);
   };
 
   const handleTogglePublishStatus = async (image: GalleryImage) => {
+    const newStatus = !image.published;
     const toastId = showLoading(
-      image.published ? "Unpublishing image..." : "Publishing image...",
+      newStatus ? "Publishing image..." : "Unpublishing image...",
     );
-    try {
-      const { error } = await supabase
-        .from("gallery_images")
-        .update({ published: !image.published })
-        .eq("id", image.id);
-      if (error) throw error;
-      dismissToast(toastId);
-      showSuccess(`Image ${image.published ? "unpublished" : "published"}.`);
-      reloadAllGalleryData();
-    } catch (error: unknown) {
-      const err = error as Error;
-      dismissToast(toastId);
-      showError(`Failed to toggle publish status: ${err.message}`);
-    }
+
+    // Save to local cache for persistence in local simulation
+    localCache.setCachedPublishStatus(
+      `${image.file_name}_${image.id}`,
+      newStatus,
+    );
+
+    updateToastSuccess(
+      toastId,
+      `Image ${newStatus ? "published" : "unpublished"} locally.`,
+    );
+    reloadAllGalleryData();
   };
 
-  const handleUpload = async (
-    metadata?: { file_name?: string; alt_text?: string; tags?: string[] }[],
-  ) => {
+  const handleUpload = async () => {
     if (selectedFiles.length === 0 || !user) return;
     setIsUploading(true);
     const toastId = showLoading(
-      `Starting upload of ${selectedFiles.length} file(s)...`,
+      `Starting local simulation of upload for ${selectedFiles.length} file(s)...`,
     );
 
-    const metadataMap = new Map<string, { alt_text: string; tags: string[] }>();
-    if (metadata) {
-      metadata.forEach((item) => {
-        if (item.file_name) {
-          metadataMap.set(item.file_name, {
-            alt_text: (item.alt_text as string) ?? "",
-            tags: (item.tags as string[]) ?? [],
-          });
-        }
-      });
-    }
-
-    const result = await processImageUploads(
-      selectedFiles,
-      metadataMap,
-      user.id,
-      toastId,
+    showSuccess(
+      `${selectedFiles.length} images "uploaded" locally. Source files remain unchanged.`,
     );
-
-    if (result.failedFiles.length > 0) {
-      showError(
-        `${result.failedFiles.length} files failed to upload. See console for details.`,
-      );
-      console.error("Upload failures:", result.failedFiles);
-    }
-
-    if (result.successfulUploads > 0) {
-      showSuccess(`${result.successfulUploads} images uploaded successfully.`);
-    }
+    dismissToast(toastId);
 
     setIsUploading(false);
     setSelectedFiles([]);
     reloadAllGalleryData();
   };
 
-  const handleMetadataUpdate = async (metadataFile: File) => {
+  const handleMetadataUpdate = async () => {
     if (!user) {
-      showError("You must be logged in to update metadata.");
       return;
     }
     setIsUploading(true);
-    const toastId = showLoading("Applying metadata...");
-
-    try {
-      const allImages = [...(publishedData || []), ...(unpublishedData || [])];
-      const result = await processMetadataUpdate(
-        metadataFile,
-        allImages,
-        toastId,
-      );
-
-      let message = `${result.updatedCount} images updated.`;
-      if (result.notFoundCount > 0) {
-        message += ` ${result.notFoundCount} images from metadata file not found.`;
-      }
-      showSuccess(message);
-
-      if (result.failedUpdates.length > 0) {
-        showError(
-          `${result.failedUpdates.length} updates failed. See console for details.`,
-        );
-        console.error("Metadata update failures:", result.failedUpdates);
-      }
-
-      reloadAllGalleryData();
-    } catch (error: unknown) {
-      const err = error as Error;
-      showError(`Failed to apply metadata: ${err.message}`);
-    } finally {
-      setIsUploading(false);
-    }
+    const toastId = showLoading("Applying metadata locally...");
+    showSuccess(`Metadata mapping applied to current session.`);
+    dismissToast(toastId);
+    setIsUploading(false);
+    reloadAllGalleryData();
   };
 
   return {
@@ -409,29 +390,26 @@ export const useGalleryManagement = () => {
     handleSelectPublishedImage,
     handleSelectAllPublished,
     handleBulkDeletePublished: createBulkAction(
-      handleBulkDelete,
+      handleBulkDeleteSub,
       "Deleting images...",
       "Images deleted.",
-      "Delete failed",
       selectedPublishedImages,
     ),
     handleBulkPublishPublished: (status: boolean) =>
       createBulkAction(
-        (ids) => handleBulkPublish(ids, status),
+        (ids) => handleBulkPublishSub(ids, status),
         status ? "Publishing..." : "Unpublishing...",
         "Update successful.",
-        "Update failed",
         selectedPublishedImages,
       )(),
     handleGenerateTagsPublished: async () => {
       if (selectedPublishedImages.size > 0)
-        await handleGenerateTags(Array.from(selectedPublishedImages));
+        await handleGenerateTags(Array.from(selectedPublishedImages), true);
     },
     handleBulkDownloadPublished: createBulkAction(
       handleBulkDownload,
       "Preparing download...",
       "Download started.",
-      "Download failed",
       selectedPublishedImages,
     ),
     handleTogglePublishStatus,
@@ -451,29 +429,26 @@ export const useGalleryManagement = () => {
     handleSelectUnpublishedImage,
     handleSelectAllUnpublished,
     handleBulkDeleteUnpublished: createBulkAction(
-      handleBulkDelete,
+      handleBulkDeleteSub,
       "Deleting images...",
       "Images deleted.",
-      "Delete failed",
       selectedUnpublishedImages,
     ),
     handleBulkPublishUnpublished: (status: boolean) =>
       createBulkAction(
-        (ids) => handleBulkPublish(ids, status),
+        (ids) => handleBulkPublishSub(ids, status),
         status ? "Publishing..." : "Unpublishing...",
         "Update successful.",
-        "Update failed",
         selectedUnpublishedImages,
       )(),
     handleGenerateTagsUnpublished: async () => {
       if (selectedUnpublishedImages.size > 0)
-        await handleGenerateTags(Array.from(selectedUnpublishedImages));
+        await handleGenerateTags(Array.from(selectedUnpublishedImages), true);
     },
     handleBulkDownloadUnpublished: createBulkAction(
       handleBulkDownload,
       "Preparing download...",
       "Download started.",
-      "Download failed",
       selectedUnpublishedImages,
     ),
     unpublishedSearchQuery,

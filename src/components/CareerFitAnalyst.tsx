@@ -15,7 +15,6 @@ import {
   Sparkles,
   AlertTriangle,
   Download,
-  Link as LinkIcon,
   FileText,
   CheckCircle2,
   AlertCircle,
@@ -31,50 +30,36 @@ import {
   markdownToPlainText,
   cleanJobDescriptionText,
 } from "@/lib/utils";
-import { analyzeAndTranslateJobDescription } from "@/utils/aiTextAnalysis";
+import {
+  fetchUrlContentWithJina,
+  isLocalFilePath
+} from "@/integrations/gemini/client";
+import { 
+  analyzeAndTranslateJobDescription, 
+  analyzeVisionJobDescription 
+} from "@/utils/aiTextAnalysis";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
-import { supabase } from "@/integrations/supabase/client";
 import { generateCareerFitPdf } from "@/utils/pdfGenerator";
-import { User } from "@supabase/supabase-js";
+import { Image as ImageIcon, Upload, X } from "lucide-react";
 
 const MIN_JOB_DESCRIPTION_LENGTH = 250;
 
 export const CareerFitAnalyst = () => {
   const [jobDescription, setJobDescription] = useState("");
   const [jobDescriptionUrl, setJobDescriptionUrl] = useState("");
+  const [jobDescriptionImage, setJobDescriptionImage] = useState<string | null>(null);
   const [isButtonEnabled, setIsButtonEnabled] = useState(false);
   const [isPreProcessing, setIsPreProcessing] = useState(false);
   const [_originalLanguage, setOriginalLanguage] = useState<string | null>(
     null,
   );
-  const [inputMethod, setInputMethod] = useState<"text" | "url">("text");
+  const [inputMethod, setInputMethod] = useState<"text" | "url" | "image">("text");
   const [isFetchingUrl, setIsFetchingUrl] = useState(false);
-  const [_user, setUser] = useState<User | null>(null);
-  const [displayOverallStepIndex, setDisplayOverallStepIndex] = useState(-1); // New state for visual progress
+  const [isDragging, setIsDragging] = useState(false);
+  const [displayOverallStepIndex, setDisplayOverallStepIndex] = useState(-1);
   const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
   const [showTimeoutWarning, setShowTimeoutWarning] = useState(false);
-
-  useEffect(() => {
-    const checkUser = async () => {
-      const {
-        data: { session },
-      } = await supabase.auth.getSession();
-      setUser(session?.user ?? null);
-    };
-
-    checkUser();
-
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
-      setUser(session?.user ?? null);
-    });
-
-    return () => {
-      subscription.unsubscribe();
-    };
-  }, []);
 
   const {
     isMatching,
@@ -102,7 +87,7 @@ export const CareerFitAnalyst = () => {
   }, [matchResult]);
 
   const overallSteps = useMemo(
-    () => ["Validating entered text", ...analysisSteps],
+    () => ["Validating input content", ...analysisSteps],
     [],
   );
   const totalOverallSteps = overallSteps.length;
@@ -129,7 +114,10 @@ export const CareerFitAnalyst = () => {
   useEffect(() => {
     let timeoutId: NodeJS.Timeout;
 
-    if (inputMethod === "url" && (isFetchingUrl || isPreProcessing || isMatching)) {
+    if (
+      inputMethod === "url" &&
+      (isFetchingUrl || isPreProcessing || isMatching)
+    ) {
       timeoutId = setTimeout(() => {
         setShowTimeoutWarning(true);
       }, 120000); // 120 seconds = 2 minutes
@@ -192,6 +180,50 @@ export const CareerFitAnalyst = () => {
     displayOverallStepIndex,
   ]);
 
+  const handleImageUpload = useCallback((file: File) => {
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      setJobDescriptionImage(reader.result as string);
+      setIsButtonEnabled(true);
+    };
+    reader.readAsDataURL(file);
+  }, []);
+
+  const onFileChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) handleImageUpload(file);
+  }, [handleImageUpload]);
+
+  const handleDragOver = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(true);
+  }, []);
+
+  const handleDragLeave = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+  }, []);
+
+  const handleDrop = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+    
+    const file = e.dataTransfer.files?.[0];
+    if (file && file.type.startsWith('image/')) {
+      handleImageUpload(file);
+    } else {
+      showError("Please drop a valid image file.");
+    }
+  }, [handleImageUpload]);
+
+  const removeImage = useCallback(() => {
+    setJobDescriptionImage(null);
+    setIsButtonEnabled(false);
+  }, []);
+
   const handleInputChange = useCallback(
     (e: React.ChangeEvent<HTMLTextAreaElement>) => {
       const value = e.target.value;
@@ -210,92 +242,63 @@ export const CareerFitAnalyst = () => {
     [],
   );
 
-  const fetchJobDescriptionFromUrl = useCallback(
-    async (url: string): Promise<string> => {
-      try {
-        const { data, error } = await supabase.functions.invoke(
-          "fetch-url-content",
-          {
-            body: { url },
-          },
-        );
-
-        if (error) {
-          throw new Error(error.message);
-        }
-        if (!data || !data.content) {
-          throw new Error("Failed to retrieve content from the URL.");
-        }
-        return data.content;
-      } catch (error: unknown) {
-        const err = error as Error;
-        throw new Error(
-          `Error fetching job description from URL via proxy: ${err.message}`,
-        );
-      }
-    },
-    [],
-  );
-
   const handleSubmit = useCallback(async () => {
     if (!resume) {
-      showError(
-        "Resume data is not available for matching. Please ensure VITE_RESUME_URL is set and accessible.",
-      );
-      return;
-    }
-    if (contextError || geminiClientError) {
-      showError(
-        contextError ||
-        geminiClientError ||
-        "An error occurred with the AI service or context loading.",
-      );
+      showError("Resume data is not available.");
       return;
     }
 
-    if (inputMethod === "text") {
-      if (jobDescription.length < MIN_JOB_DESCRIPTION_LENGTH) {
-        showError(
-          `Please enter at least ${MIN_JOB_DESCRIPTION_LENGTH} characters for a meaningful match.`,
-        );
-        return;
-      }
-    } else {
-      // inputMethod === "url"
-      if (!jobDescriptionUrl.trim()) {
-        showError("Please enter a valid URL.");
-        return;
-      }
-      setIsFetchingUrl(true);
+    if (inputMethod === "url" && isLocalFilePath(jobDescriptionUrl)) {
+      showError("This looks like a local file path. Please use the 'Upload Screenshot' tab instead.");
+      return;
+    }
+
+    if (inputMethod === "text" && jobDescription.length < MIN_JOB_DESCRIPTION_LENGTH) {
+      showError(`Please enter at least ${MIN_JOB_DESCRIPTION_LENGTH} characters.`);
+      return;
+    }
+
+    if (inputMethod === "url" && !jobDescriptionUrl.trim()) {
+      showError("Please enter a valid URL.");
+      return;
+    }
+
+    if (inputMethod === "image" && !jobDescriptionImage) {
+      showError("Please upload a screenshot of the job description.");
+      return;
     }
 
     setIsPreProcessing(true);
+    if (inputMethod === "url") setIsFetchingUrl(true);
 
     try {
       let textToAnalyze = jobDescription;
 
       if (inputMethod === "url") {
-        const fetchedHtml = await fetchJobDescriptionFromUrl(jobDescriptionUrl);
-        textToAnalyze = cleanJobDescriptionText(fetchedHtml);
-        setJobDescription(textToAnalyze); // Update textarea with cleaned content
+        const content = await fetchUrlContentWithJina(jobDescriptionUrl);
+        textToAnalyze = cleanJobDescriptionText(content);
+        setJobDescription(textToAnalyze);
       }
 
-      const analysisResult =
-        await analyzeAndTranslateJobDescription(textToAnalyze);
-      setOriginalLanguage(analysisResult.originalLanguage);
-
-      if (!analysisResult.isValidJobDescription) {
-        throw new Error(analysisResult.processedText); // Throw error to be caught below
+      if (inputMethod === "image" && jobDescriptionImage) {
+        // Vision path: Validate then match
+        const analysisResult = await analyzeVisionJobDescription(jobDescriptionImage);
+        if (!analysisResult.isValidJobDescription) {
+          throw new Error(analysisResult.processedText);
+        }
+        await performJobMatch("", jobDescriptionImage);
+      } else {
+        // Text/URL path: Validate then match
+        const analysisResult = await analyzeAndTranslateJobDescription(textToAnalyze);
+        if (!analysisResult.isValidJobDescription) {
+          throw new Error(analysisResult.processedText);
+        }
+        await performJobMatch(analysisResult.processedText);
       }
-
-      await performJobMatch(analysisResult.processedText);
     } catch (error: unknown) {
       const err = error as Error;
-      console.error("Error in pre-analysis or career fit analysis:", err);
-      showError(
-        err.message ||
-        "Sorry, an error occurred during job description validation or analysis. Please check your input and try again.",
-      );
+      console.error("Analysis failed:", err);
+      showError(err.message || "An error occurred during analysis.");
     } finally {
       setIsPreProcessing(false);
       setIsFetchingUrl(false);
@@ -304,10 +307,8 @@ export const CareerFitAnalyst = () => {
     inputMethod,
     jobDescription,
     jobDescriptionUrl,
+    jobDescriptionImage,
     resume,
-    contextError,
-    geminiClientError,
-    fetchJobDescriptionFromUrl,
     performJobMatch,
   ]);
 
@@ -315,6 +316,7 @@ export const CareerFitAnalyst = () => {
     resetMatch();
     setJobDescription("");
     setJobDescriptionUrl("");
+    setJobDescriptionImage(null);
     setIsButtonEnabled(false);
     setIsPreProcessing(false);
     setOriginalLanguage(null);
@@ -322,20 +324,63 @@ export const CareerFitAnalyst = () => {
     setShowTimeoutWarning(false);
   }, [resetMatch]);
 
-  const handleDownloadText = useCallback(() => {
+  const handleDownloadText = useCallback(async () => {
     if (matchResult?.reasoning) {
-      // Clean the reasoning to ensure proper formatting
-      const cleanedReasoning = matchResult.reasoning
-        .replace(/\\n\+/g, "\n+") // Replace escaped \n+ with actual newline + bullet
-        .replace(/\\n/g, "\n") // Replace any remaining escaped newlines
-        .replace(/\n{3,}/g, "\n\n"); // Normalize multiple newlines
+      // Re-parse the full reasoning for the download (matching the PDF comprehensiveness)
+      const { matchingLines, gapLines } = parseReasoningSections(matchResult.reasoning, {
+        matchingMax: 10,
+        gapsMax: 10,
+      });
+      
+      const cleanedHighlights = (matchResult.highlights ?? "")
+        .replace(/\\n/g, "\n")
+        .replace(/\n{3,}/g, "\n\n");
 
-      const plainTextContent = markdownToPlainText(cleanedReasoning);
-      downloadTextFile(plainTextContent, "CareerFitAnalysis.txt");
+      const highlightLines = cleanedHighlights
+        .split("\n")
+        .filter((l) => l.trim().startsWith("-"))
+        .map((l) => l.replace(/^\s*-\s*/, "").trim())
+        .filter(Boolean);
+
+      let content = "CAREER FIT ANALYSIS REPORT\n";
+      content += `Rajesh Narayanan · ${new Date().toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" })}\n`;
+      content += `Overall Match: ${matchResult.percentage}%\n`;
+      if (inputMethod === "url") {
+        content += `Source: ${jobDescriptionUrl}\n`;
+      }
+      content += "================================\n\n";
+
+      if (highlightLines.length > 0) {
+        content += "JOB HIGHLIGHTS:\n";
+        highlightLines.forEach((line) => {
+          content += `- ${markdownToPlainText(line)}\n`;
+        });
+        content += "\n";
+      }
+
+      if (matchingLines.length > 0) {
+        content += "MATCHING AREAS:\n";
+        matchingLines.forEach((line) => {
+          content += `- ${markdownToPlainText(line)}\n`;
+        });
+        content += "\n";
+      }
+
+      if (gapLines.length > 0) {
+        content += "AREAS TO BRIDGE:\n";
+        gapLines.forEach((gapObj) => {
+          content += `- ${markdownToPlainText(gapObj.gap)}\n`;
+          if (gapObj.mitigation) {
+            content += `  Mitigation: ${markdownToPlainText(gapObj.mitigation)}\n`;
+          }
+        });
+      }
+
+      await downloadTextFile(content.trim(), "CareerFitAnalysis.txt");
     } else {
       showError("No analysis result to download.");
     }
-  }, [matchResult?.reasoning]);
+  }, [matchResult, inputMethod, jobDescriptionUrl]);
 
   const handleDownloadPdf = useCallback(async () => {
     if (!matchResult) {
@@ -358,27 +403,12 @@ export const CareerFitAnalyst = () => {
         .replace(/\n{3,}/g, "\n\n");
 
       // Split reasoning into Matching and Gaps sections
-      const lines = cleanedReasoning.split("\n");
-      const matchingItems: string[] = [];
-      const gapItems: string[] = [];
-      let inMatching = false,
-        inGaps = false;
-      for (const line of lines) {
-        if (line.startsWith("## Matching Areas")) {
-          inMatching = true;
-          inGaps = false;
-          continue;
-        }
-        if (line.startsWith("## Gaps")) {
-          inMatching = false;
-          inGaps = true;
-          continue;
-        }
-        const trimmed = line.replace(/^\s*[+-]\s*/, "").trim();
-        if (trimmed.length === 0) continue;
-        if (inMatching) matchingItems.push(trimmed);
-        else if (inGaps) gapItems.push(trimmed);
-      }
+      const parsedForPdf = parseReasoningSections(cleanedReasoning, {
+        matchingMax: 10,
+        gapsMax: 10,
+      });
+      const matchingItems = parsedForPdf.matchingLines;
+      const gapItems = parsedForPdf.gapLines;
 
       // Parse bullet highlights
       const highlightLines = cleanedHighlights
@@ -561,7 +591,14 @@ export const CareerFitAnalyst = () => {
     <h2 class="section-title">Areas to Bridge</h2>
     <p class="section-subtitle gap-subtitle">Identified gaps and how I can address them</p>
     <ul class="result-list">
-      ${gapItems.map((l) => `<li class="result-item gap"><span class="icon gap-icon">→</span><span>${renderBold(l)}</span></li>`).join("")}
+      ${gapItems.map((g) => `
+        <li class="result-item gap">
+          <span class="icon gap-icon">→</span>
+          <div style="flex: 1;">
+            <div>${renderBold(g.gap)}</div>
+            ${g.mitigation ? `<div style="font-size: 10pt; color: #4b5563; margin-top: 4px; padding-left: 8px; border-left: 2px solid #e5e7eb;">${renderBold(g.mitigation)}</div>` : ''}
+          </div>
+        </li>`).join("")}
     </ul>
   </div>
 
@@ -605,12 +642,23 @@ export const CareerFitAnalyst = () => {
         {displayError && (
           <Alert variant="destructive">
             <AlertTriangle className="h-4 w-4" />
-            <AlertTitle>Configuration Error</AlertTitle>
-            <AlertDescription>
-              {displayError} Please ensure <code>VITE_GEMINI_API_KEY</code>,{" "}
-              <code>VITE_GEMINI_MODEL_NAME</code>, and{" "}
-              <code>VITE_RESUME_URL</code> are correctly set in your environment
-              variables.
+            <AlertTitle>
+              {displayError.includes("VITE_GEMINI") ||
+              displayError.includes("set and accessible")
+                ? "Configuration Error"
+                : "Analysis Error"}
+            </AlertTitle>
+            <AlertDescription className="space-y-2">
+              <p>{displayError}</p>
+              {(displayError.includes("VITE_GEMINI") ||
+                displayError.includes("set and accessible")) && (
+                <p className="text-sm opacity-90">
+                  Please ensure <code>VITE_GEMINI_API_KEY</code>,{" "}
+                  <code>VITE_GEMINI_MODEL_NAME</code>, and{" "}
+                  <code>VITE_RESUME_URL</code> are correctly set in your
+                  environment variables.
+                </p>
+              )}
             </AlertDescription>
           </Alert>
         )}
@@ -649,16 +697,10 @@ export const CareerFitAnalyst = () => {
                 <AlertCircle className="h-4 w-4" />
                 <AlertTitle>Taking longer than expected?</AlertTitle>
                 <AlertDescription>
-                  Fetching URL content relies on Supabase Edge Functions. If this is taking longer than 2 minutes, there might be a platform issue. Please check the <a href="https://status.supabase.com" target="_blank" rel="noopener noreferrer" className="underline font-medium hover:text-foreground">Supabase Status</a> page or try switching to the <span
-                    className="underline font-medium hover:text-foreground cursor-pointer"
-                    onClick={() => {
-                      if (window.confirm("This will reload the page and cancel the current analysis. Are you sure you want to proceed?")) {
-                        window.location.reload();
-                      }
-                    }}
-                  >
-                    "Paste Description"
-                  </span> option instead.
+                  This process might be taking longer due to the complexity of
+                  the job description. If it takes more than 5 minutes, please
+                  try a shorter selection or refresh and use the "Paste
+                  Description" option.
                 </AlertDescription>
               </Alert>
             )}
@@ -667,23 +709,32 @@ export const CareerFitAnalyst = () => {
           <>
             <Tabs
               defaultValue="text"
-              onValueChange={(value) => setInputMethod(value as "text" | "url")}
+              onValueChange={(value) => setInputMethod(value as "text" | "url" | "image")}
+              className="w-full"
             >
-              <TabsList className="grid w-full grid-cols-2">
+              <TabsList className="flex flex-wrap h-auto w-full bg-muted/50 p-1 gap-1">
                 <TabsTrigger
                   value="text"
-                  className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
+                  className="flex-1 min-w-[80px] data-[state=active]:bg-primary data-[state=active]:text-primary-foreground text-xs sm:text-sm"
                 >
-                  Paste Description
+                  Paste Text
                 </TabsTrigger>
                 <TabsTrigger
                   value="url"
-                  className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
+                  className="flex-1 min-w-[80px] data-[state=active]:bg-primary data-[state=active]:text-primary-foreground text-xs sm:text-sm"
                 >
                   Provide URL
                 </TabsTrigger>
+                <TabsTrigger
+                  value="image"
+                  className="flex-1 min-w-[120px] data-[state=active]:bg-primary data-[state=active]:text-primary-foreground text-xs sm:text-sm"
+                >
+                  <ImageIcon className="mr-1.5 h-3.5 w-3.5" />
+                  Upload Screenshot
+                </TabsTrigger>
               </TabsList>
-              <TabsContent value="text">
+              
+              <TabsContent value="text" className="space-y-4 pt-4">
                 <Textarea
                   placeholder={`Paste your job description here (minimum ${MIN_JOB_DESCRIPTION_LENGTH} characters)...`}
                   value={jobDescription}
@@ -691,63 +742,115 @@ export const CareerFitAnalyst = () => {
                   className="min-h-[200px]"
                   disabled={!resume || !!displayError}
                 />
-                <p className="text-sm text-muted-foreground mt-2">
-                  {jobDescription.length}/{MIN_JOB_DESCRIPTION_LENGTH}{" "}
-                  characters minimum
-                </p>
-                <p className="text-sm text-muted-foreground mt-2">
-                  Matching job descriptions longer than 2000 characters in
-                  length or using an URL to match can take a several minutes to
-                  complete.
-                </p>
+                <div className="flex justify-between items-center text-sm text-muted-foreground">
+                  <span>{jobDescription.length}/{MIN_JOB_DESCRIPTION_LENGTH} characters minimum</span>
+                </div>
               </TabsContent>
-              <TabsContent value="url">
-                <div className="flex items-center gap-2">
+
+              <TabsContent value="url" className="space-y-4 pt-4">
+                <div className="space-y-2">
                   <Input
                     type="url"
-                    placeholder="https://example.com/job-description"
+                    placeholder="https://amazon.jobs/..."
                     value={jobDescriptionUrl}
                     onChange={handleUrlChange}
                     disabled={!resume || !!displayError}
                   />
-                  <Button
-                    onClick={handleSubmit}
-                    disabled={!isButtonEnabled || !resume || !!displayError}
-                  >
-                    <LinkIcon className="mr-2 h-4 w-4" />
-                    Fetch & Analyze
-                  </Button>
+                  <p className="text-xs text-muted-foreground">
+                    I'll use the Jina Reader to extract clean text from the job post.
+                  </p>
                 </div>
-                <p className="text-sm text-muted-foreground mt-2">
-                  Provide a URL where the job description is hosted.
-                </p>
-                <p className="text-sm text-muted-foreground mt-2">
-                  Matching job descriptions longer than 2000 characters in
-                  length or using an URL to match can take a several minutes to
-                  complete.
+              </TabsContent>
+
+              <TabsContent value="image" className="space-y-4 pt-4">
+                <div 
+                  className={cn(
+                    "flex flex-col items-center justify-center border-2 border-dashed rounded-lg p-6 transition-all duration-200 min-h-[200px]",
+                    isDragging 
+                      ? "border-primary bg-primary/5 scale-[1.01]" 
+                      : "border-muted-foreground/25 hover:border-primary/50",
+                    jobDescriptionImage && "border-solid border-primary/20"
+                  )}
+                  onDragOver={handleDragOver}
+                  onDragLeave={handleDragLeave}
+                  onDrop={handleDrop}
+                >
+                  {jobDescriptionImage ? (
+                    <div className="relative w-full max-w-[300px] aspect-video group">
+                      <img 
+                        src={jobDescriptionImage} 
+                        alt="Job Description" 
+                        className="w-full h-full object-contain rounded shadow-sm transition-opacity group-hover:opacity-90"
+                      />
+                      <Button
+                        variant="destructive"
+                        size="icon"
+                        className="absolute -top-2 -right-2 h-6 w-6 rounded-full shadow-md"
+                        onClick={removeImage}
+                      >
+                        <X className="h-4 w-4" />
+                      </Button>
+                      <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                        <p className="text-[10px] bg-background/80 px-2 py-1 rounded shadow-sm font-medium">Click X to remove</p>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="text-center space-y-3">
+                      <div className={cn(
+                        "p-4 rounded-full w-fit mx-auto transition-colors",
+                        isDragging ? "bg-primary text-primary-foreground" : "bg-secondary"
+                      )}>
+                        <Upload className={cn("h-8 w-8", isDragging && "animate-bounce")} />
+                      </div>
+                      <div className="space-y-1">
+                        <p className="text-sm font-semibold">
+                          {isDragging ? "Drop to upload" : "Drag & drop screenshot"}
+                        </p>
+                        <p className="text-xs text-muted-foreground">PNG or JPG of the job description</p>
+                      </div>
+                      <div className="flex flex-col items-center gap-2 pt-2">
+                        <span className="text-[10px] text-muted-foreground uppercase tracking-widest">— OR —</span>
+                        <Input
+                          type="file"
+                          accept="image/*"
+                          className="hidden"
+                          id="image-upload"
+                          onChange={onFileChange}
+                        />
+                        <Button asChild variant="outline" size="sm" className="h-8">
+                          <label htmlFor="image-upload" className="cursor-pointer">
+                            Browse Files
+                          </label>
+                        </Button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+                <p className="text-xs text-muted-foreground text-center">
+                  Gemini Vision will analyze the contents of your screenshot directly.
                 </p>
               </TabsContent>
             </Tabs>
 
-            {!matchResult && inputMethod === "text" && (
-              <Button
-                onClick={handleSubmit}
-                disabled={!isButtonEnabled || !resume || !!displayError}
-                className="w-full"
-              >
-                <Sparkles className="mr-2 h-4 w-4" />
-                Match my Portfolio with your Job Description
-              </Button>
-            )}
 
-            {matchResult && (
-              <Button
-                onClick={handleAnalyzeAnother}
-                className="w-full pdf-hidden"
-              >
-                Analyze Another Job Description
-              </Button>
-            )}
+            <Button
+              onClick={matchResult ? handleAnalyzeAnother : handleSubmit}
+              disabled={!isButtonEnabled || !resume || !!displayError || isPreProcessing}
+              className="w-full"
+            >
+              {isPreProcessing || isFetchingUrl ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Processing...
+                </>
+              ) : (
+                <>
+                  <Sparkles className="mr-2 h-4 w-4" />
+                  {matchResult ? "Analyze Another Selection" : "Match Portfolio with Job Description"}
+                </>
+              )}
+            </Button>
+
           </>
         )}
 
@@ -831,21 +934,35 @@ export const CareerFitAnalyst = () => {
                     Areas to Bridge
                   </p>
                 </div>
-                <ul className="space-y-2">
-                  {parsedSections.gapLines.map((line, i) => (
+                <ul className="space-y-4">
+                  {parsedSections.gapLines.map((gapObj, i) => (
                     <li
                       key={i}
                       className="flex gap-2 text-sm text-foreground leading-snug"
                     >
                       <span className="mt-0.5 text-amber-500 shrink-0">→</span>
-                      <span
-                        dangerouslySetInnerHTML={{
-                          __html: line.replace(
-                            /\*\*(.+?)\*\*/g,
-                            "<strong>$1</strong>",
-                          ),
-                        }}
-                      />
+                      <div className="flex-1 space-y-1">
+                        <span
+                          dangerouslySetInnerHTML={{
+                            __html: gapObj.gap.replace(
+                              /\*\*(.+?)\*\*/g,
+                              "<strong>$1</strong>",
+                            ),
+                          }}
+                        />
+                        {gapObj.mitigation && (
+                          <div className="text-xs text-muted-foreground border-l-2 border-amber-200 dark:border-amber-800 pl-2 ml-1 italic">
+                            <span 
+                              dangerouslySetInnerHTML={{
+                                __html: gapObj.mitigation.replace(
+                                  /\*\*(.+?)\*\*/g,
+                                  "<strong>$1</strong>",
+                                ),
+                              }}
+                            />
+                          </div>
+                        )}
+                      </div>
                     </li>
                   ))}
                 </ul>
@@ -870,7 +987,7 @@ export const CareerFitAnalyst = () => {
                   </>
                 ) : (
                   <>
-                    <FileText className="mr-2 h-4 w-4" /> Download as PDF
+                    <FileText className="mr-2 h-4 w-4" /> Print to PDF
                   </>
                 )}
               </Button>

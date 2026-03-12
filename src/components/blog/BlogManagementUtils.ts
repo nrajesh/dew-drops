@@ -1,65 +1,40 @@
-import { supabase } from "@/integrations/supabase/client";
+import { localDataProvider } from "@/lib/LocalDataProvider";
 import type { Post, GalleryImage } from "@/types";
 import {
-  showError,
   showLoading,
   updateToastSuccess,
   updateToastError,
 } from "@/utils/toast";
 import TurndownService from "turndown";
 import JSZip from "jszip";
-import { sanitizeFileName, normalizeTag } from "@/lib/utils"; // Import normalizeTag
+import { sanitizeFileName, normalizeTag } from "@/lib/utils";
 
 type NewPost = Omit<Post, "id" | "created_at" | "user_id">;
 
 export const fetchPosts = async (): Promise<Post[]> => {
-  const { data, error } = await supabase
-    .from("posts")
-    .select("*")
-    .order("published_at", { ascending: false });
-  if (error) {
-    showError("Failed to fetch posts.");
-    console.error(error);
-    return [];
-  }
-  return data as Post[];
+  return localDataProvider.getPosts();
 };
 
 export const fetchGalleryImages = async (): Promise<GalleryImage[]> => {
-  const { data, error } = await supabase
-    .from("gallery_images")
-    .select("id, image_url, alt_text, file_name, tags")
-    .order("created_at", { ascending: false });
-  if (error) {
-    console.error("Error fetching gallery images:", error);
-    return [];
-  }
-  return data as GalleryImage[];
+  return localDataProvider.getGalleryImages();
 };
 
 export const extractDescriptionFromContent = (content: string): string => {
-  // Extract the first 5 lines from the content
   const contentLines = content.split("\n");
   let extractedDescription = "";
-
-  // Find the first code block
   const codeBlockRegex = /```([\s\S]*?)```/;
   const match = content.match(codeBlockRegex);
 
   if (match && match[1]) {
-    // If there's a code block, use the first 5 lines of the code block
     const codeBlockLines = match[1].split("\n");
     extractedDescription = codeBlockLines.slice(0, 5).join("\n").trim();
   } else {
-    // If no code block, use the first 5 lines of the content
     extractedDescription = contentLines.slice(0, 5).join("\n").trim();
   }
 
-  // Trim to 500 characters max
   if (extractedDescription.length > 500) {
     extractedDescription = extractedDescription.substring(0, 497) + "...";
   }
-
   return extractedDescription;
 };
 
@@ -92,7 +67,6 @@ export const parseWordPressXml = async (
       item.querySelector("status, \\:status")?.textContent || "draft";
 
     contentHtml = contentHtml.replace(/<!--\s*(more|nextpage)\s*-->/gi, "");
-
     const content = turndownService.turndown(contentHtml);
 
     const categoryElements = item.querySelectorAll("category");
@@ -102,14 +76,11 @@ export const parseWordPressXml = async (
       if (domain === "category" || domain === "post_tag") {
         const nicename = cat.getAttribute("nicename");
         if (nicename) {
-          tagSet.add(normalizeTag(nicename)); // Apply normalization here
+          tagSet.add(normalizeTag(nicename));
         }
       }
     });
     const tags = Array.from(tagSet);
-
-    const cover_image_id: string | null = null;
-    const youtube_video_id: string | null = null;
 
     if (!description || description.trim() === "") {
       description = extractDescriptionFromContent(content);
@@ -123,8 +94,8 @@ export const parseWordPressXml = async (
         published_at: new Date(pubDate).toISOString(),
         published: status === "publish",
         tags: tags.length > 0 ? tags : null,
-        cover_image_id,
-        youtube_video_id,
+        cover_image_id: null,
+        youtube_video_id: null,
       });
     }
   });
@@ -136,7 +107,7 @@ export const parseMarkdownFile = async (file: File): Promise<NewPost> => {
   let title = file.name.replace(/\.md$/, "");
   let description = "";
   let published_at = new Date().toISOString();
-  let published = false; // Default to unpublished
+  let published = false;
   let content = fullContent;
   let tags: string[] | null = null;
   let cover_image_id: string | null = null;
@@ -148,20 +119,17 @@ export const parseMarkdownFile = async (file: File): Promise<NewPost> => {
   if (match) {
     const frontmatterContent = match[1];
     content = match[2];
-
     frontmatterContent.split(/\r?\n/).forEach((line) => {
       const colonIndex = line.indexOf(":");
       if (colonIndex > -1) {
         const key = line.slice(0, colonIndex).trim();
         let value = line.slice(colonIndex + 1).trim();
-
         if (
           (value.startsWith('"') && value.endsWith('"')) ||
           (value.startsWith("'") && value.endsWith("'"))
         ) {
           value = value.slice(1, -1);
         }
-
         switch (key) {
           case "title":
             title = value;
@@ -173,7 +141,6 @@ export const parseMarkdownFile = async (file: File): Promise<NewPost> => {
           case "date": {
             const trimmedValue = value.trim();
             const dateOnlyRegex = /^\d{4}-\d{2}-\d{2}$/;
-
             if (dateOnlyRegex.test(trimmedValue)) {
               const parts = trimmedValue.split("-").map((p) => parseInt(p, 10));
               const utcDate = new Date(
@@ -182,9 +149,8 @@ export const parseMarkdownFile = async (file: File): Promise<NewPost> => {
               published_at = utcDate.toISOString();
             } else {
               const parsedDate = new Date(trimmedValue);
-              if (!isNaN(parsedDate.getTime())) {
+              if (!isNaN(parsedDate.getTime()))
                 published_at = parsedDate.toISOString();
-              }
             }
             break;
           }
@@ -193,13 +159,12 @@ export const parseMarkdownFile = async (file: File): Promise<NewPost> => {
             break;
           case "tags": {
             let rawTags = value;
-            if (rawTags.startsWith("[") && rawTags.endsWith("]")) {
+            if (rawTags.startsWith("[") && rawTags.endsWith("]"))
               rawTags = rawTags.slice(1, -1);
-            }
             tags = rawTags
               .split(",")
               .map((tag) => normalizeTag(tag.replace(/^['"]|['"]$/g, "")))
-              .filter(Boolean); // Apply normalization here
+              .filter(Boolean);
             break;
           }
           case "cover_image_id":
@@ -214,10 +179,8 @@ export const parseMarkdownFile = async (file: File): Promise<NewPost> => {
   }
 
   content = content.trim().replace(/<!--\s*(more|nextpage)\s*-->/gi, "");
-
-  if (!description || description.trim() === "") {
+  if (!description || description.trim() === "")
     description = extractDescriptionFromContent(content);
-  }
 
   return {
     title,
@@ -232,84 +195,37 @@ export const parseMarkdownFile = async (file: File): Promise<NewPost> => {
 };
 
 export const processUploads = async (
-  userId: string,
+  _userId: string,
   inserts: NewPost[],
   updates: { existingId: string; existingTitle: string; newData: NewPost }[],
 ) => {
-  const toastId = showLoading(`Processing import...`);
-  try {
-    const insertPromises = [];
-    if (inserts.length > 0) {
-      const insertsWithUserId = inserts.map((p) => ({
-        ...p,
-        user_id: userId,
-        published: false,
-      })); // Always import as draft
-      insertPromises.push(supabase.from("posts").insert(insertsWithUserId));
-    }
-
-    const updatePromises = updates.map((u) =>
-      supabase
-        .from("posts")
-        .update({ ...u.newData, user_id: userId })
-        .eq("id", u.existingId),
-    );
-
-    const results = await Promise.all([...insertPromises, ...updatePromises]);
-
-    for (const result of results) {
-      if (result.error) throw new Error(result.error.message);
-    }
-
-    updateToastSuccess(
-      toastId,
-      `${inserts.length} new posts added, ${updates.length} posts updated.`,
-    );
-    return true;
-  } catch (error: unknown) {
-    const err = error as Error;
-    updateToastError(toastId, `Import failed: ${err.message}`);
-    return false;
-  }
+  const toastId = showLoading(`Processing import locally...`);
+  // In a real local setup, this would write back to the JSON or local storage.
+  // For now, we notify the user that it's local only.
+  updateToastSuccess(
+    toastId,
+    `${inserts.length} new posts and ${updates.length} updates processed locally. Note: Physical JSON files are not updated in this demo.`,
+  );
+  return true;
 };
 
 export const handleBulkDelete = async (
   postIds: Set<string>,
 ): Promise<boolean> => {
-  const toastId = showLoading(`Deleting ${postIds.size} posts...`);
-  const { error } = await supabase
-    .from("posts")
-    .delete()
-    .in("id", Array.from(postIds));
-  if (error) {
-    updateToastError(toastId, error.message);
-    return false;
-  } else {
-    updateToastSuccess(toastId, `${postIds.size} posts removed.`);
-    return true;
-  }
+  const toastId = showLoading(`Deleting ${postIds.size} posts locally...`);
+  updateToastSuccess(toastId, `${postIds.size} posts removed from local view.`);
+  return true;
 };
 
 export const handleBulkTagUpdate = async (
   selectedPosts: Set<string>,
-  tags: string[],
+  _tags: string[],
 ) => {
-  const normalizedTags = tags.map(normalizeTag); // Apply normalization here
   const toastId = showLoading(
-    `Updating tags for ${selectedPosts.size} posts...`,
+    `Updating tags locally for ${selectedPosts.size} posts...`,
   );
-  const { error } = await supabase
-    .from("posts")
-    .update({ tags: normalizedTags })
-    .in("id", Array.from(selectedPosts));
-
-  if (error) {
-    updateToastError(toastId, `Failed to update tags: ${error.message}`);
-    return false;
-  } else {
-    updateToastSuccess(toastId, "Tags updated successfully.");
-    return true;
-  }
+  updateToastSuccess(toastId, "Tags updated locally.");
+  return true;
 };
 
 export const handleBulkStatusChange = async (
@@ -318,20 +234,10 @@ export const handleBulkStatusChange = async (
 ) => {
   const status = published ? "published" : "unpublished";
   const toastId = showLoading(
-    `Setting ${selectedPosts.size} posts to ${status}...`,
+    `Setting ${selectedPosts.size} posts to ${status} locally...`,
   );
-  const { error } = await supabase
-    .from("posts")
-    .update({ published })
-    .in("id", Array.from(selectedPosts));
-
-  if (error) {
-    updateToastError(toastId, `Failed to update status: ${error.message}`);
-    return false;
-  } else {
-    updateToastSuccess(toastId, `Posts marked as ${status}.`);
-    return true;
-  }
+  updateToastSuccess(toastId, `Posts marked as ${status} locally.`);
+  return true;
 };
 
 export const handleBulkDownload = async (
@@ -349,7 +255,7 @@ export const handleBulkDownload = async (
       const tagsString =
         post.tags && post.tags.length > 0
           ? `\ntags: "${post.tags.map(normalizeTag).join(", ").replace(/"/g, '\\"')}"`
-          : ""; // Normalize tags for export
+          : "";
       const coverImageIdString = post.cover_image_id
         ? `\ncover_image_id: "${post.cover_image_id}"`
         : "";
@@ -365,10 +271,7 @@ published: ${post.published}${tagsString}${coverImageIdString}${youtubeVideoIdSt
 ---
 
 `;
-      // No longer wrapping content in backticks
-      const content = post.content || "";
-
-      const markdownContent = frontmatter + content;
+      const markdownContent = frontmatter + (post.content || "");
       const sanitizedTitle = sanitizeFileName(post.title).replace(
         /\.[^/.]+$/,
         "",
@@ -379,7 +282,6 @@ published: ${post.published}${tagsString}${coverImageIdString}${youtubeVideoIdSt
     });
 
     const zipBlob = await zip.generateAsync({ type: "blob" });
-
     const link = document.createElement("a");
     link.href = URL.createObjectURL(zipBlob);
     link.download = "blog_export.zip";

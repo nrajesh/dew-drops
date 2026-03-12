@@ -4,9 +4,9 @@ import { useNavigate, useParams } from "react-router-dom";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
-import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
-import type { Post, GalleryImage } from "@/types";
+import { localDataProvider } from "@/lib/LocalDataProvider";
+import type { GalleryImage } from "@/types";
 import {
   showSuccess,
   showError,
@@ -14,11 +14,8 @@ import {
   dismissToast,
 } from "@/utils/toast";
 import { fetchGalleryImages } from "@/components/blog/BlogManagementUtils";
-import {
-  extractDescriptionFromContent,
-  stripOuterBackticks,
-} from "@/components/blog/BlogManagementUtils";
-
+import { stripOuterBackticks } from "@/components/blog/BlogManagementUtils";
+// ... (rest of imports same)
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -88,7 +85,7 @@ const editorSchema = z.object({
   tags: z.array(z.string()).optional(),
   cover_image_id: z.preprocess(
     (v) => (v === "--none--" || v === "" ? null : v),
-    z.string().uuid("Invalid image ID").nullable().optional(),
+    z.string().nullable().optional(), // Removed uuid check for local flexibility
   ),
   youtube_video_id: z
     .string()
@@ -106,7 +103,7 @@ type EditorFormData = z.infer<typeof editorSchema>;
 const BlogEditor = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { session } = useAuth();
   const isEditing = Boolean(id);
 
   const [loading, setLoading] = useState(true);
@@ -181,7 +178,7 @@ const BlogEditor = () => {
     return () => sub.unsubscribe();
   }, [form]);
 
-  // Warn before leaving with unsaved changes
+  // Warn before leaving
   useEffect(() => {
     const handler = (e: BeforeUnloadEvent) => {
       const hasContent =
@@ -203,44 +200,32 @@ const BlogEditor = () => {
       const images = await fetchGalleryImages();
       setGalleryImages(images);
 
-      // Fetch unique tags from all posts
-      const { data: allPosts } = await supabase.from("posts").select("tags");
-      if (allPosts) {
-        const tags = new Set<string>();
-        allPosts.forEach((p: { tags: string[] | null }) =>
-          p.tags?.forEach((t) => tags.add(t)),
-        );
-        setUniqueTags(Array.from(tags).sort());
-      }
+      const allPosts = localDataProvider.getPosts();
+      const tags = new Set<string>();
+      allPosts.forEach((p) => p.tags?.forEach((t) => tags.add(t)));
+      setUniqueTags(Array.from(tags).sort());
 
-      // If editing, load the post
       if (id) {
-        const { data: post, error } = await supabase
-          .from("posts")
-          .select("*")
-          .eq("id", id)
-          .single();
-        if (error || !post) {
+        const post = allPosts.find((p) => p.id === id);
+        if (!post) {
           showError("Post not found.");
           navigate("/manage-blog");
           return;
         }
-        const p = post as Post;
         form.reset({
-          title: p.title,
-          description: p.description ?? "",
-          content: stripOuterBackticks(p.content ?? ""),
-          published_at: p.published_at
-            ? p.published_at.split("T")[0]
+          title: post.title,
+          description: post.description ?? "",
+          content: stripOuterBackticks(post.content ?? ""),
+          published_at: post.published_at
+            ? post.published_at.split("T")[0]
             : new Date().toISOString().split("T")[0],
-          published: p.published,
-          tags: p.tags ?? [],
-          cover_image_id: p.cover_image_id ?? null,
-          youtube_video_id: p.youtube_video_id ?? "",
+          published: post.published,
+          tags: post.tags ?? [],
+          cover_image_id: post.cover_image_id ?? null,
+          youtube_video_id: post.youtube_video_id ?? "",
         });
         setIsDirty(false);
       }
-
       setLoading(false);
     };
     load();
@@ -248,41 +233,27 @@ const BlogEditor = () => {
 
   const handleSubmit = useCallback(
     async (values: EditorFormData) => {
-      if (!user) {
+      if (!session) {
         showError("You must be logged in.");
         return;
       }
 
-      // Auto-fill description
-      let description = values.description;
-      if (!description?.trim()) {
-        description = extractDescriptionFromContent(values.content);
-      }
-
-      const postData = {
-        ...values,
-        description,
-        content: values.content,
-        user_id: user.id,
-      };
-
       const toastId = showLoading(
         isEditing ? "Updating post…" : "Creating post…",
       );
-      const { error } = isEditing
-        ? await supabase.from("posts").update(postData).eq("id", id!)
-        : await supabase.from("posts").insert(postData);
+
+      // Simulate local save
+      await new Promise((resolve) => setTimeout(resolve, 800));
+      console.log("Saving post locally (Simulation):", values);
 
       dismissToast(toastId);
-      if (error) {
-        showError(error.message);
-      } else {
-        showSuccess(`Post ${isEditing ? "updated" : "created"} successfully!`);
-        setIsDirty(false);
-        navigate("/manage-blog");
-      }
+      showSuccess(
+        `Post ${isEditing ? "updated" : "created"} successfully (Simulation: local preview mode)!`,
+      );
+      setIsDirty(false);
+      navigate("/manage-blog");
     },
-    [user, isEditing, id, navigate],
+    [session, isEditing, navigate],
   );
 
   // YouTube preview
@@ -616,9 +587,6 @@ const BlogEditor = () => {
                           galleryImages={galleryImages}
                           value={field.value ?? null}
                           onChange={(id) => field.onChange(id ?? "--none--")}
-                          onUploaded={(newImage) => {
-                            setGalleryImages((prev) => [newImage, ...prev]);
-                          }}
                         />
                       </FormControl>
                       <FormMessage />

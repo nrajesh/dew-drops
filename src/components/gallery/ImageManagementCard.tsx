@@ -193,14 +193,20 @@ export const ImageManagementCard = ({
                   onEdit={onEdit}
                   onView={(img) => onView(img, listType)}
                   onDeleteSingle={() => {
-                    if (selectedImages.has(image.id) && selectedImages.size > 1) {
+                    if (
+                      selectedImages.has(image.id) &&
+                      selectedImages.size > 1
+                    ) {
                       onDelete();
                     } else {
                       onDeleteSingle(image.id);
                     }
                   }}
                   onGenerateTagsSingle={() => {
-                    if (selectedImages.has(image.id) && selectedImages.size > 1) {
+                    if (
+                      selectedImages.has(image.id) &&
+                      selectedImages.size > 1
+                    ) {
                       onGenerateTags();
                     } else {
                       onGenerateTagsSingle(image.id);

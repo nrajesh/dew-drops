@@ -1,4 +1,4 @@
-// This file defines core application types based on Supabase schema.
+// This file defines core application types for the portfolio.
 
 export interface Profile {
   id: string;

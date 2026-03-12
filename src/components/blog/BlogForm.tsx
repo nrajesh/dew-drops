@@ -40,11 +40,9 @@ const postSchema = z.object({
   content: z
     .string()
     .min(20, { message: "Content must be at least 20 characters." }),
-  published_at: z
-    .string()
-    .refine((val) => !isNaN(Date.parse(val)), {
-      message: "Invalid date format.",
-    }),
+  published_at: z.string().refine((val) => !isNaN(Date.parse(val)), {
+    message: "Invalid date format.",
+  }),
   published: z.boolean().default(false),
   tags: z.array(z.string()).optional(),
   cover_image_id: z.preprocess(

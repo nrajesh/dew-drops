@@ -1,4 +1,6 @@
-import { useState } from "react";
+import { Upload, Trash2, Loader2, Download } from "lucide-react";
+import { showError } from "@/utils/toast";
+import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -18,98 +20,29 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { Download, Upload, Trash2, Loader2 } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
-import { showError, showSuccess } from "@/utils/toast";
-import { Input } from "@/components/ui/input";
+import { useState } from "react";
 
 const ManageData = () => {
-  const [isLoading, setIsLoading] = useState<string | null>(null);
+  const [isLoading, _setIsLoading] = useState<string | null>(null);
   const [importFile, setImportFile] = useState<File | null>(null);
 
-  const handleFunctionError = async (error: unknown) => {
-    const err = error as {
-      message?: string;
-      context?: { json: () => Promise<{ error?: string }> };
-    };
-    if (err.context && typeof err.context.json === "function") {
-      try {
-        const errorBody = await err.context.json();
-        return errorBody.error || err.message || "Unknown error";
-      } catch (e) {
-        return err.message || "Unknown error";
-      }
-    }
-    return (
-      err?.message || (error instanceof Error ? error.message : "Unknown error")
+
+  const handleExport = async () => {
+    showError(
+      "Exporting data is currently disabled in the local architecture preview.",
     );
   };
 
-  const handleExport = async () => {
-    setIsLoading("export");
-    try {
-      const { data, error } = await supabase.functions.invoke("export-data");
-      if (error) throw error;
-
-      const blob = new Blob([JSON.stringify(data, null, 2)], {
-        type: "application/json",
-      });
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = `portfolio-backup-${new Date().toISOString().split("T")[0]}.json`;
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-      window.URL.revokeObjectURL(url);
-      showSuccess("Data exported successfully.");
-    } catch (err: unknown) {
-      const errorMessage = await handleFunctionError(err);
-      showError(`Export failed: ${errorMessage}`);
-    } finally {
-      setIsLoading(null);
-    }
-  };
-
   const handleImport = async () => {
-    if (!importFile) {
-      showError("Please select a file to import.");
-      return;
-    }
-    setIsLoading("import");
-    try {
-      const fileContent = await importFile.text();
-      const jsonData = JSON.parse(fileContent);
-
-      const { error } = await supabase.functions.invoke("import-data", {
-        body: jsonData,
-      });
-      if (error) throw error;
-
-      showSuccess("Data imported successfully. The page will now reload.");
-      setTimeout(() => window.location.reload(), 2000);
-    } catch (err: unknown) {
-      const errorMessage = await handleFunctionError(err);
-      showError(`Import failed: ${errorMessage}`);
-    } finally {
-      setIsLoading(null);
-      setImportFile(null);
-    }
+    showError(
+      "Importing data is currently disabled in the local architecture preview.",
+    );
   };
 
   const handleReset = async () => {
-    setIsLoading("reset");
-    try {
-      const { error } = await supabase.functions.invoke("reset-data");
-      if (error) throw error;
-      showSuccess("All data has been reset. The page will now reload.");
-      setTimeout(() => window.location.reload(), 2000);
-    } catch (err: unknown) {
-      const errorMessage = await handleFunctionError(err);
-      showError(`Reset failed: ${errorMessage}`);
-    } finally {
-      setIsLoading(null);
-    }
+    showError(
+      "Resetting data is currently disabled in the local architecture preview.",
+    );
   };
 
   return (

@@ -1,19 +1,16 @@
-"use client";
-
 import * as React from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { Button } from "@/components/ui/button";
 import { Loader2 } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useNavigate } from "react-router-dom";
 import { ProfileForm } from "@/components/profile/ProfileForm";
 import { PasswordForm } from "@/components/profile/PasswordForm";
 import { AvatarModal } from "@/components/profile/AvatarModal";
 import { AccountActions } from "@/components/profile/AccountActions";
-import { showSuccess, showError } from "@/utils/toast";
+import { showSuccess } from "@/utils/toast";
 
 const profileFormSchema = z.object({
   first_name: z
@@ -30,7 +27,7 @@ const profileFormSchema = z.object({
 type ProfileFormValues = z.infer<typeof profileFormSchema>;
 
 const Profile = () => {
-  const { user, profile, loading, fetchProfile } = useAuth();
+  const { profile, loading, signOut } = useAuth();
   const navigate = useNavigate();
   const [isAvatarModalOpen, setIsAvatarModalOpen] = React.useState(false);
   const [isSubmittingProfile, setIsSubmittingProfile] = React.useState(false);
@@ -56,38 +53,17 @@ const Profile = () => {
 
   const onSubmitProfile = async (values: ProfileFormValues) => {
     setIsSubmittingProfile(true);
-    if (!user) {
-      showError("User not logged in.");
-      setIsSubmittingProfile(false);
-      return;
-    }
-
-    try {
-      const { error } = await supabase
-        .from("profiles")
-        .update({
-          first_name: values.first_name,
-          last_name: values.last_name,
-          avatar_url: values.avatar_url,
-          updated_at: new Date().toISOString(),
-        })
-        .eq("id", user.id);
-
-      if (error) {
-        throw error;
-      }
-      showSuccess("Profile updated successfully!");
-      fetchProfile();
-    } catch (error: unknown) {
-      const err = error as Error;
-      showError(`Failed to update profile: ${err.message}`);
-    } finally {
-      setIsSubmittingProfile(false);
-    }
+    // Simulate update locally
+    await new Promise((resolve) => setTimeout(resolve, 800));
+    console.log("Updated profile locally (Simulation):", values);
+    showSuccess(
+      "Profile updated successfully (Simulation: local preview mode)!",
+    );
+    setIsSubmittingProfile(false);
   };
 
   const handleLogout = async () => {
-    await supabase.auth.signOut();
+    await signOut();
     navigate("/login");
   };
 
@@ -100,7 +76,7 @@ const Profile = () => {
     );
   }
 
-  if (!user) {
+  if (!profile) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[calc(100vh-100px)] space-y-4">
         <h2 className="text-2xl font-bold">Please Log In</h2>

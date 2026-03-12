@@ -5,7 +5,7 @@ import {
   useContext,
   ReactNode,
 } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { localDataProvider } from "@/lib/LocalDataProvider";
 import { navFeatures } from "@/config/navigation";
 import { useAuth } from "./AuthContext";
 import { showError } from "@/utils/toast";
@@ -24,47 +24,32 @@ const FeatureToggleContext = createContext<
 >(undefined);
 
 const defaultToggles = (): Toggles => {
-  try {
-    return {
-      [navFeatures.HOME]: true,
-      [navFeatures.BLOG]: true,
-      [navFeatures.GALLERY]: true,
-      [navFeatures.PORTFOLIO]: true,
-      [navFeatures.TRAVEL]: true,
-      [navFeatures.CONTACT]: true,
-      [navFeatures.CHATBOT]: true,
-      [navFeatures.MATCH_CV]: true,
-      [navFeatures.MANAGE_BLOG]: true,
-      [navFeatures.MANAGE_GALLERY]: true,
-      [navFeatures.MANAGE_TRAVEL]: true,
-      [navFeatures.FEATURE_TOGGLES]: true,
-    };
-  } catch (e) {
-    console.error(
-      "Error constructing default toggles, navFeatures might be incomplete:",
-      e,
-    );
-    return { [navFeatures.HOME]: true };
-  }
+  return {
+    [navFeatures.HOME]: true,
+    [navFeatures.BLOG]: true,
+    [navFeatures.GALLERY]: true,
+    [navFeatures.PORTFOLIO]: true,
+    [navFeatures.TRAVEL]: true,
+    [navFeatures.CONTACT]: true,
+    [navFeatures.CHATBOT]: true,
+    [navFeatures.MATCH_CV]: true,
+    [navFeatures.MANAGE_BLOG]: true,
+    [navFeatures.MANAGE_GALLERY]: true,
+    [navFeatures.MANAGE_TRAVEL]: true,
+    [navFeatures.FEATURE_TOGGLES]: true,
+  };
 };
 
-const fetchToggles = async (): Promise<Toggles> => {
+const getLocalToggles = (): Toggles => {
   try {
-    const { data, error } = await supabase
-      .from("feature_toggles")
-      .select("feature_key, is_enabled");
-    if (error) throw error;
-
+    const data = localDataProvider.getFeatureToggles();
     const toggles = defaultToggles();
-    data.forEach((toggle) => {
-      toggles[toggle.feature_key] = toggle.is_enabled;
+    data.forEach((toggle: Record<string, unknown>) => {
+      toggles[toggle.feature_key as string] = toggle.is_enabled as boolean;
     });
     return toggles;
   } catch (error) {
-    console.error(
-      "Failed to fetch feature toggles from DB, using defaults:",
-      error,
-    );
+    console.error("Failed to get feature toggles from local data:", error);
     return defaultToggles();
   }
 };
@@ -74,17 +59,13 @@ export const FeatureToggleProvider = ({
 }: {
   children: ReactNode;
 }) => {
-  // ✅ FIX: Initialize with defaults synchronously so the app renders immediately.
-  // The loading flag is now only true briefly — the Supabase fetch updates toggles
-  // in the background without blocking the initial render.
-  const [toggles, setToggles] = useState<Toggles>(defaultToggles);
-  const loading = false; // app renders immediately with defaults; Supabase updates silently
-  const { user } = useAuth();
+  const [toggles, setToggles] = useState<Toggles>(getLocalToggles);
+  const { session } = useAuth();
+  const user = session?.user;
+  const [loading] = useState(false);
 
-  const refetchToggles = async () => {
-    const globalToggles = await fetchToggles();
-    globalToggles[navFeatures.HOME] = true;
-    setToggles(globalToggles);
+  const refetchToggles = () => {
+    setToggles(getLocalToggles());
   };
 
   const updateToggle = async (featureKey: string, isEnabled: boolean) => {
@@ -92,26 +73,17 @@ export const FeatureToggleProvider = ({
       showError("You must be logged in to change settings.");
       return;
     }
-    try {
-      const { error } = await supabase
-        .from("feature_toggles")
-        .upsert(
-          { feature_key: featureKey, is_enabled: isEnabled, user_id: user.id },
-          { onConflict: "feature_key, user_id" },
-        );
-      if (error) throw error;
-      await refetchToggles();
-    } catch (error: unknown) {
-      const err = error as Error;
-      showError(`Failed to update setting: ${err.message}`);
-    }
+    // In a real local setup, we would write to the JSON file or a local storage override.
+    // For now, let's just update the state to show it works.
+    setToggles((prev) => ({ ...prev, [featureKey]: isEnabled }));
+    showError(
+      "Updates are local only; they will not persist to the source JSON yet.",
+    );
   };
 
   useEffect(() => {
-    // Fetch real toggles from Supabase in the background; app is already
-    // rendering with defaults so this is non-blocking.
     refetchToggles();
-  }, []); // intentionally run once on mount
+  }, []);
 
   return (
     <FeatureToggleContext.Provider

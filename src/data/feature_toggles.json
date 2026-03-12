@@ -1,0 +1,130 @@
+[
+  {
+    "id": "1c9ba3e9-6e16-4be6-93fa-61d17c76701f",
+    "user_id": "59744934-6f01-4885-bd6d-451a48ff666c",
+    "feature_key": "chatbot",
+    "is_enabled": true,
+    "created_at": "2025-09-15T14:31:17.105602+00:00",
+    "auto_disabled_until": null
+  },
+  {
+    "id": "a91bfc2e-92dc-4bf8-a728-7e1b99cb2590",
+    "user_id": "59744934-6f01-4885-bd6d-451a48ff666c",
+    "feature_key": "portfolio",
+    "is_enabled": true,
+    "created_at": "2025-09-27T13:57:45.522806+00:00",
+    "auto_disabled_until": null
+  },
+  {
+    "id": "f1b1d2f3-f52f-48b7-aa29-2ab3fdef4f98",
+    "user_id": "59744934-6f01-4885-bd6d-451a48ff666c",
+    "feature_key": "match_cv",
+    "is_enabled": true,
+    "created_at": "2025-10-09T12:07:51.229022+00:00",
+    "auto_disabled_until": null
+  },
+  {
+    "id": "afb5700f-294e-40e7-9556-54f13d7d030e",
+    "user_id": "59744934-6f01-4885-bd6d-451a48ff666c",
+    "feature_key": "travel",
+    "is_enabled": true,
+    "created_at": "2025-09-27T21:14:29.706348+00:00",
+    "auto_disabled_until": null
+  },
+  {
+    "id": "683b8c30-f2df-4584-a4ea-52dd77bd7942",
+    "user_id": "59744934-6f01-4885-bd6d-451a48ff666c",
+    "feature_key": "blog",
+    "is_enabled": true,
+    "created_at": "2025-09-27T21:14:26.042959+00:00",
+    "auto_disabled_until": null
+  },
+  {
+    "id": "0a4eca7c-d6eb-48f4-93b6-c07b48eeb976",
+    "user_id": "59744934-6f01-4885-bd6d-451a48ff666c",
+    "feature_key": "gallery",
+    "is_enabled": true,
+    "created_at": "2025-09-27T21:14:27.503553+00:00",
+    "auto_disabled_until": null
+  },
+  {
+    "id": "634ca5dc-a92f-4450-ac1a-570a28a4221e",
+    "user_id": "59744934-6f01-4885-bd6d-451a48ff666c",
+    "feature_key": "nav_home",
+    "is_enabled": true,
+    "created_at": "2025-08-17T10:10:30.075167+00:00",
+    "auto_disabled_until": null
+  },
+  {
+    "id": "4ffe4850-3fbc-4b90-9bf6-ba6e87cb86ab",
+    "user_id": "59744934-6f01-4885-bd6d-451a48ff666c",
+    "feature_key": "manage_feature_toggles",
+    "is_enabled": true,
+    "created_at": "2025-08-17T10:10:30.075167+00:00",
+    "auto_disabled_until": null
+  },
+  {
+    "id": "cb9104fc-71ef-487f-ac6b-d5d3f92bf32c",
+    "user_id": "59744934-6f01-4885-bd6d-451a48ff666c",
+    "feature_key": "manage_travel",
+    "is_enabled": true,
+    "created_at": "2025-08-17T10:10:30.075167+00:00",
+    "auto_disabled_until": null
+  },
+  {
+    "id": "6468fc06-cc8b-4624-a333-67bdc98be2e4",
+    "user_id": "59744934-6f01-4885-bd6d-451a48ff666c",
+    "feature_key": "manage_blog",
+    "is_enabled": true,
+    "created_at": "2025-08-17T10:10:30.075167+00:00",
+    "auto_disabled_until": null
+  },
+  {
+    "id": "ff77deb1-0a09-4a37-98fc-3a53f2ab80bb",
+    "user_id": "59744934-6f01-4885-bd6d-451a48ff666c",
+    "feature_key": "youtube_search",
+    "is_enabled": true,
+    "created_at": "2025-08-21T17:44:19.349315+00:00",
+    "auto_disabled_until": null
+  },
+  {
+    "id": "12c2bff7-d931-4c6e-81ef-7104942c8f48",
+    "user_id": "59744934-6f01-4885-bd6d-451a48ff666c",
+    "feature_key": "nav_travel",
+    "is_enabled": true,
+    "created_at": "2025-08-17T10:10:30.075167+00:00",
+    "auto_disabled_until": null
+  },
+  {
+    "id": "e16e2ee1-c61b-4783-8a87-80d2961a969e",
+    "user_id": "59744934-6f01-4885-bd6d-451a48ff666c",
+    "feature_key": "manage_gallery",
+    "is_enabled": true,
+    "created_at": "2025-08-17T10:10:30.075167+00:00",
+    "auto_disabled_until": null
+  },
+  {
+    "id": "1bd9e4f1-7c65-4b31-a1bd-546999cb249d",
+    "user_id": "59744934-6f01-4885-bd6d-451a48ff666c",
+    "feature_key": "nav_blog",
+    "is_enabled": true,
+    "created_at": "2025-08-17T10:10:30.075167+00:00",
+    "auto_disabled_until": null
+  },
+  {
+    "id": "5f8075b1-d158-4c46-abd9-f3026562c8ba",
+    "user_id": "59744934-6f01-4885-bd6d-451a48ff666c",
+    "feature_key": "nav_gallery",
+    "is_enabled": true,
+    "created_at": "2025-08-17T10:10:30.075167+00:00",
+    "auto_disabled_until": null
+  },
+  {
+    "id": "8a235d35-3ee1-44f5-af14-d349b4063421",
+    "user_id": "59744934-6f01-4885-bd6d-451a48ff666c",
+    "feature_key": "nav_chatbot",
+    "is_enabled": true,
+    "created_at": "2025-08-17T10:10:30.075167+00:00",
+    "auto_disabled_until": null
+  }
+]

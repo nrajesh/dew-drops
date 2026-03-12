@@ -1,7 +1,6 @@
 import { Card, CardContent } from "@/components/ui/card";
 import { AspectRatio } from "@/components/ui/aspect-ratio";
 import { useMemo, useRef, lazy, Suspense, useCallback } from "react";
-import { supabase } from "@/integrations/supabase/client";
 import type { GalleryImage } from "@/types";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Input } from "@/components/ui/input";
@@ -10,7 +9,6 @@ import { useDebounce } from "@/hooks/useDebounce";
 import { PaginationControls } from "@/components/PaginationControls";
 import { usePaginationNavigation } from "@/hooks/usePaginationNavigation";
 import { Button } from "@/components/ui/button";
-import { searchImagesByMetadata } from "@/utils/embeddings";
 import { useGalleryImages } from "@/hooks/useGalleryImages";
 import { useState, useEffect } from "react";
 
@@ -22,14 +20,13 @@ const LazyImageLightbox = lazy(() =>
 
 const IMAGES_PER_PAGE = 9;
 
-/** Builds a CDN URL for the image. */
+/** Builds a local URL for the image. */
 const getImageUrl = (fileName: string) => {
-  const { data } = supabase.storage.from("gallery").getPublicUrl(fileName);
-  return data.publicUrl;
+  return `/uploads/${fileName}`;
 };
 
 const Gallery = () => {
-  const { images: allImages, isLoading, mutate } = useGalleryImages();
+  const { publishedImages: allImages, isLoading } = useGalleryImages();
 
   const [selectedImageIndex, setSelectedImageIndex] = useState<number | null>(
     null,
@@ -47,14 +44,21 @@ const Gallery = () => {
     let result = allImages;
 
     if (debouncedSearchTerm) {
-      result = await searchImagesByMetadata(debouncedSearchTerm, allImages);
+      const query = debouncedSearchTerm.toLowerCase();
+      result = allImages.filter(
+        (img) =>
+          img.file_name.toLowerCase().includes(query) ||
+          (img.alt_text && img.alt_text.toLowerCase().includes(query)) ||
+          (img.tags &&
+            img.tags.some((t: string) => t.toLowerCase().includes(query))),
+      );
     } else {
       result = allImages.filter((image) => {
         const makeValue = image.exif_data?.Make;
         const makeString =
           typeof makeValue === "object" &&
-            makeValue !== null &&
-            "description" in makeValue
+          makeValue !== null &&
+          "description" in makeValue
             ? (makeValue as { description: string }).description
             : (makeValue as string | undefined);
         return activeMake === "all" || makeString === activeMake;
@@ -222,7 +226,7 @@ const Gallery = () => {
           onNavigate={handleNavigate}
           hasNext={displayImages.length > 1}
           hasPrev={displayImages.length > 1}
-          onUpdate={() => mutate()}
+          onUpdate={() => {}}
         />
       </Suspense>
     </>

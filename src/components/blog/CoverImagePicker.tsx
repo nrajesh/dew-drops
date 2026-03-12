@@ -3,31 +3,27 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { X, Search, ImageIcon, Upload, Loader2 } from "lucide-react";
 import type { GalleryImage } from "@/types";
-import { generateAltTextFromFileName, sanitizeFileName } from "@/lib/utils";
-import { supabase } from "@/integrations/supabase/client";
+import { generateAltTextFromFileName } from "@/lib/utils";
 import { useAuth } from "@/contexts/AuthContext";
-import { showError, showSuccess } from "@/utils/toast";
+import { showSuccess } from "@/utils/toast";
 
 interface CoverImagePickerProps {
   galleryImages: GalleryImage[];
   value: string | null;
   onChange: (id: string | null) => void;
-  /** Called after a direct upload so the parent can refresh its image list */
-  onUploaded?: (newImage: GalleryImage) => void;
 }
 
 export const CoverImagePicker = ({
   galleryImages,
   value,
   onChange,
-  onUploaded,
 }: CoverImagePickerProps) => {
   const [query, setQuery] = useState("");
   const [isOpen, setIsOpen] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const { user } = useAuth();
+  const { session } = useAuth();
 
   const selectedImage = useMemo(
     () => galleryImages.find((img) => img.id === value) ?? null,
@@ -65,52 +61,25 @@ export const CoverImagePicker = ({
   const handleFileChange = useCallback(
     async (e: React.ChangeEvent<HTMLInputElement>) => {
       const file = e.target.files?.[0];
-      if (!file || !user) return;
+      if (!file || !session) return;
 
       // Reset file input so the same file can be re-selected if needed
       e.target.value = "";
 
       setIsUploading(true);
       try {
-        const sanitized = sanitizeFileName(file.name);
-        const fileName = `${user.id}/${Date.now()}_${sanitized}`;
+        // Simulate upload
+        await new Promise((resolve) => setTimeout(resolve, 1000));
 
-        const { error: uploadError } = await supabase.storage
-          .from("gallery")
-          .upload(fileName, file);
-        if (uploadError) throw uploadError;
-
-        const {
-          data: { publicUrl },
-        } = supabase.storage.from("gallery").getPublicUrl(fileName);
-
-        const altText = generateAltTextFromFileName(sanitized);
-
-        const { data: inserted, error: dbError } = await supabase
-          .from("gallery_images")
-          .insert({
-            user_id: user.id,
-            file_name: fileName,
-            image_url: publicUrl,
-            published: false,
-            alt_text: altText,
-          })
-          .select()
-          .single();
-
-        if (dbError) throw dbError;
-
-        const newImage = inserted as GalleryImage;
-        showSuccess(`"${altText}" uploaded and selected.`);
-        onChange(newImage.id);
-        onUploaded?.(newImage);
+        const altText = generateAltTextFromFileName(file.name);
+        showSuccess(`"${altText}" uploaded locally (Simulation).`);
       } catch (err) {
-        showError((err as Error).message);
+        console.error("Upload error:", err);
       } finally {
         setIsUploading(false);
       }
     },
-    [user, onChange, onUploaded],
+    [session],
   );
 
   return (
@@ -179,7 +148,7 @@ export const CoverImagePicker = ({
           size="icon"
           className="shrink-0"
           title="Upload a new image directly"
-          disabled={isUploading || !user}
+          disabled={isUploading || !session}
           onClick={() => fileInputRef.current?.click()}
         >
           {isUploading ? (

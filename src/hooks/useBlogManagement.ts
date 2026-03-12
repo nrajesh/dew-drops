@@ -1,6 +1,5 @@
 import { useState, useEffect, useMemo, useCallback } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import { supabase } from "@/integrations/supabase/client";
 import type { Post, GalleryImage } from "@/types";
 import {
   showSuccess,
@@ -147,10 +146,13 @@ export const useBlogManagement = () => {
         return;
       }
       if (await handleBulkStatusChange(new Set([post.id]), published)) {
-        loadPosts();
+        // Local update for immediate feedback
+        setAllPosts((prev) =>
+          prev.map((p) => (p.id === post.id ? { ...p, published } : p)),
+        );
       }
     },
-    [user, loadPosts],
+    [user],
   );
 
   const handleFormSubmit = useCallback(
@@ -160,22 +162,34 @@ export const useBlogManagement = () => {
         return;
       }
       const toastId = showLoading(
-        editingPost ? "Updating post..." : "Adding new post...",
+        editingPost ? "Updating post locally..." : "Adding new post locally...",
       );
+
       const postData = { ...values, user_id: user.id };
-      const { error } = editingPost
-        ? await supabase.from("posts").update(postData).eq("id", editingPost.id)
-        : await supabase.from("posts").insert(postData);
-      dismissToast(toastId);
-      if (error) {
-        showError(error.message);
+
+      // Local state update
+      if (editingPost) {
+        setAllPosts((prev) =>
+          prev.map((p) =>
+            p.id === editingPost.id ? { ...p, ...postData } : p,
+          ),
+        );
       } else {
-        showSuccess(`Post ${editingPost ? "updated" : "added"} successfully!`);
-        setEditingPost(null);
-        loadPosts();
+        const newPost: Post = {
+          ...postData,
+          id: crypto.randomUUID(),
+          created_at: new Date().toISOString(),
+        } as Post;
+        setAllPosts((prev) => [newPost, ...prev]);
       }
+
+      dismissToast(toastId);
+      showSuccess(
+        `Post ${editingPost ? "updated" : "added"} successfully in this session! Note: Changes are not saved to JSON source.`,
+      );
+      setEditingPost(null);
     },
-    [user, editingPost, loadPosts],
+    [user, editingPost],
   );
 
   useEffect(() => {
@@ -188,7 +202,9 @@ export const useBlogManagement = () => {
   const handleUpload = useCallback(async () => {
     if (!selectedFiles || selectedFiles.length === 0 || !user) return;
     setIsUploading(true);
-    const toastId = showLoading(`Importing ${selectedFiles.length} file(s)...`);
+    const toastId = showLoading(
+      `Importing ${selectedFiles.length} file(s) locally...`,
+    );
     try {
       const allNewPosts: NewPost[] = [];
       for (const file of Array.from(selectedFiles)) {
@@ -229,7 +245,15 @@ export const useBlogManagement = () => {
         setSelectedUpdates(new Set());
         setIsUpdateDialogVisible(true);
       } else if (newPostsToInsert.length > 0) {
-        if (await processUploads(user.id, newPostsToInsert, [])) loadPosts();
+        if (await processUploads(user.id, newPostsToInsert, [])) {
+          const newPosts = newPostsToInsert.map((p) => ({
+            ...p,
+            id: crypto.randomUUID(),
+            created_at: new Date().toISOString(),
+            user_id: user.id,
+          })) as Post[];
+          setAllPosts((prev) => [...newPosts, ...prev]);
+        }
       } else {
         showSuccess("No new posts to import.");
       }
@@ -241,7 +265,7 @@ export const useBlogManagement = () => {
       setIsUploading(false);
       setSelectedFiles(null);
     }
-  }, [selectedFiles, user, allPosts, loadPosts]);
+  }, [selectedFiles, user, allPosts]);
 
   const handleConfirmAndProcessUploads = useCallback(async () => {
     if (!user) return;
@@ -253,12 +277,26 @@ export const useBlogManagement = () => {
     if (await processUploads(user.id, postsToInsert, updatesToPerform)) {
       if (skippedCount > 0)
         showError(`${skippedCount} potential updates were skipped.`);
-      loadPosts();
+
+      // Local state update
+      const newPosts = postsToInsert.map((p) => ({
+        ...p,
+        id: crypto.randomUUID(),
+        created_at: new Date().toISOString(),
+        user_id: user.id,
+      })) as Post[];
+
+      const updatedPosts = allPosts.map((p) => {
+        const update = updatesToPerform.find((u) => u.existingId === p.id);
+        return update ? { ...p, ...update.newData } : p;
+      });
+
+      setAllPosts([...newPosts, ...updatedPosts]);
     }
     setPostsToInsert([]);
     setPostsToUpdate([]);
     setSelectedUpdates(new Set());
-  }, [user, postsToInsert, postsToUpdate, selectedUpdates, loadPosts]);
+  }, [user, postsToInsert, postsToUpdate, selectedUpdates, allPosts]);
 
   const createBulkAction =
     <T extends unknown[]>(
@@ -266,8 +304,18 @@ export const useBlogManagement = () => {
     ) =>
     async (...args: T) => {
       if (await action(selectedPosts, ...args)) {
+        // Local state updates for bulk actions
+        if (action.name.includes("Delete")) {
+          setAllPosts((prev) => prev.filter((p) => !selectedPosts.has(p.id)));
+        } else if (action.name.includes("Status")) {
+          const published = args[0] as boolean;
+          setAllPosts((prev) =>
+            prev.map((p) =>
+              selectedPosts.has(p.id) ? { ...p, published } : p,
+            ),
+          );
+        }
         setSelectedPosts(new Set());
-        loadPosts();
       }
     };
 

@@ -16,12 +16,11 @@ import {
   DialogDescription,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { supabase } from "@/integrations/supabase/client";
 import type { GalleryImage } from "@/types";
-import { showSuccess, showError } from "@/utils/toast";
+import { showSuccess } from "@/utils/toast";
 import { useAuth } from "@/contexts/AuthContext";
 import { Badge } from "@/components/ui/badge";
-import { ExifDataDisplay } from "./gallery/ExifDataDisplay"; // Import the new component
+import { ExifDataDisplay } from "./gallery/ExifDataDisplay";
 
 interface ImageLightboxProps {
   image: GalleryImage | null;
@@ -29,7 +28,7 @@ interface ImageLightboxProps {
   onNavigate: (direction: "prev" | "next") => void;
   hasNext: boolean;
   hasPrev: boolean;
-  onUpdate: () => void; // Callback to refresh gallery data after deletion/update
+  onUpdate: () => void;
 }
 
 export const ImageLightbox: React.FC<ImageLightboxProps> = ({
@@ -40,8 +39,8 @@ export const ImageLightbox: React.FC<ImageLightboxProps> = ({
   hasPrev,
   onUpdate,
 }) => {
-  const { user } = useAuth();
-  const isAuthenticated = !!user;
+  const { session } = useAuth();
+  const isAuthenticated = !!session;
   const [showExif, setShowExif] = useState(false);
   const [showPurchaseDisabledOverlay, setShowPurchaseDisabledOverlay] =
     useState(false);
@@ -56,17 +55,12 @@ export const ImageLightbox: React.FC<ImageLightboxProps> = ({
       if (touchStartX.current === null) return;
       const deltaX = e.changedTouches[0].clientX - touchStartX.current;
       touchStartX.current = null;
-      if (Math.abs(deltaX) < 50) return; // ignore small taps
+      if (Math.abs(deltaX) < 50) return;
       if (deltaX < 0 && hasNext) onNavigate("next");
       if (deltaX > 0 && hasPrev) onNavigate("prev");
     },
     [hasNext, hasPrev, onNavigate],
   );
-
-  const getImageUrl = (fileName: string) => {
-    const { data } = supabase.storage.from("gallery").getPublicUrl(fileName);
-    return data.publicUrl;
-  };
 
   const handleDelete = async () => {
     if (
@@ -77,27 +71,11 @@ export const ImageLightbox: React.FC<ImageLightboxProps> = ({
     )
       return;
 
-    const { error: storageError } = await supabase.storage
-      .from("gallery")
-      .remove([image.file_name]);
+    // Simulation: local delete
+    await new Promise((resolve) => setTimeout(resolve, 800));
+    console.log("Deleted image locally (Simulation):", image.file_name);
 
-    if (storageError) {
-      showError(`Failed to delete file from storage: ${storageError.message}`);
-      return;
-    }
-
-    const { error: dbError } = await supabase
-      .from("gallery_images")
-      .delete()
-      .eq("id", image.id);
-
-    if (dbError) {
-      showError(`Failed to delete image record: ${dbError.message}`);
-      // Note: If DB deletion fails, the file is already gone from storage. Manual cleanup might be needed.
-      return;
-    }
-
-    showSuccess("Image deleted successfully.");
+    showSuccess("Image deleted successfully (Simulation: local preview mode).");
     onClose();
     onUpdate();
   };
@@ -110,10 +88,8 @@ export const ImageLightbox: React.FC<ImageLightboxProps> = ({
     if (!image) return;
 
     if (image.purchase_link) {
-      // If purchase link exists, navigate to it
-      window.open(image.purchase_link, "_blank");
+      window.open(image.purchase_link, "_blank", "noopener,noreferrer");
     } else {
-      // Otherwise, show the disabled overlay
       setShowPurchaseDisabledOverlay(true);
     }
   };
@@ -143,7 +119,7 @@ export const ImageLightbox: React.FC<ImageLightboxProps> = ({
 
   if (!image) return null;
 
-  const imageUrl = getImageUrl(image.file_name);
+  const imageUrl = image.image_url || "/placeholder.svg";
 
   return (
     <>
@@ -156,7 +132,6 @@ export const ImageLightbox: React.FC<ImageLightboxProps> = ({
               between images.
             </DialogDescription>
           </DialogHeader>
-          {/* Custom Close Button for high visibility, especially on mobile */}
           <Button
             variant="ghost"
             size="icon"
@@ -167,21 +142,19 @@ export const ImageLightbox: React.FC<ImageLightboxProps> = ({
             <X className="h-6 w-6" />
           </Button>
 
-          {/* Main Image Area - Click to close, swipe to navigate */}
           <div
             className="relative flex items-center justify-center h-[80vh] cursor-pointer"
             onClick={onClose}
             onTouchStart={handleTouchStart}
             onTouchEnd={handleTouchEnd}
           >
-            {/* Navigation Buttons */}
             {hasPrev && (
               <Button
                 variant="ghost"
                 size="icon"
                 className="absolute left-4 z-10 text-white hover:bg-black/50"
                 onClick={(e) => {
-                  e.stopPropagation(); // Prevent closing on navigation click
+                  e.stopPropagation();
                   onNavigate("prev");
                 }}
               >
@@ -194,7 +167,7 @@ export const ImageLightbox: React.FC<ImageLightboxProps> = ({
                 size="icon"
                 className="absolute right-4 z-10 text-white hover:bg-black/50"
                 onClick={(e) => {
-                  e.stopPropagation(); // Prevent closing on navigation click
+                  e.stopPropagation();
                   onNavigate("next");
                 }}
               >
@@ -202,7 +175,6 @@ export const ImageLightbox: React.FC<ImageLightboxProps> = ({
               </Button>
             )}
 
-            {/* Image Display */}
             <div className="w-full h-full flex items-center justify-center">
               <img
                 src={imageUrl}
@@ -212,18 +184,15 @@ export const ImageLightbox: React.FC<ImageLightboxProps> = ({
             </div>
           </div>
 
-          {/* Metadata and Actions Bar - Stop propagation to prevent closing */}
           <div
             className="bg-black/70 p-4 rounded-b-lg text-white flex flex-col md:flex-row justify-between items-start md:items-center gap-4"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex flex-col">
-              {/* Display alt_text instead of file_name */}
               <p className="text-lg font-semibold">
                 {image.alt_text || "Image Details"}
               </p>
 
-              {/* Tags */}
               {image.tags && image.tags.length > 0 && (
                 <div className="flex flex-wrap gap-1 mt-1">
                   <Tag className="h-4 w-4 mr-2 text-gray-400" />
@@ -245,7 +214,6 @@ export const ImageLightbox: React.FC<ImageLightboxProps> = ({
                 <Info className="h-4 w-4 mr-2" /> EXIF Data
               </Button>
 
-              {/* Purchase Button */}
               <Button variant="default" size="sm" onClick={handlePurchase}>
                 <ShoppingCart className="h-4 w-4 mr-2" /> Purchase
               </Button>
@@ -260,7 +228,6 @@ export const ImageLightbox: React.FC<ImageLightboxProps> = ({
         </DialogContent>
       </Dialog>
 
-      {/* EXIF Data Dialog */}
       <Dialog open={showExif} onOpenChange={setShowExif}>
         <DialogContent className="sm:max-w-[425px] md:max-w-lg">
           <DialogHeader>
@@ -275,7 +242,6 @@ export const ImageLightbox: React.FC<ImageLightboxProps> = ({
         </DialogContent>
       </Dialog>
 
-      {/* Purchase Disabled Dialog */}
       <Dialog
         open={showPurchaseDisabledOverlay}
         onOpenChange={setShowPurchaseDisabledOverlay}

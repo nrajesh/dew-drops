@@ -116,12 +116,17 @@ export const reasoningToBriefSummary = (
  * Returns up to `matchingMax` matching bullets and `gapsMax` gap bullets,
  * with the leading `+` / `- ` prefix stripped, for direct JSX rendering.
  */
+export interface GapMitigation {
+  gap: string;
+  mitigation: string;
+}
+
 export const parseReasoningSections = (
   markdown: string,
   options?: { matchingMax?: number; gapsMax?: number },
-): { matchingLines: string[]; gapLines: string[] } => {
-  const matchingMax = options?.matchingMax ?? 3;
-  const gapsMax = options?.gapsMax ?? 2;
+): { matchingLines: string[]; gapLines: GapMitigation[] } => {
+  const matchingMax = options?.matchingMax ?? 5; // allow more matches
+  const gapsMaxOpt = options?.gapsMax ?? 3;
 
   // Normalise: the AI sometimes returns literal "\\n" sequences instead of
   // actual newlines — convert them so .split('\n') works consistently.
@@ -129,31 +134,63 @@ export const parseReasoningSections = (
 
   const lines = normalised.split("\n");
   const matchingLines: string[] = [];
-  const gapLines: string[] = [];
+  const gapLines: GapMitigation[] = [];
+  
   let inMatching = false;
   let inGaps = false;
+  let currentGap: GapMitigation | null = null;
 
-  for (const line of lines) {
-    if (line.startsWith("## Matching Areas")) {
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+    
+    if (line.trim().startsWith("## Matching Areas")) {
       inMatching = true;
       inGaps = false;
       continue;
     }
-    if (line.startsWith("## Gaps")) {
+    if (line.trim().startsWith("## Gaps")) {
       inMatching = false;
       inGaps = true;
       continue;
     }
+    
     if (inMatching && matchingLines.length < matchingMax) {
       const stripped = line.replace(/^\s*[+-]\s*/, "").trim();
       if (stripped.length > 0) matchingLines.push(stripped);
-    } else if (inGaps && gapLines.length < gapsMax) {
-      const stripped = line.replace(/^\s*[+-]\s*/, "").trim();
-      if (stripped.length > 0) gapLines.push(stripped);
+    } else if (inGaps) {
+      const isMitigationLine = line.match(/^\s*[-+*]?\s*\*\*Mitigation:\*\*/i) || line.match(/^\s*[-+*]?\s*Mitigation:/i);
+      
+      if (!isMitigationLine && (line.trim().startsWith("- ") || line.trim().startsWith("+ "))) {
+        // This is a new gap
+        if (currentGap) {
+          gapLines.push(currentGap);
+        }
+        currentGap = {
+          gap: line.replace(/^\s*[+-]\s*/, "").trim(),
+          mitigation: "",
+        };
+      } else if (currentGap && line.trim().length > 0) {
+        // This is the mitigation (indented bullet point or regular line attached to current gap)
+        const stripped = line.replace(/^\s*[-+*]?\s*(?:\*\*Mitigation:\*\*|Mitigation:|:)?\s*/i, "").trim();
+        if (stripped.length > 0) {
+          currentGap.mitigation += (currentGap.mitigation ? " " : "") + stripped;
+        }
+      }
     }
   }
+  
+  if (currentGap) {
+    gapLines.push(currentGap);
+  }
 
-  return { matchingLines, gapLines };
+  // Enforce rule: number of gaps is *at least* 2 less than count of alignment points
+  const maxAllowedGaps = Math.max(0, matchingLines.length - 2);
+  const finalGapsMax = Math.min(gapsMaxOpt, maxAllowedGaps);
+
+  return { 
+    matchingLines, 
+    gapLines: gapLines.slice(0, finalGapsMax) 
+  };
 };
 
 /**
@@ -218,8 +255,13 @@ export const markdownToPlainText = (markdown: string): string => {
  * @returns The cleaned plain text.
  */
 export const cleanJobDescriptionText = (text: string): string => {
+  // 0. Pre-clean to prevent DOMParser from triggering network requests or preload warnings
+  let safeText = text.replace(/<head[^>]*>[\s\S]*?<\/head>/gi, ""); // Remove entire head section
+  safeText = safeText.replace(/<script[^>]*>[\s\S]*?<\/script>/gi, ""); // Remove all scripts
+  safeText = safeText.replace(/<(link|img|iframe|video|audio|source)[^>]*>/gi, ""); // Remove remaining media/links
+
   // 1. Parse HTML into a DOM Document
-  const doc = new DOMParser().parseFromString(text, "text/html");
+  const doc = new DOMParser().parseFromString(safeText, "text/html");
 
   // 1a. Remove elements that contain non-visible, noisy text (scripts, styles)
   const elementsToRemove = doc.querySelectorAll("script, style, noscript");

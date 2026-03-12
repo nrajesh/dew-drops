@@ -1,6 +1,4 @@
-# My Awesome React App
-
-This is a modern React application built with TypeScript, React Router, Tailwind CSS, and `shadcn/ui` components. It leverages Supabase for backend services and Google Gemini for AI-powered features.
+This is a modern React application built with TypeScript, React Router, Tailwind CSS, and `shadcn/ui` components. It leverages Google Gemini for AI-powered features and operates entirely with local data.
 
 ## Latest Functionality
 
@@ -9,7 +7,7 @@ This application provides a comprehensive suite of features for a personal portf
 ### Core Features
 
 *   **Refactored Architecture**: The codebase has been significantly optimized by centralizing data management logic into reusable custom React hooks (`useManagement`, `useBlogManagement`, `useTravelManagement`), making the application more robust and maintainable.
-*   **AI-Powered Career Fit Analyst**: A standout feature that analyzes job descriptions against the portfolio's content and a detailed JSON Resume, providing a match percentage and a reasoned breakdown of strengths and gaps.
+*   **AI-Powered Career Fit Analyst (V2)**: A standout feature that analyzes job descriptions against the portfolio's content and a detailed JSON Resume. It supports **Vision-first analysis** (screenshot uploads), robust URL scraping via **Jina Reader**, and standard text pasting, providing a match percentage and a reasoned breakdown of strengths and gaps with mitigations.
 *   **Dynamic CV/Portfolio Page**: Displays a professional curriculum vitae from a JSON Resume source, complete with collapsible sections for readability and a print-to-PDF function.
 *   **AI Chatbot**: An integrated chatbot that answers questions about the portfolio using a knowledge base that can be manually edited or automatically generated from all site content, including the CV.
 *   **Text Readability Controls**: Users can adjust the base font size and line height across the site for a comfortable reading experience.
@@ -42,7 +40,6 @@ This application provides a comprehensive suite of features for a personal portf
 *   **Tailwind CSS**: A utility-first CSS framework for rapidly building custom designs.
 *   **shadcn/ui**: A collection of reusable components built with Radix UI and Tailwind CSS.
 *   **Custom React Hooks**: For centralized and reusable state management logic (`useManagement`, `useBlogManagement`, etc.).
-*   **Supabase**: An open-source Firebase alternative providing a PostgreSQL database, authentication, storage, and serverless edge functions.
 *   **Google Gemini**: Powers the AI features, including the Career Fit Analyst, chatbot, and image tag generation.
 *   **lucide-react**: A collection of beautiful and consistent icons.
 
@@ -74,8 +71,6 @@ To run this project locally:
     npm install
     ```
 3.  **Set up Environment Variables**:
-    *   Create a `.env` file in the root of the project.
-    *   Add your Supabase project URL and Anon Key.
     *   Add your Google Gemini API key.
     *   Add the URL to your public JSON Resume file (e.g., a GitHub Gist).
     *   Add your Mapbox Access Token.

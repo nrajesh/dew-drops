@@ -46,6 +46,7 @@ export default defineConfig(() => ({
       // gallery images in the service worker instead of always hitting the
       // network.
       workbox: {
+        maximumFileSizeToCacheInBytes: 15000000,
         runtimeCaching: [
           // 1. Supabase REST API — gallery_images select queries
           //    NetworkFirst: always tries the network first (fresh data),
