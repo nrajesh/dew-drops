@@ -149,7 +149,7 @@ Generate the expert JSON assessment now.`;
     
     // 2. Extract block between first { and last }
     const firstBrace = cleaned.indexOf('{');
-    let lastBrace = cleaned.lastIndexOf('}');
+    const lastBrace = cleaned.lastIndexOf('}');
     
     if (firstBrace === -1) return cleaned.trim();
     
@@ -174,7 +174,7 @@ Generate the expert JSON assessment now.`;
     } = JSON.parse(jsonString);
 
     // Defensive handling for cases where AI returns an array instead of a string
-    const ensureString = (val: any): string => {
+    const ensureString = (val: unknown): string => {
       if (typeof val === "string") return val;
       if (Array.isArray(val)) return val.join("\n");
       return String(val ?? "");
