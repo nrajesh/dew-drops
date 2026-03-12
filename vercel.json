@@ -16,8 +16,7 @@
         },
         {
           "key": "Content-Security-Policy",
-          "value": "frame-src 'self' https://vercel.live https://www.youtube.com https://www.youtube-nocookie.com https://*.youtube.com;"
-
+          "value": "frame-src 'self' https://vercel.live https://www.youtube.com https://www.youtube-nocookie.com https://*.youtube.com; connect-src 'self' https://vercel.live https://*.vercel.live https://*.supabase.co https://*.google.com https://r.jina.ai; img-src 'self' blob: data: https://vercel.live https://*.vercel.live https://*.supabase.co;"
         }
       ]
     }
