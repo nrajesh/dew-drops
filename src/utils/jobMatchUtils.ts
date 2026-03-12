@@ -29,19 +29,19 @@ export const generateJobMatchReasoning = async (
   
   let jobRequirements: string[] = [];
   if (base64Image && sendMessageToGeminiWithImage) {
-    // For vision, we extract keywords from the prompt or let the final analysis handle it.
-    // To keep simple mapping, we'll extract keywords from the vision model first if possible,
-    // or just use a generic list if it's too complex.
-    // For now, let's assume we extract keywords from the image.
-    const keywordPrompt = `Extract 5-10 key skills, technologies, and responsibilities as a comma-separated list from this job description image. Only return the keywords.`;
+    // For vision, we need to be very explicit about what to extract
+    const keywordPrompt = `Identify and extract 8-12 key technical skills, experience requirements, and core responsibilities from this job description image. Return them as a simple comma-separated list. Only return the list, no other text.`;
     const keywordResponse = await sendMessageToGeminiWithImage(keywordPrompt, base64Image);
-    jobRequirements = keywordResponse.split(",").map(s => s.trim()).filter(Boolean);
+    jobRequirements = keywordResponse
+      .split(",")
+      .map(s => s.trim().replace(/^-\s*/, "")) // Clean bullet points if any
+      .filter(s => s.length > 2); // Filter out noise
   } else {
     jobRequirements = await extractJobKeywords(jobDescription);
   }
 
   onStepUpdate(1); // Step 2: Text Preprocessing
-  // ... prepare CV content (unchanged) ...
+  // ... (Prepare CV content - unchanged) ...
   const allCvContent: string[] = [];
   if (resume.basics?.summary) allCvContent.push(resume.basics.summary);
   resume.work?.forEach((w: ResumeWork) =>
@@ -101,26 +101,31 @@ export const generateJobMatchReasoning = async (
   onStepUpdate(3); // Step 4: Gap Identification
   onStepUpdate(4); // Step 5: Generating Report
 
-  const systemPrompt = `You are a career fit analyst. Your task is to provide a professional assessment of how well my profile aligns with ${base64Image ? "the attached job description image" : "the provided job description text"}. Tone: first-person passive (my/I).
+  const systemPrompt = `You are a career fit analyst. Profile alignment assessment for ${base64Image ? "the attached image" : "the provided text"}.
+Tone: first-person passive (my/I).
 
-Your final output must be a single, valid JSON object with:
-- "percentage": number (0-100)
-- "highlights": JSON-escaped markdown listing 5 critical requirements as short bullets.
-- "reasoning": JSON-escaped markdown with '## Matching Areas' and '## Gaps' (with Mitigations).
+Your final output MUST be a single, valid JSON object. No Markdown headers before or after.
+{
+  "percentage": number,
+  "highlights": "Markdown listing 5 critical job requirements as short bullets (e.g., '- Requirement')",
+  "reasoning": "Markdown with ONLY '## Matching Areas' and '## Gaps' sections"
+}
 
 RULES:
+- 'reasoning' MUST contain both headers: '## Matching Areas' and '## Gaps'.
 - Each bullet MUST be a single sentence (≤ 20 words).
 - Lead with **Bold Title:**
-- Generate 2 fewer gaps than matching areas.
+- '## Gaps' section is REQUIRED. If you find no major gaps, focus on a "Niche Industry specific experience" or "Advanced certifications" that I might not have yet. Each gap MUST have a '- **Mitigation:**' bullet point underneath.
+- Strictly generate 2 fewer gaps than matching areas.
 
-Contextual Data:
-- Resume Summary: ${chatbotKnowledge}
-- Overlapping Skills: ${overlaps.join(", ")}
-- Missing Skills: ${missing.join(", ")}
-- Full Resume Content: ${combinedCvText}
-${!base64Image ? `\nJob Description Text: ${jobDescription}` : ""}
+Context:
+- Summary: ${chatbotKnowledge}
+- Overlaps: ${overlaps.join(", ")}
+- Missing (Gaps): ${missing.join(", ")}
+- CV Context: ${combinedCvText}
+${!base64Image ? `\nJob Text: ${jobDescription}` : ""}
 
-Now, analyze the ${base64Image ? "image" : "text"} and generate the JSON object.`;
+Analyze the ${base64Image ? "image" : "text"} and generate the JSON object now.`;
 
   let rawResponse: string;
   if (base64Image && sendMessageToGeminiWithImage) {

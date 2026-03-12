@@ -53,7 +53,8 @@ export const CareerFitAnalyst = () => {
   );
   const [inputMethod, setInputMethod] = useState<"text" | "url" | "image">("text");
   const [isFetchingUrl, setIsFetchingUrl] = useState(false);
-  const [displayOverallStepIndex, setDisplayOverallStepIndex] = useState(-1); // New state for visual progress
+  const [isDragging, setIsDragging] = useState(false);
+  const [displayOverallStepIndex, setDisplayOverallStepIndex] = useState(-1);
   const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
   const [showTimeoutWarning, setShowTimeoutWarning] = useState(false);
 
@@ -176,17 +177,44 @@ export const CareerFitAnalyst = () => {
     displayOverallStepIndex,
   ]);
 
-  const handleImageUpload = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setJobDescriptionImage(reader.result as string);
-        setIsButtonEnabled(true);
-      };
-      reader.readAsDataURL(file);
-    }
+  const handleImageUpload = useCallback((file: File) => {
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      setJobDescriptionImage(reader.result as string);
+      setIsButtonEnabled(true);
+    };
+    reader.readAsDataURL(file);
   }, []);
+
+  const onFileChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) handleImageUpload(file);
+  }, [handleImageUpload]);
+
+  const handleDragOver = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(true);
+  }, []);
+
+  const handleDragLeave = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+  }, []);
+
+  const handleDrop = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+    
+    const file = e.dataTransfer.files?.[0];
+    if (file && file.type.startsWith('image/')) {
+      handleImageUpload(file);
+    } else {
+      showError("Please drop a valid image file.");
+    }
+  }, [handleImageUpload]);
 
   const removeImage = useCallback(() => {
     setJobDescriptionImage(null);
@@ -675,30 +703,31 @@ export const CareerFitAnalyst = () => {
             <Tabs
               defaultValue="text"
               onValueChange={(value) => setInputMethod(value as "text" | "url" | "image")}
+              className="w-full"
             >
-              <TabsList className="grid w-full grid-cols-3">
+              <TabsList className="flex flex-wrap h-auto w-full bg-muted/50 p-1 gap-1">
                 <TabsTrigger
                   value="text"
-                  className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
+                  className="flex-1 min-w-[80px] data-[state=active]:bg-primary data-[state=active]:text-primary-foreground text-xs sm:text-sm"
                 >
                   Paste Text
                 </TabsTrigger>
                 <TabsTrigger
                   value="url"
-                  className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
+                  className="flex-1 min-w-[80px] data-[state=active]:bg-primary data-[state=active]:text-primary-foreground text-xs sm:text-sm"
                 >
                   Provide URL
                 </TabsTrigger>
                 <TabsTrigger
                   value="image"
-                  className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
+                  className="flex-1 min-w-[120px] data-[state=active]:bg-primary data-[state=active]:text-primary-foreground text-xs sm:text-sm"
                 >
-                  <ImageIcon className="mr-2 h-4 w-4" />
+                  <ImageIcon className="mr-1.5 h-3.5 w-3.5" />
                   Upload Screenshot
                 </TabsTrigger>
               </TabsList>
               
-              <TabsContent value="text" className="space-y-4">
+              <TabsContent value="text" className="space-y-4 pt-4">
                 <Textarea
                   placeholder={`Paste your job description here (minimum ${MIN_JOB_DESCRIPTION_LENGTH} characters)...`}
                   value={jobDescription}
@@ -711,7 +740,7 @@ export const CareerFitAnalyst = () => {
                 </div>
               </TabsContent>
 
-              <TabsContent value="url" className="space-y-4">
+              <TabsContent value="url" className="space-y-4 pt-4">
                 <div className="space-y-2">
                   <Input
                     type="url"
@@ -726,45 +755,67 @@ export const CareerFitAnalyst = () => {
                 </div>
               </TabsContent>
 
-              <TabsContent value="image" className="space-y-4">
-                <div className="flex flex-col items-center justify-center border-2 border-dashed rounded-lg p-6 transition-colors hover:border-primary/50">
+              <TabsContent value="image" className="space-y-4 pt-4">
+                <div 
+                  className={cn(
+                    "flex flex-col items-center justify-center border-2 border-dashed rounded-lg p-6 transition-all duration-200 min-h-[200px]",
+                    isDragging 
+                      ? "border-primary bg-primary/5 scale-[1.01]" 
+                      : "border-muted-foreground/25 hover:border-primary/50",
+                    jobDescriptionImage && "border-solid border-primary/20"
+                  )}
+                  onDragOver={handleDragOver}
+                  onDragLeave={handleDragLeave}
+                  onDrop={handleDrop}
+                >
                   {jobDescriptionImage ? (
-                    <div className="relative w-full max-w-[300px] aspect-video">
+                    <div className="relative w-full max-w-[300px] aspect-video group">
                       <img 
                         src={jobDescriptionImage} 
                         alt="Job Description" 
-                        className="w-full h-full object-contain rounded"
+                        className="w-full h-full object-contain rounded shadow-sm transition-opacity group-hover:opacity-90"
                       />
                       <Button
                         variant="destructive"
                         size="icon"
-                        className="absolute -top-2 -right-2 h-6 w-6 rounded-full"
+                        className="absolute -top-2 -right-2 h-6 w-6 rounded-full shadow-md"
                         onClick={removeImage}
                       >
                         <X className="h-4 w-4" />
                       </Button>
+                      <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                        <p className="text-[10px] bg-background/80 px-2 py-1 rounded shadow-sm font-medium">Click X to remove</p>
+                      </div>
                     </div>
                   ) : (
-                    <div className="text-center space-y-2">
-                      <div className="p-3 bg-secondary rounded-full w-fit mx-auto">
-                        <Upload className="h-6 w-6 text-primary" />
+                    <div className="text-center space-y-3">
+                      <div className={cn(
+                        "p-4 rounded-full w-fit mx-auto transition-colors",
+                        isDragging ? "bg-primary text-primary-foreground" : "bg-secondary"
+                      )}>
+                        <Upload className={cn("h-8 w-8", isDragging && "animate-bounce")} />
                       </div>
                       <div className="space-y-1">
-                        <p className="text-sm font-medium">Upload a screenshot</p>
+                        <p className="text-sm font-semibold">
+                          {isDragging ? "Drop to upload" : "Drag & drop screenshot"}
+                        </p>
                         <p className="text-xs text-muted-foreground">PNG or JPG of the job description</p>
                       </div>
-                      <Input
-                        type="file"
-                        accept="image/*"
-                        className="hidden"
-                        id="image-upload"
-                        onChange={handleImageUpload}
-                      />
-                      <Button asChild variant="outline" size="sm">
-                        <label htmlFor="image-upload" className="cursor-pointer">
-                          Select Image
-                        </label>
-                      </Button>
+                      <div className="flex flex-col items-center gap-2 pt-2">
+                        <span className="text-[10px] text-muted-foreground uppercase tracking-widest">— OR —</span>
+                        <Input
+                          type="file"
+                          accept="image/*"
+                          className="hidden"
+                          id="image-upload"
+                          onChange={onFileChange}
+                        />
+                        <Button asChild variant="outline" size="sm" className="h-8">
+                          <label htmlFor="image-upload" className="cursor-pointer">
+                            Browse Files
+                          </label>
+                        </Button>
+                      </div>
                     </div>
                   )}
                 </div>
@@ -773,6 +824,7 @@ export const CareerFitAnalyst = () => {
                 </p>
               </TabsContent>
             </Tabs>
+
 
             <Button
               onClick={matchResult ? handleAnalyzeAnother : handleSubmit}
