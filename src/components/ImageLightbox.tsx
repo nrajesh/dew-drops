@@ -88,7 +88,7 @@ export const ImageLightbox: React.FC<ImageLightboxProps> = ({
     if (!image) return;
 
     if (image.purchase_link) {
-      window.open(image.purchase_link, "_blank");
+      window.open(image.purchase_link, "_blank", "noopener,noreferrer");
     } else {
       setShowPurchaseDisabledOverlay(true);
     }
