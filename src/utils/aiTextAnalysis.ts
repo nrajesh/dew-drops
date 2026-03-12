@@ -96,3 +96,61 @@ ${jobDescriptionText}
     throw error;
   }
 };
+
+/**
+ * Analyzes a vision-based job description (image) to determine if it's a formal JD.
+ *
+ * @param base64Image The base64 encoded image.
+ * @returns A promise that resolves to a JobDescriptionAnalysisResult object.
+ */
+export const analyzeVisionJobDescription = async (
+  base64Image: string,
+): Promise<JobDescriptionAnalysisResult> => {
+  const prompt = `You are an expert AI assistant for analyzing job descriptions from images.
+Determine if the provided image is a formal job description.
+
+Your final output MUST be in JSON format:
+{
+  "isValidJobDescription": boolean,
+  "originalLanguage": "en",
+  "processedText": "The detected text from the image (brief summary)" 
+}
+
+If it is NOT a formal job description:
+- Set "isValidJobDescription" to false.
+- Set "processedText" to "INVALID_JOB_DESCRIPTION".`;
+
+  try {
+    const { sendMessageToGeminiWithImage } = await import("@/integrations/gemini/client");
+    const rawResponse = await sendMessageToGeminiWithImage(prompt, base64Image);
+    
+    // Extract JSON from potential markdown blocks
+    const extractJson = (text: string) => {
+      const match = text.match(/```json\s*([\s\S]*?)\s*```/) || text.match(/```\s*([\s\S]*?)\s*```/);
+      if (match) return match[1].trim();
+      const firstBrace = text.indexOf('{');
+      const lastBrace = text.lastIndexOf('}');
+      if (firstBrace !== -1 && lastBrace !== -1 && lastBrace > firstBrace) {
+        return text.substring(firstBrace, lastBrace + 1).trim();
+      }
+      return text.trim();
+    };
+
+    const jsonString = extractJson(rawResponse);
+    const result: JobDescriptionAnalysisResult = JSON.parse(jsonString);
+
+    if (!result.isValidJobDescription) {
+      throw new Error(
+        "The provided image does not appear to be a formal job description. Please upload a clear screenshot of a job post.",
+      );
+    }
+
+    return result;
+  } catch (error: unknown) {
+    console.error("Error during vision job description analysis:", error);
+    if (error instanceof Error && (error.message.includes("JSON.parse") || error.message.includes("malformed"))) {
+      throw new Error("Failed to verify image content. Please ensure the screenshot is clear and try again.");
+    }
+    throw error;
+  }
+};

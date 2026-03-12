@@ -34,7 +34,10 @@ import {
   fetchUrlContentWithJina,
   isLocalFilePath
 } from "@/integrations/gemini/client";
-import { analyzeAndTranslateJobDescription } from "@/utils/aiTextAnalysis";
+import { 
+  analyzeAndTranslateJobDescription, 
+  analyzeVisionJobDescription 
+} from "@/utils/aiTextAnalysis";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
 import { generateCareerFitPdf } from "@/utils/pdfGenerator";
@@ -84,7 +87,7 @@ export const CareerFitAnalyst = () => {
   }, [matchResult]);
 
   const overallSteps = useMemo(
-    () => ["Validating entered text", ...analysisSteps],
+    () => ["Validating input content", ...analysisSteps],
     [],
   );
   const totalOverallSteps = overallSteps.length;
@@ -278,7 +281,11 @@ export const CareerFitAnalyst = () => {
       }
 
       if (inputMethod === "image" && jobDescriptionImage) {
-        // Vision path: Directly match against the image
+        // Vision path: Validate then match
+        const analysisResult = await analyzeVisionJobDescription(jobDescriptionImage);
+        if (!analysisResult.isValidJobDescription) {
+          throw new Error(analysisResult.processedText);
+        }
         await performJobMatch("", jobDescriptionImage);
       } else {
         // Text/URL path: Validate then match
