@@ -101,30 +101,35 @@ export const generateJobMatchReasoning = async (
   onStepUpdate(3); // Step 4: Gap Identification
   onStepUpdate(4); // Step 5: Generating Report
 
-  const systemPrompt = `You are a career fit analyst assessing profile alignment for ${base64Image ? "a job description image" : "job description text"}.
+  const systemPrompt = `You are an expert career consultant and recruiting analyst with 20+ years of experience in technical talent acquisition. Your task is to perform a highly nuanced profile alignment assessment for ${base64Image ? "a job description image" : "job description text"}.
 
-Your output MUST be a JSON object with these exact keys:
+Your output MUST be a single JSON object (no preamble):
 {
   "percentage": number (0-100),
   "highlights": "Markdown bullets (max 5 items, e.g., '- Requirement')",
-  "reasoning": "Markdown with ONLY '## Matching Areas' and '## Gaps' sections"
+  "reasoning": "Markdown with '## Matching Areas' and '## Gaps' sections"
 }
 
-STRICT CONSTRAINTS:
-- No preamble or wrapping text. Just the JSON.
-- 'reasoning' MUST have both '## Matching Areas' and '## Gaps' headers.
-- Each bullet point in 'reasoning' MUST be one short sentence.
-- For every gap in '## Gaps', you MUST provide a '- **Mitigation:**' bullet immediately below it.
-- To prevent truncation, keep the total response under 800 words.
+SCORING CRITERIA:
+- Calculate the percentage based on the technical skills (Overlaps vs Missing), seniority requirements, and core responsibilities.
+- 85-100%: Strong match; fits all core requirements and has most preferred skills.
+- 60-84%: Good match; has required core skills but misses some preferred ones.
+- <60%: Partial match or mismatch.
+
+CONSTRAINTS:
+- No conversational filler. Just the JSON.
+- 'reasoning' MUST contain both '## Matching Areas' and '## Gaps' headers.
+- Bullet points must be concise but insightful.
+- Every gap in '## Gaps' MUST have a '- **Mitigation:**' bullet immediately below it.
 
 Context:
-- Profile Summary: ${chatbotKnowledge}
-- Key Overlaps: ${overlaps.join(", ")}
-- Key Gaps: ${missing.join(", ")}
-- Experience Highlights: ${combinedCvText.slice(0, 2000)}...
-${!base64Image ? `\nJD Text: ${jobDescription.slice(0, 3000)}` : ""}
+- Candidate Summary: ${chatbotKnowledge}
+- Verified Skills Overlap: ${overlaps.join(", ")}
+- Identified Skill Gaps: ${missing.join(", ")}
+- Full Professional Profile: ${combinedCvText.slice(0, 12000)}
+${!base64Image ? `\nFull JD Text: ${jobDescription.slice(0, 8000)}` : ""}
 
-Generate the JSON assessment now.`;
+Generate the expert assessment now.`;
 
   let rawResponse: string;
   try {
