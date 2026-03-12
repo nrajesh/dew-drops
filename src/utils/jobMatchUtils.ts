@@ -101,35 +101,35 @@ export const generateJobMatchReasoning = async (
   onStepUpdate(3); // Step 4: Gap Identification
   onStepUpdate(4); // Step 5: Generating Report
 
-  const systemPrompt = `You are an expert career consultant and recruiting analyst with 20+ years of experience in technical talent acquisition. Your task is to perform a highly nuanced profile alignment assessment for ${base64Image ? "a job description image" : "job description text"}.
+  const systemPrompt = `You are an expert technical recruiter. Perform a profile alignment assessment for ${base64Image ? "a job description image" : "job description text"}.
 
-Your output MUST be a single JSON object (no preamble):
+CRITICAL: Your response MUST be a single JSON object.
+JSON SAFETY RULES:
+- Use standard double quotes (") for all strings.
+- NEVER use triple quotes (""") even for long text blocks.
+- Escape all newlines as \\n and double quotes as \\" within strings.
+- Do NOT include any markdown headers or preamble.
+
+REQUIRED JSON TEMPLATE:
 {
-  "percentage": number (0-100),
-  "highlights": "Markdown bullets (max 5 items, e.g., '- Requirement')",
-  "reasoning": "Markdown with '## Matching Areas' and '## Gaps' sections"
+  "percentage": 85,
+  "highlights": "- Bullet 1\\n- Bullet 2",
+  "reasoning": "## Matching Areas\\n- Insight 1\\n- Insight 2\\n\\n## Gaps\\n- Gap 1\\n  - **Mitigation:** Plan 1"
 }
 
-SCORING CRITERIA:
-- Calculate the percentage based on the technical skills (Overlaps vs Missing), seniority requirements, and core responsibilities.
-- 85-100%: Strong match; fits all core requirements and has most preferred skills.
-- 60-84%: Good match; has required core skills but misses some preferred ones.
-- <60%: Partial match or mismatch.
-
-CONSTRAINTS:
-- No conversational filler. Just the JSON.
-- 'reasoning' MUST contain both '## Matching Areas' and '## Gaps' headers.
-- Bullet points must be concise but insightful.
-- Every gap in '## Gaps' MUST have a '- **Mitigation:**' bullet immediately below it.
+SCORING: 
+- 85-100%: Strong core match.
+- 60-84%: Good match, some secondary gaps.
+- <60%: Significant skill/experience mismatch.
 
 Context:
-- Candidate Summary: ${chatbotKnowledge}
-- Verified Skills Overlap: ${overlaps.join(", ")}
-- Identified Skill Gaps: ${missing.join(", ")}
-- Full Professional Profile: ${combinedCvText.slice(0, 12000)}
-${!base64Image ? `\nFull JD Text: ${jobDescription.slice(0, 8000)}` : ""}
+- Summary: ${chatbotKnowledge}
+- Overlaps: ${overlaps.join(", ")}
+- Gaps: ${missing.join(", ")}
+- Profile: ${combinedCvText.slice(0, 12000)}
+${!base64Image ? `\nJD: ${jobDescription.slice(0, 6000)}` : ""}
 
-Generate the expert assessment now.`;
+Generate the expert JSON assessment now.`;
 
   let rawResponse: string;
   try {
@@ -140,25 +140,31 @@ Generate the expert assessment now.`;
     }
   } catch (apiError) {
     console.error("Gemini API call failed:", apiError);
-    throw new Error("Failed to connect to the AI service. Please check your connection and try again.");
+    throw new Error("Failed to connect to the AI service. Please try again.");
   }
 
-  // Robustly extract JSON from the response
-  const extractJson = (text: string) => {
-    // Try to find content between triple backticks first
-    const match = text.match(/```json\s*([\s\S]*?)\s*```/) || text.match(/```\s*([\s\S]*?)\s*```/);
-    if (match) return match[1].trim();
+  const extractAndRepairJson = (text: string) => {
+    // 1. Clean up invalid Python-style triple quotes which AI often hallucinations for long text
+    let cleaned = text.replace(/"""/g, '"');
     
-    // Fallback: Find the first { and last }
-    const firstBrace = text.indexOf('{');
-    const lastBrace = text.lastIndexOf('}');
-    if (firstBrace !== -1 && lastBrace !== -1 && lastBrace > firstBrace) {
-      return text.substring(firstBrace, lastBrace + 1).trim();
+    // 2. Extract block between first { and last }
+    const firstBrace = cleaned.indexOf('{');
+    let lastBrace = cleaned.lastIndexOf('}');
+    
+    if (firstBrace === -1) return cleaned.trim();
+    
+    // 3. Handle Truncation: If we have { but no }, or if text ends abruptly
+    if (lastBrace === -1 || lastBrace < firstBrace) {
+      console.warn("Detected truncated JSON response. Attempting repair...");
+      cleaned = cleaned.substring(firstBrace) + '\n  "reasoning": "## Matching Areas\\n- [Truncated by AI]\\n\\n## Gaps\\n- [Truncated by AI]\\n  - **Mitigation:** Please try with a shorter JD snippet."\n}';
+      return cleaned;
     }
-    return text.trim();
+
+    // 4. Extract content between braces (handles markdown wrappers implicitly)
+    return cleaned.substring(firstBrace, lastBrace + 1).trim();
   };
 
-  const jsonString = extractJson(rawResponse);
+  const jsonString = extractAndRepairJson(rawResponse);
 
   try {
     const result: {
@@ -168,7 +174,7 @@ Generate the expert assessment now.`;
     } = JSON.parse(jsonString);
 
     if (typeof result.percentage !== "number" || typeof result.reasoning !== "string") {
-      throw new Error("Missing required fields (percentage/reasoning).");
+      throw new Error("Invalid structure.");
     }
 
     return {
@@ -177,8 +183,8 @@ Generate the expert assessment now.`;
       highlights: (result.highlights ?? "").replace(/\n{3,}/g, "\n\n").trim(),
     };
   } catch (parseError) {
-    console.error("AI Response Parsing Failure:", parseError, "\nRaw Response:", rawResponse);
-    throw new Error("The AI returned a malformed response. This usually happens if the job description is extremely long. Please try again with a more focused selection.");
+    console.error("Final JSON Parse Failure:", parseError, "\nProcessed String:", jsonString, "\nRaw:", rawResponse);
+    throw new Error("The AI returned a malformed response. This happens with very long or complex job descriptions. Please try selecting a more focused part of the JD.");
   }
 };
 
