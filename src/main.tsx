@@ -14,12 +14,17 @@ import { FontSettingsProvider } from "./contexts/FontSettingsContext.tsx"; // Im
 
 const queryClient = new QueryClient();
 
-// Suppress the specific YouTube embed error
+// Suppress harmless console warnings related to YouTube embeds and Vercel/Google origin mismatches
 const originalConsoleError = console.error;
 console.error = function (...args) {
+  const errorMsg = typeof args[0] === "string" ? args[0] : "";
   if (
-    typeof args[0] === "string" &&
-    args[0].includes('Blocked a frame with origin "https://www.youtube.com"')
+    errorMsg.includes('Blocked a frame with origin "https://www.youtube.com"') ||
+    errorMsg.includes("Unable to post message to https://www.google.com") ||
+    errorMsg.includes("Unable to post message to https://www.youtube.com") ||
+    errorMsg.includes("Unable to post message to https://m.youtube.com") ||
+    (errorMsg.includes("Recipient has origin") &&
+      errorMsg.includes("vercel.app"))
   ) {
     return;
   }
