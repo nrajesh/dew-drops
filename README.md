@@ -1,6 +1,4 @@
-# My Awesome React App
-
-This is a modern React application built with TypeScript, React Router, Tailwind CSS, and `shadcn/ui` components. It leverages Supabase for backend services and Google Gemini for AI-powered features.
+This is a modern React application built with TypeScript, React Router, Tailwind CSS, and `shadcn/ui` components. It leverages Google Gemini for AI-powered features and operates entirely with local data.
 
 ## Latest Functionality
 
@@ -42,7 +40,6 @@ This application provides a comprehensive suite of features for a personal portf
 *   **Tailwind CSS**: A utility-first CSS framework for rapidly building custom designs.
 *   **shadcn/ui**: A collection of reusable components built with Radix UI and Tailwind CSS.
 *   **Custom React Hooks**: For centralized and reusable state management logic (`useManagement`, `useBlogManagement`, etc.).
-*   **Supabase**: An open-source Firebase alternative providing a PostgreSQL database, authentication, storage, and serverless edge functions.
 *   **Google Gemini**: Powers the AI features, including the Career Fit Analyst, chatbot, and image tag generation.
 *   **lucide-react**: A collection of beautiful and consistent icons.
 
@@ -74,8 +71,6 @@ To run this project locally:
     npm install
     ```
 3.  **Set up Environment Variables**:
-    *   Create a `.env` file in the root of the project.
-    *   Add your Supabase project URL and Anon Key.
     *   Add your Google Gemini API key.
     *   Add the URL to your public JSON Resume file (e.g., a GitHub Gist).
     *   Add your Mapbox Access Token.

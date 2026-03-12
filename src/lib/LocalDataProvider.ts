@@ -9,13 +9,17 @@ import { Post, Profile, TravelLocation, GalleryImage } from "@/types";
 class LocalDataProvider {
   private transformImageUrl(url: string | null): string {
     if (!url) return "";
-    if (url.includes("supabase.co/storage/v1/object/public/gallery/")) {
-      // Transform: https://.../gallery/USER_ID/FILENAME -> /uploads/USER_ID_FILENAME
-      const parts = url.split("/public/gallery/");
-      if (parts.length > 1) {
-        const path = parts[1].replace(/\//g, "_");
-        return `/uploads/${path}`;
+    // If it's already a relative path or an external URL we want to keep, return it
+    if (url.startsWith('/') || url.startsWith('http')) {
+      // Compatibility for old Supabase URLs that might still be in data
+      if (url.includes("supabase.co/storage/v1/object/public/gallery/")) {
+        const parts = url.split("/public/gallery/");
+        if (parts.length > 1) {
+          const path = parts[1].replace(/\//g, "_");
+          return `/uploads/${path}`;
+        }
       }
+      return url;
     }
     return url;
   }
