@@ -27,7 +27,7 @@
     "id": "afb5700f-294e-40e7-9556-54f13d7d030e",
     "user_id": "59744934-6f01-4885-bd6d-451a48ff666c",
     "feature_key": "travel",
-    "is_enabled": true,
+    "is_enabled": false,
     "created_at": "2025-09-27T21:14:29.706348+00:00",
     "auto_disabled_until": null
   },
@@ -35,7 +35,7 @@
     "id": "683b8c30-f2df-4584-a4ea-52dd77bd7942",
     "user_id": "59744934-6f01-4885-bd6d-451a48ff666c",
     "feature_key": "blog",
-    "is_enabled": true,
+    "is_enabled": false,
     "created_at": "2025-09-27T21:14:26.042959+00:00",
     "auto_disabled_until": null
   },
@@ -67,7 +67,7 @@
     "id": "cb9104fc-71ef-487f-ac6b-d5d3f92bf32c",
     "user_id": "59744934-6f01-4885-bd6d-451a48ff666c",
     "feature_key": "manage_travel",
-    "is_enabled": true,
+    "is_enabled": false,
     "created_at": "2025-08-17T10:10:30.075167+00:00",
     "auto_disabled_until": null
   },
@@ -75,7 +75,7 @@
     "id": "6468fc06-cc8b-4624-a333-67bdc98be2e4",
     "user_id": "59744934-6f01-4885-bd6d-451a48ff666c",
     "feature_key": "manage_blog",
-    "is_enabled": true,
+    "is_enabled": false,
     "created_at": "2025-08-17T10:10:30.075167+00:00",
     "auto_disabled_until": null
   },
@@ -91,7 +91,7 @@
     "id": "12c2bff7-d931-4c6e-81ef-7104942c8f48",
     "user_id": "59744934-6f01-4885-bd6d-451a48ff666c",
     "feature_key": "nav_travel",
-    "is_enabled": true,
+    "is_enabled": false,
     "created_at": "2025-08-17T10:10:30.075167+00:00",
     "auto_disabled_until": null
   },
@@ -107,7 +107,7 @@
     "id": "1bd9e4f1-7c65-4b31-a1bd-546999cb249d",
     "user_id": "59744934-6f01-4885-bd6d-451a48ff666c",
     "feature_key": "nav_blog",
-    "is_enabled": true,
+    "is_enabled": false,
     "created_at": "2025-08-17T10:10:30.075167+00:00",
     "auto_disabled_until": null
   },
