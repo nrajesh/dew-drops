@@ -23,7 +23,6 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 const ALLOWED_EMAIL = import.meta.env.VITE_ALLOWED_EMAIL || "write@nrajesh.com";
-const AUTH_PASSWORD = "admin";
 
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<{ id: string; email: string } | null>(null);
@@ -64,14 +63,36 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   }, [user, fetchProfile]);
 
   const signIn = async (email: string, secret: string) => {
-    if (email === ALLOWED_EMAIL && secret === AUTH_PASSWORD) {
-      localStorage.setItem("auth_token", ALLOWED_EMAIL);
-      const mockUser = { id: "local-user", email: ALLOWED_EMAIL };
-      setUser(mockUser);
-      return true;
+    try {
+      const response = await fetch("/api/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, password: secret }),
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        localStorage.setItem("auth_token", ALLOWED_EMAIL);
+        setUser(data.user);
+        return true;
+      }
+      
+      const errorData = await response.json();
+      showError(errorData.error || "Invalid credentials.");
+      return false;
+    } catch (error) {
+      console.error("Login error:", error);
+      // Fallback for local development if API is not available
+      const localPassword = import.meta.env.VITE_AUTH_PASSWORD;
+      if (import.meta.env.DEV && email === ALLOWED_EMAIL && secret === localPassword && localPassword) {
+        localStorage.setItem("auth_token", ALLOWED_EMAIL);
+        const mockUser = { id: "local-user", email: ALLOWED_EMAIL };
+        setUser(mockUser);
+        return true;
+      }
+      showError("Connection error. Please try again later.");
+      return false;
     }
-    showError("Invalid credentials.");
-    return false;
   };
 
   const signOut = async () => {
