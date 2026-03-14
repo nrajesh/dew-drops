@@ -27,7 +27,7 @@ export const generateCareerFitPdf = (
 ): Promise<void> => {
   // Update document title so browsers use it in the print dialog
   const originalTitle = document.title;
-  
+
   // ─── Mobile path: open in new tab → print from there ───
   if (isMobileDevice()) {
     return new Promise((resolve) => {
@@ -99,7 +99,7 @@ export const generateCareerFitPdf = (
         setTimeout(() => {
           document.title = originalTitle;
           if (document.body.contains(iframe)) {
-             document.body.removeChild(iframe);
+            document.body.removeChild(iframe);
           }
           resolve();
         }, 1000);
@@ -119,4 +119,3 @@ export const generateCareerFitPdf = (
     setTimeout(triggerPrint, 2500);
   });
 };
-

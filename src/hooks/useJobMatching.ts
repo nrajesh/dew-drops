@@ -112,7 +112,7 @@ export const useJobMatching = () => {
             sendMessageToGemini,
             setCurrentStepIndex,
             base64Image,
-            sendMessageToGeminiWithImage
+            sendMessageToGeminiWithImage,
           );
         setMatchResult({ percentage, reasoning, highlights });
         return { percentage, reasoning, highlights };
@@ -150,4 +150,3 @@ export const useJobMatching = () => {
     totalSteps: analysisSteps.length,
   };
 };
-

@@ -10,7 +10,7 @@ class LocalDataProvider {
   private transformImageUrl(url: string | null): string {
     if (!url) return "";
     // If it's already a relative path or an external URL we want to keep, return it
-    if (url.startsWith('/') || url.startsWith('http')) {
+    if (url.startsWith("/") || url.startsWith("http")) {
       // Compatibility for old Supabase URLs that might still be in data
       if (url.includes("supabase.co/storage/v1/object/public/gallery/")) {
         const parts = url.split("/public/gallery/");

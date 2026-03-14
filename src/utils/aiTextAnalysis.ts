@@ -121,15 +121,18 @@ If it is NOT a formal job description:
 - Set "processedText" to "INVALID_JOB_DESCRIPTION".`;
 
   try {
-    const { sendMessageToGeminiWithImage } = await import("@/integrations/gemini/client");
+    const { sendMessageToGeminiWithImage } =
+      await import("@/integrations/gemini/client");
     const rawResponse = await sendMessageToGeminiWithImage(prompt, base64Image);
-    
+
     // Extract JSON from potential markdown blocks
     const extractJson = (text: string) => {
-      const match = text.match(/```json\s*([\s\S]*?)\s*```/) || text.match(/```\s*([\s\S]*?)\s*```/);
+      const match =
+        text.match(/```json\s*([\s\S]*?)\s*```/) ||
+        text.match(/```\s*([\s\S]*?)\s*```/);
       if (match) return match[1].trim();
-      const firstBrace = text.indexOf('{');
-      const lastBrace = text.lastIndexOf('}');
+      const firstBrace = text.indexOf("{");
+      const lastBrace = text.lastIndexOf("}");
       if (firstBrace !== -1 && lastBrace !== -1 && lastBrace > firstBrace) {
         return text.substring(firstBrace, lastBrace + 1).trim();
       }
@@ -148,8 +151,14 @@ If it is NOT a formal job description:
     return result;
   } catch (error: unknown) {
     console.error("Error during vision job description analysis:", error);
-    if (error instanceof Error && (error.message.includes("JSON.parse") || error.message.includes("malformed"))) {
-      throw new Error("Failed to verify image content. Please ensure the screenshot is clear and try again.");
+    if (
+      error instanceof Error &&
+      (error.message.includes("JSON.parse") ||
+        error.message.includes("malformed"))
+    ) {
+      throw new Error(
+        "Failed to verify image content. Please ensure the screenshot is clear and try again.",
+      );
     }
     throw error;
   }

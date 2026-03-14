@@ -19,7 +19,9 @@ const originalConsoleError = console.error;
 console.error = function (...args) {
   const errorMsg = typeof args[0] === "string" ? args[0] : "";
   if (
-    errorMsg.includes('Blocked a frame with origin "https://www.youtube.com"') ||
+    errorMsg.includes(
+      'Blocked a frame with origin "https://www.youtube.com"',
+    ) ||
     errorMsg.includes("Unable to post message to https://www.google.com") ||
     errorMsg.includes("Unable to post message to https://www.youtube.com") ||
     errorMsg.includes("Unable to post message to https://m.youtube.com") ||

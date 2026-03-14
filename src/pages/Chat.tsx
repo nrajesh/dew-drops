@@ -269,7 +269,8 @@ const Chat = ({ jobDescription, onClose }: ChatProps) => {
             <Alert variant="destructive">
               <AlertTriangle className="h-4 w-4" />
               <AlertTitle>
-                {aiServiceError.includes("VITE_GEMINI") || aiServiceError.includes("set and accessible")
+                {aiServiceError.includes("VITE_GEMINI") ||
+                aiServiceError.includes("set and accessible")
                   ? "Configuration Error"
                   : "Analysis Error"}
               </AlertTitle>

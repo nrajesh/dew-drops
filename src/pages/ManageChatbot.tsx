@@ -58,8 +58,7 @@ const formatResumeData = (resume: any): string => {
     resumeContext += resume.skills
       .map(
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        (s: any) =>
-          `- ${s.name}: ${s.keywords?.join(", ") || ""}`,
+        (s: any) => `- ${s.name}: ${s.keywords?.join(", ") || ""}`,
       )
       .join("\n");
   }

@@ -19,7 +19,12 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { showSuccess, showLoading, dismissToast } from "@/utils/toast";
+import {
+  showSuccess,
+  showLoading,
+  dismissToast,
+  showError,
+} from "@/utils/toast";
 import { useState } from "react";
 
 const formSchema = z.object({
@@ -36,6 +41,7 @@ const formSchema = z.object({
 
 const Contact = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [botcheck, setBotcheck] = useState(false);
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
@@ -47,19 +53,53 @@ const Contact = () => {
   });
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
+    if (botcheck) {
+      showError("Spam detected. Please try again later.");
+      return;
+    }
+
     setIsSubmitting(true);
     const toastId = showLoading("Sending your message...");
 
-    // Simulate local send
-    await new Promise((resolve) => setTimeout(resolve, 1500));
-    console.log("Form submitted locally:", values);
+    try {
+      const access_key = import.meta.env.VITE_WEB3FORMS_ACCESS_KEY;
+      if (!access_key) {
+        throw new Error("Web3Forms access key is not configured.");
+      }
 
-    dismissToast(toastId);
-    showSuccess(
-      "Message sent successfully (Local mode simulation)! I'll get back to you soon.",
-    );
-    form.reset();
-    setIsSubmitting(false);
+      const response = await fetch("https://api.web3forms.com/submit", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Accept: "application/json",
+        },
+        body: JSON.stringify({
+          access_key,
+          botcheck,
+          ...values,
+        }),
+      });
+
+      const result = await response.json();
+
+      if (result.success) {
+        dismissToast(toastId);
+        showSuccess("Message sent successfully! I'll get back to you soon.");
+        form.reset();
+      } else {
+        throw new Error(result.message || "Failed to send message");
+      }
+    } catch (error) {
+      dismissToast(toastId);
+      console.error("Error sending message:", error);
+      showError(
+        error instanceof Error
+          ? error.message
+          : "Failed to send message. Please try again.",
+      );
+    } finally {
+      setIsSubmitting(false);
+    }
   }
 
   return (
@@ -74,6 +114,13 @@ const Contact = () => {
         <CardContent>
           <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
+              <input
+                type="checkbox"
+                name="botcheck"
+                className="hidden"
+                style={{ display: "none" }}
+                onChange={(e) => setBotcheck(e.target.checked)}
+              />
               <FormField
                 control={form.control}
                 name="name"

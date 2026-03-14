@@ -61,9 +61,8 @@ const CurriculumVitae = () => {
   const [resume, setResume] = useState<JsonResume | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  
-  const matchCvFeatureEnabled = toggles[navFeatures.MATCH_CV];
 
+  const matchCvFeatureEnabled = toggles[navFeatures.MATCH_CV];
 
   // State for collapsible sections
   const [isWorkOpen, setIsWorkOpen] = useState(true);

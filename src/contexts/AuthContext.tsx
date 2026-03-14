@@ -76,7 +76,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         setUser(data.user);
         return true;
       }
-      
+
       const errorData = await response.json();
       showError(errorData.error || "Invalid credentials.");
       return false;
@@ -84,7 +84,12 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       console.error("Login error:", error);
       // Fallback for local development if API is not available
       const localPassword = import.meta.env.VITE_AUTH_PASSWORD;
-      if (import.meta.env.DEV && email === ALLOWED_EMAIL && secret === localPassword && localPassword) {
+      if (
+        import.meta.env.DEV &&
+        email === ALLOWED_EMAIL &&
+        secret === localPassword &&
+        localPassword
+      ) {
         localStorage.setItem("auth_token", ALLOWED_EMAIL);
         const mockUser = { id: "local-user", email: ALLOWED_EMAIL };
         setUser(mockUser);

@@ -32,11 +32,11 @@ import {
 } from "@/lib/utils";
 import {
   fetchUrlContentWithJina,
-  isLocalFilePath
+  isLocalFilePath,
 } from "@/integrations/gemini/client";
-import { 
-  analyzeAndTranslateJobDescription, 
-  analyzeVisionJobDescription 
+import {
+  analyzeAndTranslateJobDescription,
+  analyzeVisionJobDescription,
 } from "@/utils/aiTextAnalysis";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
@@ -48,13 +48,17 @@ const MIN_JOB_DESCRIPTION_LENGTH = 250;
 export const CareerFitAnalyst = () => {
   const [jobDescription, setJobDescription] = useState("");
   const [jobDescriptionUrl, setJobDescriptionUrl] = useState("");
-  const [jobDescriptionImage, setJobDescriptionImage] = useState<string | null>(null);
+  const [jobDescriptionImage, setJobDescriptionImage] = useState<string | null>(
+    null,
+  );
   const [isButtonEnabled, setIsButtonEnabled] = useState(false);
   const [isPreProcessing, setIsPreProcessing] = useState(false);
   const [_originalLanguage, setOriginalLanguage] = useState<string | null>(
     null,
   );
-  const [inputMethod, setInputMethod] = useState<"text" | "url" | "image">("text");
+  const [inputMethod, setInputMethod] = useState<"text" | "url" | "image">(
+    "text",
+  );
   const [isFetchingUrl, setIsFetchingUrl] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
   const [displayOverallStepIndex, setDisplayOverallStepIndex] = useState(-1);
@@ -189,10 +193,13 @@ export const CareerFitAnalyst = () => {
     reader.readAsDataURL(file);
   }, []);
 
-  const onFileChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) handleImageUpload(file);
-  }, [handleImageUpload]);
+  const onFileChange = useCallback(
+    (e: React.ChangeEvent<HTMLInputElement>) => {
+      const file = e.target.files?.[0];
+      if (file) handleImageUpload(file);
+    },
+    [handleImageUpload],
+  );
 
   const handleDragOver = useCallback((e: React.DragEvent) => {
     e.preventDefault();
@@ -206,18 +213,21 @@ export const CareerFitAnalyst = () => {
     setIsDragging(false);
   }, []);
 
-  const handleDrop = useCallback((e: React.DragEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setIsDragging(false);
-    
-    const file = e.dataTransfer.files?.[0];
-    if (file && file.type.startsWith('image/')) {
-      handleImageUpload(file);
-    } else {
-      showError("Please drop a valid image file.");
-    }
-  }, [handleImageUpload]);
+  const handleDrop = useCallback(
+    (e: React.DragEvent) => {
+      e.preventDefault();
+      e.stopPropagation();
+      setIsDragging(false);
+
+      const file = e.dataTransfer.files?.[0];
+      if (file && file.type.startsWith("image/")) {
+        handleImageUpload(file);
+      } else {
+        showError("Please drop a valid image file.");
+      }
+    },
+    [handleImageUpload],
+  );
 
   const removeImage = useCallback(() => {
     setJobDescriptionImage(null);
@@ -249,12 +259,19 @@ export const CareerFitAnalyst = () => {
     }
 
     if (inputMethod === "url" && isLocalFilePath(jobDescriptionUrl)) {
-      showError("This looks like a local file path. Please use the 'Upload Screenshot' tab instead.");
+      showError(
+        "This looks like a local file path. Please use the 'Upload Screenshot' tab instead.",
+      );
       return;
     }
 
-    if (inputMethod === "text" && jobDescription.length < MIN_JOB_DESCRIPTION_LENGTH) {
-      showError(`Please enter at least ${MIN_JOB_DESCRIPTION_LENGTH} characters.`);
+    if (
+      inputMethod === "text" &&
+      jobDescription.length < MIN_JOB_DESCRIPTION_LENGTH
+    ) {
+      showError(
+        `Please enter at least ${MIN_JOB_DESCRIPTION_LENGTH} characters.`,
+      );
       return;
     }
 
@@ -282,14 +299,16 @@ export const CareerFitAnalyst = () => {
 
       if (inputMethod === "image" && jobDescriptionImage) {
         // Vision path: Validate then match
-        const analysisResult = await analyzeVisionJobDescription(jobDescriptionImage);
+        const analysisResult =
+          await analyzeVisionJobDescription(jobDescriptionImage);
         if (!analysisResult.isValidJobDescription) {
           throw new Error(analysisResult.processedText);
         }
         await performJobMatch("", jobDescriptionImage);
       } else {
         // Text/URL path: Validate then match
-        const analysisResult = await analyzeAndTranslateJobDescription(textToAnalyze);
+        const analysisResult =
+          await analyzeAndTranslateJobDescription(textToAnalyze);
         if (!analysisResult.isValidJobDescription) {
           throw new Error(analysisResult.processedText);
         }
@@ -327,11 +346,14 @@ export const CareerFitAnalyst = () => {
   const handleDownloadText = useCallback(async () => {
     if (matchResult?.reasoning) {
       // Re-parse the full reasoning for the download (matching the PDF comprehensiveness)
-      const { matchingLines, gapLines } = parseReasoningSections(matchResult.reasoning, {
-        matchingMax: 10,
-        gapsMax: 10,
-      });
-      
+      const { matchingLines, gapLines } = parseReasoningSections(
+        matchResult.reasoning,
+        {
+          matchingMax: 10,
+          gapsMax: 10,
+        },
+      );
+
       const cleanedHighlights = (matchResult.highlights ?? "")
         .replace(/\\n/g, "\n")
         .replace(/\n{3,}/g, "\n\n");
@@ -591,14 +613,18 @@ export const CareerFitAnalyst = () => {
     <h2 class="section-title">Areas to Bridge</h2>
     <p class="section-subtitle gap-subtitle">Identified gaps and how I can address them</p>
     <ul class="result-list">
-      ${gapItems.map((g) => `
+      ${gapItems
+        .map(
+          (g) => `
         <li class="result-item gap">
           <span class="icon gap-icon">→</span>
           <div style="flex: 1;">
             <div>${renderBold(g.gap)}</div>
-            ${g.mitigation ? `<div style="font-size: 10pt; color: #4b5563; margin-top: 4px; padding-left: 8px; border-left: 2px solid #e5e7eb;">${renderBold(g.mitigation)}</div>` : ''}
+            ${g.mitigation ? `<div style="font-size: 10pt; color: #4b5563; margin-top: 4px; padding-left: 8px; border-left: 2px solid #e5e7eb;">${renderBold(g.mitigation)}</div>` : ""}
           </div>
-        </li>`).join("")}
+        </li>`,
+        )
+        .join("")}
     </ul>
   </div>
 
@@ -709,7 +735,9 @@ export const CareerFitAnalyst = () => {
           <>
             <Tabs
               defaultValue="text"
-              onValueChange={(value) => setInputMethod(value as "text" | "url" | "image")}
+              onValueChange={(value) =>
+                setInputMethod(value as "text" | "url" | "image")
+              }
               className="w-full"
             >
               <TabsList className="flex flex-wrap h-auto w-full bg-muted/50 p-1 gap-1">
@@ -733,7 +761,7 @@ export const CareerFitAnalyst = () => {
                   Upload Screenshot
                 </TabsTrigger>
               </TabsList>
-              
+
               <TabsContent value="text" className="space-y-4 pt-4">
                 <Textarea
                   placeholder={`Paste your job description here (minimum ${MIN_JOB_DESCRIPTION_LENGTH} characters)...`}
@@ -743,7 +771,10 @@ export const CareerFitAnalyst = () => {
                   disabled={!resume || !!displayError}
                 />
                 <div className="flex justify-between items-center text-sm text-muted-foreground">
-                  <span>{jobDescription.length}/{MIN_JOB_DESCRIPTION_LENGTH} characters minimum</span>
+                  <span>
+                    {jobDescription.length}/{MIN_JOB_DESCRIPTION_LENGTH}{" "}
+                    characters minimum
+                  </span>
                 </div>
               </TabsContent>
 
@@ -757,19 +788,20 @@ export const CareerFitAnalyst = () => {
                     disabled={!resume || !!displayError}
                   />
                   <p className="text-xs text-muted-foreground">
-                    I'll use the Jina Reader to extract clean text from the job post.
+                    I'll use the Jina Reader to extract clean text from the job
+                    post.
                   </p>
                 </div>
               </TabsContent>
 
               <TabsContent value="image" className="space-y-4 pt-4">
-                <div 
+                <div
                   className={cn(
                     "flex flex-col items-center justify-center border-2 border-dashed rounded-lg p-6 transition-all duration-200 min-h-[200px]",
-                    isDragging 
-                      ? "border-primary bg-primary/5 scale-[1.01]" 
+                    isDragging
+                      ? "border-primary bg-primary/5 scale-[1.01]"
                       : "border-muted-foreground/25 hover:border-primary/50",
-                    jobDescriptionImage && "border-solid border-primary/20"
+                    jobDescriptionImage && "border-solid border-primary/20",
                   )}
                   onDragOver={handleDragOver}
                   onDragLeave={handleDragLeave}
@@ -777,9 +809,9 @@ export const CareerFitAnalyst = () => {
                 >
                   {jobDescriptionImage ? (
                     <div className="relative w-full max-w-[300px] aspect-video group">
-                      <img 
-                        src={jobDescriptionImage} 
-                        alt="Job Description" 
+                      <img
+                        src={jobDescriptionImage}
+                        alt="Job Description"
                         className="w-full h-full object-contain rounded shadow-sm transition-opacity group-hover:opacity-90"
                       />
                       <Button
@@ -791,25 +823,42 @@ export const CareerFitAnalyst = () => {
                         <X className="h-4 w-4" />
                       </Button>
                       <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                        <p className="text-[10px] bg-background/80 px-2 py-1 rounded shadow-sm font-medium">Click X to remove</p>
+                        <p className="text-[10px] bg-background/80 px-2 py-1 rounded shadow-sm font-medium">
+                          Click X to remove
+                        </p>
                       </div>
                     </div>
                   ) : (
                     <div className="text-center space-y-3">
-                      <div className={cn(
-                        "p-4 rounded-full w-fit mx-auto transition-colors",
-                        isDragging ? "bg-primary text-primary-foreground" : "bg-secondary"
-                      )}>
-                        <Upload className={cn("h-8 w-8", isDragging && "animate-bounce")} />
+                      <div
+                        className={cn(
+                          "p-4 rounded-full w-fit mx-auto transition-colors",
+                          isDragging
+                            ? "bg-primary text-primary-foreground"
+                            : "bg-secondary",
+                        )}
+                      >
+                        <Upload
+                          className={cn(
+                            "h-8 w-8",
+                            isDragging && "animate-bounce",
+                          )}
+                        />
                       </div>
                       <div className="space-y-1">
                         <p className="text-sm font-semibold">
-                          {isDragging ? "Drop to upload" : "Drag & drop screenshot"}
+                          {isDragging
+                            ? "Drop to upload"
+                            : "Drag & drop screenshot"}
                         </p>
-                        <p className="text-xs text-muted-foreground">PNG or JPG of the job description</p>
+                        <p className="text-xs text-muted-foreground">
+                          PNG or JPG of the job description
+                        </p>
                       </div>
                       <div className="flex flex-col items-center gap-2 pt-2">
-                        <span className="text-[10px] text-muted-foreground uppercase tracking-widest">— OR —</span>
+                        <span className="text-[10px] text-muted-foreground uppercase tracking-widest">
+                          — OR —
+                        </span>
                         <Input
                           type="file"
                           accept="image/*"
@@ -817,8 +866,16 @@ export const CareerFitAnalyst = () => {
                           id="image-upload"
                           onChange={onFileChange}
                         />
-                        <Button asChild variant="outline" size="sm" className="h-8">
-                          <label htmlFor="image-upload" className="cursor-pointer">
+                        <Button
+                          asChild
+                          variant="outline"
+                          size="sm"
+                          className="h-8"
+                        >
+                          <label
+                            htmlFor="image-upload"
+                            className="cursor-pointer"
+                          >
                             Browse Files
                           </label>
                         </Button>
@@ -827,15 +884,17 @@ export const CareerFitAnalyst = () => {
                   )}
                 </div>
                 <p className="text-xs text-muted-foreground text-center">
-                  Gemini Vision will analyze the contents of your screenshot directly.
+                  Gemini Vision will analyze the contents of your screenshot
+                  directly.
                 </p>
               </TabsContent>
             </Tabs>
 
-
             <Button
               onClick={matchResult ? handleAnalyzeAnother : handleSubmit}
-              disabled={!isButtonEnabled || !resume || !!displayError || isPreProcessing}
+              disabled={
+                !isButtonEnabled || !resume || !!displayError || isPreProcessing
+              }
               className="w-full"
             >
               {isPreProcessing || isFetchingUrl ? (
@@ -846,11 +905,12 @@ export const CareerFitAnalyst = () => {
               ) : (
                 <>
                   <Sparkles className="mr-2 h-4 w-4" />
-                  {matchResult ? "Analyze Another Selection" : "Match Portfolio with Job Description"}
+                  {matchResult
+                    ? "Analyze Another Selection"
+                    : "Match Portfolio with Job Description"}
                 </>
               )}
             </Button>
-
           </>
         )}
 
@@ -952,7 +1012,7 @@ export const CareerFitAnalyst = () => {
                         />
                         {gapObj.mitigation && (
                           <div className="text-xs text-muted-foreground border-l-2 border-amber-200 dark:border-amber-800 pl-2 ml-1 italic">
-                            <span 
+                            <span
                               dangerouslySetInnerHTML={{
                                 __html: gapObj.mitigation.replace(
                                   /\*\*(.+?)\*\*/g,

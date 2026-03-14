@@ -26,7 +26,6 @@ const ManageData = () => {
   const [isLoading, _setIsLoading] = useState<string | null>(null);
   const [importFile, setImportFile] = useState<File | null>(null);
 
-
   const handleExport = async () => {
     showError(
       "Exporting data is currently disabled in the local architecture preview.",
