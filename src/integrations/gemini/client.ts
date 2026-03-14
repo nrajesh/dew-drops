@@ -156,7 +156,9 @@ export const sendMessageToGeminiWithImage = async (
   } catch (error: unknown) {
     const e = error as Error;
     console.error("Error interacting with Gemini Vision:", e);
-    throw new Error(e.message || "Failed to communicate with AI Vision service");
+    throw new Error(
+      e.message || "Failed to communicate with AI Vision service",
+    );
   }
 };
 

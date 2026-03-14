@@ -41,6 +41,7 @@ graph TB
         AI["Google Gemini API<br/>(AI Analysis)"]
         Jina["Jina Reader API<br/>(URL Scraping)"]
         Gist["GitHub Gist<br/>(CV Data)"]
+        Web3Forms["Web3Forms API<br/>(Email Delivery)"]
     end
 
     UI --> Router
@@ -49,6 +50,7 @@ graph TB
     Hooks --> AI
     Hooks --> Jina
     Hooks --> Gist
+    Hooks --> Web3Forms
     UI -.- PWA
 
     style Browser fill:#1a1a2e,stroke:#16213e,color:#e8e8e8
@@ -62,6 +64,7 @@ graph TB
     style AI fill:#4285F4,stroke:#20232A,color:#fff
     style Jina fill:#3ECF8E,stroke:#20232A,color:#000
     style Gist fill:#333,stroke:#ccc,color:#fff
+    style Web3Forms fill:#6a5acd,stroke:#20232A,color:#fff
 ```
 
 ### Data Flow (Match-CV & Gallery)

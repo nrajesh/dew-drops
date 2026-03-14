@@ -74,6 +74,7 @@ To run this project locally:
     *   Add your Google Gemini API key.
     *   Add the URL to your public JSON Resume file (e.g., a GitHub Gist).
     *   Add your Mapbox Access Token.
+    *   Add your Web3Forms Access Key for contact email delivery.
 4.  **Run the development server**:
     ```bash
     npm run dev

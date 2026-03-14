@@ -13,7 +13,10 @@ import type {
 // This function will be passed from the component where sendMessageToGemini is available
 // This function will be passed from the component where sendMessageToGemini is available
 type SendMessageToGeminiFunction = (message: string) => Promise<string>;
-type SendMessageToGeminiWithImageFunction = (prompt: string, image: string) => Promise<string>;
+type SendMessageToGeminiWithImageFunction = (
+  prompt: string,
+  image: string,
+) => Promise<string>;
 
 export const generateJobMatchReasoning = async (
   jobDescription: string,
@@ -25,17 +28,20 @@ export const generateJobMatchReasoning = async (
   sendMessageToGeminiWithImage?: SendMessageToGeminiWithImageFunction,
 ): Promise<{ percentage: number; reasoning: string; highlights: string }> => {
   // Step 1: Extract job requirements
-  onStepUpdate(0); 
-  
+  onStepUpdate(0);
+
   let jobRequirements: string[] = [];
   if (base64Image && sendMessageToGeminiWithImage) {
     // For vision, we need to be very explicit about what to extract
     const keywordPrompt = `Identify and extract 8-12 key technical skills, experience requirements, and core responsibilities from this job description image. Return them as a simple comma-separated list. Only return the list, no other text.`;
-    const keywordResponse = await sendMessageToGeminiWithImage(keywordPrompt, base64Image);
+    const keywordResponse = await sendMessageToGeminiWithImage(
+      keywordPrompt,
+      base64Image,
+    );
     jobRequirements = keywordResponse
       .split(",")
-      .map(s => s.trim().replace(/^-\s*/, "")) // Clean bullet points if any
-      .filter(s => s.length > 2); // Filter out noise
+      .map((s) => s.trim().replace(/^-\s*/, "")) // Clean bullet points if any
+      .filter((s) => s.length > 2); // Filter out noise
   } else {
     jobRequirements = await extractJobKeywords(jobDescription);
   }
@@ -134,7 +140,10 @@ Generate the expert JSON assessment now.`;
   let rawResponse: string;
   try {
     if (base64Image && sendMessageToGeminiWithImage) {
-      rawResponse = await sendMessageToGeminiWithImage(systemPrompt, base64Image);
+      rawResponse = await sendMessageToGeminiWithImage(
+        systemPrompt,
+        base64Image,
+      );
     } else {
       rawResponse = await sendMessageToGemini(systemPrompt);
     }
@@ -146,17 +155,19 @@ Generate the expert JSON assessment now.`;
   const extractAndRepairJson = (text: string) => {
     // 1. Clean up invalid Python-style triple quotes which AI often hallucinations for long text
     let cleaned = text.replace(/"""/g, '"');
-    
+
     // 2. Extract block between first { and last }
-    const firstBrace = cleaned.indexOf('{');
-    const lastBrace = cleaned.lastIndexOf('}');
-    
+    const firstBrace = cleaned.indexOf("{");
+    const lastBrace = cleaned.lastIndexOf("}");
+
     if (firstBrace === -1) return cleaned.trim();
-    
+
     // 3. Handle Truncation: If we have { but no }, or if text ends abruptly
     if (lastBrace === -1 || lastBrace < firstBrace) {
       console.warn("Detected truncated JSON response. Attempting repair...");
-      cleaned = cleaned.substring(firstBrace) + '\n  "reasoning": "## Matching Areas\\n- [Truncated by AI]\\n\\n## Gaps\\n- [Truncated by AI]\\n  - **Mitigation:** Please try with a shorter JD snippet."\n}';
+      cleaned =
+        cleaned.substring(firstBrace) +
+        '\n  "reasoning": "## Matching Areas\\n- [Truncated by AI]\\n\\n## Gaps\\n- [Truncated by AI]\\n  - **Mitigation:** Please try with a shorter JD snippet."\n}';
       return cleaned;
     }
 
@@ -193,8 +204,16 @@ Generate the expert JSON assessment now.`;
       highlights: highlights.replace(/\n{3,}/g, "\n\n").trim(),
     };
   } catch (parseError) {
-    console.error("Final JSON Parse Failure:", parseError, "\nProcessed String:", jsonString, "\nRaw:", rawResponse);
-    throw new Error("The AI returned a malformed response. This happens with very long or complex job descriptions. Please try selecting a more focused part of the JD.");
+    console.error(
+      "Final JSON Parse Failure:",
+      parseError,
+      "\nProcessed String:",
+      jsonString,
+      "\nRaw:",
+      rawResponse,
+    );
+    throw new Error(
+      "The AI returned a malformed response. This happens with very long or complex job descriptions. Please try selecting a more focused part of the JD.",
+    );
   }
 };
-
