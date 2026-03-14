@@ -84,7 +84,7 @@ const Contact = () => {
 
       if (result.success) {
         dismissToast(toastId);
-        showSuccess("Message sent successfully! I'll get back to you soon.");
+        showSuccess("Thanks for reaching out. I'll get back to you soon");
         form.reset();
       } else {
         throw new Error(result.message || "Failed to send message");
