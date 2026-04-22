@@ -7,6 +7,33 @@ import chatbotKnowledge from "../data/chatbot_knowledge.json";
 import { Post, Profile, TravelLocation, GalleryImage } from "@/types";
 import { getStoredChatbotKnowledgeContent } from "@/lib/chatbotKnowledgeStorage";
 
+/** Bundled JSON can contain many rows; models only ever saw `rows[0]` before. */
+const MAX_BUNDLED_CHATBOT_CONTEXT_CHARS = 200_000;
+
+function mergeBundledChatbotRows(rows: { content?: string }[]): string {
+  const pieces = rows
+    .map((r) => (typeof r.content === "string" ? r.content.trim() : ""))
+    .filter((c) => c.length > 0);
+  if (pieces.length === 0) return "";
+
+  const priority = (text: string) =>
+    /PORTFOLIO KNOWLEDGE BASE/i.test(text) ||
+    /==\s*RESUME/i.test(text) ||
+    /RESUME DATA/i.test(text)
+      ? 1
+      : 0;
+
+  pieces.sort((a, b) => priority(b) - priority(a));
+
+  let merged = pieces.join("\n\n---\n\n");
+  if (merged.length > MAX_BUNDLED_CHATBOT_CONTEXT_CHARS) {
+    merged =
+      merged.slice(0, MAX_BUNDLED_CHATBOT_CONTEXT_CHARS) +
+      "\n\n[Note: Some bundled knowledge entries were omitted due to length. Use Manage Chatbot to curate a shorter, focused knowledge base.]";
+  }
+  return merged;
+}
+
 class LocalDataProvider {
   private transformImageUrl(url: string | null): string {
     if (!url) return "";
@@ -60,7 +87,10 @@ class LocalDataProvider {
     if (stored !== null) {
       return [{ content: stored }];
     }
-    return chatbotKnowledge as { content: string }[];
+    const rows = chatbotKnowledge as { content?: string }[];
+    const merged = mergeBundledChatbotRows(rows);
+    if (!merged) return [];
+    return [{ content: merged }];
   }
 
   getGalleryImageById(id: string | null): GalleryImage | null {

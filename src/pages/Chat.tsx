@@ -169,6 +169,7 @@ const Chat = ({ jobDescription, onClose }: ChatProps) => {
       const systemPrompt = `You are a helpful assistant for a personal portfolio website.
       Use ONLY the following context to answer the user's question.
       Be friendly, concise, and helpful. If the answer is not in the context, say you don't have that information. Do not make things up.
+      When the user asks who the site owner or author is, use any name, role, employer, education, or biographical details that appear explicitly in the context (including resume-style sections).
 
       CONTEXT:
       ---
