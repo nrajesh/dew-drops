@@ -5,6 +5,7 @@ import galleryImages from "../data/gallery_images.json";
 import featureToggles from "../data/feature_toggles.json";
 import chatbotKnowledge from "../data/chatbot_knowledge.json";
 import { Post, Profile, TravelLocation, GalleryImage } from "@/types";
+import { getStoredChatbotKnowledgeContent } from "@/lib/chatbotKnowledgeStorage";
 
 class LocalDataProvider {
   private transformImageUrl(url: string | null): string {
@@ -55,6 +56,10 @@ class LocalDataProvider {
   }
 
   getChatbotKnowledge(): { content: string }[] {
+    const stored = getStoredChatbotKnowledgeContent();
+    if (stored !== null) {
+      return [{ content: stored }];
+    }
     return chatbotKnowledge as { content: string }[];
   }
 

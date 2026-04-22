@@ -28,6 +28,7 @@ import {
 import { Loader2, Sparkles } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { localDataProvider } from "@/lib/LocalDataProvider";
+import { setStoredChatbotKnowledgeContent } from "@/lib/chatbotKnowledgeStorage";
 import type { Post, TravelLocation, GalleryImage } from "@/types";
 import type { ResumeReference } from "@/types/resume";
 
@@ -191,15 +192,16 @@ const ManageChatbot = () => {
     setIsSubmitting(true);
     const toastId = showLoading("Saving knowledge base...");
     try {
-      // Simulate local save
-      await new Promise((resolve) => setTimeout(resolve, 800));
-      console.log(
-        "Saving chatbot knowledge base locally (Simulation):",
-        values,
-      );
+      const ok = setStoredChatbotKnowledgeContent(values.content);
       dismissToast(toastId);
+      if (!ok) {
+        showError(
+          "Could not save (browser storage blocked, full, or unavailable).",
+        );
+        return;
+      }
       showSuccess(
-        "Knowledge base saved successfully (Simulation: local preview mode).",
+        "Knowledge base saved. The chatbot will use this text in this browser.",
       );
     } catch (error: unknown) {
       const err = error as Error;
