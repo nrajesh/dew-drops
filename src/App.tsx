@@ -23,8 +23,10 @@ const Profile = lazy(() => import("./pages/Profile"));
 const ManageData = lazy(() => import("./pages/ManageData"));
 const ManageChatbot = lazy(() => import("./pages/ManageChatbot"));
 const CurriculumVitae = lazy(() => import("./pages/CurriculumVitae"));
+const Portfolio = lazy(() => import("./pages/Portfolio"));
 const MatchCV = lazy(() => import("./pages/MatchCV")); // Lazy load MatchCV page
 const BlogEditor = lazy(() => import("./pages/BlogEditor"));
+const ManagePortfolio = lazy(() => import("./pages/ManagePortfolio"));
 
 const FullPageLoader = () => (
   <div className="flex items-center justify-center h-screen bg-background">
@@ -56,15 +58,17 @@ const App = () => {
                     ? Blog
                     : item.to === "/gallery"
                       ? Gallery
-                      : item.to === "/portfolio"
+                      : item.to === "/resume"
                         ? CurriculumVitae
-                        : item.to === "/match-cv"
-                          ? MatchCV // New route for MatchCV
-                          : item.to === "/travel"
-                            ? Travel
-                            : item.to === "/contact"
-                              ? Contact
-                              : null;
+                        : item.to === "/portfolio"
+                          ? Portfolio
+                          : item.to === "/match-cv"
+                            ? MatchCV // New route for MatchCV
+                            : item.to === "/travel"
+                              ? Travel
+                              : item.to === "/contact"
+                                ? Contact
+                                : null;
               if (!Component) return null;
               return (
                 <Route key={item.to} path={item.to} element={<Component />} />
@@ -97,6 +101,7 @@ const App = () => {
             <Route path="/profile" element={<Profile />} />
             <Route path="/manage-data" element={<ManageData />} />
             <Route path="/manage-chatbot" element={<ManageChatbot />} />
+            <Route path="/manage-portfolio" element={<ManagePortfolio />} />
             <Route path="/manage-blog/new" element={<BlogEditor />} />
             <Route path="/manage-blog/edit/:id" element={<BlogEditor />} />
           </Route>

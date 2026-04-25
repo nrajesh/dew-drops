@@ -28,6 +28,7 @@ const defaultToggles = (): Toggles => {
     [navFeatures.HOME]: true,
     [navFeatures.BLOG]: true,
     [navFeatures.GALLERY]: true,
+    [navFeatures.RESUME]: true,
     [navFeatures.PORTFOLIO]: true,
     [navFeatures.TRAVEL]: true,
     [navFeatures.CONTACT]: true,

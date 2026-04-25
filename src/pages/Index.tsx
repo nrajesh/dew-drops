@@ -17,9 +17,12 @@ const Index = () => {
           about my creative work, and get in touch.
         </p>
       </div>
-      <div className="flex gap-4">
+      <div className="flex flex-wrap justify-center gap-4">
         <Button asChild>
-          <Link to="/portfolio">My Portfolio</Link>
+          <Link to="/portfolio">Portfolio</Link>
+        </Button>
+        <Button variant="secondary" asChild>
+          <Link to="/resume">Resume</Link>
         </Button>
         <Button variant="secondary" asChild>
           <Link to="/contact">Contact Me</Link>

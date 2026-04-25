@@ -18,6 +18,7 @@ function mergeBundledChatbotRows(rows: { content?: string }[]): string {
 
   const priority = (text: string) =>
     /PORTFOLIO KNOWLEDGE BASE/i.test(text) ||
+    /PORTFOLIO SHOWCASE/i.test(text) ||
     /==\s*RESUME/i.test(text) ||
     /RESUME DATA/i.test(text)
       ? 1

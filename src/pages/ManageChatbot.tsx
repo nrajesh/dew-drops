@@ -29,7 +29,13 @@ import { Loader2, Sparkles } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { localDataProvider } from "@/lib/LocalDataProvider";
 import { setStoredChatbotKnowledgeContent } from "@/lib/chatbotKnowledgeStorage";
+import { getPortfolioShowcaseData } from "@/lib/getPortfolioShowcaseData";
 import type { Post, TravelLocation, GalleryImage } from "@/types";
+import type {
+  PortfolioProblem,
+  PortfolioProject,
+  PortfolioShowcaseData,
+} from "@/types/portfolioShowcase";
 import type { ResumeReference } from "@/types/resume";
 
 const formSchema = z.object({
@@ -72,6 +78,70 @@ const formatResumeData = (resume: any): string => {
   }
   return resumeContext;
 };
+
+function problemHasContent(problem: PortfolioProblem): boolean {
+  return [problem.title, problem.context, problem.problem, problem.resolution, problem.outcome]
+    .some((s) => typeof s === "string" && s.trim().length > 0);
+}
+
+function projectHasContent(project: PortfolioProject): boolean {
+  if (project.title?.trim() || project.summary?.trim()) return true;
+  return project.problems.some(problemHasContent);
+}
+
+function portfolioShowcaseHasContent(data: PortfolioShowcaseData): boolean {
+  if (data.intro?.trim()) return true;
+  if (data.projects.some(projectHasContent)) return true;
+  const { days30, days60, days90 } = data.plan306090;
+  return [days30, days60, days90].some((s) => s?.trim());
+}
+
+/** Text for chatbot context: STAR-style scenarios from Manage Portfolio. */
+function formatPortfolioShowcaseForKnowledgeBase(
+  data: PortfolioShowcaseData,
+): string {
+  if (!portfolioShowcaseHasContent(data)) return "";
+
+  let block = "\n\n== PORTFOLIO SHOWCASE (scenario-based work history) ==\n";
+  block +=
+    "For behavioral or situational questions, prefer facts from this section: situation/context, what was done, and outcomes.\n\n";
+
+  if (data.intro?.trim()) {
+    block += `Overview:\n${data.intro.trim()}\n\n`;
+  }
+
+  for (const project of data.projects) {
+    if (!projectHasContent(project)) continue;
+
+    const title = project.title?.trim();
+    const summary = project.summary?.trim();
+    if (title) block += `--- Project: ${title} ---\n`;
+    if (summary) block += `Summary: ${summary}\n`;
+    if (title || summary) block += "\n";
+
+    for (const problem of project.problems) {
+      if (!problemHasContent(problem)) continue;
+      if (problem.title?.trim()) block += `Situation: ${problem.title.trim()}\n`;
+      if (problem.context?.trim()) block += `Context: ${problem.context.trim()}\n`;
+      if (problem.problem?.trim()) block += `Challenge: ${problem.problem.trim()}\n`;
+      if (problem.resolution?.trim()) {
+        block += `Approach / resolution: ${problem.resolution.trim()}\n`;
+      }
+      if (problem.outcome?.trim()) block += `Outcome: ${problem.outcome.trim()}\n`;
+      block += "\n";
+    }
+  }
+
+  const { days30, days60, days90 } = data.plan306090;
+  if ([days30, days60, days90].some((s) => s?.trim())) {
+    block += "== 30 / 60 / 90 DAY PLAN (onboarding intent) ==\n";
+    if (days30?.trim()) block += `First 30 days:\n${days30.trim()}\n\n`;
+    if (days60?.trim()) block += `First 60 days:\n${days60.trim()}\n\n`;
+    if (days90?.trim()) block += `First 90 days:\n${days90.trim()}\n`;
+  }
+
+  return block;
+}
 
 const generateContextFromData = async (): Promise<string> => {
   const posts = localDataProvider
@@ -133,6 +203,13 @@ This is a personal portfolio and blog application.
       )
       .join("\n\n");
     context += "\n";
+  }
+
+  const showcaseText = formatPortfolioShowcaseForKnowledgeBase(
+    getPortfolioShowcaseData(),
+  );
+  if (showcaseText) {
+    context += showcaseText;
   }
 
   if (resumeRes) {
@@ -218,8 +295,8 @@ const ManageChatbot = () => {
         <CardTitle>Chatbot Knowledge Base</CardTitle>
         <CardDescription>
           This is the central text the AI chatbot uses to answer questions. You
-          can edit it directly or generate a new one from your portfolio
-          content.
+          can edit it directly or generate a new one from your site content and
+          Manage Portfolio scenarios (plus blog, travel, gallery, and resume).
         </CardDescription>
       </CardHeader>
       <CardContent>

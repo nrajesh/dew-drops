@@ -27,10 +27,15 @@ const featureDescriptions: Record<
     title: "Gallery",
     description: "Your public photo gallery.",
   },
+  [navFeatures.RESUME]: {
+    title: "Resume",
+    description: "Your JSON Resume / curriculum vitae page.",
+  },
   [navFeatures.PORTFOLIO]: {
-    title: "Portfolio (CV)",
-    description: "Your online curriculum vitae page.",
-  }, // Added this line
+    title: "Portfolio",
+    description:
+      "Case studies: projects, problems, resolutions, outcomes, and 30-60-90 plan.",
+  },
   [navFeatures.TRAVEL]: {
     title: "Travel Map",
     description: "The interactive map of your travels.",
