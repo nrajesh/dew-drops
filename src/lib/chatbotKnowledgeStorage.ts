@@ -22,3 +22,14 @@ export function setStoredChatbotKnowledgeContent(content: string): boolean {
     return false;
   }
 }
+
+export function clearStoredChatbotKnowledgeContent(): boolean {
+  if (typeof window === "undefined") return false;
+  try {
+    localStorage.removeItem(CHATBOT_KNOWLEDGE_STORAGE_KEY);
+    window.dispatchEvent(new Event(CHATBOT_KNOWLEDGE_UPDATED_EVENT));
+    return true;
+  } catch {
+    return false;
+  }
+}

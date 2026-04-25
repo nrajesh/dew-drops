@@ -10,6 +10,8 @@ import {
   Bot,
   FileText,
   GitCompare,
+  FolderKanban,
+  LayoutList,
 } from "lucide-react";
 
 export const navFeatures = {
@@ -17,6 +19,7 @@ export const navFeatures = {
   CONTACT: "contact",
   BLOG: "blog",
   GALLERY: "gallery",
+  RESUME: "resume",
   PORTFOLIO: "portfolio",
   TRAVEL: "travel",
   CHATBOT: "chatbot",
@@ -37,8 +40,14 @@ export const mainNavItems = [
     featureKey: navFeatures.GALLERY,
   },
   {
-    to: "/portfolio",
+    to: "/resume",
     icon: FileText,
+    label: "Resume",
+    featureKey: navFeatures.RESUME,
+  },
+  {
+    to: "/portfolio",
+    icon: FolderKanban,
     label: "Portfolio",
     featureKey: navFeatures.PORTFOLIO,
   },
@@ -94,6 +103,11 @@ export const settingsNavItems = [
     to: "/manage-chatbot",
     icon: Bot,
     label: "Chatbot Knowledge",
+  },
+  {
+    to: "/manage-portfolio",
+    icon: LayoutList,
+    label: "Manage Portfolio",
   },
   {
     to: "/profile",

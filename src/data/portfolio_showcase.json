@@ -1,0 +1,33 @@
+{
+  "intro": "Below are representative engagements highlighting the kinds of systems I have delivered, the constraints I navigated, and the outcomes that mattered to stakeholders.",
+  "projects": [
+    {
+      "id": "sample-project-1",
+      "title": "Platform reliability for a high-traffic product",
+      "summary": "Backend and observability work for a consumer-facing service.",
+      "problems": [
+        {
+          "id": "sample-problem-1a",
+          "title": "Intermittent latency spikes under peak load",
+          "context": "Event-driven microservices on Kubernetes; traffic doubled during campaigns.",
+          "problem": "P95 latency exceeded SLO during peak windows. On-call was reactive; root causes were unclear across service boundaries.",
+          "resolution": "Added RED metrics and distributed traces, identified a hot path in a downstream dependency, introduced caching with explicit TTLs, and right-sized worker pools. Documented a lightweight incident review template.",
+          "outcome": "P95 latency dropped back under SLO for peak traffic; on-call pages decreased materially for the quarter."
+        },
+        {
+          "id": "sample-problem-1b",
+          "title": "Slow feature delivery due to fragile deployment pipeline",
+          "context": "Multiple teams sharing a monolithic release train.",
+          "problem": "Releases were infrequent and risky; rollbacks were manual and stressful.",
+          "resolution": "Split deployable units, added canary deploys with automated health gates, and moved critical checks earlier in CI.",
+          "outcome": "Lead time for changes improved; failed deployments became rare and recoverable within minutes."
+        }
+      ]
+    }
+  ],
+  "plan306090": {
+    "days30": "Build context: map stakeholders, services, and SLOs. Ship small observability wins and fix the top one or two reliability gaps.",
+    "days60": "Deepen impact: own a meaningful slice of the roadmap, reduce toil through automation, and align metrics with business outcomes.",
+    "days90": "Lead by example: drive a cross-team initiative (performance, security, or developer experience), mentor others, and leave durable runbooks and architecture notes."
+  }
+}

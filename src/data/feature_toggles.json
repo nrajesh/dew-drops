@@ -16,6 +16,14 @@
     "auto_disabled_until": null
   },
   {
+    "id": "c3d4e5f6-a7b8-4901-9c2d-3e4f5a6b7c8d",
+    "user_id": "59744934-6f01-4885-bd6d-451a48ff666c",
+    "feature_key": "resume",
+    "is_enabled": true,
+    "created_at": "2026-04-23T12:00:00.000000+00:00",
+    "auto_disabled_until": null
+  },
+  {
     "id": "f1b1d2f3-f52f-48b7-aa29-2ab3fdef4f98",
     "user_id": "59744934-6f01-4885-bd6d-451a48ff666c",
     "feature_key": "match_cv",
