@@ -6,6 +6,7 @@ import featureToggles from "../data/feature_toggles.json";
 import chatbotKnowledge from "../data/chatbot_knowledge.json";
 import { Post, Profile, TravelLocation, GalleryImage } from "@/types";
 import { getStoredChatbotKnowledgeContent } from "@/lib/chatbotKnowledgeStorage";
+import { getStoredLocalDataBundleTabular } from "@/lib/localDataBundleStorage";
 
 /** Bundled JSON can contain many rows; models only ever saw `rows[0]` before. */
 const MAX_BUNDLED_CHATBOT_CONTEXT_CHARS = 200_000;
@@ -36,6 +37,10 @@ function mergeBundledChatbotRows(rows: { content?: string }[]): string {
 }
 
 class LocalDataProvider {
+  private getBundle() {
+    return getStoredLocalDataBundleTabular();
+  }
+
   private transformImageUrl(url: string | null): string {
     if (!url) return "";
     // If it's already a relative path or an external URL we want to keep, return it
@@ -54,6 +59,10 @@ class LocalDataProvider {
   }
 
   getPosts(): Post[] {
+    const bundle = this.getBundle();
+    if (bundle) {
+      return bundle.posts.map((post) => ({ ...post }));
+    }
     return (posts as Post[]).map((post) => ({
       ...post,
       // If there's a cover image URL in the future, transform it here
@@ -61,18 +70,26 @@ class LocalDataProvider {
   }
 
   getProfiles(): Profile[] {
+    const bundle = this.getBundle();
+    if (bundle) return bundle.profiles.map((p) => ({ ...p }));
     return profiles as Profile[];
   }
 
   getTravelLocations(): TravelLocation[] {
-    return (travelLocations as TravelLocation[]).map((loc) => ({
+    const bundle = this.getBundle();
+    const source = bundle
+      ? bundle.travel_locations
+      : (travelLocations as TravelLocation[]);
+    return source.map((loc) => ({
       ...loc,
       marker_image_url: this.transformImageUrl(loc.marker_image_url),
     }));
   }
 
   getGalleryImages(): GalleryImage[] {
-    return (galleryImages as GalleryImage[]).map((img) => ({
+    const bundle = this.getBundle();
+    const source = bundle ? bundle.gallery_images : (galleryImages as GalleryImage[]);
+    return source.map((img) => ({
       ...img,
       image_url: this.transformImageUrl(img.image_url),
       file_name: img.file_name.replace(/\//g, "_"),
@@ -80,6 +97,8 @@ class LocalDataProvider {
   }
 
   getFeatureToggles(): Record<string, unknown>[] {
+    const bundle = this.getBundle();
+    if (bundle) return bundle.feature_toggles.map((t) => ({ ...t }));
     return featureToggles as Record<string, unknown>[];
   }
 
