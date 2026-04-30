@@ -3,24 +3,47 @@
   "projects": [
     {
       "id": "sample-project-1",
-      "title": "Platform reliability for a high-traffic product",
-      "summary": "Backend and observability work for a consumer-facing service.",
+      "title": "GenAI Transformation",
+      "summary": "Observability program leveraging a meaningful generative AI solution",
       "problems": [
         {
           "id": "sample-problem-1a",
-          "title": "Intermittent latency spikes under peak load",
-          "context": "Event-driven microservices on Kubernetes; traffic doubled during campaigns.",
-          "problem": "P95 latency exceeded SLO during peak windows. On-call was reactive; root causes were unclear across service boundaries.",
-          "resolution": "Added RED metrics and distributed traces, identified a hot path in a downstream dependency, introduced caching with explicit TTLs, and right-sized worker pools. Documented a lightweight incident review template.",
-          "outcome": "P95 latency dropped back under SLO for peak traffic; on-call pages decreased materially for the quarter."
+          "title": "Solving the reactive nature of incident management",
+          "context": "Multiple customers signed up for an observability program. While app & log monitoring were assisting clients assess failures the nature of the provided solution was highly reactive.",
+          "problem": "Redesign & deliver an AI first observability automation solution",
+          "resolution": "Setup a RAG solution that initially used runbooks, logs & system metrics as trigger mechanisms. Then built eval framework to ascertain success metrics. Coordinated between platform & SRE teams across customers to fast track deployment pilot while enforcing guardrails. Scaled to more stakeholders via feedback loops for continuous improvement.",
+          "outcome": "1. Reduced MTTR by 40%\n2. Cut escalations to L3 by 30%\n3. Delivered unit's first GenAI project that is being adopted by more customers"
         },
         {
           "id": "sample-problem-1b",
-          "title": "Slow feature delivery due to fragile deployment pipeline",
-          "context": "Multiple teams sharing a monolithic release train.",
-          "problem": "Releases were infrequent and risky; rollbacks were manual and stressful.",
-          "resolution": "Split deployable units, added canary deploys with automated health gates, and moved critical checks earlier in CI.",
-          "outcome": "Lead time for changes improved; failed deployments became rare and recoverable within minutes."
+          "title": "API first scalable managed services setup",
+          "context": "Slower revenue recognition by average of 8 weeks due to lack of scalable mechanisms in existing managed services setup",
+          "problem": "Managed services team was drowning in one-off integrations per customer, causing 60% of engineering time to be spent on repetitive onboarding work",
+          "resolution": "Designed a scalable managed services workflow, involving API first operating model to reduce onboarding time. Turned tribal knowledge to reusable assets by mapping end-to-end user journeys. Ensured mechanism over memorisation",
+          "outcome": "1. Accelerated revenue recognition by €1M due to faster go-lives.\n2. Reduced onboarding time from eight to three weeks.\n3. Enabled team to handle 3x more work."
+        },
+        {
+          "id": "5b582db5-733d-494c-ac8f-14eed485d1ba",
+          "title": "Deliver business impact, showcasing bias for action",
+          "context": "Program introduced automated troubleshooting leveraging LLM models and past data to identify potential issues. However there were several false positives that made the signals triggered to be unreliable",
+          "problem": "AI driven troubleshooting was at risk of being defunded after initial project pilots. Feedback received was that it may \"not be ready for prime\"",
+          "resolution": "Dove deep into failure modes to identify the root cause was poor training data & unclear success metrics. Rebranded the product as AI co-pilot rather than an AI automation to lower nerves around replacing resources",
+          "outcome": "1. Achieved 85% adaption among alpha users by reducing their troubleshooting time by 40%\n2. Secured executive approval to expand this for two more clients"
+        }
+      ]
+    },
+    {
+      "id": "cf632b8d-43b4-47ea-9b71-c3ac18538aa4",
+      "title": "Large scale IT transformation",
+      "summary": "Managed services program that involved end-to-end application support for a world leading logistics client",
+      "problems": [
+        {
+          "id": "5efc04e1-ef77-4ecd-b6ad-b3e51fc7b1c6",
+          "title": "Managing complex stakeholder relationship",
+          "context": "Multiple simultaneous knowledge transition lead to increased response times. There were noticeable gaps in satisfactory incident resolution",
+          "problem": "During a period of increase in volume of work and offshoring team strength, customer satisfaction was waning",
+          "resolution": "Voluntarily picked the role of incident manager. It involved diving deep beyond just incident closure. Learned to be skeptical when metrics and anecdotes differ. Built playbooks to resolve repeated incidents.",
+          "outcome": "1. Working closely with client incident and problem management team, at least three high severity incidents were de-escalated within a month\n2. Together with zero escalations for the quarter, the number of tickets being reopened by customer dropped by up to 30%\n3. Lowered MTTR by 50% since teams began leveraging the playbooks and also stayed motivated to supplement it with their own"
         }
       ]
     }
