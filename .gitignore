@@ -1,3 +1,6 @@
+# Kilo config
+kilo.jsonc
+
 # Logs
 logs
 *.log
