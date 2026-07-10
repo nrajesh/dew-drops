@@ -6,9 +6,14 @@ import {
   ReactNode,
 } from "react";
 import { localDataProvider } from "@/lib/LocalDataProvider";
+import {
+  getStoredLocalDataBundleTabular,
+  setStoredLocalDataBundleTabular,
+  type LocalDataBundleTabular,
+} from "@/lib/localDataBundleStorage";
 import { navFeatures } from "@/config/navigation";
 import { useAuth } from "./AuthContext";
-import { showError } from "@/utils/toast";
+import { showError, showSuccess } from "@/utils/toast";
 
 type Toggles = Record<string, boolean>;
 
@@ -74,12 +79,44 @@ export const FeatureToggleProvider = ({
       showError("You must be logged in to change settings.");
       return;
     }
-    // In a real local setup, we would write to the JSON file or a local storage override.
-    // For now, let's just update the state to show it works.
+
+    const bundle = getStoredLocalDataBundleTabular();
+    let updatedBundle: LocalDataBundleTabular;
+
+    if (bundle) {
+      const existingIndex = bundle.feature_toggles.findIndex(
+        (t: Record<string, unknown>) => t.feature_key === featureKey,
+      );
+      if (existingIndex >= 0) {
+        bundle.feature_toggles[existingIndex] = {
+          ...bundle.feature_toggles[existingIndex],
+          is_enabled: isEnabled,
+        };
+      } else {
+        bundle.feature_toggles.push({
+          feature_key: featureKey,
+          is_enabled: isEnabled,
+        });
+      }
+      updatedBundle = bundle;
+    } else {
+      updatedBundle = {
+        posts: [],
+        profiles: [],
+        travel_locations: [],
+        gallery_images: [],
+        feature_toggles: [
+          {
+            feature_key: featureKey,
+            is_enabled: isEnabled,
+          },
+        ],
+      };
+    }
+
+    setStoredLocalDataBundleTabular(updatedBundle);
     setToggles((prev) => ({ ...prev, [featureKey]: isEnabled }));
-    showError(
-      "Updates are local only; they will not persist to the source JSON yet.",
-    );
+    showSuccess(`Feature toggle "${featureKey}" updated.`);
   };
 
   useEffect(() => {
